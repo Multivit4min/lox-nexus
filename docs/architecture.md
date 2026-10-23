@@ -601,7 +601,8 @@ above:
   - Setup and login.
   - The Miniserver list, with live health over the `state` stream.
   - The Miniserver detail page:
-    - config form (the password is write-only)
+    - config form (no password field: encrypted intercommunication is API-only for now; the form
+      never sends a password, so a stored one is kept)
     - start, stop, delete, and the last start error
     - signals with live values
     - discovered packets with one-click adoption

@@ -8,7 +8,10 @@ import { Switch } from "@/components/ui/switch"
 import { ApiError } from "../api/ApiError.ts"
 import FormField from "./FormField.vue"
 
-/** Create or edit a Miniserver. The password is write-only: left empty when editing, it stays as it is. */
+/**
+ * Create or edit a Miniserver. Encrypted intercommunication is not offered in the UI for now:
+ * the form never sends a password, so one already stored (through the API) stays as it is.
+ */
 const props = defineProps<{ initial?: MiniserverDto; submit: (input: MiniserverInput) => Promise<void> }>()
 
 const form = reactive({
@@ -20,8 +23,6 @@ const form = reactive({
   listenAddress: props.initial?.listenAddress ?? "",
   ownId: props.initial?.ownId ?? "",
   remoteId: props.initial?.remoteId ?? "",
-  password: "",
-  clearPassword: false,
   enabled: props.initial?.enabled ?? true,
   resendSeconds: (props.initial?.resendInterval ?? 10_000) / 1000
 })
@@ -29,12 +30,11 @@ const failure = ref<ApiError>()
 const busy = ref(false)
 
 function input(): MiniserverInput {
-  const { password, clearPassword, resendSeconds, listenAddress, ...rest } = form
+  const { resendSeconds, listenAddress, ...rest } = form
   return {
     ...rest,
     port: Number(form.port), listenPort: Number(form.listenPort), resendInterval: Math.round(Number(resendSeconds) * 1000),
-    ...(listenAddress ? { listenAddress } : {}),
-    ...(clearPassword ? { password: null } : password ? { password } : {})
+    ...(listenAddress ? { listenAddress } : {})
   }
 }
 
@@ -63,14 +63,10 @@ const issue = (field: string) => failure.value?.issueFor(field)
       <FormField id="remoteId" label="Miniserver ID" :error="issue('remoteId')"><Input id="remoteId" v-model="form.remoteId" maxlength="8" required /></FormField>
       <FormField id="listenPort" label="Listen port" :error="issue('listenPort')"><Input id="listenPort" v-model="form.listenPort" type="number" required /></FormField>
       <FormField id="listenAddress" label="Listen address" hint="empty: all interfaces" :error="issue('listenAddress')"><Input id="listenAddress" v-model="form.listenAddress" /></FormField>
-      <FormField id="password" label="Password" :hint="initial?.hasPassword ? 'set; leave empty to keep it' : 'only for encrypted packets'" :error="issue('password')">
-        <Input id="password" v-model="form.password" type="password" autocomplete="new-password" :disabled="form.clearPassword" />
-      </FormField>
       <FormField id="resend" label="Resend every (s)" hint="0 disables" :error="issue('resendInterval')"><Input id="resend" v-model="form.resendSeconds" type="number" step="0.1" min="0" /></FormField>
     </div>
     <div class="flex items-center gap-6 text-sm">
       <label class="flex items-center gap-2"><Switch v-model="form.enabled" /> Start automatically</label>
-      <label v-if="initial?.hasPassword" class="flex items-center gap-2"><Switch v-model="form.clearPassword" /> Remove password</label>
     </div>
     <Alert v-if="failure" variant="destructive"><AlertDescription>{{ failure.message }}</AlertDescription></Alert>
     <Button type="submit" :disabled="busy">{{ initial ? "Save" : "Add Miniserver" }}</Button>
