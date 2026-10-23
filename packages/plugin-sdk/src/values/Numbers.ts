@@ -12,7 +12,14 @@ export class Numbers {
   }
 
   /** linear mapping from [min, max] to [toMin, toMax], not clamped; min must differ from max (otherwise the result is NaN or Infinity) */
+  /** a fade time in seconds as the wire carries it: 0–6553.5 s in steps of 0.1 s; invalid becomes 0.2 s */
+  static fade(seconds: number) {
+    return Math.round(Numbers.clamp(seconds, 0, 6553.5, 0.2) * 10) / 10
+  }
+
+  /** linear mapping; an empty source range (min === max) maps everything to toMin instead of NaN */
   static scale(value: number, min: number, max: number, toMin: number, toMax: number) {
+    if (min === max) return toMin
     return ((value - min) * (toMax - toMin)) / (max - min) + toMin
   }
 

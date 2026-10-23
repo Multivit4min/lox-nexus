@@ -16,8 +16,13 @@ export class TransformPipeline implements DisposableLike {
     this.entry(value, cause)
   }
 
-  /** disposes every step, which cancels pending debounce and throttle timers */
-  dispose() {
-    for (const transform of this.transforms) void transform.dispose()
+  /**
+   * disposes every step, which cancels pending debounce and throttle timers
+   * @throws AggregateError if any step failed to dispose, after all steps were disposed
+   */
+  async dispose() {
+    const results = await Promise.allSettled(this.transforms.map(async transform => transform.dispose()))
+    const errors = results.flatMap(result => (result.status === "rejected" ? [result.reason as unknown] : []))
+    if (errors.length > 0) throw new AggregateError(errors, "transforms failed to dispose")
   }
 }

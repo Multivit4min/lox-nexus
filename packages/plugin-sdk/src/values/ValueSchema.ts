@@ -1,13 +1,15 @@
 import { z } from "zod"
 import type { Value } from "./Value.ts"
 
-const percent = z.number().min(0).max(100)
-const seconds = z.number().min(0)
+/** whole percent, the resolution of the Loxone wire format */
+const percent = z.int().min(0).max(100)
+/** the wire carries tenths of a second in a uint16 */
+const seconds = z.number().min(0).max(6553.5)
 
 /**
- * Validates values arriving from untrusted places (workers, HTTP, persisted data). Rejects
- * non-finite numbers, so the bus never carries NaN or Infinity. Channels accept fractions here
- * and are only rounded to whole percent by conversions and codecs.
+ * Validates values arriving from untrusted places (workers, HTTP, persisted data). Everything it
+ * accepts can be encoded for a Miniserver: no NaN or Infinity, whole percent channels, and
+ * ranges that fit the wire fields.
  */
 export const ValueSchema: z.ZodType<Value> = z.discriminatedUnion("type", [
   z.object({ type: z.literal("null") }),
@@ -18,7 +20,7 @@ export const ValueSchema: z.ZodType<Value> = z.discriminatedUnion("type", [
   z.object({ type: z.literal("rgbw"), value: z.object({
     red: percent, green: percent, blue: percent, white: percent, fadeTime: seconds, flags: z.int().min(0).max(0xffff)
   }) }),
-  z.object({ type: z.literal("tunableWhite"), value: z.object({ temperature: z.number().min(0), brightness: percent, fadeTime: seconds }) }),
+  z.object({ type: z.literal("tunableWhite"), value: z.object({ temperature: z.int().min(0).max(0xffff), brightness: percent, fadeTime: seconds }) }),
   z.object({ type: z.literal("t5"), value: z.object({ buttons: z.int().min(0).max(31) }) })
 ])
 

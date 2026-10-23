@@ -4,6 +4,7 @@ import { Value } from "@lox-nexus/plugin-sdk/values"
 import type { Cause } from "../../bus/BusMessage.ts"
 import type { TransformConfig } from "../WireSchema.ts"
 import { TransformFactory } from "./TransformFactory.ts"
+import { TransformPipeline } from "./TransformPipeline.ts"
 
 const cause: Cause = { id: "c", traceId: "c", depth: 0 }
 const run = (config: TransformConfig, ...inputs: Value[]) => {
@@ -56,6 +57,22 @@ describe("timed transforms", () => {
     const after: Value[] = []
     transform.push(Value.number(4), cause, value => after.push(value))
     assert.deepEqual(after, [Value.number(4)], "a new window starts once the old one is over")
+  })
+
+  test("pushing into a disposed timed transform is a no-op, not an error", async () => {
+    for (const config of [{ op: "debounce", ms: 10 }, { op: "throttle", ms: 10 }] as const) {
+      const { out, transform } = run(config)
+      await transform.dispose()
+      assert.doesNotThrow(() => transform.push(Value.number(1), cause, value => out.push(value)))
+      mock.timers.tick(100)
+      assert.deepEqual(out, [], config.op)
+    }
+  })
+
+  test("a pipeline reports transforms that fail to dispose", async () => {
+    const failing = { push: () => {}, dispose: () => Promise.reject(new Error("stuck")) }
+    const pipeline = new TransformPipeline([failing], () => {})
+    await assert.rejects(pipeline.dispose(), AggregateError)
   })
 
   test("dispose cancels pending timers", () => {

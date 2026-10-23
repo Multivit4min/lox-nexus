@@ -1,5 +1,8 @@
 import { Disposable } from "@lox-nexus/plugin-sdk"
 import { ActiveWire, type WireBus } from "./ActiveWire.ts"
+
+/** Topic of events about wires that failed to clean up. */
+export const WIRE_ERROR_TOPIC = "system/wire/error"
 import { LoopGuard } from "./LoopGuard.ts"
 import type { Signal } from "./Signal.ts"
 import type { SignalRegistry } from "./SignalRegistry.ts"
@@ -43,8 +46,12 @@ export class WireEngine extends Disposable {
   remove(id: string) {
     const wire = this.wires.get(id)
     if (!wire) return false
-    void wire.dispose()
-    return this.wires.delete(id)
+    this.wires.delete(id)
+    wire.dispose().catch((error: unknown) => {
+      const text = error instanceof Error ? error.message : String(error)
+      this.bus.event(WIRE_ERROR_TOPIC, `wire "${wire.config.label}" failed to dispose: ${text}`, { source: { kind: "system", id: "wires" } })
+    })
+    return true
   }
 
   /** configs of the running wires, in creation order */

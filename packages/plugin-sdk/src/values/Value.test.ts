@@ -17,6 +17,20 @@ describe("Value", () => {
     assert.ok(Value.equals(Value.number(0), Value.number(-0)), "0 and -0 must not look like a change")
   })
 
+  test("structured factories normalise to wire resolution", () => {
+    assert.deepEqual(Value.rgbw({ red: 42.4, green: 101, blue: -3, white: 50, fadeTime: 0.25, flags: 0x4000 }).value,
+      { red: 42, green: 100, blue: 0, white: 50, fadeTime: 0.3, flags: 0x4000 })
+    assert.deepEqual(Value.singleChannel({ channel: 99.6, fadeTime: Infinity }).value, { channel: 100, fadeTime: 0.2 })
+    assert.deepEqual(Value.t5({ buttons: 2.5 }).value, { buttons: 0 })
+    assert.ok(ValueSchema.safeParse(Value.tunableWhite({ temperature: 4000.4, brightness: 80.2, fadeTime: 1 })).success)
+  })
+
+  test("the schema only accepts what the wire can carry", () => {
+    assert.ok(!ValueSchema.safeParse({ type: "singleChannel", value: { channel: 42.5, fadeTime: 0.2 } }).success)
+    assert.ok(!ValueSchema.safeParse({ type: "tunableWhite", value: { temperature: 70000, brightness: 1, fadeTime: 0 } }).success)
+    assert.ok(!ValueSchema.safeParse({ type: "singleChannel", value: { channel: 1, fadeTime: 7000 } }).success)
+  })
+
   test("schema accepts valid values and rejects invalid ones", () => {
     assert.ok(ValueSchema.safeParse(Value.rgbw({ red: 1, green: 2, blue: 3, white: 4, fadeTime: 0.2, flags: 0x4000 })).success)
     assert.ok(!ValueSchema.safeParse({ type: "rgbw", value: { red: 101 } }).success)
@@ -28,6 +42,7 @@ describe("Value", () => {
     assert.deepEqual([50, 10, 20, 80].map(n => Numbers.scale(n, 0, 100, 0, 255)), [127.5, 25.5, 51, 204])
     assert.equal(Numbers.clamp(Infinity, 0, Infinity, 0.2), 0.2)
     assert.equal(Numbers.clamp(Number.NaN, 0, 100, 7), 7)
+    assert.equal(Numbers.scale(5, 3, 3, 10, 20), 10, "an empty range maps to toMin instead of NaN")
   })
 
   test("formatter renders every type readably", () => {

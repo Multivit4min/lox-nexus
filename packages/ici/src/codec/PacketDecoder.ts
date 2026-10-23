@@ -61,7 +61,7 @@ export class PacketDecoder {
     const header = PacketHeader.read(buffer)
     const iv = Buffer.from(buffer.subarray(BODY_OFFSET, BODY_OFFSET + BLOCK_SIZE))
     const ciphertext = Buffer.from(buffer.subarray(BODY_OFFSET + BLOCK_SIZE, BODY_OFFSET + blocks * BLOCK_SIZE))
-    return { kind: "encrypted", packet: new EncryptedPacket(header.sourceId, header.targetId, iv, ciphertext) }
+    return { kind: "encrypted", packet: new EncryptedPacket(header.sourceId, header.targetId, iv, ciphertext, Buffer.from(buffer)) }
   }
 
   private decodeStatus(buffer: Buffer): DecodeResult {

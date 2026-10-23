@@ -11,7 +11,9 @@ export class DebounceTransform extends Disposable implements Transform {
     super()
   }
 
+  /** values pushed after dispose() are dropped instead of scheduling timers on a dead object */
   push(value: Value, cause: Cause, next: Emit) {
+    if (this.isDisposed) return
     this.cancel?.()
     this.cancel = this.after(this.ms, () => {
       this.cancel = undefined

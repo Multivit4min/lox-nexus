@@ -7,8 +7,6 @@ import type { ForceRecord, ForceStore } from "./ForceStore.ts"
  * Disposable, so disposing the bus cancels them; the store is written before memory changes.
  */
 export class ForceRegistry extends Disposable {
-  /** setTimeout fires after 1 ms for longer delays, so long expiries are scheduled in steps */
-  static readonly MAX_TIMER_MS = 2_147_483_647
   private readonly active = new Map<string, ForceRecord>()
   private readonly cancels = new Map<string, () => void>()
 
@@ -61,10 +59,11 @@ export class ForceRegistry extends Disposable {
     return this.active.delete(topic)
   }
 
-  // The timer may fire early for far-away expiries (see MAX_TIMER_MS), so it re-checks the clock and re-arms.
+  // after() handles delays beyond setTimeout's limit; the clock is re-checked because the injected
+  // clock and the timers can drift apart (e.g. a fake clock in tests, or system time changes).
   private schedule(record: ForceRecord) {
     const remaining = Math.max(0, (record.until ?? 0) - this.clock.now())
-    const cancel = this.after(Math.min(remaining, ForceRegistry.MAX_TIMER_MS), () => {
+    const cancel = this.after(remaining, () => {
       this.cancels.delete(record.topic)
       if (this.active.get(record.topic) !== record) return
       if (this.clock.now() >= (record.until ?? 0)) this.onExpire(record.topic)

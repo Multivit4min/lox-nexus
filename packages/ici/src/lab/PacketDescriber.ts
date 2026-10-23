@@ -22,12 +22,22 @@ export class PacketDescriber {
 
   private encrypted(packet: EncryptedPacket) {
     const summary = `encrypted ${packet.sourceId}→${packet.targetId} blocks=${packet.blockCount}`
-    if (!this.cipher) return summary
+    const warnings = this.envelopeWarnings(packet)
+    if (!this.cipher) return summary + warnings
     try {
-      return `🔓 ${this.data(this.cipher.open(packet))}`
+      return `🔓 ${this.data(this.cipher.open(packet))}${warnings}`
     } catch (error) {
-      return `${summary}  ⚠ ${error instanceof Error ? error.message : String(error)}`
+      return `${summary}  ⚠ ${error instanceof Error ? error.message : String(error)}${warnings}`
     }
+  }
+
+  // the decrypted packet has no wire bytes of its own, so unusual bytes are reported from the envelope
+  private envelopeWarnings(packet: EncryptedPacket) {
+    const reserved = packet.reservedNonZero()
+    const parts = []
+    if (reserved.length > 0) parts.push(`⚠ non-zero reserved bytes ${reserved.map(o => `${o}=${packet.raw?.[o]?.toString(16)}`).join(",")}`)
+    if (packet.trailing().length > 0) parts.push(`⚠ trailing bytes ${packet.trailing().toString("hex")}`)
+    return parts.map(part => `  ${part}`).join("")
   }
 
   // the warnings (reserved bytes, trailing data) are the point of the lab: they are where new protocol knowledge hides

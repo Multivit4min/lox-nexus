@@ -3,8 +3,17 @@ import { NexusApp } from "./NexusApp.ts"
 
 const app = new NexusApp()
 
-for (const signal of ["SIGINT", "SIGTERM"] as const) {
-  process.once(signal, () => void app.dispose())
+const shutdown = () => {
+  app.dispose().then(
+    () => process.exit(0),
+    (error: unknown) => {
+      // no logger exists yet (M3 adds pino); this is the last chance to report a failed shutdown
+      console.error("lox-nexus: shutdown failed", error)
+      process.exit(1)
+    }
+  )
 }
+
+for (const signal of ["SIGINT", "SIGTERM"] as const) process.once(signal, shutdown)
 
 await app.start()

@@ -15,7 +15,7 @@ export type { TopicKinds } from "./bus/TopicKinds.ts"
 
 export type { Signal } from "./wires/Signal.ts"
 export { SignalRegistry } from "./wires/SignalRegistry.ts"
-export { WireEngine } from "./wires/WireEngine.ts"
+export { WIRE_ERROR_TOPIC, WireEngine } from "./wires/WireEngine.ts"
 export { WIRE_LOOP_TOPIC } from "./wires/ActiveWire.ts"
 export { LoopGuard } from "./wires/LoopGuard.ts"
 export { TransformSchema, WireSchema, type TransformConfig, type WireConfig, type WireInput } from "./wires/WireSchema.ts"

@@ -16,7 +16,9 @@ export class ThrottleTransform extends Disposable implements Transform {
     super()
   }
 
+  /** values pushed after dispose() are dropped instead of scheduling timers on a dead object */
   push(value: Value, cause: Cause, next: Emit) {
+    if (this.isDisposed) return
     if (this.windowOpen) {
       this.pending = { value, cause, next }
       return

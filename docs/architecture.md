@@ -361,7 +361,8 @@ above:
   - `LoopGuard` drops a value only if the wire is already on that path, or depth reaches 16.
     Siblings in one trace, such as several states a plugin reports after one command, pass.
   - `CausalChain` keeps the last 50k causes in a ring, so eviction is O(1).
-  - `Recorder.trace()` returns all roots, so branches whose ancestors were evicted are kept.
+  - `Recorder` keeps its messages in a `RingBuffer` (O(1) eviction). `recent(0)` returns nothing,
+    and `trace()` returns all roots, so branches whose ancestors were evicted are kept.
 - **Wires.**
   - One wire per target.
   - Values are converted to the target's `valueType` unless it is `any`.
@@ -370,13 +371,22 @@ above:
   - `throttle` emits on the leading edge, plus the latest value at the end of each window.
   - Debounce and throttle delays are capped at one day.
   - When a signal is unregistered, the wires using it are removed with it.
-  - A dropped loop is reported as an `event` on `system/wire/loop`.
+  - A dropped loop is reported as an `event` on `system/wire/loop`, and a wire that fails to
+    clean up is reported on `system/wire/error`.
+  - Timed transforms ignore values pushed after they were disposed.
 - **Values.**
   - RGBW carries `flags` (bytes 6–7), not `bits`.
   - `t5` is a value type.
   - Every structured type defaults to a 0.2 s fade, and a NaN fade time becomes 0.2 (the old code
     made it 0).
-  - Percentage channels are rounded to whole numbers, which is the wire resolution.
+  - Values match the wire's resolution everywhere:
+    - Percentages are whole numbers 0–100.
+    - Fade times are 0–6553.5 s in steps of 0.1 s.
+    - Temperatures are 0–65535 K.
+
+    The structured factories (`Value.rgbw(...)` and so on) round and clamp to this. Conversions
+    produce it, and `ValueSchema` rejects anything else, so a value that passed validation can
+    always be encoded for a Miniserver.
   - The old RGBW→TunableWhite bug is fixed.
   - Numbers become strings rounded to 5 decimals, as the old serializer did.
   - RGBW→number still packs `0xRRGGBBWW` like the old converter. This may be worth replacing later
@@ -385,8 +395,13 @@ above:
   (`"0.125"` → 0.125, `"12,5"` → 12.5). It counts as digit grouping only when it repeats
   (`"1.234.567"`). When both kinds appear, the last one is the decimal point. The old code read
   `"0.125"` as 125.
-- **`Disposable.after()`** returns a cancel function and forgets its teardown once the timer fires
-  or is cancelled. `ForceRegistry`, debounce, throttle, `Recorder` and `ActiveWire` all manage
+- **`Disposable`.**
+  - `after()` returns a cancel function, forgets its teardown once the timer fires or is
+    cancelled, and handles delays beyond setTimeout's ~24.8 day limit by stepping towards a fixed
+    deadline.
+  - `every()` validates its interval and returns a cancel function.
+  - Every `dispose()` call returns the same promise, so a second caller also waits for async
+    teardowns. `ForceRegistry`, debounce, throttle, `Recorder` and `ActiveWire` all manage
   their timers and subscriptions through `Disposable`.
 
 ## Dependencies (installed in the milestone that first needs them)

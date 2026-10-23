@@ -28,22 +28,27 @@ export interface Listenable {
  * dead object.
  */
 export abstract class Disposable implements DisposableLike {
+  /** the largest delay setTimeout/setInterval honour; Node turns anything longer into 1 ms */
+  static readonly MAX_TIMER_MS = 2_147_483_647
   private readonly teardowns = new Set<Teardown>()
-  private disposed = false
+  private disposing: Promise<void> | undefined
 
   /** true from the moment dispose() starts, not when it finishes */
   get isDisposed() {
-    return this.disposed
+    return this.disposing !== undefined
   }
 
   /**
    * Runs all teardowns in reverse registration order and keeps going when one fails. Idempotent:
-   * a second call returns immediately, even while the first is still awaiting async teardowns.
+   * every call returns the same promise, so a second caller also waits for async teardowns.
    * @throws AggregateError collecting every teardown error, after all teardowns have run
    */
-  async dispose() {
-    if (this.disposed) return
-    this.disposed = true
+  dispose(): Promise<void> {
+    this.disposing ??= this.runTeardowns()
+    return this.disposing
+  }
+
+  private async runTeardowns() {
     const errors: unknown[] = []
     const pending = [...this.teardowns].reverse()
     this.teardowns.clear()
@@ -62,7 +67,7 @@ export abstract class Disposable implements DisposableLike {
    * @throws Error if already disposed
    */
   protected onDispose(teardown: Teardown) {
-    if (this.disposed) throw new Error(`${this.constructor.name} is already disposed`)
+    if (this.isDisposed) throw new Error(`${this.constructor.name} is already disposed`)
     this.teardowns.add(teardown)
   }
 
@@ -72,27 +77,46 @@ export abstract class Disposable implements DisposableLike {
     return resource
   }
 
-  /** runs fn every ms milliseconds until disposed. There is no cancel; use after() for cancellable one-shots. */
-  protected every(ms: number, fn: () => void) {
+  /**
+   * runs fn every ms milliseconds until disposed or until the returned cancel function is called.
+   * @throws RangeError unless 0 < ms <= MAX_TIMER_MS
+   */
+  protected every(ms: number, fn: () => void): () => void {
+    if (!Number.isFinite(ms) || ms <= 0 || ms > Disposable.MAX_TIMER_MS) throw new RangeError(`interval must be between 1 and ${Disposable.MAX_TIMER_MS} ms, got ${ms}`)
     const timer = setInterval(fn, ms)
-    this.onDispose(() => clearInterval(timer))
+    const cancel = () => {
+      clearInterval(timer)
+      this.teardowns.delete(cancel)
+    }
+    this.onDispose(cancel)
+    return cancel
   }
 
   /**
    * runs fn once after ms milliseconds unless disposed before; returns a cancel function.
    * Both firing and cancelling forget the teardown, so repeated use does not accumulate entries.
-   * Node clamps delays above ~24.8 days (2^31-1 ms) to 1 ms; callers with longer delays must chunk them.
+   * Delays beyond MAX_TIMER_MS are scheduled in steps, so they don't fire early.
+   * @throws RangeError for negative or non-finite delays
    */
   protected after(ms: number, fn: () => void): () => void {
+    if (!Number.isFinite(ms) || ms < 0) throw new RangeError(`delay must be a finite number >= 0, got ${ms}`)
+    let timer: NodeJS.Timeout | undefined
     const cancel = () => {
       clearTimeout(timer)
       this.teardowns.delete(cancel)
     }
-    const timer = setTimeout(() => {
+    const fire = () => {
       this.teardowns.delete(cancel)
       fn()
-    }, ms)
+    }
+    // long delays are re-measured against a fixed deadline at every step, so timer drift can't add up
+    const deadline = Date.now() + ms
+    const schedule = (remaining: number) => {
+      const step = Math.min(remaining, Disposable.MAX_TIMER_MS)
+      timer = setTimeout(() => (step < remaining ? schedule(Math.max(0, deadline - Date.now())) : fire()), step)
+    }
     this.onDispose(cancel)
+    schedule(ms)
     return cancel
   }
 

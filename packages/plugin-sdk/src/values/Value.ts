@@ -1,3 +1,5 @@
+import { Numbers } from "./Numbers.ts"
+
 /** A dimmer-like channel, as carried by Loxone's Smart Actuator single channel. */
 export interface SingleChannel {
   /** 0–100 */
@@ -79,20 +81,28 @@ export class ValueFactory {
     return { type: "string", value }
   }
 
+  /** structured factories normalise to wire resolution: whole percent (clamped 0–100), 0.1 s fades */
   singleChannel(value: SingleChannel): ValueOf<"singleChannel"> {
-    return { type: "singleChannel", value: { ...value } }
+    return { type: "singleChannel", value: { channel: Numbers.percent(value.channel), fadeTime: Numbers.fade(value.fadeTime) } }
   }
 
   rgbw(value: Rgbw): ValueOf<"rgbw"> {
-    return { type: "rgbw", value: { ...value } }
+    const { red, green, blue, white, fadeTime, flags } = value
+    return { type: "rgbw", value: {
+      red: Numbers.percent(red), green: Numbers.percent(green), blue: Numbers.percent(blue), white: Numbers.percent(white),
+      fadeTime: Numbers.fade(fadeTime), flags: Math.round(Numbers.clamp(flags, 0, 0xffff, 0))
+    } }
   }
 
   tunableWhite(value: TunableWhite): ValueOf<"tunableWhite"> {
-    return { type: "tunableWhite", value: { ...value } }
+    const temperature = Math.round(Numbers.clamp(value.temperature, 0, 0xffff, 4000))
+    return { type: "tunableWhite", value: { temperature, brightness: Numbers.percent(value.brightness), fadeTime: Numbers.fade(value.fadeTime) } }
   }
 
+  /** masks outside 0–31 or non-integers become 0 (no button) */
   t5(value: T5): ValueOf<"t5"> {
-    return { type: "t5", value: { ...value } }
+    const valid = Number.isInteger(value.buttons) && value.buttons >= 0 && value.buttons <= 31
+    return { type: "t5", value: { buttons: valid ? value.buttons : 0 } }
   }
 
   /** type guard for strings from outside (HTTP, config) */
