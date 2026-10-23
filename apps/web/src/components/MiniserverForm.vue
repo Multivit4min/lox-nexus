@@ -61,7 +61,7 @@ const issue = (field: string) => failure.value?.issueFor(field)
       <FormField id="port" label="Miniserver port" :error="issue('port')"><Input id="port" v-model="form.port" type="number" required /></FormField>
       <FormField id="ownId" label="Our ID" hint="the remote system's ID on the Miniserver" :error="issue('ownId')"><Input id="ownId" v-model="form.ownId" maxlength="8" required /></FormField>
       <FormField id="remoteId" label="Miniserver ID" :error="issue('remoteId')"><Input id="remoteId" v-model="form.remoteId" maxlength="8" required /></FormField>
-      <FormField id="listenPort" label="Listen port" :error="issue('listenPort')"><Input id="listenPort" v-model="form.listenPort" type="number" required /></FormField>
+      <FormField id="listenPort" label="Listen port" hint="can be shared by Miniservers with different IDs" :error="issue('listenPort')"><Input id="listenPort" v-model="form.listenPort" type="number" required /></FormField>
       <FormField id="listenAddress" label="Listen address" hint="empty: all interfaces" :error="issue('listenAddress')"><Input id="listenAddress" v-model="form.listenAddress" /></FormField>
       <FormField id="resend" label="Resend every (s)" hint="0 disables" :error="issue('resendInterval')"><Input id="resend" v-model="form.resendSeconds" type="number" step="0.1" min="0" /></FormField>
     </div>

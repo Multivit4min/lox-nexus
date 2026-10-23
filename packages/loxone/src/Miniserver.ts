@@ -10,6 +10,7 @@ import { LoxoneTopics } from "./LoxoneTopics.ts"
 import { MiniserverConnection, type MiniserverBus } from "./MiniserverConnection.ts"
 import { LoxoneSignalConfigSchema, type LoxoneSignalConfigInput, type MiniserverConfig } from "./MiniserverConfig.ts"
 import { ProblemReporter } from "./ProblemReporter.ts"
+import { SocketPool } from "./SocketPool.ts"
 
 /** What a Miniserver needs from the rest of Nexus, passed down from the composition root. */
 export interface MiniserverDeps {
@@ -20,6 +21,8 @@ export interface MiniserverDeps {
   clock?: Clock
   /** keeps the load history across restarts; in memory only without it */
   loadHistory?: LoadHistoryStore
+  /** shares sockets between Miniservers on the same listen port; MiniserverManager passes one pool to all */
+  sockets?: SocketPool
 }
 
 /**
@@ -36,6 +39,7 @@ export class Miniserver extends Disposable {
   readonly load: IntercomLoad
   private readonly entries = new LoxoneSignals()
   private readonly clock: Clock
+  private readonly sockets: SocketPool
   private current: MiniserverConfig
   private currentTopics: LoxoneTopics
   private connection: MiniserverConnection | undefined
@@ -51,6 +55,7 @@ export class Miniserver extends Disposable {
     this.current = config
     this.currentTopics = new LoxoneTopics(config.slug)
     this.clock = deps.clock ?? new SystemClock()
+    this.sockets = deps.sockets ?? new SocketPool()
     const since = this.clock.now() - IntercomLoad.HISTORY_MS
     this.load = this.own(new IntercomLoad(this.clock, sample => this.onLoadSample(sample), deps.loadHistory?.load(config.id, since)))
     this.onDispose(() => this.serialize(() => this.close()))
@@ -197,7 +202,7 @@ export class Miniserver extends Disposable {
   // not idempotent for failures: on error nothing is kept, and lastError says why
   private async open() {
     if (this.connection) return
-    const connection = new MiniserverConnection(this.current, this.deps.bus, this.currentTopics, this.entries, this.discovery, this.clock, this.load)
+    const connection = new MiniserverConnection(this.current, this.deps.bus, this.currentTopics, this.entries, this.discovery, this.clock, this.load, this.sockets)
     try {
       await connection.open()
     } catch (error) {

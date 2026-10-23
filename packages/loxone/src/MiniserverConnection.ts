@@ -1,5 +1,5 @@
 import type { Clock, EventBus, MessageSource } from "@lox-nexus/core"
-import { IciReceiver, IciSocket, RemotePeer } from "@lox-nexus/ici"
+import { IciReceiver, RemotePeer, type IciSocket } from "@lox-nexus/ici"
 import { Disposable } from "@lox-nexus/plugin-sdk"
 import { Value } from "@lox-nexus/plugin-sdk/values"
 import type { DiscoveryList } from "./DiscoveryList.ts"
@@ -13,17 +13,19 @@ import type { MiniserverConfig } from "./MiniserverConfig.ts"
 import { OutboundRouter } from "./OutboundRouter.ts"
 import { ProblemReporter } from "./ProblemReporter.ts"
 import type { SignalLookup } from "./SignalLookup.ts"
+import type { SocketPool } from "./SocketPool.ts"
 
 /** The slice of EventBus a connection uses; narrow so tests can pass a real bus or a stub. */
 export type MiniserverBus = Pick<EventBus, "publish" | "subscribe" | "event" | "current">
 
 /**
- * Everything that exists while a Miniserver runs: socket, receiver, peer, routers and health.
- * Disposing closes it all and, through the HealthMonitor, publishes "stopped". Not reusable: a
- * restart creates a new connection. Call open() once after construction.
+ * Everything that exists while a Miniserver runs: its hold on the (possibly shared) socket,
+ * receiver, peer, routers and health. Disposing closes it all and, through the HealthMonitor,
+ * publishes "stopped". Not reusable: a restart creates a new connection. Call open() once after
+ * construction.
  */
 export class MiniserverConnection extends Disposable {
-  private readonly socket = new IciSocket()
+  private socket: IciSocket | undefined
   private readonly problems: ProblemReporter
   private outbound: OutboundRouter | undefined
   /** exposed so Miniserver can report its state without a bus lookup */
@@ -37,28 +39,33 @@ export class MiniserverConnection extends Disposable {
     private readonly signals: SignalLookup,
     private readonly discovery: DiscoveryList,
     private readonly clock: Clock,
-    private readonly load: Pick<IntercomLoad, "received" | "sent">
+    private readonly load: Pick<IntercomLoad, "received" | "sent">,
+    private readonly sockets: Pick<SocketPool, "acquire">
   ) {
     super()
     this.problems = new ProblemReporter(bus, topics.errors, this.source, clock)
     this.health = this.own(new HealthMonitor(clock, health => this.publishHealth(health)))
-    this.listen(this.socket, "socketError", (error: Error) => this.problems.report("socket", `socket error: ${error.message}`))
   }
 
   private get source(): MessageSource {
     return { kind: "loxone", id: this.config.id, label: this.config.label }
   }
 
-  /** binds the listen port and starts routing; rejects (and stays closed) if the port is taken */
+  /**
+   * Binds the listen port, or joins the Miniservers already listening there, and starts routing.
+   * Rejects (and stays closed) if the port is taken by something else.
+   */
   async open() {
-    await this.socket.bind(this.config.listenPort, this.config.listenAddress)
-    this.onDispose(() => this.socket.close())
+    const lease = await this.sockets.acquire(this.config.listenPort, this.config.listenAddress)
+    this.onDispose(() => lease.release())
+    const socket = this.socket = lease.socket
+    this.listen(socket, "socketError", (error: Error) => this.problems.report("socket", `socket error: ${error.message}`))
     const { ownId, remoteId, host, port, password, resendInterval } = this.config
-    const receiver = new IciReceiver(this.socket, { ownId, sourceIds: [remoteId], ...(password ? { password } : {}) })
+    const receiver = new IciReceiver(socket, { ownId, sourceIds: [remoteId], ...(password ? { password } : {}) })
     this.onDispose(() => receiver.dispose())
     this.reportReceiverProblems(receiver)
     this.countIncoming(receiver, remoteId)
-    const peer = new RemotePeer(new CountingSender(this.socket, () => this.load.sent()), { ownId, remoteId, host, port, resendInterval })
+    const peer = new RemotePeer(new CountingSender(socket, () => this.load.sent()), { ownId, remoteId, host, port, resendInterval })
     this.onDispose(() => peer.close())
     const { bus, topics, signals, discovery, clock, source, problems, health } = this
     this.own(new InboundRouter(receiver, { bus, topics, source, remoteId, signals, discovery, health, problems, clock }))
@@ -68,7 +75,7 @@ export class MiniserverConnection extends Disposable {
 
   /** the port actually bound, useful when listenPort was 0 */
   get listenPort() {
-    return this.socket.address()?.port
+    return this.socket?.address()?.port
   }
 
   /** a signal was configured while running: a new output gets the current value right away */
@@ -97,15 +104,16 @@ export class MiniserverConnection extends Disposable {
   // a wrong password shows up as "decryption failed"; without these the UI would only show "waiting"
   private reportReceiverProblems(receiver: IciReceiver) {
     this.listen(receiver, "malformed", (reason: string) => this.problems.report("malformed", `dropped a malformed packet: ${reason}`))
-    // encrypted packets for other remote systems can share our port; only ours need a password
-    this.listen(receiver, "encrypted", (packet: { targetId: string }) => {
-      if (packet.targetId === this.config.ownId) this.problems.report("encrypted", "received an encrypted packet, but no password is configured")
+    // encrypted packets for other remote systems, or from other Miniservers, can share our port;
+    // only ours need a password
+    this.listen(receiver, "encrypted", (packet: { targetId: string; sourceId: string }) => {
+      if (packet.targetId === this.config.ownId && packet.sourceId === this.config.remoteId) this.problems.report("encrypted", "received an encrypted packet, but no password is configured")
     })
     this.listen(receiver, "listenerError", (error: unknown) => this.problems.report("listener", `handling a packet failed: ${ProblemReporter.message(error)}`))
     // answering is part of sending encrypted, which isn't implemented yet; a challenge means the
     // Miniserver expects it and drops encrypted data from us until then
-    this.listen(receiver, "handshake", (kind: string) => {
-      if (kind === "challenge") this.problems.report("challenge", "the Miniserver sent an encryption handshake challenge; answering it is not implemented yet")
+    this.listen(receiver, "handshake", (kind: string, packet: { sourceId: string }) => {
+      if (kind === "challenge" && packet.sourceId === this.config.remoteId) this.problems.report("challenge", "the Miniserver sent an encryption handshake challenge; answering it is not implemented yet")
     })
   }
 

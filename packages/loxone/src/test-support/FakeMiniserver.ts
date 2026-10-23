@@ -1,7 +1,7 @@
 import { once } from "node:events"
 import { IciReceiver, IciSocket, RemotePeer, type DataEvent, type DataType, type ValueMap } from "@lox-nexus/ici"
 
-/** A Miniserver stand-in on 127.0.0.1: sends as "server" to "claude" and records what Nexus sends back. */
+/** A Miniserver stand-in on 127.0.0.1: sends as `id` (default "server") to "claude" and records what Nexus sends back. */
 export class FakeMiniserver {
   /** a real 0x8D heartbeat captured from the test Miniserver, whose id is "server" */
   static readonly STATUS_FROM_SERVER = Buffer.from("8d000000eb23a294736572766572000000000000000000000000000064", "hex")
@@ -13,10 +13,13 @@ export class FakeMiniserver {
   private peer: RemotePeer | undefined
   private nexusPort: number | undefined
 
+  /** @param id the Miniserver's own ICI id, the remoteId in Nexus's config */
+  constructor(readonly id = "server") {}
+
   /** binds a free port on loopback and returns it, for MiniserverConfig.port */
   async start() {
     await this.socket.bind(0, "127.0.0.1")
-    this.receiver = new IciReceiver(this.socket, { ownId: "server" })
+    this.receiver = new IciReceiver(this.socket, { ownId: this.id })
     return this.socket.address()!.port
   }
 
@@ -24,7 +27,7 @@ export class FakeMiniserver {
   connect(nexusPort: number) {
     this.peer?.close()
     this.nexusPort = nexusPort
-    this.peer = new RemotePeer(this.socket, { ownId: "server", remoteId: "claude", host: "127.0.0.1", port: nexusPort, resendInterval: 0 })
+    this.peer = new RemotePeer(this.socket, { ownId: this.id, remoteId: "claude", host: "127.0.0.1", port: nexusPort, resendInterval: 0 })
   }
 
   /** sends a value from the "server" id to Nexus; requires connect() first */

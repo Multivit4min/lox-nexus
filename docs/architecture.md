@@ -281,8 +281,9 @@ marked `@experimental` until a fixture confirms them.
 ### Loxone (packages/loxone)
 
 - **`MiniserverManager`** owns the **`Miniserver`** instances.
-- Each Miniserver owns one `IciSocket`, one `IciReceiver` and one `RemotePeer` from `packages/ici`.
-  There is no adapter or workaround layer.
+- Each running Miniserver has one `IciReceiver` and one `RemotePeer` from `packages/ici`, on an
+  `IciSocket` it may share with Miniservers on the same listen port (`SocketPool`). There is no
+  adapter or workaround layer.
 - **`DiscoveryList`** tracks unknown packetIds so they can be adopted.
 - **Health.** A UDP peer has no connection to check, so status comes from "last packet seen" and,
   optionally, the 0x8D status packet.
@@ -426,8 +427,15 @@ above:
     re-keys every signal's topic through `SignalRegistry.update()`. `WireEngine` rebuilds the
     affected wires, so they survive the rename. Forces and snapshot values are keyed by topic and
     stay on the old topic.
-  - Each Miniserver has its own listen port (optionally bound to `listenAddress`). Sharing one
-    port between Miniservers and demultiplexing by source id would be possible, but isn't done.
+  - Miniservers can share a listen address and port, as Loxone setups usually send everything to
+    one port. `SocketPool` (one per `MiniserverManager`) binds one `IciSocket` per address and
+    port and closes it with its last user. Each Miniserver's `IciReceiver` keeps only packets
+    from its `remoteId` to its `ownId`, so Miniservers on one port must differ in one of the two;
+    `MiniserverManager` refuses a twin (409 through the API). Port 0 is never shared. A wildcard
+    bind and a specific address on the same port are separate sockets, which the OS refuses.
+    Problems that name a sender (an encrypted packet without a password, a handshake challenge)
+    are reported only by the Miniserver they come from; a malformed packet can't be attributed
+    and is reported by every Miniserver on the socket.
 - **Topics.**
   - `loxone/<slug>/in/<packet>` for values from the Miniserver.
   - `loxone/<slug>/out/<packet>` for values to it.
