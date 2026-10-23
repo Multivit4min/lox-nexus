@@ -4,11 +4,13 @@ import { DataType } from "../DataType.ts"
  * @experimental Believed to be a Float64 bitmask of the five buttons, see PROTOCOL.md and T5Buttons.
  */
 export interface T5Value {
+  /** OR of the T5Buttons bits, 0 when nothing is pressed */
   buttons: number
 }
 
+/** Smart Actuator RGBW: colour channels are whole percent. @experimental see `flags`. */
 export interface RgbwValue {
-  /** 0–100 */
+  /** 0–100, whole numbers */
   red: number
   green: number
   blue: number
@@ -19,6 +21,7 @@ export interface RgbwValue {
   flags: number
 }
 
+/** Smart Actuator single channel, e.g. a dimmer. */
 export interface SingleChannelValue {
   /** 0–100 */
   channel: number
@@ -26,9 +29,9 @@ export interface SingleChannelValue {
   fadeTime: number
 }
 
-/** @experimental fade unit unconfirmed, see PROTOCOL.md */
+/** Smart Actuator tunable white. @experimental fade unit unconfirmed, see PROTOCOL.md */
 export interface TunableWhiteValue {
-  /** Kelvin */
+  /** Kelvin, uint16 */
   temperature: number
   /** 0–100 */
   brightness: number

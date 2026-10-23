@@ -9,6 +9,11 @@ import { DataTypeNames } from "../DataTypeNames.ts"
 import type { LabCommand, LabContext } from "../LabCommand.ts"
 import { ValueParser } from "../ValueParser.ts"
 
+/**
+ * Sends one hand-built datagram, from a typed value or raw payload bytes (`--raw`, for probing
+ * unconfirmed layouts). It is an active send to a real system, so only run it against a Miniserver
+ * you may change. `--password` seals the packet as 0x9F, which RemotePeer itself cannot send.
+ */
 export class SendCommand implements LabCommand {
   readonly name = "send"
   readonly usage = "send --host <h> --port <n> --src <id> --dst <id> --packet <id> --type <t> (--value <v> | --raw <hex>) [--password <p>] [--from-port <n>]"

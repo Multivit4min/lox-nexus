@@ -3,7 +3,9 @@ import type { TopicKinds } from "../bus/TopicKinds.ts"
 import { Topic } from "../bus/Topic.ts"
 import type { Signal } from "./Signal.ts"
 
+/** Events of SignalRegistry. */
 export interface SignalRegistryEvents {
+  /** emitted after removal; WireEngine reacts by dropping the wires that used the signal */
   unregistered: [signal: Signal]
 }
 
@@ -12,6 +14,10 @@ export class SignalRegistry extends EventEmitter<SignalRegistryEvents> implement
   private readonly byId = new Map<string, Signal>()
   private readonly byTopic = new Map<string, Signal>()
 
+  /**
+   * Stores a copy of the signal.
+   * @throws RangeError for an invalid topic; Error for a duplicate id or a second signal with the same topic and direction
+   */
   register(signal: Signal) {
     Topic.assertValid(signal.topic)
     if (this.byId.has(signal.id)) throw new Error(`signal "${signal.id}" is already registered`)
@@ -22,6 +28,7 @@ export class SignalRegistry extends EventEmitter<SignalRegistryEvents> implement
     this.byTopic.set(SignalRegistry.key(copy.direction, copy.topic), copy)
   }
 
+  /** @returns false if the id is unknown */
   unregister(id: string) {
     const signal = this.byId.get(id)
     if (!signal) return false
@@ -31,16 +38,19 @@ export class SignalRegistry extends EventEmitter<SignalRegistryEvents> implement
     return true
   }
 
+  /** undefined for unknown ids; use require() when the signal must exist */
   get(id: string) {
     return this.byId.get(id)
   }
 
+  /** @throws Error for an unknown id */
   require(id: string): Signal {
     const signal = this.byId.get(id)
     if (!signal) throw new Error(`unknown signal "${id}"`)
     return signal
   }
 
+  /** snapshot of all signals in registration order */
   list(): Signal[] {
     return [...this.byId.values()]
   }

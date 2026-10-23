@@ -7,8 +7,10 @@ import type { Cause } from "../bus/BusMessage.ts"
  * pass. Loops through external systems can't be seen here: dedup, throttling and forces cover those.
  */
 export class LoopGuard {
+  /** hard stop for causal chains that no wire repeats, such as a long ring of distinct wires */
   static readonly MAX_DEPTH = 16
 
+  /** @param wireId the wire about to publish; @param cause the message it reacts to */
   allow(wireId: string, cause: Cause): boolean {
     return cause.depth < LoopGuard.MAX_DEPTH && !(cause.via ?? []).includes(wireId)
   }

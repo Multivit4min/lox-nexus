@@ -2,9 +2,12 @@ import { Value, type ValueOf, type ValueType } from "./Value.ts"
 
 /** The value each type falls back to when a conversion isn't possible. Fade times default to 0.2 s. */
 export class ValueDefaults {
+  /** seconds; Loxone's own default for a smart actuator fade */
   static readonly FADE_TIME = 0.2
+  /** Kelvin; a neutral white between the 2700–6500 K limits */
   static readonly TEMPERATURE = 4000
 
+  /** a fresh value each call, safe to mutate */
   static for<T extends ValueType>(type: T): ValueOf<T> {
     return ValueDefaults.create(type) as ValueOf<T>
   }

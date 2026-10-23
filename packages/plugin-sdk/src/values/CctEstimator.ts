@@ -5,8 +5,14 @@ import type { Rgbw } from "./Value.ts"
  * cold (cyan) and a warm (amber) reference colour. Ported from the old converter.
  */
 export class CctEstimator {
+  /** Kelvin values assigned to the warm (amber) and cold (cyan) reference colours. */
   constructor(private readonly warmKelvin = 2700, private readonly coldKelvin = 6500) {}
 
+  /**
+   * Mixes the temperature as a mired (1/K) interpolation, which matches how tunable white
+   * fixtures blend. Only red, green and blue are considered, the white channel is ignored.
+   * @returns Kelvin between warmKelvin and coldKelvin, never NaN
+   */
   fromRgbw(rgbw: Rgbw): number {
     const color = [rgbw.red, rgbw.green, rgbw.blue].map(channel => Math.floor(channel * 2.55))
     const cold = [0, 255, 255]

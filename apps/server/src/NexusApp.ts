@@ -6,6 +6,7 @@ import { Disposable } from "@lox-nexus/plugin-sdk"
  * plugins in M4), see docs/architecture.md.
  */
 export class NexusApp extends Disposable {
+  /** Starts everything the app owns. Currently a placeholder that only logs. */
   async start() {
     console.log("lox-nexus: nothing to start yet (M0 skeleton)")
   }

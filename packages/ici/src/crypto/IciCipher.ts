@@ -13,13 +13,16 @@ export class IciCipher {
   private static readonly ALGORITHM = "aes-128-cbc"
   private readonly key: Buffer
 
+  /** The key is derived once; construct one cipher per remote peer password. */
   constructor(password: string) {
     this.key = createHash("sha256").update(password, "utf8").digest().subarray(0, 16)
   }
 
   /**
    * decrypts the packet into a data packet. There is no MAC, so a wrong password is detected by
-   * structure only: a valid packet id, a zero separator byte and zero padding. Throws RangeError.
+   * structure only: a valid packet id, a zero separator byte and zero padding.
+   * @throws RangeError for a wrong password or a corrupt body. Callers on the receive path must
+   *   catch this; it is the normal outcome when a peer uses a different password.
    */
   open(packet: EncryptedPacket): DataPacket {
     const decipher = createDecipheriv(IciCipher.ALGORITHM, this.key, packet.iv).setAutoPadding(false)
@@ -34,7 +37,12 @@ export class IciCipher {
     return new DataPacket(packet.sourceId, packet.targetId, packetId, body.readUint8(11), payload)
   }
 
-  /** encrypts a data packet; the body is zero-padded to whole AES blocks */
+  /**
+   * encrypts a data packet; the body is zero-padded to whole AES blocks.
+   * @param iv only injectable so tests are deterministic; production code uses the random default,
+   *   because reusing an IV under CBC leaks equal prefixes.
+   * @throws RangeError for an invalid packet id
+   */
   seal(packet: DataPacket, iv: Buffer = randomBytes(16)): EncryptedPacket {
     const head = Buffer.alloc(12)
     IciId.from(packet.packetId).write(head, 0)

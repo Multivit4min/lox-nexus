@@ -1,6 +1,7 @@
 import { DataType } from "../DataType.ts"
 import { PayloadCodec } from "./PayloadCodec.ts"
 
+/** ANALOG: one Float64 LE. NaN and infinities are rejected on encode, as Loxone analogs are finite. */
 export class AnalogCodec extends PayloadCodec<number> {
   readonly dataType = DataType.Analog
   readonly name = "analog"

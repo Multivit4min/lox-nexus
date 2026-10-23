@@ -3,6 +3,7 @@ import { T5Buttons } from "../T5Buttons.ts"
 import { Value, type ValueOf } from "../Value.ts"
 import { Conversion } from "./Conversion.ts"
 
+/** Human readable renderings, not meant to be parsed back (rgbw becomes a hex colour with a fade suffix). */
 export class ToString extends Conversion<"string"> {
   readonly target = "string"
 

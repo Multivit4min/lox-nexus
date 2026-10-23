@@ -2,7 +2,10 @@ import { DataType } from "../DataType.ts"
 import { UdpLimits } from "../packet/UdpLimits.ts"
 import { PayloadCodec } from "./PayloadCodec.ts"
 
-/** UTF-8, NUL-terminated; the terminator counts towards the payload length. */
+/**
+ * UTF-8, NUL-terminated; the terminator counts towards the payload length.
+ * Decoding stops at the first NUL, and tolerates a missing terminator.
+ */
 export class TextCodec extends PayloadCodec<string> {
   readonly dataType = DataType.Text
   readonly name = "text"

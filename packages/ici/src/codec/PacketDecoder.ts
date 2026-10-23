@@ -5,8 +5,16 @@ import { StatusPacket } from "../packet/StatusPacket.ts"
 import { IciId } from "../id/IciId.ts"
 import type { DecodeResult } from "./DecodeResult.ts"
 
-/** Turns datagrams into packets. Every length is checked before it is read. */
+/**
+ * Turns datagrams into packets. Every length is checked before it is read, because the receive
+ * path must survive any UDP datagram a stranger on the network sends.
+ */
 export class PacketDecoder {
+  /**
+   * Classifies a datagram by its control byte and decodes it. Never throws: truncated or
+   * inconsistent input yields `malformed` with a reason, unrecognised control bytes yield
+   * `unknown`. Payload bytes are copied, so the result does not alias the socket's buffer.
+   */
   decode(buffer: Buffer): DecodeResult {
     try {
       return this.decodeUnsafe(buffer)

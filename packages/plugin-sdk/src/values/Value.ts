@@ -1,3 +1,4 @@
+/** A dimmer-like channel, as carried by Loxone's Smart Actuator single channel. */
 export interface SingleChannel {
   /** 0–100 */
   channel: number
@@ -5,6 +6,7 @@ export interface SingleChannel {
   fadeTime: number
 }
 
+/** Four colour channels with a fade time, as carried by Loxone's Smart Actuator RGBW. */
 export interface Rgbw {
   /** 0–100 */
   red: number
@@ -17,8 +19,9 @@ export interface Rgbw {
   flags: number
 }
 
+/** Tunable white light: colour temperature plus brightness. @experimental the ICI fade unit is unconfirmed. */
 export interface TunableWhite {
-  /** Kelvin */
+  /** Kelvin; conversions keep it within 2700–6500 */
   temperature: number
   /** 0–100 */
   brightness: number
@@ -26,6 +29,7 @@ export interface TunableWhite {
   fadeTime: number
 }
 
+/** State of a Loxone Touch/T5 button panel. @experimental */
 export interface T5 {
   /** @experimental bitmask of pressed buttons, see T5Buttons */
   buttons: number
@@ -45,11 +49,18 @@ export type Value =
   | { type: "tunableWhite"; value: TunableWhite }
   | { type: "t5"; value: T5 }
 
+/** The discriminator of Value, e.g. "number". Also what a signal declares as its valueType. */
 export type ValueType = Value["type"]
+/** The variant of Value for one type, e.g. ValueOf<"rgbw">. */
 export type ValueOf<T extends ValueType> = Extract<Value, { type: T }>
 
-/** Factories and helpers, used as `Value.number(3)` or `Value.equals(a, b)`. */
+/**
+ * Factories and helpers, used as `Value.number(3)` or `Value.equals(a, b)`. The factories copy
+ * structured payloads so a caller mutating its input cannot change a value already on the bus.
+ * They do not validate or round; use ValueSchema for untrusted input and Converter for coercion.
+ */
 export class ValueFactory {
+  /** every value type, in a stable order for UIs and schemas */
   readonly types: readonly ValueType[] = ["null", "boolean", "number", "string", "singleChannel", "rgbw", "tunableWhite", "t5"]
 
   null(): ValueOf<"null"> {
@@ -84,6 +95,7 @@ export class ValueFactory {
     return { type: "t5", value: { ...value } }
   }
 
+  /** type guard for strings from outside (HTTP, config) */
   isType(type: string): type is ValueType {
     return (this.types as readonly string[]).includes(type)
   }
@@ -107,4 +119,5 @@ export class ValueFactory {
   }
 }
 
+/** The single instance behind the `Value` namespace-style API; also a type, see above. */
 export const Value = new ValueFactory()

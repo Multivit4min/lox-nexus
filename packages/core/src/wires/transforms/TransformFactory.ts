@@ -7,6 +7,7 @@ import { ScaleTransform } from "./ScaleTransform.ts"
 import { ThrottleTransform } from "./ThrottleTransform.ts"
 import type { Transform } from "./Transform.ts"
 
+/** Builds the transform class for a validated config; the switch is exhaustive, so a new op fails typecheck until handled. */
 export class TransformFactory {
   create(config: TransformConfig): Transform {
     switch (config.op) {

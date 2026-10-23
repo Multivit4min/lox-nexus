@@ -5,6 +5,10 @@ import { Value, type ValueOf } from "../Value.ts"
 import { ValueDefaults } from "../ValueDefaults.ts"
 import { Conversion } from "./Conversion.ts"
 
+/**
+ * Scalars set the brightness at the default temperature. An rgbw keeps its white as brightness
+ * and its fade time, and estimates the temperature from the tint (CctEstimator).
+ */
 export class ToTunableWhite extends Conversion<"tunableWhite"> {
   readonly target = "tunableWhite"
   private readonly parser = new StringToNumber()
@@ -22,6 +26,7 @@ export class ToTunableWhite extends Conversion<"tunableWhite"> {
     }
   }
 
+  // temperature is clamped to the 2700–6500 K range of common tunable white fixtures
   private create(brightness: number, fadeTime = ValueDefaults.FADE_TIME, temperature = ValueDefaults.TEMPERATURE) {
     return Value.tunableWhite({
       temperature: Math.round(Numbers.clamp(temperature, 2700, 6500, ValueDefaults.TEMPERATURE)),

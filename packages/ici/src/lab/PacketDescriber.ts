@@ -6,8 +6,10 @@ import { DataTypeNames } from "./DataTypeNames.ts"
 
 /** One-line, human-readable description of a decoded datagram, flagging anything unexpected. */
 export class PacketDescriber {
+  /** @param cipher when given, 0x9F packets are decrypted for display; without it only their header is shown */
   constructor(private readonly cipher?: IciCipher) {}
 
+  /** `raw` is the original datagram, shown in hex for packets that could not be decoded further */
   describe(result: DecodeResult, raw: Buffer): string {
     switch (result.kind) {
       case "data": return this.data(result.packet)
@@ -28,6 +30,7 @@ export class PacketDescriber {
     }
   }
 
+  // the warnings (reserved bytes, trailing data) are the point of the lab: they are where new protocol knowledge hides
   private data(packet: DataPacket) {
     const route = `${packet.sourceId}→${packet.targetId}`
     const type = DataTypeNames.nameOf(packet.dataType)

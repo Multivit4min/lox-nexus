@@ -13,12 +13,19 @@ export class WireEngine extends Disposable {
   private readonly wires = new Map<string, ActiveWire>()
   private readonly guard = new LoopGuard()
 
+  /** Registers its own cleanup: disposing the engine removes all wires, and unregistering a signal removes its wires. */
   constructor(private readonly bus: WireBus, private readonly signals: SignalRegistry) {
     super()
     this.listen(signals, "unregistered", (signal: Signal) => this.removeWiresOf(signal.id))
     this.onDispose(() => this.removeAll())
   }
 
+  /**
+   * Validates and starts a wire.
+   * @throws ZodError for an invalid config; Error for a duplicate id, an unknown signal, a source/target
+   *   mix-up, or a target that already has a wire
+   * @returns the parsed config with defaults applied
+   */
   add(input: WireInput): WireConfig {
     const config = WireSchema.parse(input)
     if (this.wires.has(config.id)) throw new Error(`wire "${config.id}" already exists`)
@@ -32,6 +39,7 @@ export class WireEngine extends Disposable {
     return config
   }
 
+  /** @returns false if the id is unknown */
   remove(id: string) {
     const wire = this.wires.get(id)
     if (!wire) return false
@@ -39,6 +47,7 @@ export class WireEngine extends Disposable {
     return this.wires.delete(id)
   }
 
+  /** configs of the running wires, in creation order */
   list(): WireConfig[] {
     return [...this.wires.values()].map(wire => wire.config)
   }

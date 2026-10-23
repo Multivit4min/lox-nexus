@@ -7,7 +7,9 @@ export interface DatagramSender {
   send(buffer: Buffer, port: number, host: string): Promise<void>
 }
 
+/** Events of IciSocket. */
 export interface SocketEvents {
+  /** every received datagram; the buffer is only valid for the duration of the handler unless copied */
   datagram: [buffer: Buffer, from: RemoteInfo]
   /** runtime socket errors; deliberately not called "error" so a missing listener can't crash the process */
   socketError: [error: Error]
@@ -25,14 +27,21 @@ export class IciSocket extends EventEmitter<SocketEvents> implements DatagramSen
   private binding: Socket | undefined
   private readonly pendingSends = new Set<(error: Error) => void>()
 
+  /** true once bind() has completed and until close() */
   get isOpen() {
     return this.socket !== undefined
   }
 
+  /** the bound address, which reveals the real port after binding port 0 (used by tests) */
   address(): AddressInfo | undefined {
     return this.socket?.address()
   }
 
+  /**
+   * Binds a UDP4 socket; port 0 picks a free one.
+   * @param address interface to bind to, default all interfaces
+   * @throws Error if already bound or binding, if the port is in use, or if close() ran meanwhile
+   */
   async bind(port: number, address?: string) {
     if (this.socket || this.binding) throw new Error("IciSocket is already bound or binding")
     const socket = dgram.createSocket("udp4")
@@ -54,6 +63,7 @@ export class IciSocket extends EventEmitter<SocketEvents> implements DatagramSen
     this.socket = socket
   }
 
+  /** Resolves when the OS has accepted the datagram (UDP gives no delivery guarantee). Rejects if the socket is not open or closes mid-send. */
   send(buffer: Buffer, port: number, host: string): Promise<void> {
     const socket = this.socket
     if (!socket) return Promise.reject(new Error("IciSocket is not open"))
@@ -72,6 +82,7 @@ export class IciSocket extends EventEmitter<SocketEvents> implements DatagramSen
     })
   }
 
+  /** Idempotent. Pending sends are rejected first; afterwards the socket may be bound again. */
   async close() {
     this.binding = undefined
     const socket = this.socket

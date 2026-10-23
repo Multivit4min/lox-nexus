@@ -1,5 +1,9 @@
 import type { Value } from "@lox-nexus/plugin-sdk/values"
 
+/**
+ * What a bus message means. Subscribers get state, command, result and event; taps (the Recorder)
+ * additionally see force and release. See "Implementation notes (M2)" in docs/architecture.md.
+ */
 export type MessageKind =
   /** a signal's value changed (retained, deduped) */
   | "state"
@@ -14,6 +18,7 @@ export type MessageKind =
   /** anything else worth seeing in the inspector: warnings, errors, lifecycle */
   | "event"
 
+/** Who published a message; `id` is the plugin instance, wire, user or Miniserver id. */
 export interface MessageSource {
   kind: "loxone" | "plugin" | "wire" | "user" | "system"
   id: string
@@ -21,6 +26,7 @@ export interface MessageSource {
   label?: string
 }
 
+/** Marks how a message came to be; none of them change the value itself. */
 export interface MessageFlags {
   /** replayed from the snapshot at startup */
   restored?: true
@@ -32,7 +38,9 @@ export interface MessageFlags {
   shadowed?: true
 }
 
+/** Why and for how long a topic is pinned. Persisted with the force (see ForceRecord). */
 export interface ForceInfo {
+  /** user or system that set the force, shown in the inspector */
   by: string
   reason?: string
   /** epoch ms of the automatic release */
@@ -43,14 +51,20 @@ export interface ForceInfo {
   kind?: "state" | "command"
 }
 
+/**
+ * One accepted message on the bus. Only the host mints these (ids, seq, trace), so a plugin cannot
+ * forge causality; plugins hand in values and the bus fills in the rest.
+ */
 export interface BusMessage {
-  /** unique per boot, minted only by the host */
+  /** unique per boot (`<bootId>-<seq>`), minted only by the host */
   id: string
-  /** total order of accepted messages */
+  /** total order of accepted messages; restarts from 1 on each boot */
   seq: number
+  /** epoch ms when the bus accepted the message */
   ts: number
   topic: string
   kind: MessageKind
+  /** absent for result, release and event messages */
   value?: Value
   source: MessageSource
   /** id of the message that caused this one */
@@ -64,9 +78,9 @@ export interface BusMessage {
   flags?: MessageFlags
   /** set on force messages */
   force?: ForceInfo
-  /** set on result messages */
+  /** set on result messages; durationMs is how long the actuator took, in milliseconds */
   outcome?: { ok: boolean; error?: string; durationMs: number }
-  /** free text, used by event messages */
+  /** free text: the message of an event, or the reason on a release */
   text?: string
 }
 

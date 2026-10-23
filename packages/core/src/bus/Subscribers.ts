@@ -12,14 +12,17 @@ export class Subscribers {
   private readonly trie = new TopicTrie<MessageHandler>()
   private readonly taps = new Set<MessageHandler>()
 
+  /** @param onError receives handler exceptions; EventBus turns them into system/bus/error events */
   constructor(private readonly onError: (message: BusMessage, error: unknown) => void) {}
 
+  /** @throws RangeError for an invalid pattern. The same handler may be subscribed several times; each handle is independent. */
   subscribe(pattern: string, handler: MessageHandler): DisposableLike {
     const wrapped: MessageHandler = message => handler(message)
     this.trie.add(pattern, wrapped)
     return { dispose: () => this.trie.remove(pattern, wrapped) }
   }
 
+  /** observes every dispatched message regardless of topic */
   tap(handler: MessageHandler): DisposableLike {
     const wrapped: MessageHandler = message => handler(message)
     this.taps.add(wrapped)

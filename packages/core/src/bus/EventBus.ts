@@ -12,6 +12,7 @@ import { Subscribers, type MessageHandler } from "./Subscribers.ts"
 import { Topic } from "./Topic.ts"
 import type { TopicKinds } from "./TopicKinds.ts"
 
+/** Optional collaborators of EventBus; every one has an in-memory or system default. */
 export interface EventBusOptions {
   clock?: Clock
   chain?: CausalChain
@@ -21,6 +22,7 @@ export interface EventBusOptions {
 }
 
 const SYSTEM: MessageSource = { kind: "system", id: "bus" }
+/** Topic of the events that report handler and processing failures. */
 export const BUS_ERROR_TOPIC = "system/bus/error"
 
 /**
@@ -31,6 +33,9 @@ export const BUS_ERROR_TOPIC = "system/bus/error"
  *
  * Boot order: restoreForces() before restoreSnapshot(), so restored values arrive shadowed
  * instead of briefly reaching subscribers before the force applies.
+ *
+ * Processing is synchronous: a publish from outside any handler is fully delivered before the
+ * call returns. Publishing to an invalid topic throws RangeError; a disposed bus ignores messages.
  */
 export class EventBus extends Disposable {
   readonly chain: CausalChain
@@ -51,32 +56,45 @@ export class EventBus extends Disposable {
     this.processor = new BusProcessor(this.chain, this.clock, this.retained, this.forces, this.subscribers, options.topicKinds)
   }
 
+  /** Publishes a state: retained, and dropped if equal to the current value unless `options.force`. */
   publish(topic: string, value: Value, options: PublishOptions) {
     this.enqueue({ kind: "state", topic, value, options })
   }
 
+  /** Publishes an instruction to a target. Never retained or deduped, so repeated pulses all arrive. */
   command(topic: string, value: Value, options: PublishOptions) {
     this.enqueue({ kind: "command", topic, value, options })
   }
 
+  /** Reports how a command went; `durationMs` is in milliseconds. */
   result(topic: string, outcome: { ok: boolean; error?: string; durationMs: number }, options: PublishOptions) {
     this.enqueue({ kind: "result", topic, options, extra: { outcome } })
   }
 
+  /** Publishes a diagnostic message that only exists to be seen (inspector, logs). */
   event(topic: string, text: string, options: PublishOptions) {
     this.enqueue({ kind: "event", topic, options, extra: { text } })
   }
 
-  /** pins a topic to a value until released (or until info.until, which must lie in the future) */
+  /**
+   * pins a topic to a value until released (or until info.until, which must lie in the future).
+   * @throws RangeError for an expiry in the past or an invalid topic
+   */
   force(topic: string, value: Value, info: ForceInfo, source: MessageSource = { kind: "user", id: info.by }) {
     if (info.until !== undefined && info.until <= this.clock.now()) throw new RangeError("a force must not expire in the past")
     this.enqueue({ kind: "force", topic, value, options: { source }, extra: { force: info } })
   }
 
+  /** Lifts a force and restores the last real value. Does nothing if the topic is not forced. @param reason shown in the inspector, e.g. "expired" */
   release(topic: string, by: string, reason?: string, source: MessageSource = { kind: "user", id: by }) {
     this.enqueue({ kind: "release", topic, options: { source }, extra: reason === undefined ? undefined : { text: reason } })
   }
 
+  /**
+   * Delivers state, command, result and event messages matching an MQTT-style pattern (`+`, `#`).
+   * @throws RangeError for an invalid pattern
+   * @returns a handle whose dispose() unsubscribes
+   */
   subscribe(pattern: string, handler: MessageHandler): DisposableLike {
     return this.subscribers.subscribe(pattern, handler)
   }
@@ -86,20 +104,22 @@ export class EventBus extends Disposable {
     return this.subscribers.tap(handler)
   }
 
+  /** the value subscribers currently see for the topic, which is the forced one while forced */
   current(topic: string): BusMessage | undefined {
     return this.retained.effective(topic)
   }
 
+  /** all forces currently applied, for the inspector and API */
   activeForces() {
     return this.forces.list()
   }
 
-  /** replays a snapshot taken by takeSnapshot(); messages are flagged restored */
+  /** replays a snapshot taken by takeSnapshot(); messages are flagged restored and are not written back as dirty */
   restoreSnapshot(entries: SnapshotEntry[]) {
     for (const entry of entries) this.publish(entry.topic, entry.value, { source: SYSTEM, flags: { restored: true } })
   }
 
-  /** re-applies persisted forces after a restart */
+  /** re-applies persisted forces after a restart; expired ones are dropped from the store. Call before restoreSnapshot(). */
   restoreForces() {
     for (const record of this.forces.loadPersisted()) {
       const { topic, value, ...info } = record
@@ -107,11 +127,12 @@ export class EventBus extends Disposable {
     }
   }
 
-  /** real values changed since the last call, for periodic persistence */
+  /** real values changed since the last call (live changes only, not restored ones), for periodic persistence */
   takeSnapshot(): SnapshotEntry[] {
     return this.retained.takeDirty()
   }
 
+  // The queue is drained by whoever finds it idle; messages published meanwhile wait their turn.
   private enqueue(pending: Pending) {
     Topic.assertValid(pending.topic)
     if (this.isDisposed) return

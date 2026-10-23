@@ -3,6 +3,7 @@ import { StringToNumber } from "../StringToNumber.ts"
 import { Value, type ValueOf } from "../Value.ts"
 import { Conversion } from "./Conversion.ts"
 
+/** Strings are parsed leniently (StringToNumber). Structured values map to their main scalar: channel, brightness or button mask. */
 export class ToNumber extends Conversion<"number"> {
   readonly target = "number"
   private readonly parser = new StringToNumber()

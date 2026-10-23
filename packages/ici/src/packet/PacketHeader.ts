@@ -13,6 +13,7 @@ export class PacketHeader {
     readonly targetId: string
   ) {}
 
+  /** The caller must ensure the buffer holds at least SIZE bytes; the decoder checks this first. */
   static read(buffer: Buffer) {
     return new PacketHeader(buffer.readUint8(0), IciId.read(buffer, 8), IciId.read(buffer, 17))
   }

@@ -14,12 +14,15 @@ export class T5Buttons {
     [T5Buttons.RIGHT_LOWER, "right-lower"]
   ]
 
+  /** @param mask OR of the button constants above */
   constructor(readonly mask: number) {}
 
+  /** true only if every bit of `button` is set */
   isPressed(button: number) {
     return (this.mask & button) === button
   }
 
+  /** names of all pressed buttons in bit order */
   names(): string[] {
     return T5Buttons.NAMES.filter(([bit]) => this.isPressed(bit)).map(([, name]) => name)
   }

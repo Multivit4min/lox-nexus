@@ -5,14 +5,17 @@
 export class Topic {
   private static readonly SEGMENT = /^[a-z0-9][a-z0-9._-]*$/
 
+  /** valid means a concrete topic (no wildcards) whose segments all match the allowed character set */
   static isValid(topic: string) {
     return topic.split("/").every(segment => Topic.SEGMENT.test(segment))
   }
 
+  /** @throws RangeError when the topic is invalid */
   static assertValid(topic: string) {
     if (!Topic.isValid(topic)) throw new RangeError(`invalid topic "${topic}": use lowercase segments of a-z, 0-9, ".", "_" or "-"`)
   }
 
+  /** like assertValid, but also allows `+` anywhere and `#` as the last segment. @throws RangeError */
   static assertValidPattern(pattern: string) {
     const segments = pattern.split("/")
     const valid = segments.every((segment, index) =>
@@ -20,6 +23,7 @@ export class Topic {
     if (!valid) throw new RangeError(`invalid topic pattern "${pattern}"`)
   }
 
+  /** MQTT-style match; as in MQTT, `a/#` also matches `a` itself. Assumes both arguments are valid. */
   static matches(pattern: string, topic: string): boolean {
     const p = pattern.split("/")
     const t = topic.split("/")
@@ -30,7 +34,7 @@ export class Topic {
     return p.length === t.length
   }
 
-  /** turns a label into a topic segment: "Licht Küche" → "licht-kueche" */
+  /** turns a label into a topic segment: "Licht Küche" → "licht-kueche"; a label with nothing usable becomes "unnamed" */
   static slug(label: string): string {
     const replaced = label.toLowerCase()
       .replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")

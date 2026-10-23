@@ -5,11 +5,16 @@ import { IciSocket } from "../../transport/IciSocket.ts"
 import { Args } from "../Args.ts"
 import type { LabCommand, LabContext } from "../LabCommand.ts"
 
+/** The subset of a CaptureLog line that replay needs. Lines without them are skipped. */
 interface Recorded {
   t: number
   hex: string
 }
 
+/**
+ * Re-sends a capture (CaptureLog JSONL) to a host, keeping the recorded timing divided by `--speed`.
+ * Datagrams are sent byte-exact from an ephemeral source port, which the Miniserver accepts.
+ */
 export class ReplayCommand implements LabCommand {
   readonly name = "replay"
   readonly usage = "replay <file.jsonl> --host <h> --port <n> [--speed <factor>]"

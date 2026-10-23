@@ -1,9 +1,11 @@
 import { ValueFormatter } from "@lox-nexus/plugin-sdk/values"
 import type { BusMessage } from "./BusMessage.ts"
 
+/** Options of MessageFormatter. */
 export interface FormatOptions {
   /** render times in UTC instead of local time (useful for tests and logs) */
   utc?: boolean
+  /** padding of the topic column in characters (default 40); longer topics are not truncated */
   topicWidth?: number
 }
 
@@ -16,6 +18,7 @@ export class MessageFormatter {
 
   constructor(private readonly options: FormatOptions = {}) {}
 
+  /** Lossy and meant for people: do not parse the line. */
   format(message: BusMessage): string {
     const topic = message.topic.padEnd(this.options.topicWidth ?? 40)
     return `${this.time(message.ts)}  ${topic}  ${this.body(message)}  ← ${this.source(message)}`

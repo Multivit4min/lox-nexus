@@ -8,15 +8,23 @@ import { TransformFactory } from "./transforms/TransformFactory.ts"
 import { TransformPipeline } from "./transforms/TransformPipeline.ts"
 import type { WireConfig } from "./WireSchema.ts"
 
+/** Topic of the events that report a value dropped by the LoopGuard. */
 export const WIRE_LOOP_TOPIC = "system/wire/loop"
 
+/** The slice of EventBus a wire needs, so wires can be tested with a fake. */
 export type WireBus = Pick<EventBus, "subscribe" | "publish" | "command" | "event">
 
-/** A running wire: listens to its source topic and delivers transformed values to its target. */
+/**
+ * A running wire: listens to its source topic and delivers transformed values to its target.
+ * Messages it publishes carry the wire as source and continue the trace of the message that
+ * triggered them, which is what lets the LoopGuard and the inspector follow a value across wires.
+ * Disposing it unsubscribes and cancels pending debounce/throttle timers.
+ */
 export class ActiveWire extends Disposable {
   private readonly pipeline: TransformPipeline
   private readonly source: MessageSource
 
+  /** Subscribes to `from.topic` immediately. Signals are passed in (resolved by WireEngine) so the wire never looks them up. */
   constructor(
     readonly config: WireConfig,
     from: Signal,
@@ -31,6 +39,9 @@ export class ActiveWire extends Disposable {
     this.own(bus.subscribe(from.topic, message => this.handle(message)))
   }
 
+  // Only state and command carry a value to forward. Shadowed publishes never reach subscribers,
+  // so a forced source does not leak its real value through the wire. Restored (snapshot) values
+  // are skipped unless syncOnStart, so a restart doesn't re-trigger actuators with stale data.
   private handle(message: BusMessage) {
     if (!this.config.enabled || !message.value) return
     if (message.kind !== "state" && message.kind !== "command") return
@@ -41,6 +52,7 @@ export class ActiveWire extends Disposable {
     this.pipeline.push(message.value, message)
   }
 
+  // Conversion happens here, after the transforms, so a map/scale sees the source's own type.
   private deliver(value: Value, cause: Cause) {
     const converted = this.target.valueType === "any" ? value : Converter.convert(value, this.target.valueType)
     const options = { source: this.source, cause }

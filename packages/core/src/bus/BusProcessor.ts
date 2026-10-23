@@ -8,8 +8,14 @@ import type { RetainedState } from "./RetainedState.ts"
 import type { Subscribers } from "./Subscribers.ts"
 import type { TopicKinds } from "./TopicKinds.ts"
 
-/** The semantics of each message kind: dedup, shadowing while forced, force and release. */
+/**
+ * The semantics of each message kind: dedup, shadowing while forced, force and release.
+ * EventBus owns ordering and error containment; this class decides what each message does to the
+ * retained state and who sees it. It may throw (for example when the ForceStore fails): EventBus
+ * turns that into an event on system/bus/error.
+ */
 export class BusProcessor {
+  /** @param topicKinds optional; without it a forced topic's kind falls back to what the bus has seen */
   constructor(
     private readonly chain: CausalChain,
     private readonly clock: Clock,
@@ -19,6 +25,7 @@ export class BusProcessor {
     private readonly topicKinds?: TopicKinds
   ) {}
 
+  /** Handles one queued message completely, including everything it fans out to subscribers. */
   process(pending: Pending) {
     switch (pending.kind) {
       case "state": return this.state(pending)
@@ -29,6 +36,8 @@ export class BusProcessor {
     }
   }
 
+  // Dedup compares with the real value while forced: a repeated Miniserver resend must not show up
+  // in the inspector, but a changed one is recorded (shadowed) and kept for the later release.
   private state(pending: Pending) {
     const forced = this.forces.get(pending.topic) !== undefined
     const previous = forced ? this.retained.real(pending.topic) : this.retained.effective(pending.topic)
@@ -46,6 +55,8 @@ export class BusProcessor {
     this.subscribers.dispatch(this.accept(pending))
   }
 
+  // A force emits two messages: the force itself (tap only) and an effective message of the topic's
+  // kind that carries the pinned value to subscribers, caused by the force message.
   private force(pending: Pending) {
     const info = pending.extra?.force
     if (!pending.value || !info) return
@@ -64,6 +75,7 @@ export class BusProcessor {
     this.subscribers.dispatch(effective)
   }
 
+  // Releasing an unforced topic is a no-op, so an expiry racing a manual release does nothing twice.
   private release(pending: Pending) {
     const record = this.forces.get(pending.topic)
     if (!record || !this.forces.delete(pending.topic)) return
@@ -78,6 +90,7 @@ export class BusProcessor {
     this.subscribers.dispatch(restored)
   }
 
+  /** Mints identity for a pending message and turns it into the BusMessage that gets recorded. */
   private accept(pending: Pending, extraFlags?: BusMessage["flags"]): BusMessage {
     const { source, cause } = pending.options
     const identity = this.chain.mint(cause, source.kind === "wire" ? source.id : undefined)

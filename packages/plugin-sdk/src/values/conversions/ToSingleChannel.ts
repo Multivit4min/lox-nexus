@@ -4,6 +4,7 @@ import { Value, type ValueOf } from "../Value.ts"
 import { ValueDefaults } from "../ValueDefaults.ts"
 import { Conversion } from "./Conversion.ts"
 
+/** Scalars are percent. An rgbw becomes the mean of its four channels (rounded down), the average brightness. */
 export class ToSingleChannel extends Conversion<"singleChannel"> {
   readonly target = "singleChannel"
   private readonly parser = new StringToNumber()

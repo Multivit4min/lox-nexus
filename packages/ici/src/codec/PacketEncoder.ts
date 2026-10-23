@@ -6,6 +6,11 @@ import { UdpLimits } from "../packet/UdpLimits.ts"
 
 /** Turns packets into datagrams. Validates ids and lengths instead of truncating. */
 export class PacketEncoder {
+  /**
+   * Builds a plain 0x9E datagram. Reserved header bytes are written as 0, as every capture shows.
+   * @throws RangeError for an invalid id (see IciId), a data type outside one byte, or a payload
+   *   that would not fit one UDP datagram.
+   */
   encodeData(packet: DataPacket): Buffer {
     if (packet.payload.length > UdpLimits.MAX_DATA_PAYLOAD) {
       throw new RangeError(`payload of ${packet.payload.length} bytes exceeds the UDP limit of ${UdpLimits.MAX_DATA_PAYLOAD}`)
@@ -21,6 +26,11 @@ export class PacketEncoder {
     return Buffer.concat([header, packet.payload])
   }
 
+  /**
+   * Builds a 0x9F datagram from an already sealed packet (see IciCipher.seal).
+   * @throws RangeError for an IV that is not 16 bytes, ciphertext that is not whole AES blocks,
+   *   or more blocks than the one-byte count can announce.
+   */
   encodeEncrypted(packet: EncryptedPacket): Buffer {
     const { BODY_OFFSET, BLOCK_SIZE } = EncryptedPacket
     if (packet.iv.length !== BLOCK_SIZE || packet.ciphertext.length % BLOCK_SIZE !== 0) {

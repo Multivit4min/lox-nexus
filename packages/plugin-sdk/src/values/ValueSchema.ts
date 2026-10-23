@@ -4,7 +4,11 @@ import type { Value } from "./Value.ts"
 const percent = z.number().min(0).max(100)
 const seconds = z.number().min(0)
 
-/** Validates values arriving from untrusted places (workers, HTTP, persisted data). */
+/**
+ * Validates values arriving from untrusted places (workers, HTTP, persisted data). Rejects
+ * non-finite numbers, so the bus never carries NaN or Infinity. Channels accept fractions here
+ * and are only rounded to whole percent by conversions and codecs.
+ */
 export const ValueSchema: z.ZodType<Value> = z.discriminatedUnion("type", [
   z.object({ type: z.literal("null") }),
   z.object({ type: z.literal("boolean"), value: z.boolean() }),
@@ -18,4 +22,5 @@ export const ValueSchema: z.ZodType<Value> = z.discriminatedUnion("type", [
   z.object({ type: z.literal("t5"), value: z.object({ buttons: z.int().min(0).max(31) }) })
 ])
 
+/** Validates just the type name, for example for a signal declaration. */
 export const ValueTypeSchema = z.enum(["null", "boolean", "number", "string", "singleChannel", "rgbw", "tunableWhite", "t5"])

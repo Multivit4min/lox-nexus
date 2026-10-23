@@ -13,6 +13,7 @@ export class T5Codec extends PayloadCodec<T5Value> {
 
   decode(payload: Buffer): T5Value {
     this.requireSize(payload)
+    // not validated as 0–31 on decode: an unexpected value is more useful to see than to throw on
     return { buttons: payload.readDoubleLE(0) }
   }
 

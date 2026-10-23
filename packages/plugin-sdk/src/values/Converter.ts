@@ -11,7 +11,10 @@ import type { Value, ValueOf, ValueType } from "./Value.ts"
 
 type ConversionTable = { [T in ValueType]: Conversion<T> }
 
-/** Converts values between types. Never throws: impossible conversions yield the target's default. */
+/**
+ * Converts values between types. Never throws: impossible conversions yield the target's default
+ * (see ValueDefaults). Wires rely on this so a bad value from a plugin cannot stall the bus.
+ */
 export class Converter {
   private static readonly conversions: ConversionTable = {
     null: new ToNull(),
@@ -24,6 +27,7 @@ export class Converter {
     t5: new ToT5()
   }
 
+  /** A value that already has the target type is returned as is (same object), without validation. */
   static convert<T extends ValueType>(value: Value, to: T): ValueOf<T> {
     return Converter.conversions[to].convert(value)
   }

@@ -2,13 +2,17 @@ import { Disposable } from "@lox-nexus/plugin-sdk"
 import type { Clock } from "./Clock.ts"
 import type { ForceRecord, ForceStore } from "./ForceStore.ts"
 
-/** Active forces, their persistence and their automatic expiry. */
+/**
+ * Active forces, their persistence and their automatic expiry. Expiry timers are owned through
+ * Disposable, so disposing the bus cancels them; the store is written before memory changes.
+ */
 export class ForceRegistry extends Disposable {
   /** setTimeout fires after 1 ms for longer delays, so long expiries are scheduled in steps */
   static readonly MAX_TIMER_MS = 2_147_483_647
   private readonly active = new Map<string, ForceRecord>()
   private readonly cancels = new Map<string, () => void>()
 
+  /** @param onExpire called when a force's `until` is reached; the bus uses it to release the topic */
   constructor(
     private readonly store: ForceStore,
     private readonly clock: Clock,
@@ -17,10 +21,12 @@ export class ForceRegistry extends Disposable {
     super()
   }
 
+  /** the active force on the topic, if any */
   get(topic: string) {
     return this.active.get(topic)
   }
 
+  /** snapshot of all active forces */
   list(): ForceRecord[] {
     return [...this.active.values()]
   }
@@ -35,7 +41,11 @@ export class ForceRegistry extends Disposable {
     })
   }
 
-  /** persists first, so a failing store leaves nothing half-forced in memory */
+  /**
+   * Replaces any existing force on the topic and (re)starts its expiry.
+   * persists first, so a failing store leaves nothing half-forced in memory.
+   * @throws whatever the ForceStore throws
+   */
   set(record: ForceRecord) {
     this.store.save(record)
     this.cancel(record.topic)
@@ -43,6 +53,7 @@ export class ForceRegistry extends Disposable {
     if (record.until !== undefined) this.schedule(record)
   }
 
+  /** @returns false if the topic was not forced; the store is only touched for active forces */
   delete(topic: string) {
     if (!this.active.has(topic)) return false
     this.store.delete(topic)
@@ -50,6 +61,7 @@ export class ForceRegistry extends Disposable {
     return this.active.delete(topic)
   }
 
+  // The timer may fire early for far-away expiries (see MAX_TIMER_MS), so it re-checks the clock and re-arms.
   private schedule(record: ForceRecord) {
     const remaining = Math.max(0, (record.until ?? 0) - this.clock.now())
     const cancel = this.after(Math.min(remaining, ForceRegistry.MAX_TIMER_MS), () => {

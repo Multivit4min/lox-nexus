@@ -3,7 +3,7 @@ import type { Value } from "@lox-nexus/plugin-sdk/values"
 import type { Cause } from "../../bus/BusMessage.ts"
 import type { Emit, Transform } from "./Transform.ts"
 
-/** Emits the latest value once nothing new arrived for `ms`. */
+/** Emits the latest value once nothing new arrived for `ms` (milliseconds); earlier values are discarded, and the cause is that of the latest value. */
 export class DebounceTransform extends Disposable implements Transform {
   private cancel: (() => void) | undefined
 

@@ -1,4 +1,8 @@
-/** Remembers the last payload per key and describes which bytes changed. */
+/**
+ * Remembers the last payload per key and describes which bytes changed. Offsets are payload
+ * offsets (as in PROTOCOL.md), not datagram offsets. Memory grows with the number of distinct keys,
+ * which is fine for a short interactive capture and the reason it lives in the lab only.
+ */
 export class PayloadDiff {
   private readonly last = new Map<string, Buffer>()
 

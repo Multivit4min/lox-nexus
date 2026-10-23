@@ -10,10 +10,12 @@ import type { DataPacket } from "../packet/DataPacket.ts"
 export class DedupTable {
   private readonly last = new Map<string, DataPacket>()
 
+  /** @throws RangeError unless maxEntries is a positive integer */
   constructor(private readonly maxEntries = 4096) {
     if (!Number.isInteger(maxEntries) || maxEntries < 1) throw new RangeError(`maxEntries must be a positive integer, got ${maxEntries}`)
   }
 
+  /** number of remembered (source, packet id) pairs, never above maxEntries */
   get size() {
     return this.last.size
   }
@@ -28,6 +30,7 @@ export class DedupTable {
     return previous === undefined || !previous.samePayload(packet)
   }
 
+  /** forgets everything, so the next packet per key counts as changed again */
   clear() {
     this.last.clear()
   }

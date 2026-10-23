@@ -16,16 +16,19 @@ export class T5Buttons {
     [T5Buttons.RIGHT_LOWER, "right-lower"]
   ]
 
+  /** @param mask OR of the button constants above */
   constructor(readonly mask: number) {}
 
   static of(value: T5Value) {
     return new T5Buttons(value.buttons)
   }
 
+  /** true only if every bit of `button` is set, so passing a combination means "all of these" */
   isPressed(button: number) {
     return (this.mask & button) === button
   }
 
+  /** false when all buttons are released (mask 0) */
   get anyPressed() {
     return this.mask !== 0
   }

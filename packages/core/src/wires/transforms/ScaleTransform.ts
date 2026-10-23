@@ -3,6 +3,7 @@ import { StatelessTransform } from "./Transform.ts"
 
 /** Maps a number linearly from one range to another, e.g. 0–100 % to 0–255. */
 export class ScaleTransform extends StatelessTransform {
+  /** @param clamp keep the result inside `to` even when the input lies outside `from` (default: extrapolate) */
   constructor(
     private readonly from: readonly [number, number],
     private readonly to: readonly [number, number],

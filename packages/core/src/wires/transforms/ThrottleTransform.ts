@@ -3,7 +3,11 @@ import type { Value } from "@lox-nexus/plugin-sdk/values"
 import type { Cause } from "../../bus/BusMessage.ts"
 import type { Emit, Transform } from "./Transform.ts"
 
-/** Emits immediately, then at most once per `ms`; the latest value of a window is emitted at its end. */
+/**
+ * Emits immediately, then at most once per `ms` (milliseconds); the latest value of a window is
+ * emitted at its end. Emitting that trailing value opens a new window, so a steady stream is
+ * forwarded at one value per `ms`.
+ */
 export class ThrottleTransform extends Disposable implements Transform {
   private windowOpen = false
   private pending: { value: Value; cause: Cause; next: Emit } | undefined

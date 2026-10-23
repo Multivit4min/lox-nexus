@@ -7,6 +7,7 @@ export interface SnapshotEntry {
   ts: number
 }
 
+/** Retained data of one topic. */
 interface TopicState {
   /** what subscribers currently see (may come from a force) */
   effective?: BusMessage
@@ -20,19 +21,22 @@ export class RetainedState {
   private readonly topics = new Map<string, TopicState>()
   private readonly dirty = new Set<string>()
 
+  /** the message subscribers currently see, if any */
   effective(topic: string) {
     return this.topics.get(topic)?.effective
   }
 
+  /** the last non-forced message; while forced, this is what a release restores */
   real(topic: string) {
     return this.topics.get(topic)?.real
   }
 
-  /** whether the topic carries states or commands, as seen from its real publishes */
+  /** whether the topic carries states or commands: "command" once a command was seen on it, else "state" */
   kindOf(topic: string): "state" | "command" {
     return this.topics.get(topic)?.kind ?? "state"
   }
 
+  /** remembers that the topic carries commands, so a force on it is delivered as a command */
   noteCommand(topic: string) {
     this.entry(topic).kind = "command"
   }
@@ -43,10 +47,12 @@ export class RetainedState {
     if (!message.flags?.restored) this.dirty.add(message.topic)
   }
 
+  /** does not mark the topic dirty: forced values are persisted by the ForceStore, not the snapshot */
   setEffective(message: BusMessage) {
     this.entry(message.topic).effective = message
   }
 
+  /** the topic then has no current value for subscribers until the next real publish */
   clearEffective(topic: string) {
     const state = this.topics.get(topic)
     if (state) state.effective = undefined

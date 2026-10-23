@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto"
 import { BoundedIndex } from "./BoundedIndex.ts"
 import type { Cause } from "./BusMessage.ts"
 
+/** The fields of a BusMessage that the causal chain decides. */
 export interface MintedIdentity {
   id: string
   seq: number
@@ -19,11 +20,18 @@ export class CausalChain {
   private seq = 0
   private readonly recent: BoundedIndex<Cause>
 
+  /**
+   * @param bootId prefix that keeps ids unique across restarts; random by default
+   * @param capacity how many recent causes stay resolvable (see resolve())
+   */
   constructor(private readonly bootId = randomUUID().slice(0, 8), capacity = 50_000) {
     this.recent = new BoundedIndex(capacity)
   }
 
-  /** viaWire: id of the wire publishing this message, appended to the causal path */
+  /**
+   * Creates the identity of the next message. Without a cause it starts a new trace at depth 0.
+   * @param viaWire id of the wire publishing this message, appended to the causal path
+   */
   mint(cause?: Cause, viaWire?: string): MintedIdentity {
     const seq = ++this.seq
     const id = `${this.bootId}-${seq}`
@@ -36,6 +44,7 @@ export class CausalChain {
     return identity
   }
 
+  /** undefined once the cause fell out of the ring of recent messages; callers then start a new trace */
   resolve(id: string): Cause | undefined {
     return this.recent.get(id)
   }

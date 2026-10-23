@@ -11,6 +11,11 @@ import type { LabCommand, LabContext } from "../LabCommand.ts"
 import { PacketDescriber } from "../PacketDescriber.ts"
 import { PayloadDiff } from "../PayloadDiff.ts"
 
+/**
+ * Listens on a UDP port and prints every datagram with a payload diff against the previous one of
+ * the same (source, target, packet id). This is the main tool for confirming PROTOCOL.md fields.
+ * `--only` filters on packet id and therefore hides non-data packets such as status heartbeats.
+ */
 export class CaptureCommand implements LabCommand {
   readonly name = "capture"
   readonly usage = "capture --port <n> [--bind <addr>] [--only <id,id>] [--record <file.jsonl>] [--duration <s>] [--password <p>]"
@@ -53,6 +58,7 @@ export class CaptureCommand implements LabCommand {
     return `${time} ${from.address}:${from.port}  ${describer.describe(result, buffer)}${delta ? `  ${delta}` : ""}`
   }
 
+  // a timer that is never reached: node's sleep needs a finite delay, 2^31-1 ms (~24.8 days) is the maximum
   private async waitUntilDone(signal: AbortSignal, durationSeconds?: number) {
     try {
       await sleep(durationSeconds ? durationSeconds * 1000 : 2 ** 31 - 1, undefined, { signal })

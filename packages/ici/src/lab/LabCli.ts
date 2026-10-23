@@ -14,7 +14,11 @@ export class LabCli {
     return this.commands.find(c => c.name === name)?.interruptible ?? false
   }
 
-  /** returns the process exit code */
+  /**
+   * Runs one command line. Errors from a command are printed as `error: ...` and give exit code 1,
+   * so a bad argument never produces a stack trace. No command or `help` prints usage with 0.
+   * @returns the process exit code
+   */
   async run(argv: string[], context: LabContext): Promise<number> {
     const [name, ...args] = argv
     const command = this.commands.find(c => c.name === name)

@@ -1,6 +1,7 @@
 import { Value, type ValueOf } from "../Value.ts"
 import { Conversion } from "./Conversion.ts"
 
+/** Numbers are true when non-zero, strings by a list of "on"-like words, structured values when anything is lit. */
 export class ToBoolean extends Conversion<"boolean"> {
   readonly target = "boolean"
 

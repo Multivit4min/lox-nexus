@@ -8,6 +8,7 @@ export class IciId {
 
   private constructor(readonly value: string) {}
 
+  /** @throws RangeError unless the value is 1–8 printable ASCII characters */
   static from(value: string): IciId {
     if (!IciId.PATTERN.test(value)) {
       throw new RangeError(`invalid ICI id "${value}": expected 1–8 printable ASCII characters`)
@@ -15,6 +16,7 @@ export class IciId {
     return new IciId(value)
   }
 
+  /** non-throwing check, for example to tell a wrong-password decryption from a real packet */
   static isValid(value: string) {
     return IciId.PATTERN.test(value)
   }
@@ -31,6 +33,7 @@ export class IciId {
     buffer.write(this.value, offset, IciId.SIZE, "latin1")
   }
 
+  /** the id without NUL padding */
   toString() {
     return this.value
   }

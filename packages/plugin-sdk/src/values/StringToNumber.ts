@@ -10,6 +10,10 @@ export class StringToNumber {
   /** whitespace (JavaScript's \s already covers no-break spaces) and digit-group underscores */
   private static readonly IGNORED = /[\s_]/g
 
+  /**
+   * @returns the parsed number; a trailing % divides by 100. Never throws and never returns
+   *   NaN or Infinity, 0 is the answer for anything that does not look like a number.
+   */
   parse(input: string): number {
     let text = input.trim().replace(StringToNumber.IGNORED, "")
     if (!text) return 0

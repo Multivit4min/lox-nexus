@@ -23,14 +23,17 @@ export class PayloadCodecs {
     [DataType.SmartTunableWhite]: new SmartTunableWhiteCodec()
   }
 
+  /** the codec for a known data type; use isKnown() first when the type byte comes off the wire */
   static for<T extends DataType>(type: T): PayloadCodec<ValueMap[T]> {
     return PayloadCodecs.table[type]
   }
 
+  /** type guard for raw data type bytes; false for anything this library cannot decode */
   static isKnown(type: number): type is DataType {
     return Object.hasOwn(PayloadCodecs.table, type)
   }
 
+  /** every codec, for tools such as the lab CLI that enumerate the data types */
   static all(): PayloadCodec<unknown>[] {
     return Object.values(PayloadCodecs.table)
   }

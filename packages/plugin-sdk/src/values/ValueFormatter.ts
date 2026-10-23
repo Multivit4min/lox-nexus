@@ -3,6 +3,7 @@ import type { Value } from "./Value.ts"
 
 /** Short human-readable rendering, shared by the bus inspector, logs and the CLI. */
 export class ValueFormatter {
+  /** Lossy by design (numbers round to 3 decimals): for display only, never parse the result. undefined gives an empty string. */
   format(value: Value | undefined): string {
     if (value === undefined) return ""
     switch (value.type) {

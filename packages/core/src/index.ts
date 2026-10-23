@@ -1,3 +1,4 @@
+// Public surface of @lox-nexus/core: the bus, its supporting types, and the wire engine.
 export type { BusMessage, Cause, ForceInfo, MessageFlags, MessageKind, MessageSource } from "./bus/BusMessage.ts"
 export { BUS_ERROR_TOPIC, EventBus, type EventBusOptions } from "./bus/EventBus.ts"
 export type { PublishOptions } from "./bus/Pending.ts"

@@ -9,6 +9,7 @@ class TrieNode<T> {
 export class TopicTrie<T> {
   private readonly root = new TrieNode<T>()
 
+  /** @throws RangeError for an invalid pattern. Adding the same item twice for a pattern is a no-op. */
   add(pattern: string, item: T) {
     Topic.assertValidPattern(pattern)
     let node = this.root
@@ -23,6 +24,7 @@ export class TopicTrie<T> {
     node.items.add(item)
   }
 
+  /** removes one item and prunes branches left empty, so subscribe/unsubscribe churn does not leak nodes */
   remove(pattern: string, item: T) {
     const path: Array<[TrieNode<T>, string]> = []
     let node: TrieNode<T> | undefined = this.root
@@ -36,6 +38,7 @@ export class TopicTrie<T> {
     this.prune(path, node)
   }
 
+  /** every item whose pattern matches the concrete topic, each once */
   match(topic: string): T[] {
     const found = new Set<T>()
     this.collect(this.root, topic.split("/"), 0, found)

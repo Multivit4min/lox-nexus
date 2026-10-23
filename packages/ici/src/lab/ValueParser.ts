@@ -1,8 +1,12 @@
 import { DataType } from "../DataType.ts"
 import type { ValueMap } from "../payload/values.ts"
 
-/** Parses --value arguments. Object types take JSON; omitted rgbw flags default to 0. */
+/**
+ * Parses --value arguments. Object types take JSON; omitted rgbw flags default to 0 and omitted
+ * fade times to 0.2 s, matching the default used by the values in plugin-sdk.
+ */
 export class ValueParser {
+  /** @throws Error for unparsable input; range checks are left to the codec, which rejects out-of-range channels */
   parse<T extends DataType>(type: T, text: string): ValueMap[T] {
     return this.parseAny(type, text) as ValueMap[T]
   }

@@ -5,8 +5,11 @@ import type { ValueType } from "@lox-nexus/plugin-sdk/values"
  * Wires reference signals by id, never by topic, so renaming a signal doesn't break wires.
  */
 export interface Signal {
+  /** stable identifier; what WireConfig.sourceId and targetId refer to */
   id: string
+  /** bus topic, unique per direction; see Topic for the allowed characters */
   topic: string
+  /** human name for UIs */
   label: string
   /** sources publish values; targets receive them through wires */
   direction: "source" | "target"

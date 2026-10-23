@@ -1,6 +1,7 @@
 import { DataType } from "../DataType.ts"
 import { PayloadCodec } from "./PayloadCodec.ts"
 
+/** DIGITAL: a single byte; any non-zero byte decodes as true, encoding writes exactly 0 or 1. */
 export class DigitalCodec extends PayloadCodec<boolean> {
   readonly dataType = DataType.Digital
   readonly name = "digital"
