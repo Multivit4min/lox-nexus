@@ -62,6 +62,30 @@ describe("wire edge cases from the M2 review", () => {
     assert.deepEqual(engine.list(), [])
   })
 
+  test("updating a signal's topic keeps its wires, now on the new topic", () => {
+    const { bus, engine, registry, seen } = setup(signal("a", "x/old/a", "source"), signal("b", "x/out/b", "target"))
+    engine.add({ id: "w", label: "w", sourceId: "a", targetId: "b" })
+    registry.update(signal("a", "x/new/a", "source"))
+    bus.publish("x/old/a", Value.number(1), { source: { kind: "system", id: "t" } })
+    bus.publish("x/new/a", Value.number(2), { source: { kind: "system", id: "t" } })
+    assert.deepEqual(seen.filter(m => m.topic === "x/out/b").map(m => m.value), [Value.number(2)])
+    assert.deepEqual(engine.list().map(w => w.id), ["w"])
+  })
+
+  test("a wire that becomes invalid through an update is removed with an error event", () => {
+    const { engine, registry, seen } = setup(signal("a", "x/a", "source"), signal("b", "x/b", "target"))
+    engine.add({ id: "w", label: "w", sourceId: "a", targetId: "b" })
+    registry.update(signal("b", "x/b", "source"))
+    assert.deepEqual(engine.list(), [])
+    assert.match(seen.find(m => m.topic === "system/wire/error")?.text ?? "", /"w" was removed: signal "b" is not a target/)
+  })
+
+  test("updating a signal onto another signal's topic is refused", () => {
+    const { registry } = setup(signal("a", "x/a", "source"), signal("b", "x/b", "source"))
+    assert.throws(() => registry.update(signal("a", "x/b", "source")), /already has a source signal/)
+    assert.throws(() => registry.update(signal("zz", "x/z", "source")), /unknown signal/)
+  })
+
   test("the registry tells the bus which topics carry commands", () => {
     const { registry } = setup(signal("a", "x/a", "source"), signal("b", "x/b", "target", { delivery: "command" }))
     assert.deepEqual([registry.kindOf("x/a"), registry.kindOf("x/b"), registry.kindOf("x/c")], ["state", "command", undefined])

@@ -34,7 +34,8 @@ export class IciValueMapper {
 
   /** any bus value converted to what the given ICI output expects */
   static toIci<T extends DataType>(dataType: T, value: Value): ValueMap[T] {
-    const converted = Converter.convert(value, IciValueMapper.valueTypeOf(dataType))
-    return (converted.type === "null" ? undefined : converted.value) as ValueMap[T]
+    // converting to an ICI type never yields null, so `value` is always present
+    const converted = Converter.convert(value, IciValueMapper.valueTypeOf(dataType)) as Exclude<Value, { type: "null" }>
+    return converted.value as ValueMap[T]
   }
 }

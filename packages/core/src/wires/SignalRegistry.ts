@@ -7,6 +7,8 @@ import type { Signal } from "./Signal.ts"
 export interface SignalRegistryEvents {
   /** emitted after removal; WireEngine reacts by dropping the wires that used the signal */
   unregistered: [signal: Signal]
+  /** emitted after update(); WireEngine rebuilds the wires that use the signal */
+  updated: [signal: Signal, previous: Signal]
 }
 
 /** All known signals, unique by id and by (topic, direction). Also the bus's source of topic kinds. */
@@ -36,6 +38,24 @@ export class SignalRegistry extends EventEmitter<SignalRegistryEvents> implement
     this.byTopic.delete(SignalRegistry.key(signal.direction, signal.topic))
     this.emit("unregistered", signal)
     return true
+  }
+
+  /**
+   * Replaces a registered signal, e.g. when its topic changes because its owner was renamed.
+   * Wires refer to signals by id, so they survive this.
+   * @throws RangeError for an invalid topic; Error for an unknown id or a topic another signal has
+   */
+  update(signal: Signal) {
+    Topic.assertValid(signal.topic)
+    const previous = this.require(signal.id)
+    const key = SignalRegistry.key(signal.direction, signal.topic)
+    const clash = this.byTopic.get(key)
+    if (clash && clash.id !== signal.id) throw new Error(`topic "${signal.topic}" already has a ${signal.direction} signal ("${clash.id}")`)
+    const copy = { ...signal }
+    this.byTopic.delete(SignalRegistry.key(previous.direction, previous.topic))
+    this.byId.set(copy.id, copy)
+    this.byTopic.set(key, copy)
+    this.emit("updated", copy, previous)
   }
 
   /** undefined for unknown ids; use require() when the signal must exist */

@@ -409,29 +409,63 @@ above:
 - **Structure.**
   - `MiniserverManager` owns `Miniserver`s and validates their config with zod. Slugs and ids are
     unique, and one failing Miniserver (for example a taken port) never stops the others:
-    `startEnabled()` reports failures instead of throwing.
+    `startEnabled()` reports failures instead of throwing, and each Miniserver keeps its
+    `lastError`.
   - A `Miniserver` registers its signals on the `SignalRegistry` even while stopped, so wires can
-    be built. While running it holds a `MiniserverConnection`: `IciSocket`, `IciReceiver` (filters
-    on our own ID and the Miniserver's ID), `RemotePeer`, an `InboundRouter`, an `OutboundRouter`
-    and a `HealthMonitor`. Stopping disposes all of it.
+    be built. `LoxoneSignals` indexes them (inputs by packet id, outputs by topic) and allows one
+    signal per packet id and direction. While running, a Miniserver holds a
+    `MiniserverConnection`: `IciSocket`, `IciReceiver` (filters on our own ID and the
+    Miniserver's ID), `RemotePeer`, an `InboundRouter`, an `OutboundRouter` and a
+    `HealthMonitor`. Stopping disposes all of it.
+  - `start()`, `stop()` and `update()` run one after another, so a double click or a stop during
+    a start can't leak a socket.
+  - **Shutdown is not deletion.** Disposing a Miniserver (or the manager) closes sockets but
+    leaves its signals registered, so the user's wires survive a shutdown.
+    `MiniserverManager.remove()` deletes: it unregisters the signals, which removes their wires.
+  - `update()` applies a new config and restarts if the Miniserver was running. A new slug
+    re-keys every signal's topic through `SignalRegistry.update()`. `WireEngine` rebuilds the
+    affected wires, so they survive the rename. Forces and snapshot values are keyed by topic and
+    stay on the old topic.
+  - Each Miniserver has its own listen port (optionally bound to `listenAddress`). Sharing one
+    port between Miniservers and demultiplexing by source id would be possible, but isn't done.
 - **Topics.**
   - `loxone/<slug>/in/<packet>` for values from the Miniserver.
   - `loxone/<slug>/out/<packet>` for values to it.
   - `loxone/<slug>/discovered/<packet>` for unknown packet ids. They are also kept in the bounded
     `DiscoveryList` until adopted.
-  - `system/loxone/<slug>/status` carries the health (`waiting`, `online`, `stale`, `stopped`),
-    and `system/loxone/<slug>/error` carries send failures.
-- **Inbound.** Only changed packets are published, so the 10 s resends never reach the bus.
-  Values are converted to the signal's declared type, so a Digital signal fed with an Analog
-  packet becomes a boolean.
+  - `system/loxone/<slug>/status` carries the health (`waiting`, `online`, `stale`, `stopped`).
+    A new Miniserver publishes `stopped` straight away.
+  - `system/loxone/<slug>/error` carries problems. `ProblemReporter` reports each kind at most
+    once a minute (per packet id where that applies):
+    - failed sends, including resends to an unreachable host
+    - malformed packets, including a wrong password ("decryption failed")
+    - encrypted packets arriving without a password
+    - socket errors
+    - data types that differ from the configuration
+    - failed starts
+  - Only signal topics are persisted in the value snapshot (M3b), so status and discovered topics
+    are never replayed at boot.
+- **Inbound.** Every packet of a configured input is published, unchanged resends included. The
+  bus drops equal states, so this costs nothing. It also matters: a value the receiver saw while
+  the packet id was only *discovered* still arrives once the packet id is adopted. Values are
+  converted to the signal's declared type, so a Digital signal fed with an Analog packet becomes
+  a boolean (and a type mismatch is reported). Status heartbeats only count when they come from
+  the Miniserver's own ID.
 - **Outbound.** Every value delivered on an out topic is sent, converted to the output's data
-  type. That includes forced values and values restored at startup, so the Miniserver gets the
-  last known value after a restart (old Nexus never re-sent unlinked outputs).
-- **Health** is derived from traffic, because UDP has no connection. Any packet marks the
-  Miniserver online; 10 minutes of silence (two missed status heartbeats) mark it stale.
-- **Verified.** A fake Miniserver on loopback (`test-support/FakeMiniserver.ts`) is used in tests.
-  A live run against the test Miniserver covered in and out values, force and release driving
-  the Lighting Controller, and filtering of the other target's (`red`) traffic.
+  type, including forced values. The bus doesn't replay retained values to new subscribers, so
+  the `OutboundRouter` explicitly sends the current value of every output in three cases: when a
+  connection opens, when an output is added while running, and on a restart. The Miniserver
+  therefore gets the last known value, including values restored at startup (old Nexus never
+  re-sent unlinked outputs). A removed output is taken out of the resend cycle. A release
+  without a real value delivers nothing, so the Miniserver keeps the last forced value.
+- **Health** is derived from traffic, because UDP has no connection. Any data packet or status
+  heartbeat from the Miniserver marks it online; 10 minutes of silence (two missed heartbeats)
+  mark it stale.
+- **Verified.** A fake Miniserver on loopback (`test-support/FakeMiniserver.ts`) is used in tests,
+  covering restarts, adoption, signal changes while running, lifecycle races, a slug rename with
+  wires, and force/release. A live run against the test Miniserver covered in and out values,
+  force and release driving the Lighting Controller, and filtering of the other target's (`red`)
+  traffic.
 
 ## Dependencies (installed in the milestone that first needs them)
 

@@ -16,6 +16,8 @@ export const MiniserverConfigSchema = z.object({
   port: port.min(1),
   /** where Nexus listens; 0 picks a free port (tests) */
   listenPort: port,
+  /** local IPv4 address to bind, default all interfaces */
+  listenAddress: z.ipv4().optional(),
   /** Nexus's ID as configured for this remote system on the Miniserver */
   ownId: iciId,
   /** the Miniserver's own ID */
@@ -33,8 +35,8 @@ export const LoxoneSignalConfigSchema = z.object({
   packetId: iciId,
   /** in: Miniserver → Nexus, out: Nexus → Miniserver */
   direction: z.enum(["in", "out"]),
-  /** ICI data type byte (0 digital … 6 tunable white) */
-  dataType: z.int().min(0).max(6),
+  /** ICI data type byte (0 digital … 6 tunable white); a literal union so it types as DataType */
+  dataType: z.literal([0, 1, 2, 3, 4, 5, 6]),
   label: z.string(),
   /** topic segment, defaults to the slug of the packet id */
   slug: segment.optional()

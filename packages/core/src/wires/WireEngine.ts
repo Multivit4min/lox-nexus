@@ -10,7 +10,8 @@ import { WireSchema, type WireConfig, type WireInput } from "./WireSchema.ts"
 
 /**
  * Owns all wires. A target can be fed by only one wire, so its value always has a single origin.
- * Wires whose source or target signal is unregistered are removed with it.
+ * Wires whose source or target signal is unregistered are removed with it; when a signal is
+ * updated (new topic, type or direction) its wires are rebuilt, or removed if no longer valid.
  */
 export class WireEngine extends Disposable {
   private readonly wires = new Map<string, ActiveWire>()
@@ -20,6 +21,7 @@ export class WireEngine extends Disposable {
   constructor(private readonly bus: WireBus, private readonly signals: SignalRegistry) {
     super()
     this.listen(signals, "unregistered", (signal: Signal) => this.removeWiresOf(signal.id))
+    this.listen(signals, "updated", (signal: Signal) => this.rebuildWiresOf(signal.id))
     this.onDispose(() => this.removeAll())
   }
 
@@ -62,6 +64,20 @@ export class WireEngine extends Disposable {
   private removeWiresOf(signalId: string) {
     for (const wire of [...this.wires.values()]) {
       if (wire.config.sourceId === signalId || wire.config.targetId === signalId) this.remove(wire.config.id)
+    }
+  }
+
+  // an ActiveWire holds the signals it was built with, so a changed signal needs a fresh one
+  private rebuildWiresOf(signalId: string) {
+    for (const wire of [...this.wires.values()]) {
+      if (wire.config.sourceId !== signalId && wire.config.targetId !== signalId) continue
+      this.remove(wire.config.id)
+      try {
+        this.add(wire.config)
+      } catch (error) {
+        const text = error instanceof Error ? error.message : String(error)
+        this.bus.event(WIRE_ERROR_TOPIC, `wire "${wire.config.label}" was removed: ${text}`, { source: { kind: "system", id: "wires" } })
+      }
     }
   }
 

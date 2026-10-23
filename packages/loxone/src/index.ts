@@ -5,6 +5,8 @@ export { DiscoveryList, type DiscoveredPacket } from "./DiscoveryList.ts"
 export { HealthMonitor, type MiniserverHealth } from "./HealthMonitor.ts"
 export { LoxoneTopics } from "./LoxoneTopics.ts"
 export { IciValueMapper } from "./IciValueMapper.ts"
+export { LoxoneSignals, type LoxoneSignalEntry } from "./LoxoneSignals.ts"
+export { ProblemReporter } from "./ProblemReporter.ts"
 export {
   LoxoneSignalConfigSchema, MiniserverConfigSchema,
   type LoxoneSignalConfig, type LoxoneSignalConfigInput, type MiniserverConfig, type MiniserverConfigInput

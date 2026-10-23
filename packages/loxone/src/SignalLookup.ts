@@ -1,9 +1,11 @@
-import type { LoxoneSignalConfig } from "./MiniserverConfig.ts"
+import type { LoxoneSignalEntry } from "./LoxoneSignals.ts"
 
-/** How the routers find configured signals; implemented by Miniserver. */
+/** How the routers find configured signals; implemented by LoxoneSignals. */
 export interface SignalLookup {
   /** the in-signal for a packet id the Miniserver sent */
-  inputFor(packetId: string): { config: LoxoneSignalConfig; topic: string } | undefined
+  inputFor(packetId: string): LoxoneSignalEntry | undefined
   /** the out-signal behind a bus topic */
-  outputFor(topic: string): LoxoneSignalConfig | undefined
+  outputFor(topic: string): LoxoneSignalEntry | undefined
+  /** every out-signal, to send current values when a connection opens */
+  outputs(): LoxoneSignalEntry[]
 }
