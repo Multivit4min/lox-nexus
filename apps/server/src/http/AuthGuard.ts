@@ -4,7 +4,7 @@ import type { SessionCookie } from "./SessionCookie.ts"
 
 declare module "fastify" {
   interface FastifyRequest {
-    /** the logged-in user; set by AuthGuard for every /api request with a valid session */
+    /** the logged-in user; set by AuthGuard for every API request with a valid session */
     user: AuthUser | undefined
   }
   interface FastifyContextConfig {
@@ -14,22 +14,31 @@ declare module "fastify" {
 }
 
 /**
- * Resolves the session cookie on every /api request (including the WebSocket upgrade) and
- * rejects requests to non-public routes without a valid session. State-changing requests and
- * upgrades with an Origin header from another host are refused as a second line of defence
- * after SameSite=Strict.
+ * Resolves the session cookie on every API request (including the WebSocket upgrade) and rejects
+ * non-public routes without a valid session. It is registered as a hook of the API plugin, so it
+ * runs for every route in it, however the URL is spelled (never check request.url: the router
+ * decodes it, the raw string doesn't, and "/%61pi" would slip past).
+ *
+ * State-changing requests and upgrades whose Origin is neither the Host nor a configured public
+ * origin are refused, as a second line of defence after SameSite=Strict.
  */
 export class AuthGuard {
   private static readonly SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"])
+  private readonly allowedOrigins: Set<string>
 
-  constructor(private readonly auth: AuthService, private readonly cookie: SessionCookie) {}
+  /** @param publicOrigins origins the UI is served from behind a proxy that rewrites Host, e.g. https://nexus.example */
+  constructor(private readonly auth: AuthService, private readonly cookie: SessionCookie, publicOrigins: readonly string[] = []) {
+    this.allowedOrigins = new Set(publicOrigins.map(origin => new URL(origin).origin))
+  }
 
   /** the onRequest hook */
   readonly check = async (request: FastifyRequest, reply: FastifyReply) => {
-    if (!request.url.startsWith("/api/")) return
     if (this.isCrossOrigin(request)) return reply.code(403).send({ error: "cross-origin request refused" })
     const token = this.cookie.read(request)
-    request.user = token ? this.auth.authenticate(token) : undefined
+    const session = token ? this.auth.authenticate(token) : undefined
+    request.user = session?.user
+    // the cookie's Max-Age must slide with the session, or the browser drops it 30 days after login
+    if (token && session?.renewed) this.cookie.set(reply, token)
     if (!request.user && !request.routeOptions.config.public) return reply.code(401).send({ error: "login required" })
   }
 
@@ -39,7 +48,8 @@ export class AuthGuard {
     const origin = request.headers.origin
     if (!origin) return false
     try {
-      return new URL(origin).host !== request.headers.host
+      const url = new URL(origin)
+      return url.host !== request.headers.host && !this.allowedOrigins.has(url.origin)
     } catch {
       return true
     }

@@ -26,6 +26,17 @@ export class RetainedState {
     return this.topics.get(topic)?.effective
   }
 
+  /** drops everything retained for the topic, as if it had never been published */
+  forget(topic: string) {
+    this.topics.delete(topic)
+    this.dirty.delete(topic)
+  }
+
+  /** every retained topic */
+  topicNames(): string[] {
+    return [...this.topics.keys()]
+  }
+
   /** every topic's current message, in first-seen order */
   *effectiveAll(): Generator<BusMessage> {
     for (const state of this.topics.values()) if (state.effective) yield state.effective

@@ -44,20 +44,32 @@ export class WireService {
     return WireService.toDto(config, true)
   }
 
-  /** replaces the running wire; if the new config is refused, the old wire keeps running */
+  /**
+   * Replaces the running wire. If the new config is refused, or storing it fails (e.g. the target
+   * belongs to a stored but inactive wire), the old wire keeps running and nothing changes.
+   */
   update(id: string, input: unknown): WireDto {
     const previous = this.repo.get(id)
     if (!previous) throw HttpError.notFound(`wire "${id}"`)
     const body = WireBodySchema.parse(input)
     const wasActive = this.engine.remove(id)
+    const restore = () => {
+      if (wasActive) this.engine.add(previous)
+    }
     let config: WireConfig
     try {
       config = WireService.start(this.engine, { ...body, id })
     } catch (error) {
-      if (wasActive) this.engine.add(previous)
+      restore()
       throw error
     }
-    this.repo.save(config)
+    try {
+      this.repo.save(config)
+    } catch (error) {
+      this.engine.remove(id)
+      restore()
+      throw error
+    }
     return WireService.toDto(config, true)
   }
 

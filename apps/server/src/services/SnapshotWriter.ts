@@ -13,7 +13,7 @@ export class SnapshotWriter extends Disposable {
   static readonly INTERVAL_MS = 5000
 
   constructor(
-    private readonly bus: Pick<EventBus, "pendingSnapshot" | "confirmSnapshot">,
+    private readonly bus: Pick<EventBus, "pendingSnapshot" | "confirmSnapshot" | "restoreSnapshot">,
     private readonly signals: TopicKinds,
     private readonly repo: SnapshotRepository,
     private readonly log: Logger
@@ -21,6 +21,17 @@ export class SnapshotWriter extends Disposable {
     super()
     this.every(SnapshotWriter.INTERVAL_MS, () => this.flush())
     this.onDispose(() => void this.flush())
+  }
+
+  /**
+   * Replays stored values whose topic still belongs to a signal and deletes the rest (left by a
+   * rename or an older version). Call after the signals are registered.
+   */
+  restore() {
+    const entries = this.repo.load()
+    const alive = entries.filter(entry => this.signals.kindOf(entry.topic) !== undefined)
+    for (const entry of entries) if (!alive.includes(entry)) this.repo.delete(entry.topic)
+    this.bus.restoreSnapshot(alive)
   }
 
   /** @returns how many values were stored */

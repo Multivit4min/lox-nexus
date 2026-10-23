@@ -30,3 +30,23 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
   Both are harmless but visible in the inspector. A `RetainedState.forget(topic)` would clean them up.
 - **`node:crypto` in core.** `CausalChain` uses `randomUUID` for its boot id. It's harmless, but
   the boot id could be injected to keep core strictly IO-free.
+
+## Server (from the M3b review)
+
+- **Broken rows are invisible.** A stored Miniserver or signal that can't be loaded (e.g. written
+  by a newer version) is logged and skipped. It doesn't show up in the API and can't be deleted
+  there. Wires in that state are listed as `active: false`. Do the same for Miniservers and
+  signals.
+- **Editing a Loxone signal.** There is no PUT for signals yet. Changing a label, slug or data type
+  means deleting and re-adding it, which deletes its wires.
+- **Domain errors.** Rule violations are recognised as plain `Error`s. A `DomainError` class (or
+  error codes) in core and loxone would make the 409 mapping explicit, and allow machine-readable
+  codes instead of messages with UUIDs.
+- **Wire input schema in `packages/api`.** `WireBodySchema` lives in the server because the
+  transform schemas live in core. The wire editor (M5) needs them in the browser. Move the
+  transform schemas to plugin-sdk, or to a dependency-free module.
+- **`SignalDto` has no owner** (Miniserver or plugin instance), which a wire editor needs for
+  grouping.
+- **One process per data dir.** Nothing stops two servers from using the same database. Add an
+  exclusive lock file.
+

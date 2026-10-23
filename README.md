@@ -37,6 +37,8 @@ Server settings come from environment variables:
 | `NEXUS_LOG_LEVEL` | `info` | |
 | `NEXUS_SECURE_COOKIES` | `false` | set to `true` behind https |
 | `NEXUS_WEB_DIR` | | built web UI to serve |
+| `NEXUS_TRUST_PROXY` | | reverse proxy addresses whose `X-Forwarded-For` is trusted |
+| `NEXUS_PUBLIC_ORIGINS` | | origins the UI is reached at through a proxy that rewrites `Host` |
 
 ## Repository layout
 

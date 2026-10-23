@@ -5,12 +5,14 @@ import type { Logger } from "pino"
 import type { LoxoneSignalRepository } from "../db/repositories/LoxoneSignalRepository.ts"
 import { HttpError } from "../http/HttpError.ts"
 import { MiniserverMapper } from "./MiniserverMapper.ts"
+import type { TopicCleanup } from "./TopicCleanup.ts"
 
 /** The signals of a Miniserver and adoption of discovered packet ids. Signal ids are UUIDs, because SignalRegistry ids are global. */
 export class LoxoneSignalService {
   constructor(
     private readonly repo: LoxoneSignalRepository,
     private readonly manager: MiniserverManager,
+    private readonly cleanup: TopicCleanup,
     private readonly log: Logger
   ) {}
 
@@ -45,12 +47,14 @@ export class LoxoneSignalService {
     return MiniserverMapper.signalToDto(miniserver, config)
   }
 
-  /** deletes the signal and its wires */
-  remove(miniserverId: string, signalId: string) {
+  /** deletes the signal, its wires, and its force and stored value */
+  remove(miniserverId: string, signalId: string, by: string) {
     const miniserver = this.require(miniserverId)
-    if (!miniserver.signals().some(signal => signal.id === signalId)) throw HttpError.notFound(`signal "${signalId}"`)
+    const topic = miniserver.topicOf(signalId)
+    if (!topic) throw HttpError.notFound(`signal "${signalId}"`)
     this.repo.delete(signalId)
     miniserver.removeSignal(signalId)
+    this.cleanup.forget(topic, by)
   }
 
   discovered(miniserverId: string): DiscoveredPacketDto[] {

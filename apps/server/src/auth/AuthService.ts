@@ -4,6 +4,7 @@ import type { Database } from "../db/Database.ts"
 import type { UserRepository } from "../db/repositories/UserRepository.ts"
 import type { PasswordHasher } from "./PasswordHasher.ts"
 import type { SessionService } from "./SessionService.ts"
+import { SetupDoneError } from "./SetupDoneError.ts"
 
 /** The logged-in user as the rest of the server sees it; never includes the hash. */
 export interface AuthUser {
@@ -11,17 +12,17 @@ export interface AuthUser {
   username: string
 }
 
-/** Thrown when setup is attempted although a user already exists. */
-export class SetupDoneError extends Error {
-  constructor() {
-    super("setup has already been completed")
-  }
+/** A valid session: its user, and whether its expiry was just extended (the cookie should be renewed). */
+export interface AuthSession {
+  user: AuthUser
+  renewed: boolean
 }
 
 /** First-run setup, login, logout and session lookup. */
 export class AuthService {
-  // verified against when the username is unknown, so both cases take the same time
-  private dummyHash: Promise<string> | undefined
+  // verified against when the username is unknown, so both cases take the same time; computed
+  // up front so the first unknown-user login isn't slower than the others
+  private readonly dummyHash: Promise<string>
 
   constructor(
     private readonly db: Database,
@@ -29,7 +30,10 @@ export class AuthService {
     private readonly sessions: SessionService,
     private readonly hasher: PasswordHasher,
     private readonly clock: Clock
-  ) {}
+  ) {
+    this.dummyHash = hasher.hash(randomUUID())
+    this.dummyHash.catch(() => undefined)
+  }
 
   /** true until the first account exists */
   needsSetup() {
@@ -42,6 +46,8 @@ export class AuthService {
    * @throws SetupDoneError when an account already exists
    */
   async setup(username: string, password: string): Promise<{ user: AuthUser; token: string }> {
+    // refused before hashing, so the public setup route can't be used to burn CPU after setup
+    if (!this.needsSetup()) throw new SetupDoneError()
     const hash = await this.hasher.hash(password)
     const user = { id: randomUUID(), username }
     this.db.transaction(() => {
@@ -54,16 +60,16 @@ export class AuthService {
   /** @returns undefined for an unknown user or a wrong password, without saying which */
   async login(username: string, password: string): Promise<{ user: AuthUser; token: string } | undefined> {
     const row = this.users.findByName(username)
-    const valid = await this.hasher.verify(password, row?.password_hash ?? await this.dummy())
+    const valid = await this.hasher.verify(password, row?.password_hash ?? await this.dummyHash)
     if (!row || !valid) return undefined
     return { user: { id: row.id, username: row.username }, token: this.sessions.create(row.id) }
   }
 
   /** the user behind a session token, if the session is valid */
-  authenticate(token: string): AuthUser | undefined {
-    const userId = this.sessions.resolve(token)
-    const row = userId === undefined ? undefined : this.users.findById(userId)
-    return row && { id: row.id, username: row.username }
+  authenticate(token: string): AuthSession | undefined {
+    const session = this.sessions.resolve(token)
+    const row = session && this.users.findById(session.userId)
+    return row && { user: { id: row.id, username: row.username }, renewed: session.renewed }
   }
 
   logout(token: string) {
@@ -83,10 +89,5 @@ export class AuthService {
       this.sessions.revokeAll(userId)
     })
     return this.sessions.create(userId)
-  }
-
-  private dummy() {
-    this.dummyHash ??= this.hasher.hash(randomUUID())
-    return this.dummyHash
   }
 }

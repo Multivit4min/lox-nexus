@@ -20,7 +20,7 @@ export interface BusMessageDto {
   text?: string
 }
 
-/** One node of GET /api/bus/trace/:id */
+/** One node of GET /api/bus/messages/:id/trace */
 export interface TraceNodeDto {
   message: BusMessageDto
   children: TraceNodeDto[]

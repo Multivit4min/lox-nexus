@@ -1,6 +1,7 @@
 import type { FastifyError, FastifyReply, FastifyRequest } from "fastify"
 import { z } from "zod"
-import { SetupDoneError } from "../auth/AuthService.ts"
+import { BusyError } from "../auth/ConcurrencyLimit.ts"
+import { SetupDoneError } from "../auth/SetupDoneError.ts"
 import { HttpError } from "./HttpError.ts"
 
 /** Maps errors to JSON responses: { error, issues? }. Unexpected errors are logged and answered with a generic 500. */
@@ -14,6 +15,7 @@ export class ErrorHandler {
     }
     if (error instanceof HttpError) return reply.code(error.status).send({ error: error.message })
     if (error instanceof SetupDoneError) return reply.code(409).send({ error: error.message })
+    if (error instanceof BusyError) return reply.code(503).header("retry-after", 1).send({ error: error.message })
     if (ErrorHandler.isConstraint(error)) return reply.code(409).send({ error: "conflicts with existing data" })
     const status = "statusCode" in error && typeof error.statusCode === "number" ? error.statusCode : 500
     // Fastify's own 4xx errors (bad JSON, wrong content type) are safe to pass on

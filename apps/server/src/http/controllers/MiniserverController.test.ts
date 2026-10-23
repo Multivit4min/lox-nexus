@@ -89,9 +89,23 @@ describe("miniserver API", { timeout: 10_000 }, () => {
     assert.equal((await admin.post(`/api/miniservers/${ms.id}/start`)).json<MiniserverDto>().running, true)
   })
 
-  test("deleting a Miniserver removes its signals", async () => {
+  test("deleting a signal releases its force and forgets its value", async () => {
+    const mood = (await admin.get(`/api/miniservers/${ms.id}/signals`)).json<LoxoneSignalDto[]>().find(s => s.packetId === "mood")!
+    // the earlier force stayed on the old topic when the Miniserver was renamed (documented)
+    await admin.delete(`/api/bus/forces?topic=${encodeURIComponent("loxone/haus/out/mood")}`)
+    await admin.post("/api/bus/forces", { topic: mood.topic, value: Value.number(1) })
+    assert.equal((await admin.delete(`/api/miniservers/${ms.id}/signals/${mood.id}`)).statusCode, 204)
+    assert.deepEqual(app.app.bus.activeForces(), [])
+    assert.equal(app.app.bus.current(mood.topic), undefined)
+    assert.deepEqual(app.app.persistence.db.all("SELECT topic FROM forces"), [])
+  })
+
+  test("deleting a Miniserver removes its signals, rows and retained topics", async () => {
     assert.equal((await admin.delete(`/api/miniservers/${ms.id}`)).statusCode, 204)
     assert.deepEqual(app.app.signals.list(), [])
     assert.deepEqual((await admin.get("/api/miniservers")).json(), [])
+    const db = app.app.persistence.db
+    assert.deepEqual([db.all("SELECT * FROM signals"), db.all("SELECT * FROM loxone_signals")], [[], []])
+    assert.deepEqual([app.app.bus.currentMatching("loxone/home/#"), app.app.bus.currentMatching("system/loxone/home/#")], [[], []])
   })
 })

@@ -19,6 +19,7 @@ import { LoxoneSignalService } from "./services/LoxoneSignalService.ts"
 import { MiniserverService } from "./services/MiniserverService.ts"
 import { SnapshotWriter } from "./services/SnapshotWriter.ts"
 import { SystemEventLogger } from "./services/SystemEventLogger.ts"
+import { TopicCleanup } from "./services/TopicCleanup.ts"
 import { WireService } from "./services/WireService.ts"
 import { BusStream } from "./stream/BusStream.ts"
 
@@ -46,8 +47,11 @@ export class NexusApp extends Disposable {
   readonly wires: WireEngine
   readonly miniservers: MiniserverManager
   private readonly clock: Clock
+  private readonly snapshot: SnapshotWriter
   private http: HttpServer | undefined
+  private stream: BusStream | undefined
 
+  /** @throws when the database can't be opened or migrated */
   constructor(private readonly config: Config, private readonly log: Logger, private readonly options: NexusAppOptions = {}) {
     super()
     this.clock = options.clock ?? new SystemClock()
@@ -56,22 +60,29 @@ export class NexusApp extends Disposable {
     this.bus = this.own(new EventBus({ clock: this.clock, forces: this.persistence.forces, topicKinds: this.signals }))
     this.recorder = this.own(new Recorder(this.bus))
     this.wires = this.own(new WireEngine(this.bus, this.signals))
+    // owned before the Miniservers, so it is disposed after them and saves their last values
+    this.snapshot = this.own(new SnapshotWriter(this.bus, this.signals, this.persistence.snapshot, log))
     this.miniservers = this.own(new MiniserverManager({ bus: this.bus, signals: this.signals, clock: this.clock }))
   }
 
-  /** restores state, starts the Miniservers and listens for HTTP. @returns the HTTP address */
-  async start(): Promise<string> {
+  /**
+   * Restores state, starts the Miniservers and listens for HTTP. Stops early (without error) when
+   * the app is disposed meanwhile, e.g. by SIGTERM during startup.
+   * @returns the HTTP address, or undefined when stopped early
+   */
+  async start(): Promise<string | undefined> {
     const { persistence: db, log } = this
     if (db.applied.length > 0) log.info({ migrations: db.applied }, "database migrated")
-    const loxoneSignals = new LoxoneSignalService(db.loxoneSignals, this.miniservers, log)
-    const miniservers = new MiniserverService(db.miniservers, this.miniservers, loxoneSignals, log)
+    const cleanup = new TopicCleanup(this.bus, db.snapshot)
+    const loxoneSignals = new LoxoneSignalService(db.loxoneSignals, this.miniservers, cleanup, log)
+    const miniservers = new MiniserverService(db.miniservers, this.miniservers, loxoneSignals, cleanup, log)
     const wires = new WireService(db.wires, this.wires, log)
     this.bus.restoreForces()
     miniservers.load()
     wires.load()
-    this.bus.restoreSnapshot(db.snapshot.load())
+    this.snapshot.restore()
     for (const failure of await this.miniservers.startEnabled()) log.warn({ err: failure.error, miniserver: failure.id }, "miniserver failed to start")
-    this.own(new SnapshotWriter(this.bus, this.signals, db.snapshot, log))
+    if (this.isDisposed) return undefined
     this.own(new SystemEventLogger(this.bus, log.child({ component: "bus" })))
     this.http = this.own(this.createHttp(miniservers, loxoneSignals, wires))
     return this.http.start(this.config.httpPort, this.config.httpHost)
@@ -82,17 +93,24 @@ export class NexusApp extends Disposable {
     return this.http
   }
 
+  /** the live stream once started; tests check its open connections */
+  get streams() {
+    return this.stream
+  }
+
   private createHttp(miniservers: MiniserverService, loxoneSignals: LoxoneSignalService, wires: WireService) {
-    const { persistence: db, clock } = this
+    const { persistence: db, clock, config, log } = this
     const sessions = new SessionService(db.sessions, clock)
-    this.every(60 * 60 * 1000, () => void sessions.prune())
+    this.every(60 * 60 * 1000, () => this.pruneSessions(sessions))
     const auth = new AuthService(db.db, db.users, sessions, new PasswordHasher(this.options.hasherCost), clock)
-    const cookie = new SessionCookie(this.config.secureCookies)
-    const stream = this.own(new BusStream(this.bus))
+    const cookie = new SessionCookie(config.secureCookies)
+    const stream = this.own(new BusStream(this.bus, auth, sessions, cookie))
+    this.stream = stream
     return new HttpServer({
-      logger: this.log,
-      guard: new AuthGuard(auth, cookie),
-      webDir: this.config.webDir,
+      logger: log,
+      guard: new AuthGuard(auth, cookie, config.publicOrigins),
+      webDir: config.webDir,
+      trustProxy: config.trustProxy,
       controllers: [
         new AuthController(auth, new LoginThrottle(clock), cookie),
         new MiniserverController(miniservers, loxoneSignals),
@@ -101,5 +119,14 @@ export class NexusApp extends Disposable {
         stream
       ]
     })
+  }
+
+  // a timer callback must not throw: a busy database here would otherwise crash the process
+  private pruneSessions(sessions: SessionService) {
+    try {
+      sessions.prune()
+    } catch (error) {
+      this.log.warn({ err: error }, "removing expired sessions failed")
+    }
   }
 }

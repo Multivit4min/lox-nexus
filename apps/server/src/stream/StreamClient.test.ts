@@ -13,8 +13,20 @@ class FakeSocket extends EventEmitter {
   readyState = 1
   bufferedAmount = 0
   readonly sent: StreamEvent[] = []
+  closed: number | undefined
+  pings = 0
+  terminated = false
   send(data: string) {
     this.sent.push(JSON.parse(data) as StreamEvent)
+  }
+  ping() {
+    this.pings++
+  }
+  terminate() {
+    this.terminated = true
+  }
+  close(code: number) {
+    this.closed = code
   }
   request(body: unknown) {
     this.emit("message", Buffer.from(JSON.stringify(body)))
@@ -31,7 +43,7 @@ describe("StreamClient backpressure", () => {
     mock.timers.enable({ apis: ["setInterval", "setTimeout"] })
     bus = new EventBus()
     socket = new FakeSocket()
-    client = new StreamClient(socket as unknown as WebSocket, bus)
+    client = new StreamClient(socket as unknown as WebSocket, bus, { token: "t", tokenHash: "h", userId: "u" })
     socket.request({ type: "subscribe", stream: "bus", pattern: "#" })
   })
   afterEach(async () => {
@@ -57,6 +69,25 @@ describe("StreamClient backpressure", () => {
     assert.deepEqual(socket.sent[0], { type: "gap", dropped: 5 })
     const batch = socket.sent[1]
     assert.equal(batch?.type === "bus" && batch.messages.length, StreamClient.MAX_QUEUED)
+  })
+
+  test("a new pattern discards what was queued for the old one", () => {
+    bus.publish("a/x", Value.number(1), user)
+    socket.request({ type: "subscribe", stream: "bus", pattern: "b/#" })
+    bus.publish("b/x", Value.number(2), user)
+    mock.timers.tick(StreamClient.FLUSH_MS)
+    const batch = socket.sent[0]
+    assert.deepEqual(batch?.type === "bus" && batch.messages.map(m => m.topic), ["b/x"])
+  })
+
+  test("a client that stops answering pings is terminated", () => {
+    mock.timers.tick(StreamClient.HEARTBEAT_MS)
+    assert.equal(socket.pings, 1)
+    socket.emit("pong")
+    mock.timers.tick(StreamClient.HEARTBEAT_MS)
+    assert.equal(socket.terminated, false)
+    mock.timers.tick(StreamClient.HEARTBEAT_MS)
+    assert.equal(socket.terminated, true)
   })
 
   test("unsubscribing stops the stream; invalid patterns are refused", () => {

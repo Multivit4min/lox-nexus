@@ -61,6 +61,19 @@ describe("bus and wire API", { timeout: 10_000 }, () => {
     assert.equal((await admin.get("/api/bus/current?pattern=a/%23/b")).statusCode, 400)
   })
 
+  test("a wire update that can't be stored leaves the running wire unchanged", async () => {
+    const [wire] = (await admin.get("/api/wires")).json<WireDto[]>()
+    const [source, target] = [await signal("loxone/haus/in/in"), await signal("loxone/haus/out/out")]
+    const ms = (await admin.get("/api/miniservers")).json<Array<{ id: string }>>()[0]!
+    const other = (await admin.post(`/api/miniservers/${ms.id}/signals`, { packetId: "other", direction: "out", dataType: 1, label: "Other" })).json<{ id: string }>()
+    // a stored wire that can't start (corrupt transforms) still owns its target in the database
+    app.app.persistence.db.run("INSERT INTO wires VALUES ('broken', 'broken', :s, :t, 'not json', 1, 0)", { s: source.id, t: other.id })
+    const moved = await admin.put(`/api/wires/${wire!.id}`, { label: "moved", sourceId: source.id, targetId: other.id })
+    assert.equal(moved.statusCode, 409)
+    assert.deepEqual(app.app.wires.list().map(w => [w.id, w.targetId]), [[wire!.id, target.id]])
+    app.app.persistence.db.run("DELETE FROM wires WHERE id = 'broken'")
+  })
+
   test("deleting a wire stops it", async () => {
     const [wire] = (await admin.get("/api/wires")).json<WireDto[]>()
     assert.equal((await admin.delete(`/api/wires/${wire!.id}`)).statusCode, 204)

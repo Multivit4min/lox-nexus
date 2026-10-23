@@ -119,6 +119,20 @@ export class EventBus extends Disposable {
     return [...this.retained.effectiveAll()].filter(message => Topic.matches(pattern, message.topic))
   }
 
+  /**
+   * Drops the retained values of topics that no longer exist (a deleted signal or Miniserver), so
+   * they disappear from current(), currentMatching() and the snapshot. Forced topics are skipped:
+   * release them first. Nothing is delivered to subscribers.
+   * @throws RangeError for an invalid pattern
+   * @returns the forgotten topics
+   */
+  forget(pattern: string): string[] {
+    Topic.assertValidPattern(pattern)
+    const topics = this.retained.topicNames().filter(topic => Topic.matches(pattern, topic) && !this.forces.get(topic))
+    for (const topic of topics) this.retained.forget(topic)
+    return topics
+  }
+
   /** all forces currently applied, for the inspector and API */
   activeForces() {
     return this.forces.list()

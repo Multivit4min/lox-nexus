@@ -16,6 +16,8 @@ export interface HttpServerOptions {
   controllers: Controller[]
   /** built web UI; served with a fallback to index.html for client-side routes */
   webDir?: string
+  /** proxies whose X-Forwarded-For sets request.ip; empty trusts nobody */
+  trustProxy?: string[]
 }
 
 /** The Fastify app: cookies, WebSocket, the auth guard, controllers and the static UI. */
@@ -28,6 +30,7 @@ export class HttpServer extends Disposable {
     this.app = Fastify({
       loggerInstance: options.logger,
       bodyLimit: 1_048_576,
+      trustProxy: options.trustProxy?.length ? options.trustProxy : false,
       // per-request logs would drown the bus events; errors are still logged by ErrorHandler
       logController: new LogController({ disableRequestLogging: true })
     })

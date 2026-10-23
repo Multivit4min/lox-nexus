@@ -101,6 +101,16 @@ describe("EventBus delivery", () => {
     assert.throws(() => bus.currentMatching("a/#/b"), RangeError)
   })
 
+  test("forget drops retained values of matching topics, except forced ones", () => {
+    const bus = new EventBus()
+    bus.publish("a/x", Value.number(1), loxone)
+    bus.publish("a/y", Value.number(2), loxone)
+    bus.force("a/z", Value.number(3), { by: "david" })
+    assert.deepEqual(bus.forget("a/#"), ["a/x", "a/y"])
+    assert.deepEqual(bus.currentMatching("#").map(m => m.topic), ["a/z"])
+    assert.deepEqual(bus.pendingSnapshot(), [], "forgotten topics are not persisted either")
+  })
+
   test("a value that changes while a snapshot is written stays pending", () => {
     const bus = new EventBus()
     bus.publish("a/x", Value.number(1), loxone)

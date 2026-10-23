@@ -11,14 +11,15 @@ export class TestApp {
   readonly app: NexusApp
   address = ""
 
-  constructor(options: NexusAppOptions = {}) {
-    const config = new Config({ NEXUS_HTTP_HOST: "127.0.0.1", NEXUS_HTTP_PORT: "0", NEXUS_DATA_DIR: os.tmpdir() })
+  /** @param env extra NEXUS_* variables, e.g. NEXUS_PUBLIC_ORIGINS */
+  constructor(options: NexusAppOptions = {}, env: Record<string, string> = {}) {
+    const config = new Config({ NEXUS_HTTP_HOST: "127.0.0.1", NEXUS_HTTP_PORT: "0", NEXUS_DATA_DIR: os.tmpdir(), ...env })
     this.app = new NexusApp(config, LoggerFactory.silent(), { databaseFile: ":memory:", hasherCost: 1024, ...options })
   }
 
-  static async start(options: NexusAppOptions = {}) {
-    const test = new TestApp(options)
-    test.address = await test.app.start()
+  static async start(options: NexusAppOptions = {}, env: Record<string, string> = {}) {
+    const test = new TestApp(options, env)
+    test.address = (await test.app.start()) ?? ""
     return test
   }
 

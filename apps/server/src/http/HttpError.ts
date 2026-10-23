@@ -17,9 +17,13 @@ export class HttpError extends Error {
     return new HttpError(400, message)
   }
 
-  /** turns a domain error (plain Error from core or loxone) into a 409 with its message */
+  /**
+   * Turns a rule violation from core or loxone ("slug already used", "target already has a wire")
+   * into a 409. Those are plain Errors; subclasses (TypeError, ZodError) and errors with a code
+   * (SQLite, system errors) are bugs or infrastructure problems and stay 400/500.
+   */
   static fromDomain(error: unknown): unknown {
-    if (error instanceof HttpError || !(error instanceof Error) || error.name === "ZodError") return error
+    if (!(error instanceof Error) || error.constructor !== Error || "code" in error) return error
     return HttpError.conflict(error.message)
   }
 }

@@ -3,13 +3,14 @@ import type { DiscoveredPacket, LoxoneSignalConfig, Miniserver } from "@lox-nexu
 
 /** Runtime objects to API DTOs. The only place that decides what of a Miniserver leaves the server. */
 export class MiniserverMapper {
-  /** never includes the password, only whether one is set */
+  /** fields are listed one by one, so a secret added to the config later can't leak by default */
   static toDto(miniserver: Miniserver): MiniserverDto {
-    const { password, ...config } = miniserver.config
+    const { id, slug, label, host, port, listenPort, listenAddress, ownId, remoteId, password, enabled, resendInterval } = miniserver.config
     const boundPort = miniserver.listenPort
     const lastError = miniserver.lastError
     return {
-      ...config,
+      id, slug, label, host, port, listenPort, ownId, remoteId, enabled, resendInterval,
+      ...(listenAddress === undefined ? {} : { listenAddress }),
       hasPassword: password !== undefined,
       running: miniserver.isRunning,
       health: miniserver.health,

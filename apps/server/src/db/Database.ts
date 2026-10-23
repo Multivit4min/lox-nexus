@@ -41,21 +41,31 @@ export class Database {
     return this.statement(sql).all(params) as T[]
   }
 
-  /** Runs `work` atomically. Nested calls join the outer transaction; a throw rolls back everything. */
+  /**
+   * Runs `work` atomically; a throw rolls it back. A nested call becomes a savepoint, so it is
+   * atomic on its own even when the outer transaction catches its error and goes on.
+   */
   transaction<T>(work: () => T): T {
-    if (this.depth > 0) return work()
-    this.db.exec("BEGIN IMMEDIATE")
+    const savepoint = this.depth > 0 ? `nested_${this.depth}` : undefined
+    this.db.exec(savepoint ? `SAVEPOINT ${savepoint}` : "BEGIN IMMEDIATE")
     this.depth++
     try {
       const result = work()
-      this.db.exec("COMMIT")
+      this.db.exec(savepoint ? `RELEASE ${savepoint}` : "COMMIT")
       return result
     } catch (error) {
-      this.db.exec("ROLLBACK")
+      this.rollback(savepoint)
       throw error
     } finally {
       this.depth--
     }
+  }
+
+  // after some errors (disk full, I/O) SQLite has already rolled back; a second ROLLBACK would
+  // throw "no transaction is active" and hide the error that matters
+  private rollback(savepoint: string | undefined) {
+    if (!this.db.isTransaction) return
+    this.db.exec(savepoint ? `ROLLBACK TO ${savepoint}; RELEASE ${savepoint}` : "ROLLBACK")
   }
 
   close() {

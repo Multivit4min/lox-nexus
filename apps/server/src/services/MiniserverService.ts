@@ -6,6 +6,7 @@ import type { MiniserverRepository } from "../db/repositories/MiniserverReposito
 import { HttpError } from "../http/HttpError.ts"
 import { MiniserverMapper } from "./MiniserverMapper.ts"
 import type { LoxoneSignalService } from "./LoxoneSignalService.ts"
+import type { TopicCleanup } from "./TopicCleanup.ts"
 
 /**
  * Miniserver configs: the database is the source of truth, MiniserverManager the running
@@ -17,6 +18,7 @@ export class MiniserverService {
     private readonly repo: MiniserverRepository,
     private readonly manager: MiniserverManager,
     private readonly signals: LoxoneSignalService,
+    private readonly cleanup: TopicCleanup,
     private readonly log: Logger
   ) {}
 
@@ -64,11 +66,13 @@ export class MiniserverService {
     return MiniserverMapper.toDto(miniserver)
   }
 
-  /** deletes the Miniserver, its signals and their wires */
-  async remove(id: string) {
-    this.require(id)
+  /** deletes the Miniserver, its signals and their wires, and everything left on its topics */
+  async remove(id: string, by: string) {
+    const { slug } = this.require(id).config
     this.repo.delete(id)
     await this.manager.remove(id)
+    this.cleanup.forget(`loxone/${slug}/#`, by)
+    this.cleanup.forget(`system/loxone/${slug}/#`, by)
   }
 
   /** runtime only; `enabled` decides what happens at the next boot */

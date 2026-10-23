@@ -18,7 +18,7 @@ export class MiniserverController implements Controller {
     app.get("/api/miniservers/:id", request => this.miniservers.get(MiniserverController.id(request)))
     app.put("/api/miniservers/:id", request => this.miniservers.update(MiniserverController.id(request), MiniserverInputSchema.parse(request.body)))
     app.delete("/api/miniservers/:id", async (request, reply) => {
-      await this.miniservers.remove(MiniserverController.id(request))
+      await this.miniservers.remove(MiniserverController.id(request), request.user!.username)
       return reply.code(204).send()
     })
     app.post("/api/miniservers/:id/start", request => this.miniservers.start(MiniserverController.id(request)))
@@ -32,7 +32,7 @@ export class MiniserverController implements Controller {
       reply.code(201).send(this.signals.add(MiniserverController.id(request), LoxoneSignalInputSchema.parse(request.body))))
     app.delete("/api/miniservers/:id/signals/:signalId", (request, reply) => {
       const { id, signalId } = SignalParams.parse(request.params)
-      this.signals.remove(id, signalId)
+      this.signals.remove(id, signalId, request.user!.username)
       return reply.code(204).send()
     })
     app.get("/api/miniservers/:id/discovered", request => this.signals.discovered(MiniserverController.id(request)))

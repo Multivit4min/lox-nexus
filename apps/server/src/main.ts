@@ -3,28 +3,45 @@ import { Config } from "./config/Config.ts"
 import { LoggerFactory } from "./logging/LoggerFactory.ts"
 import { NexusApp } from "./NexusApp.ts"
 
-const config = new Config()
+let config: Config
+try {
+  config = new Config()
+} catch (error) {
+  console.error("lox-nexus: invalid configuration\n", error)
+  process.exit(1)
+}
 const log = LoggerFactory.create(config)
-const app = new NexusApp(config, log)
+
+let app: NexusApp
+try {
+  app = new NexusApp(config, log)
+} catch (error) {
+  log.fatal({ err: error, dataDir: config.dataDir }, "cannot open the database")
+  process.exit(1)
+}
+
+let exiting = false
+const exit = (code: number) => {
+  if (exiting) return
+  exiting = true
+  process.exit(code)
+}
 
 const shutdown = (signal: string) => {
   log.info({ signal }, "shutting down")
-  app.dispose().then(
-    () => process.exit(0),
-    (error: unknown) => {
-      log.error({ err: error }, "shutdown failed")
-      process.exit(1)
-    }
-  )
+  app.dispose().then(() => exit(0), (error: unknown) => {
+    log.error({ err: error }, "shutdown failed")
+    exit(1)
+  })
 }
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) process.once(signal, () => shutdown(signal))
 
 try {
   const address = await app.start()
-  log.info({ address, dataDir: config.dataDir }, "lox nexus is running")
+  if (address) log.info({ address, dataDir: config.dataDir }, "lox nexus is running")
 } catch (error) {
   log.fatal({ err: error }, "startup failed")
   await app.dispose().catch(() => undefined)
-  process.exit(1)
+  exit(1)
 }

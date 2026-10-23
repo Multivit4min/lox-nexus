@@ -17,5 +17,14 @@ export type StreamEvent =
   | { type: "bus"; messages: BusMessageDto[] }
   /** messages were dropped because the client could not keep up */
   | { type: "gap"; dropped: number }
-  | { type: "state"; messages: BusMessageDto[] }
+  /** full: the complete current state after subscribing (replace); otherwise changes since the last batch (merge) */
+  | { type: "state"; messages: BusMessageDto[]; full?: true }
   | { type: "error"; message: string }
+
+/** WebSocket close codes the UI reacts to. */
+export const StreamCloseCode = {
+  /** the server is shutting down: reconnect later */
+  SHUTDOWN: 1001,
+  /** logout, password change or expiry: go to the login page, don't reconnect */
+  SESSION_ENDED: 4401
+} as const

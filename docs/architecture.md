@@ -469,7 +469,8 @@ above:
 
 ## Implementation notes: server (M3b)
 
-- **Composition.** `NexusApp` builds everything in this boot order:
+- **Composition.** `NexusApp` builds everything in this boot order (a SIGTERM during startup stops
+  it cleanly after the current step):
   1. migrate the database
   2. restore forces
   3. load Miniservers and their signals
@@ -487,6 +488,10 @@ above:
     domain schema, store it, then apply it. A failing store undoes the runtime change.
   - A stored row that can't be loaded is logged and skipped. A wire that can't start stays stored
     and is listed as `active: false`.
+- **Deleting.** Deleting a signal or Miniserver also releases forces on its topics, forgets
+  their retained values (`EventBus.forget`) and deletes their snapshot rows (`TopicCleanup`). At
+  boot, snapshot rows whose topic no longer belongs to a signal are deleted. A rename still leaves
+  forces on the old topics (see the backlog).
 - **Signals in the database.** The `signals` table is a supertable. `loxone_signals` (and later
   `plugin_signals`) reference it, and `wires` reference `signals` with `ON DELETE CASCADE`.
   Deleting a signal or a Miniserver removes its wires in the database through foreign keys, and
@@ -497,15 +502,25 @@ above:
   batch. Only topics that belong to a signal are stored, so status and discovered topics are never
   replayed.
 - **Auth.**
-  - Setup works once (a transaction checks for existing users).
-  - Login is throttled per client address: 5 failures lock that address for 15 minutes.
+  - Setup works once. Existing users are checked before any hashing, and again inside the
+    insert's transaction.
+  - Login and setup are throttled per client address (IPv6 per /64). An attempt counts the moment
+    it starts, so parallel requests can't slip past while the hash runs: 5 attempts lock that
+    address for 15 minutes, and a success clears it.
+  - At most 2 scrypt hashes run at once and 8 wait; beyond that the answer is 503.
   - Wrong user and wrong password give the same answer in the same time.
   - The cookie holds a random token; the database stores only its SHA-256. Sessions last 30 days
-    and slide when used in their second half.
-  - A password change ends every session and issues a fresh one for the current client.
-  - `AuthGuard` runs on every `/api` request, including the WebSocket upgrade. Routes opt out
-    with `config: { public: true }`. State-changing requests and upgrades whose `Origin` names
-    another host are refused (403), on top of SameSite=Strict.
+    and slide when used in their second half; the cookie is renewed with them.
+  - Logout and password changes revoke sessions. A password change ends every session and issues
+    a fresh one for the current client. Revocation closes open streams of those sessions with
+    close code 4401, and streams also re-check their session every minute.
+  - `AuthGuard` is a hook of the API plugin, so it runs for every API route however the URL is
+    spelled. It never looks at `request.url` (the router decodes `/%61pi`, the raw URL doesn't).
+    Routes opt out with `config: { public: true }`.
+  - State-changing requests and WebSocket upgrades are refused (403) when their `Origin` is
+    neither the `Host` nor one of `NEXUS_PUBLIC_ORIGINS`. This adds to SameSite=Strict.
+  - Behind a reverse proxy, set `NEXUS_TRUST_PROXY` to the proxy's address. Otherwise every login
+    seems to come from the proxy and one person's typos lock out everyone.
 - **REST API** (all JSON, errors are `{ error, issues? }`):
   - `GET /api/health`
   - `/api/auth`: `GET`, plus `POST` on `setup`, `login`, `logout` and `password`
@@ -522,7 +537,9 @@ above:
     - `POST inject`
 - **Error mapping.**
   - zod → 400
-  - domain errors (taken slug, a target that already has a wire) → 409
+  - domain errors (taken slug, a target that already has a wire) → 409. These are plain `Error`s
+    from core and loxone; subclasses and errors with a `code` stay 500.
+  - a busy password hasher → 503
   - SQLite constraint → 409
   - invalid topic, pattern or past expiry (`RangeError`) → 400
   - unknown id → 404
@@ -531,7 +548,10 @@ above:
   pattern}`.
   - `bus` delivers every recorded message, including shadowed ones and forces, in batches every
     50 ms.
-  - `state` sends the current values once, then the latest change per topic per batch.
+  - `state` sends the current values once (`full: true`), then the latest change per topic per
+    batch. Replacing a subscription discards whatever was queued for the old pattern.
+  - A ping every 30 s detects half-open connections. Shutdown closes streams with 1001; an ended
+    session closes them with 4401 (`StreamCloseCode` in `@lox-nexus/api`).
   - A slow client never stalls the bus. When its socket buffer exceeds 1 MiB, or more than 2000
     messages queue up between batches, messages are dropped and it gets `{type: "gap", dropped}`.
 - **Logging.** pino writes JSON lines, or pretty output on a terminal. `SystemEventLogger` mirrors

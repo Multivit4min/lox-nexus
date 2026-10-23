@@ -65,6 +65,22 @@ describe("bus stream", { timeout: 10_000 }, () => {
     socket.send("not json")
     const error = await stream.next(e => e.type === "error")
     assert.match(error.type === "error" ? error.message : "", /invalid request/)
+    const closed = once(socket, "close")
     socket.close()
+    await closed
+  })
+
+  test("closed connections are forgotten", async () => {
+    const before = app.app.streams!.size
+    const stream = await connect({ cookie: admin.cookieHeader! })
+    stream.socket.send(JSON.stringify({ type: "subscribe", stream: "state", pattern: "#" }))
+    await stream.next(e => e.type === "state")
+    assert.equal(app.app.streams!.size, before + 1)
+    const closed = once(stream.socket, "close")
+    stream.socket.close()
+    await closed
+    // the server sees the close after the client; poll the condition instead of sleeping a fixed time
+    for (let i = 0; i < 100 && app.app.streams!.size > before; i++) await new Promise(resolve => setImmediate(resolve))
+    assert.equal(app.app.streams!.size, before)
   })
 })

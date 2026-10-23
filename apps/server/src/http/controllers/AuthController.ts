@@ -22,26 +22,33 @@ export class AuthController implements Controller {
     return { setupRequired: this.auth.needsSetup(), ...(request.user ? { user: request.user } : {}) }
   }
 
-  private async setup(request: FastifyRequest, reply: FastifyReply): Promise<AuthStateDto> {
+  // throttled like login: every request to it costs a password hash
+  private async setup(request: FastifyRequest, reply: FastifyReply) {
     const { username, password } = CredentialsSchema.parse(request.body)
+    if (this.throttled(request, reply)) return reply
     const { user, token } = await this.auth.setup(username, password)
+    this.throttle.succeeded(request.ip)
     this.cookie.set(reply, token)
-    return { setupRequired: false, user }
+    return { setupRequired: false, user } satisfies AuthStateDto
   }
 
-  // throttled per client address; the response never says whether the user exists
+  // the response never says whether the user exists
   private async login(request: FastifyRequest, reply: FastifyReply) {
-    const wait = this.throttle.retryAfter(request.ip)
-    if (wait > 0) return reply.code(429).header("retry-after", Math.ceil(wait / 1000)).send({ error: "too many failed logins, try again later" })
     const { username, password } = CredentialsSchema.parse(request.body)
+    if (this.throttled(request, reply)) return reply
     const result = await this.auth.login(username, password)
-    if (!result) {
-      this.throttle.failed(request.ip)
-      return reply.code(401).send({ error: "wrong username or password" })
-    }
+    if (!result) return reply.code(401).send({ error: "wrong username or password" })
     this.throttle.succeeded(request.ip)
     this.cookie.set(reply, result.token)
     return { setupRequired: false, user: result.user } satisfies AuthStateDto
+  }
+
+  /** counts the attempt before the slow hash, so parallel requests can't slip past; true when refused */
+  private throttled(request: FastifyRequest, reply: FastifyReply) {
+    const wait = this.throttle.begin(request.ip)
+    if (wait <= 0) return false
+    reply.code(429).header("retry-after", Math.ceil(wait / 1000)).send({ error: "too many failed attempts, try again later" })
+    return true
   }
 
   private logout(request: FastifyRequest, reply: FastifyReply) {
