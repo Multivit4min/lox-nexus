@@ -4,9 +4,9 @@ Connects external systems (Home Assistant, Fronius, calendars, …) to **Loxone 
 the Loxone Intercommunication Interface. Everything that happens is a message on a readable,
 forceable event bus that you can watch live.
 
-> Status: **M3b**. The ICI protocol, the event bus, the Loxone integration and the server
-> (REST API, login, persistence, live stream) work. The web UI comes next, see
-> [docs/roadmap.md](docs/roadmap.md).
+> Status: **M3**. The ICI protocol, the event bus, the Loxone integration, the server (REST API,
+> login, persistence, live stream) and the web UI (Miniservers, signals, Bus Inspector with
+> force/release) work. Plugins come next, see [docs/roadmap.md](docs/roadmap.md).
 
 ## Highlights (target)
 
@@ -25,7 +25,8 @@ Requires Node.js 24+.
 npm install
 npm run lint && npm run typecheck && npm test
 npm run dev        # server (watch mode) on http://localhost:8080; first visit runs setup
-npm run dev:web    # web UI (Vite)
+npm run dev:web    # web UI (Vite) on http://localhost:5173, proxies /api to the server
+npm run build      # then NEXUS_WEB_DIR=apps/web/dist serves the UI from the server
 ```
 
 Server settings come from environment variables:

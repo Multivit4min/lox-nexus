@@ -95,7 +95,7 @@ can run the T5 and RGBW experiments with your Miniserver.
 - debounce and throttle with `node:test` `mock.timers`
 - `MessageFormatter` snapshot tests
 
-### M3: Loxone, server and inspector (M3a Loxone and M3b server: done; M3c web: open)
+### M3: Loxone, server and inspector (done; the inspector's browser performance is still to be checked by hand)
 
 - `Miniserver`, `MiniserverManager` and `DiscoveryList`, built on `packages/ici`.
 - Server: the Fastify app, migrations, auth and setup, the Miniserver controller, `BusStream`.

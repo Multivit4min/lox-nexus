@@ -1,6 +1,8 @@
 import js from "@eslint/js"
 import tseslint from "typescript-eslint"
 import stylistic from "@stylistic/eslint-plugin"
+import pluginVue from "eslint-plugin-vue"
+import globals from "globals"
 
 const workspace = name => [`@lox-nexus/${name}`, `@lox-nexus/${name}/*`]
 
@@ -17,6 +19,20 @@ export default tseslint.config(
   { ignores: ["old/", "**/dist/", "**/node_modules/", "coverage/", "data/"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
+  ...pluginVue.configs["flat/recommended"],
+  {
+    files: ["**/*.vue"],
+    languageOptions: { parserOptions: { parser: tseslint.parser } },
+    rules: {
+      // shadcn-vue components are single-word (Button, Card) by design
+      "vue/multi-word-component-names": "off",
+      // optional typed props (class?: string) need no runtime default
+      "vue/require-default-prop": "off",
+      "vue/max-attributes-per-line": "off",
+      "vue/singleline-html-element-content-newline": "off",
+      "vue/html-self-closing": ["error", { html: { void: "always", normal: "never", component: "always" } }]
+    }
+  },
   {
     plugins: { "@stylistic": stylistic },
     rules: {
@@ -25,6 +41,10 @@ export default tseslint.config(
       "max-lines": ["error", { max: 200, skipBlankLines: true, skipComments: true }],
       "max-lines-per-function": ["error", { max: 40, skipBlankLines: true, skipComments: true }]
     }
+  },
+  {
+    files: ["apps/web/**"],
+    languageOptions: { globals: globals.browser }
   },
   {
     files: ["**/*.test.ts"],
@@ -39,5 +59,7 @@ export default tseslint.config(
   restrictImports(["packages/core/**"], ["loxone", "ici", "api", "server", "web"],
     "core is IO-free; Loxone and the server plug into it, not the other way round."),
   restrictImports(["packages/loxone/**", "packages/api/**"], ["server", "web"],
-    "Libraries must not depend on apps.")
+    "Libraries must not depend on apps."),
+  restrictImports(["apps/web/**"], ["core", "loxone", "ici", "server"],
+    "The web UI talks to the server through @lox-nexus/api only (plus plugin-sdk/values).")
 )

@@ -71,6 +71,7 @@ Run `npm run lint && npm run typecheck && npm test` before calling a task done.
 - `packages/ici` → nothing from the workspace (standalone protocol library).
 - `packages/core` → only `plugin-sdk` (no IO, no Loxone, no server).
 - Libraries never import from `apps/*`.
+- `apps/web` → only `@lox-nexus/api` and `@lox-nexus/plugin-sdk` (values); it talks to the server over HTTP/WS.
 
 Workspace packages resolve to `src/` through the `@lox-nexus/source` export condition
 (`customConditions` in `tsconfig.base.json`, `--conditions` in the node scripts).

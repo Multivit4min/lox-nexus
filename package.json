@@ -18,7 +18,7 @@
     "typecheck": "tsc -p tsconfig.json && npm run typecheck -w @lox-nexus/web",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test": "node --conditions=@lox-nexus/source --import tsx --test \"packages/*/src/**/*.test.ts\" \"apps/server/src/**/*.test.ts\" \"plugins/*/src/**/*.test.ts\"",
+    "test": "node --conditions=@lox-nexus/source --import tsx --test \"packages/*/src/**/*.test.ts\" \"apps/server/src/**/*.test.ts\" \"apps/web/src/**/*.test.ts\" \"plugins/*/src/**/*.test.ts\"",
     "ici-lab": "node --conditions=@lox-nexus/source --import tsx packages/ici/src/lab/main.ts"
   },
   "devDependencies": {
@@ -26,8 +26,11 @@
     "@stylistic/eslint-plugin": "^2.0.0",
     "@types/node": "^24.0.0",
     "eslint": "^9.0.0",
+    "eslint-plugin-vue": "^10.11.1",
+    "globals": "^14.0.0",
     "tsx": "^4.19.2",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.0.0"
+    "typescript-eslint": "^8.0.0",
+    "vue-eslint-parser": "^10.4.1"
   }
 }

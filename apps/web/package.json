@@ -10,11 +10,22 @@
     "typecheck": "vue-tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "vue": "^3.5.44"
+    "@lox-nexus/api": "*",
+    "@lox-nexus/plugin-sdk": "*",
+    "@lucide/vue": "^1.61.0",
+    "@tanstack/vue-virtual": "^3.13.48",
+    "@vueuse/core": "^14.4.0",
+    "class-variance-authority": "^0.7.1",
+    "cn": "^0.5.0",
+    "reka-ui": "^2.11.0",
+    "tw-animate-css": "^1.4.0",
+    "vue": "^3.5.44",
+    "vue-router": "^5.4.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-vue": "^6.0.10",
+    "shadcn-vue": "^2.8.2",
     "tailwindcss": "^4.3.3",
     "vite": "^8.3.5",
     "vue-tsc": "^3.3.13"

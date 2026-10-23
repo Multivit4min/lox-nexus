@@ -563,6 +563,54 @@ above:
   - A live run against the test Miniserver: it went online, discovery listed all packet ids,
     adopted inputs streamed over the WebSocket, and signals and sessions survived a restart.
 
+## Implementation notes: web UI (M3c)
+
+- **Structure.** `main.ts` builds an `AppContext` and provides it to the component tree, so
+  there are no module globals. The context holds:
+  - `Http`, a fetch wrapper that turns `{ error, issues }` into `ApiError`
+  - the API facades `AuthApi`, `MiniserverApi` and `BusApi`
+  - `SessionStore`
+  - a factory for `StreamConnection`s
+
+  Views get it with `AppContext.use()`. `AppRouter` sends visitors to setup or login first, and
+  only follows local `next` paths after a login. A 401, or a stream closed with
+  `SESSION_ENDED`, leads to the login page.
+- **Screens.**
+  - Setup and login.
+  - The Miniserver list, with live health over the `state` stream.
+  - The Miniserver detail page:
+    - config form (the password is write-only)
+    - start, stop, delete, and the last start error
+    - signals with live values
+    - discovered packets with one-click adoption
+  - The Bus Inspector.
+- **Bus Inspector.**
+  - It loads the last 500 messages for the topic pattern, then follows the `bus` stream.
+  - Messages go into a 5000-entry `RingBuffer`. The rendered list is replaced once per stream
+    batch (every 50 ms), so the cost per second doesn't grow with the message rate.
+  - The list is virtualized (`@tanstack/vue-virtual`), so only the visible rows exist in the
+    DOM, and it sticks to the bottom until the user scrolls up.
+  - The topic pattern is filtered on the server; kind and text filters run in the browser.
+  - Pause holds the list and counts what was missed. Server-side drops (gaps) are shown as a
+    badge.
+  - Clicking a message opens a side panel with its fields, its cause chain (`TraceTree`), and
+    Force, Release and Inject.
+  - The Forced tab lists every active force.
+  - Values are edited as a type plus text (JSON for structured types) and validated with
+    `ValueSchema` before they are sent (`ValueDraft`).
+- **Components.** shadcn-vue components are copied into `src/components/ui` and owned by the repo,
+  and ESLint covers `.vue` files too (eslint-plugin-vue). The web app may import only
+  `@lox-nexus/api` and `@lox-nexus/plugin-sdk/values` (enforced). No web fonts or other
+  third-party requests: the UI works offline.
+- **Verified.**
+  - Unit tests cover the Inspector store (history, live batches, pause, filters, gaps), the
+    ring buffer and value parsing.
+  - The built UI is served by the server, with fallback to `index.html` for client-side routes.
+  - Load test, server side: about 500 messages per second for 3 s reached a WebSocket client
+    completely (no gaps) in 20 batches per second, at most 51 ms late.
+  - Not verified: rendering in a real browser. No browser can run in the dev container (system
+    libraries missing).
+
 ## Dependencies (installed in the milestone that first needs them)
 
 | Where | Packages |
@@ -571,7 +619,7 @@ above:
 | packages/ici | none (node:dgram, node:crypto) |
 | packages/plugin-sdk, core, api | zod 4 |
 | apps/server | fastify 5, @fastify/websocket, @fastify/cookie, @fastify/static, pino, pino-pretty, zod 4 (node:sqlite and node:crypto built in); later yauzl, esbuild |
-| apps/web | vue 3, vite, tailwindcss 4 + @tailwindcss/vite, shadcn-vue (reka-ui), @tanstack/vue-virtual, vue-tsc |
+| apps/web | vue 3, vue-router, vite, tailwindcss 4 + @tailwindcss/vite, shadcn-vue (reka-ui, cn, class-variance-authority, @lucide/vue, @vueuse/core, tw-animate-css), @tanstack/vue-virtual, vue-tsc, eslint-plugin-vue |
 | plugins/calendar | node-ical |
 
 Native `fetch` and `WebSocket` replace axios and socket.io (`ws` comes in through

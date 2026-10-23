@@ -1,12 +1,19 @@
 <script setup lang="ts">
-const milestone = "M0"
+import { computed } from "vue"
+import { useRoute } from "vue-router"
+import { TooltipProvider } from "@/components/ui/tooltip"
+import AppShell from "./components/AppShell.vue"
+
+const route = useRoute()
+// login and setup are full-screen; everything else lives in the shell with navigation
+const bare = computed(() => route.meta.public === true)
 </script>
 
 <template>
-  <main class="flex min-h-screen items-center justify-center bg-zinc-950 text-zinc-100">
-    <div class="text-center">
-      <h1 class="text-3xl font-semibold">Lox Nexus</h1>
-      <p class="mt-2 text-zinc-400">UI shell ({{ milestone }}). shadcn-vue arrives with M3.</p>
-    </div>
-  </main>
+  <TooltipProvider>
+    <RouterView v-if="bare" />
+    <AppShell v-else>
+      <RouterView />
+    </AppShell>
+  </TooltipProvider>
 </template>
