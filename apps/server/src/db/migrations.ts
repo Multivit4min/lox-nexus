@@ -71,5 +71,20 @@ export const MIGRATIONS: readonly Migration[] = [
         ts INTEGER NOT NULL
       );
     `
+  },
+  {
+    version: 2,
+    name: "load_samples",
+    sql: `
+      -- intercommunication load history (IntercomLoad), one hour per Miniserver
+      CREATE TABLE load_samples (
+        miniserver_id TEXT NOT NULL REFERENCES miniservers(id) ON DELETE CASCADE,
+        ts INTEGER NOT NULL,
+        incoming REAL NOT NULL,
+        outgoing REAL NOT NULL,
+        percent REAL NOT NULL,
+        PRIMARY KEY (miniserver_id, ts)
+      ) WITHOUT ROWID;
+    `
   }
 ]

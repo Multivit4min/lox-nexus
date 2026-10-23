@@ -2,6 +2,7 @@ import { Database } from "./Database.ts"
 import { MIGRATIONS } from "./migrations.ts"
 import { Migrator } from "./Migrator.ts"
 import { ForceRepository } from "./repositories/ForceRepository.ts"
+import { LoadSampleRepository } from "./repositories/LoadSampleRepository.ts"
 import { LoxoneSignalRepository } from "./repositories/LoxoneSignalRepository.ts"
 import { MiniserverRepository } from "./repositories/MiniserverRepository.ts"
 import { SessionRepository } from "./repositories/SessionRepository.ts"
@@ -22,6 +23,7 @@ export class Persistence {
   readonly wires: WireRepository
   readonly forces: ForceRepository
   readonly snapshot: SnapshotRepository
+  readonly loadSamples: LoadSampleRepository
 
   /**
    * Opens the file and migrates it before any repository exists.
@@ -38,6 +40,7 @@ export class Persistence {
     this.wires = new WireRepository(this.db)
     this.forces = new ForceRepository(this.db, warn)
     this.snapshot = new SnapshotRepository(this.db)
+    this.loadSamples = new LoadSampleRepository(this.db, warn)
   }
 
   /** closes the database; repositories must not be used afterwards */

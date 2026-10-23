@@ -7,7 +7,7 @@ import { LoadLevel } from "../../lib/LoadLevel.ts"
 import { MessageText } from "../../lib/MessageText.ts"
 
 /**
- * The last hour of load as one area series against the 100% limit. A crosshair snaps to the
+ * Up to an hour of load as one area series against the 100% limit (the axis spans the data there is). A crosshair snaps to the
  * nearest sample on hover or with the arrow keys; the tooltip lists the time, the load and both
  * directions. The table view in LoadCard has the same values without hovering.
  */

@@ -63,7 +63,7 @@ export class NexusApp extends Disposable {
     this.wires = this.own(new WireEngine(this.bus, this.signals))
     // owned before the Miniservers, so it is disposed after them and saves their last values
     this.snapshot = this.own(new SnapshotWriter(this.bus, this.signals, this.persistence.snapshot, log))
-    this.miniservers = this.own(new MiniserverManager({ bus: this.bus, signals: this.signals, clock: this.clock }))
+    this.miniservers = this.own(new MiniserverManager({ bus: this.bus, signals: this.signals, clock: this.clock, loadHistory: this.persistence.loadSamples }))
   }
 
   /**

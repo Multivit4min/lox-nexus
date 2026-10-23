@@ -21,20 +21,27 @@ export interface LoadSample {
  * Both directions count: what the Miniserver sends (to Nexus, and to other targets through
  * Nexus's port) and what Nexus sends, including the cyclic resends of every output. Traffic between
  * the Miniserver and other systems that Nexus can't see is missing, so this is a lower bound.
- * A sample is taken every SAMPLE_MS and kept for HISTORY_SAMPLES (one hour), in memory only.
+ * A sample is taken every SAMPLE_MS and kept for HISTORY_MS (one hour). `initial` seeds the history,
+ * e.g. from a LoadHistoryStore after a restart; the 2-minute window itself starts empty again.
  */
 export class IntercomLoad extends Disposable {
   static readonly LIMIT_PER_SECOND = 35
   static readonly WINDOW_SECONDS = 120
   static readonly SAMPLE_MS = 5000
-  static readonly HISTORY_SAMPLES = 720
+  static readonly HISTORY_MS = 60 * 60 * 1000
+  static readonly HISTORY_SAMPLES = IntercomLoad.HISTORY_MS / IntercomLoad.SAMPLE_MS
   private readonly meter: TrafficMeter
   private readonly samples: LoadSample[] = []
 
-  /** @param onSample called with every new sample, e.g. to publish the percentage on the bus */
-  constructor(private readonly clock: Clock, private readonly onSample: (sample: LoadSample) => void = () => {}) {
+  /**
+   * @param onSample called with every new sample, e.g. to publish the percentage or store it
+   * @param initial earlier samples, oldest first; anything older than an hour is dropped
+   */
+  constructor(private readonly clock: Clock, private readonly onSample: (sample: LoadSample) => void = () => {}, initial: LoadSample[] = []) {
     super()
     this.meter = new TrafficMeter(clock, IntercomLoad.WINDOW_SECONDS)
+    const since = clock.now() - IntercomLoad.HISTORY_MS
+    this.samples.push(...initial.filter(sample => sample.ts > since).slice(-IntercomLoad.HISTORY_SAMPLES))
     this.every(IntercomLoad.SAMPLE_MS, () => this.sample())
   }
 
@@ -61,13 +68,16 @@ export class IntercomLoad extends Disposable {
 
   /** the samples of the last hour, oldest first */
   history(): LoadSample[] {
-    return this.samples.slice()
+    const since = this.clock.now() - IntercomLoad.HISTORY_MS
+    return this.samples.filter(sample => sample.ts > since)
   }
 
   private sample() {
     const sample = this.current()
     this.samples.push(sample)
-    if (this.samples.length > IntercomLoad.HISTORY_SAMPLES) this.samples.shift()
+    // by time, not count: after a restart the seeded samples have a gap and must still age out
+    const since = sample.ts - IntercomLoad.HISTORY_MS
+    while (this.samples.length > 0 && this.samples[0]!.ts <= since) this.samples.shift()
     this.onSample(sample)
   }
 }

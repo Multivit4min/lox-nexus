@@ -2,7 +2,8 @@ import { SystemClock, type Clock, type MessageSource, type Signal, type SignalRe
 import { Disposable } from "@lox-nexus/plugin-sdk"
 import { Value } from "@lox-nexus/plugin-sdk/values"
 import { DiscoveryList } from "./DiscoveryList.ts"
-import { IntercomLoad } from "./IntercomLoad.ts"
+import { IntercomLoad, type LoadSample } from "./IntercomLoad.ts"
+import type { LoadHistoryStore } from "./LoadHistoryStore.ts"
 import { IciValueMapper } from "./IciValueMapper.ts"
 import { LoxoneSignals, type LoxoneSignalEntry } from "./LoxoneSignals.ts"
 import { LoxoneTopics } from "./LoxoneTopics.ts"
@@ -17,6 +18,8 @@ export interface MiniserverDeps {
   signals: SignalRegistry
   /** replaceable for tests; defaults to the system clock */
   clock?: Clock
+  /** keeps the load history across restarts; in memory only without it */
+  loadHistory?: LoadHistoryStore
 }
 
 /**
@@ -48,9 +51,8 @@ export class Miniserver extends Disposable {
     this.current = config
     this.currentTopics = new LoxoneTopics(config.slug)
     this.clock = deps.clock ?? new SystemClock()
-    // whole percent, so the bus dedups samples while the load is steady
-    this.load = this.own(new IntercomLoad(this.clock, sample =>
-      this.deps.bus.publish(this.currentTopics.load, Value.number(Math.round(sample.percent)), { source: this.source })))
+    const since = this.clock.now() - IntercomLoad.HISTORY_MS
+    this.load = this.own(new IntercomLoad(this.clock, sample => this.onLoadSample(sample), deps.loadHistory?.load(config.id, since)))
     this.onDispose(() => this.serialize(() => this.close()))
     this.publishStopped()
   }
@@ -195,6 +197,12 @@ export class Miniserver extends Disposable {
       this.deps.signals.update(Miniserver.signalOf(entry))
     }
     this.publishStopped()
+  }
+
+  // whole percent on the bus, so it dedups while the load is steady; the store gets the full sample
+  private onLoadSample(sample: LoadSample) {
+    this.deps.bus.publish(this.currentTopics.load, Value.number(Math.round(sample.percent)), { source: this.source })
+    this.deps.loadHistory?.append(this.current.id, sample, sample.ts - IntercomLoad.HISTORY_MS)
   }
 
   // a status topic without a value would leave the UI guessing until the first start

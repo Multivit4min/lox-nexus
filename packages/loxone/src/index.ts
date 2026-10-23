@@ -4,6 +4,7 @@ export { MiniserverConnection, type MiniserverBus } from "./MiniserverConnection
 export { DiscoveryList, type DiscoveredPacket } from "./DiscoveryList.ts"
 export { HealthMonitor, type MiniserverHealth } from "./HealthMonitor.ts"
 export { IntercomLoad, type LoadSample } from "./IntercomLoad.ts"
+export type { LoadHistoryStore } from "./LoadHistoryStore.ts"
 export { LoxoneTopics } from "./LoxoneTopics.ts"
 export { IciValueMapper } from "./IciValueMapper.ts"
 export { LoxoneSignals, type LoxoneSignalEntry } from "./LoxoneSignals.ts"

@@ -54,9 +54,20 @@ describe("IntercomLoad", () => {
     await load.dispose()
   })
 
+  test("a stored history seeds it; samples older than an hour age out by time", async () => {
+    const now = Date.now()
+    const old = (minutesAgo: number) => ({ ts: now - minutesAgo * 60_000, incomingPerSecond: 1, outgoingPerSecond: 0, percent: 3 })
+    const load = new IntercomLoad({ now: () => Date.now() }, () => {}, [old(90), old(50), old(10)])
+    assert.deepEqual(load.history().map(s => s.ts), [old(50).ts, old(10).ts], "the 90-minute-old sample is dropped")
+    for (let i = 0; i < 15 * 12; i++) mock.timers.tick(IntercomLoad.SAMPLE_MS)
+    assert.equal(load.history()[0]!.ts, old(10).ts, "the 50-minute-old one is now past the hour")
+    await load.dispose()
+  })
+
   test("keeps one hour of samples", async () => {
     const load = new IntercomLoad({ now: () => Date.now() })
-    mock.timers.tick(2 * 60 * 60 * 1000)
+    // step by sample: inside one long tick(), every callback would see the tick's end time
+    for (let i = 0; i < 2 * IntercomLoad.HISTORY_SAMPLES; i++) mock.timers.tick(IntercomLoad.SAMPLE_MS)
     assert.equal(load.history().length, IntercomLoad.HISTORY_SAMPLES)
     await load.dispose()
   })

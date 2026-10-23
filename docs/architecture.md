@@ -465,8 +465,9 @@ above:
   - `IntercomLoad` counts both directions in a `TrafficMeter`: one slot per second over a
     120 s ring. It counts what the Miniserver sends (to us, and to other targets through our
     port) and what we send, including the cyclic resends (via `CountingSender`).
-  - Every 5 s it takes a sample (both rates and the percent of 35/s) and keeps one hour in
-    memory. It publishes the whole percent on `system/loxone/<slug>/load`, so wires can react to
+  - Every 5 s it takes a sample (both rates and the percent of 35/s) and keeps one hour. The
+    server stores the samples (`load_samples`, through the `LoadHistoryStore` interface) and
+    seeds the history from them at boot, so a restart leaves a gap, not an empty chart. It publishes the whole percent on `system/loxone/<slug>/load`, so wires can react to
     it.
   - Traffic between the Miniserver and systems Nexus doesn't see is missing, so the value is a
     lower bound. Many outputs with the default 10 s resend add up: 100 outputs alone are 10 msg/s,
@@ -611,10 +612,11 @@ above:
     popover with:
     - the limit
     - the rates by direction
-    - the last hour as an area chart against a labeled 100% limit line (crosshair tooltip on
-      hover or the arrow keys), or the same samples as a table
+    - up to the last hour as an area chart against a labeled 100% limit line (crosshair tooltip
+      on hover or the arrow keys), or the same samples as a table. The axis spans the data there
+      is (10 to 60 minutes), and downtime shows as a gap in the line.
   - The meter is blue below 70%, warning from 70% and critical from 100%, each level with an icon
-    and a word. History is fetched only while the popover is open.
+    and a word. The server records history all the time; the popover only fetches it while open.
   - Colors follow the dataviz reference palette and were validated against this UI's light and
     dark card surfaces.
 - **Long lists.** A Miniserver can have thousands of signals, and up to 1000 discovered packets.

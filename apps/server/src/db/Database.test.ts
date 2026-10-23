@@ -8,6 +8,7 @@ import { Database } from "./Database.ts"
 import { MIGRATIONS } from "./migrations.ts"
 import { Migrator } from "./Migrator.ts"
 import { ForceRepository } from "./repositories/ForceRepository.ts"
+import { LoadSampleRepository } from "./repositories/LoadSampleRepository.ts"
 import { WireRepository } from "./repositories/WireRepository.ts"
 
 test("a throwing transaction rolls back everything, nested calls included", () => {
@@ -24,7 +25,7 @@ test("a throwing transaction rolls back everything, nested calls included", () =
 test("migrations run once; the file is private to the user", () => {
   const file = path.join(TestApp.tempDir(), "sub", "nexus.db")
   const db = new Database(file)
-  assert.deepEqual(new Migrator(db, MIGRATIONS).migrate(), ["1_initial"])
+  assert.deepEqual(new Migrator(db, MIGRATIONS).migrate(), ["1_initial", "2_load_samples"])
   assert.deepEqual(new Migrator(db, MIGRATIONS).migrate(), [])
   db.close()
   assert.equal(fs.statSync(file).mode & 0o777, 0o600)
@@ -48,4 +49,22 @@ test("a wire with corrupt transforms is still listed, and WireEngine will refuse
   db.exec("INSERT INTO signals VALUES ('s', 'x'), ('t', 'x')")
   db.exec("INSERT INTO wires VALUES ('w', 'w', 's', 't', 'not json', 1, 0)")
   assert.deepEqual(new WireRepository(db).list()[0]?.transforms, [{ op: "invalid" }])
+})
+
+test("load samples: an hour per Miniserver, pruned on write, deleted with the Miniserver", () => {
+  const db = new Database(":memory:")
+  new Migrator(db, MIGRATIONS).migrate()
+  db.exec("INSERT INTO miniservers VALUES ('ms', 'haus', '', 'h', 1, 2, NULL, 'a', 'b', NULL, 1, 10000)")
+  const warnings: string[] = []
+  const repo = new LoadSampleRepository(db, message => warnings.push(message))
+  const sample = (ts: number) => ({ ts, incomingPerSecond: 1.5, outgoingPerSecond: 0.5, percent: 5.7 })
+  repo.append("ms", sample(1000), 0)
+  repo.append("ms", sample(2000), 0)
+  repo.append("ms", sample(3000), 1500)
+  assert.deepEqual(repo.load("ms", 0), [sample(2000), sample(3000)])
+  assert.deepEqual(repo.load("ms", 2500), [sample(3000)])
+  repo.append("gone", sample(4000), 0)
+  assert.match(warnings[0] ?? "", /storing a load sample of gone failed/, "a write for an unknown Miniserver is logged, not thrown")
+  db.exec("DELETE FROM miniservers WHERE id = 'ms'")
+  assert.deepEqual(db.all("SELECT * FROM load_samples"), [])
 })

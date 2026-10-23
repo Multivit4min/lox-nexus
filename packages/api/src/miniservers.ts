@@ -92,7 +92,7 @@ export interface MiniserverLoadDto {
   /** how often a sample is taken */
   sampleMs: number
   current: LoadSampleDto
-  /** the last hour, oldest first; in memory only, so it starts empty after a restart */
+  /** up to the last hour, oldest first; stored by the server, so it survives restarts (downtime shows as a gap) */
   history: LoadSampleDto[]
 }
 

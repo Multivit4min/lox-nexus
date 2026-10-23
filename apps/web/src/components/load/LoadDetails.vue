@@ -7,7 +7,7 @@ import VirtualTable from "../data/VirtualTable.vue"
 import LoadHistoryChart from "./LoadHistoryChart.vue"
 import LoadMeter from "./LoadMeter.vue"
 
-/** What's behind the header's load figure: the limit, rates by direction, the last hour as a chart, or as a table. */
+/** What's behind the header's load figure: the limit, rates by direction, and the server's history as a chart or a table. */
 const props = defineProps<{ load: MiniserverLoadDto }>()
 const view = ref<"chart" | "table">("chart")
 const total = computed(() => props.load.current.incomingPerSecond + props.load.current.outgoingPerSecond)
@@ -31,7 +31,7 @@ const newestFirst = computed(() => props.load.history.slice().reverse())
       <div><dt class="inline text-muted-foreground">To Miniserver </dt><dd class="inline">{{ load.current.outgoingPerSecond.toFixed(1) }}/s</dd></div>
     </dl>
     <div class="flex items-center justify-between">
-      <span class="text-xs text-muted-foreground">Last hour</span>
+      <span class="text-xs text-muted-foreground">History, up to one hour (recorded by the server, also while this is closed)</span>
       <div class="flex gap-1 text-xs">
         <button v-for="option in (['chart', 'table'] as const)" :key="option" class="rounded px-2 py-0.5" :class="view === option ? 'bg-secondary' : 'text-muted-foreground hover:bg-accent'" @click="view = option">{{ option }}</button>
       </div>
