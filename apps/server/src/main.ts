@@ -1,19 +1,30 @@
 // Process entry point: builds the app and ties its lifetime to SIGINT/SIGTERM. All wiring lives in NexusApp.
+import { Config } from "./config/Config.ts"
+import { LoggerFactory } from "./logging/LoggerFactory.ts"
 import { NexusApp } from "./NexusApp.ts"
 
-const app = new NexusApp()
+const config = new Config()
+const log = LoggerFactory.create(config)
+const app = new NexusApp(config, log)
 
-const shutdown = () => {
+const shutdown = (signal: string) => {
+  log.info({ signal }, "shutting down")
   app.dispose().then(
     () => process.exit(0),
     (error: unknown) => {
-      // no logger exists yet (M3 adds pino); this is the last chance to report a failed shutdown
-      console.error("lox-nexus: shutdown failed", error)
+      log.error({ err: error }, "shutdown failed")
       process.exit(1)
     }
   )
 }
 
-for (const signal of ["SIGINT", "SIGTERM"] as const) process.once(signal, shutdown)
+for (const signal of ["SIGINT", "SIGTERM"] as const) process.once(signal, () => shutdown(signal))
 
-await app.start()
+try {
+  const address = await app.start()
+  log.info({ address, dataDir: config.dataDir }, "lox nexus is running")
+} catch (error) {
+  log.fatal({ err: error }, "startup failed")
+  await app.dispose().catch(() => undefined)
+  process.exit(1)
+}

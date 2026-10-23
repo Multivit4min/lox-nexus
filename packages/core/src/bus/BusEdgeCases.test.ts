@@ -85,7 +85,7 @@ describe("bus edge cases from the M2 review", () => {
     assert.equal(bus.current("a/x"), undefined)
     bus.publish("a/x", Value.number(5), plugin)
     assert.deepEqual(delivered.at(-1)?.flags, undefined)
-    assert.deepEqual(bus.takeSnapshot().map(e => e.value), [Value.number(5)])
+    assert.deepEqual(bus.pendingSnapshot().map(e => e.value), [Value.number(5)])
   })
 
   test("equal real publishes while forced are recorded once", () => {
@@ -112,7 +112,7 @@ describe("bus edge cases from the M2 review", () => {
     const { bus, delivered } = setup({ forces: store })
     bus.restoreForces()
     bus.restoreSnapshot([{ topic: "a/x", value: Value.number(42), ts: 1 }])
-    assert.deepEqual(bus.takeSnapshot(), [], "restored values are not dirty")
+    assert.deepEqual(bus.pendingSnapshot(), [], "restored values are not dirty")
     bus.release("a/x", "david")
     assert.deepEqual([delivered.at(-1)?.value, delivered.at(-1)?.flags], [Value.number(42), { restored: true }])
   })

@@ -1,0 +1,29 @@
+import type { FastifyError, FastifyReply, FastifyRequest } from "fastify"
+import { z } from "zod"
+import { SetupDoneError } from "../auth/AuthService.ts"
+import { HttpError } from "./HttpError.ts"
+
+/** Maps errors to JSON responses: { error, issues? }. Unexpected errors are logged and answered with a generic 500. */
+export class ErrorHandler {
+  // SQLite's primary result code for constraint violations (unique, foreign key)
+  private static readonly SQLITE_CONSTRAINT = 19
+
+  readonly handle = (error: FastifyError | Error, request: FastifyRequest, reply: FastifyReply) => {
+    if (error instanceof z.ZodError) {
+      return reply.code(400).send({ error: z.prettifyError(error), issues: error.issues })
+    }
+    if (error instanceof HttpError) return reply.code(error.status).send({ error: error.message })
+    if (error instanceof SetupDoneError) return reply.code(409).send({ error: error.message })
+    if (ErrorHandler.isConstraint(error)) return reply.code(409).send({ error: "conflicts with existing data" })
+    const status = "statusCode" in error && typeof error.statusCode === "number" ? error.statusCode : 500
+    // Fastify's own 4xx errors (bad JSON, wrong content type) are safe to pass on
+    if (status < 500) return reply.code(status).send({ error: error.message })
+    request.log.error({ err: error }, "request failed")
+    return reply.code(500).send({ error: "internal error" })
+  }
+
+  private static isConstraint(error: Error) {
+    const code = (error as { errcode?: unknown }).errcode
+    return typeof code === "number" && (code & 0xff) === ErrorHandler.SQLITE_CONSTRAINT
+  }
+}

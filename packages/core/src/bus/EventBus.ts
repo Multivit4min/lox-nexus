@@ -109,12 +109,22 @@ export class EventBus extends Disposable {
     return this.retained.effective(topic)
   }
 
+  /**
+   * the current message of every topic matching the pattern, e.g. for a client that just
+   * connected and needs the state before it sees changes
+   * @throws RangeError for an invalid pattern
+   */
+  currentMatching(pattern: string): BusMessage[] {
+    Topic.assertValidPattern(pattern)
+    return [...this.retained.effectiveAll()].filter(message => Topic.matches(pattern, message.topic))
+  }
+
   /** all forces currently applied, for the inspector and API */
   activeForces() {
     return this.forces.list()
   }
 
-  /** replays a snapshot taken by takeSnapshot(); messages are flagged restored and are not written back as dirty */
+  /** replays a snapshot taken by pendingSnapshot(); messages are flagged restored and are not written back as dirty */
   restoreSnapshot(entries: SnapshotEntry[]) {
     for (const entry of entries) this.publish(entry.topic, entry.value, { source: SYSTEM, flags: { restored: true } })
   }
@@ -127,9 +137,17 @@ export class EventBus extends Disposable {
     }
   }
 
-  /** real values changed since the last call (live changes only, not restored ones), for periodic persistence */
-  takeSnapshot(): SnapshotEntry[] {
-    return this.retained.takeDirty()
+  /**
+   * Real values changed since the last confirmSnapshot() (live changes only, not restored ones).
+   * Two-phase so a failed write loses nothing: persist these, then confirm them.
+   */
+  pendingSnapshot(): SnapshotEntry[] {
+    return this.retained.pending()
+  }
+
+  /** marks a pendingSnapshot() as persisted; topics that changed meanwhile stay pending */
+  confirmSnapshot(entries: readonly SnapshotEntry[]) {
+    this.retained.confirm(entries)
   }
 
   // The queue is drained by whoever finds it idle; messages published meanwhile wait their turn.

@@ -1,0 +1,97 @@
+import assert from "node:assert/strict"
+import { once } from "node:events"
+import { after, before, describe, test } from "node:test"
+import type { DiscoveredPacketDto, LoxoneSignalDto, MiniserverDto } from "@lox-nexus/api"
+import { DataType, IciSocket, RemotePeer } from "@lox-nexus/ici"
+import { Value } from "@lox-nexus/plugin-sdk/values"
+import type { ApiClient } from "../../test-support/ApiClient.ts"
+import { TestApp } from "../../test-support/TestApp.ts"
+
+/** a free UDP port on loopback (bound and released) */
+const freePort = async () => {
+  const socket = new IciSocket()
+  await socket.bind(0, "127.0.0.1")
+  const port = socket.address()!.port
+  await socket.close()
+  return port
+}
+
+describe("miniserver API", { timeout: 10_000 }, () => {
+  let app: TestApp
+  let admin: ApiClient
+  let ms: MiniserverDto
+  const loxone = new IciSocket()
+
+  before(async () => {
+    app = await TestApp.start()
+    admin = await app.admin()
+    await loxone.bind(0, "127.0.0.1")
+  })
+  after(async () => {
+    await app.dispose()
+    await loxone.close()
+  })
+
+  test("creating a Miniserver stores it, starts it and never returns the password", async () => {
+    const response = await admin.post("/api/miniservers", {
+      slug: "haus", label: "Haus", host: "127.0.0.1", port: loxone.address()!.port, listenPort: await freePort(),
+      listenAddress: "127.0.0.1", ownId: "nexus", remoteId: "ms", password: "secret"
+    })
+    assert.equal(response.statusCode, 201, response.body)
+    ms = response.json<MiniserverDto>()
+    assert.deepEqual([ms.running, ms.health, ms.hasPassword, "password" in ms], [true, "waiting", true, false])
+    assert.equal((await admin.get("/api/miniservers")).json<MiniserverDto[]>().length, 1)
+  })
+
+  test("invalid input is a 400 with the reason, a taken slug a 409", async () => {
+    const invalid = await admin.post("/api/miniservers", { slug: "Not Valid", label: "", host: "", port: 0, listenPort: 0, ownId: "", remoteId: "" })
+    assert.equal(invalid.statusCode, 400)
+    const taken = await admin.post("/api/miniservers", { slug: "haus", label: "", host: "h", port: 1, listenPort: 2, ownId: "a", remoteId: "b", enabled: false })
+    assert.equal(taken.statusCode, 409)
+    assert.equal((await admin.get("/api/miniservers/nope")).statusCode, 404)
+  })
+
+  test("an unknown packet id is discovered and can be adopted", async () => {
+    const peer = new RemotePeer(loxone, { ownId: "ms", remoteId: "nexus", host: "127.0.0.1", port: ms.listenPort, resendInterval: 0 })
+    const discovered = new Promise(resolve => app.app.bus.subscribe("loxone/haus/discovered/+", resolve))
+    await peer.output("temp", DataType.Analog).set(21.5)
+    await discovered
+    const list = (await admin.get(`/api/miniservers/${ms.id}/discovered`)).json<DiscoveredPacketDto[]>()
+    assert.deepEqual(list.map(d => [d.packetId, d.dataType]), [["temp", DataType.Analog]])
+    const adopted = await admin.post(`/api/miniservers/${ms.id}/discovered/adopt`, { packetId: "temp", label: "Temperature" })
+    assert.equal(adopted.statusCode, 201, adopted.body)
+    assert.equal(adopted.json<LoxoneSignalDto>().topic, "loxone/haus/in/temp")
+    const arrived = new Promise(resolve => app.app.bus.subscribe("loxone/haus/in/temp", resolve))
+    await peer.output("temp", DataType.Analog).resend()
+    await arrived
+    assert.deepEqual(app.app.bus.current("loxone/haus/in/temp")?.value, Value.number(21.5))
+    peer.close()
+  })
+
+  test("an output signal sends forced values to the Miniserver", async () => {
+    const signal = (await admin.post(`/api/miniservers/${ms.id}/signals`, { packetId: "mood", direction: "out", dataType: 1, label: "Mood" })).json<LoxoneSignalDto>()
+    assert.equal(signal.topic, "loxone/haus/out/mood")
+    const packet = once(loxone, "datagram")
+    assert.equal((await admin.post("/api/bus/forces", { topic: signal.topic, value: Value.number(69) })).statusCode, 204)
+    const [buffer] = await packet as [Buffer]
+    assert.ok(buffer.includes(Buffer.from("mood")))
+    assert.equal((await admin.get("/api/bus/forces")).json<Array<{ by: string }>>()[0]!.by, "admin")
+  })
+
+  test("renaming keeps signals, updating keeps the password, stop and start work", async () => {
+    const { slug, label, host, port, listenPort, listenAddress, ownId, remoteId, enabled, resendInterval } = ms
+    const config = { slug, label, host, port, listenPort, listenAddress, ownId, remoteId, enabled, resendInterval }
+    const updated = (await admin.put(`/api/miniservers/${ms.id}`, { ...config, slug: "home" })).json<MiniserverDto>()
+    assert.deepEqual([updated.slug, updated.hasPassword, updated.running], ["home", true, true])
+    const topics = (await admin.get(`/api/miniservers/${ms.id}/signals`)).json<LoxoneSignalDto[]>().map(s => s.topic).sort()
+    assert.deepEqual(topics, ["loxone/home/in/temp", "loxone/home/out/mood"])
+    assert.equal((await admin.post(`/api/miniservers/${ms.id}/stop`)).json<MiniserverDto>().health, "stopped")
+    assert.equal((await admin.post(`/api/miniservers/${ms.id}/start`)).json<MiniserverDto>().running, true)
+  })
+
+  test("deleting a Miniserver removes its signals", async () => {
+    assert.equal((await admin.delete(`/api/miniservers/${ms.id}`)).statusCode, 204)
+    assert.deepEqual(app.app.signals.list(), [])
+    assert.deepEqual((await admin.get("/api/miniservers")).json(), [])
+  })
+})

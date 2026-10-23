@@ -4,8 +4,9 @@ Connects external systems (Home Assistant, Fronius, calendars, …) to **Loxone 
 the Loxone Intercommunication Interface. Everything that happens is a message on a readable,
 forceable event bus that you can watch live.
 
-> Status: **M0 foundation**. The repository structure, tooling and design are in place; features
-> arrive milestone by milestone, see [docs/roadmap.md](docs/roadmap.md).
+> Status: **M3b**. The ICI protocol, the event bus, the Loxone integration and the server
+> (REST API, login, persistence, live stream) work. The web UI comes next, see
+> [docs/roadmap.md](docs/roadmap.md).
 
 ## Highlights (target)
 
@@ -23,9 +24,19 @@ Requires Node.js 24+.
 ```sh
 npm install
 npm run lint && npm run typecheck && npm test
-npm run dev        # server (watch mode)
+npm run dev        # server (watch mode) on http://localhost:8080; first visit runs setup
 npm run dev:web    # web UI (Vite)
 ```
+
+Server settings come from environment variables:
+
+| Variable | Default | |
+|---|---|---|
+| `NEXUS_DATA_DIR` | `./data` | database and (later) plugins |
+| `NEXUS_HTTP_HOST` / `NEXUS_HTTP_PORT` | `0.0.0.0` / `8080` | |
+| `NEXUS_LOG_LEVEL` | `info` | |
+| `NEXUS_SECURE_COOKIES` | `false` | set to `true` behind https |
+| `NEXUS_WEB_DIR` | | built web UI to serve |
 
 ## Repository layout
 
@@ -44,5 +55,5 @@ npm run dev:web    # web UI (Vite)
 ## Working with Claude Code
 
 `CLAUDE.md` holds the project conventions. Specialised subagents live in `.claude/agents/`
-(architect, core-dev, loxone-expert, plugin-dev, frontend-dev, reviewer). Ask for one by name, e.g.
+(architect, core-dev, loxone-expert, plugin-dev, frontend-dev, reviewer, doc-writer). Ask for one by name, e.g.
 "use the loxone-expert agent to implement the T5 codec". To change an agent, edit its file in `.claude/agents/` or ask Claude to update it.

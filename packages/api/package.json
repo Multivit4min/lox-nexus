@@ -9,5 +9,8 @@
       "default": "./dist/index.js"
     }
   },
-  "dependencies": { "@lox-nexus/plugin-sdk": "*" }
+  "dependencies": {
+    "@lox-nexus/plugin-sdk": "*",
+    "zod": "^4.6.7"
+  }
 }

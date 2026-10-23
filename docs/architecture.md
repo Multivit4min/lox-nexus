@@ -289,14 +289,14 @@ marked `@experimental` until a fixture confirms them.
 
 ### Server, persistence, auth
 
-- Fastify 5 with `fastify-type-provider-zod`, `@fastify/websocket`, `@fastify/cookie` and
-  `@fastify/static`.
+- Fastify 5 with `@fastify/websocket`, `@fastify/cookie` and `@fastify/static`. Requests are
+  validated with the zod schemas from `@lox-nexus/api` (ADR 0008).
 - Each route group is its own controller class, for example `MiniserverController` and
   `PluginController`.
 - Native `fetch` and `WebSocket`; no socket.io or lodash.
-- **Auth:** argon2 passwords and opaque httpOnly SameSite=Strict session cookies (revocable). The
+- **Auth:** scrypt passwords (ADR 0008) and opaque httpOnly SameSite=Strict session cookies (revocable). The
   WebSocket authenticates with the same cookie, and first-run setup is guarded by a transaction.
-- **DB:** drizzle + libsql, file mode 0600. Each table is accessed through a repository class.
+- **DB:** Node's built-in `node:sqlite`, file mode 0600 (ADR 0008). Each table is accessed through a repository class.
   - `users`, `sessions`
   - `miniservers`, `loxone_signals`
   - `signals` (a supertable, so wires get real foreign-key cascades)
@@ -354,7 +354,7 @@ above:
   - The database-backed `ForceStore` arrives in M3.
 - **Boot order.** Call `restoreForces()` before `restoreSnapshot()`. Restored values then arrive
   shadowed, instead of reaching subscribers before the force applies. Restored values don't mark
-  topics dirty, so `takeSnapshot()` returns only live changes.
+  topics dirty, so `pendingSnapshot()` returns only live changes (confirmed with `confirmSnapshot()` once stored).
 - **Causation and loops.**
   - Every message carries `id`, `causedBy`, `traceId`, `depth`, and `via`: the wire ids on its
     causal path.
@@ -467,6 +467,82 @@ above:
   force and release driving the Lighting Controller, and filtering of the other target's (`red`)
   traffic.
 
+## Implementation notes: server (M3b)
+
+- **Composition.** `NexusApp` builds everything in this boot order:
+  1. migrate the database
+  2. restore forces
+  3. load Miniservers and their signals
+  4. load wires
+  5. replay the value snapshot
+  6. start the enabled Miniservers (their outputs get the restored values)
+  7. start the snapshot writer
+  8. start HTTP
+
+  Disposal runs in reverse. Shutdown (dispose) never deletes signals or wires, because deleting
+  happens only through the API.
+- **Persistence.** `Persistence` holds the `Database` and one repository per table group. The
+  database is the source of truth and the runtime is a projection of it:
+  - `MiniserverService`, `LoxoneSignalService` and `WireService` validate every change with the
+    domain schema, store it, then apply it. A failing store undoes the runtime change.
+  - A stored row that can't be loaded is logged and skipped. A wire that can't start stays stored
+    and is listed as `active: false`.
+- **Signals in the database.** The `signals` table is a supertable. `loxone_signals` (and later
+  `plugin_signals`) reference it, and `wires` reference `signals` with `ON DELETE CASCADE`.
+  Deleting a signal or a Miniserver removes its wires in the database through foreign keys, and
+  in the engine through `SignalRegistry`'s `unregistered` event. Signal ids are UUIDs because
+  `SignalRegistry` ids are global.
+- **Value snapshot.** `SnapshotWriter` runs every 5 s and on shutdown, using the two-phase
+  `pendingSnapshot()` and `confirmSnapshot()` on the bus. A failed write is retried with the next
+  batch. Only topics that belong to a signal are stored, so status and discovered topics are never
+  replayed.
+- **Auth.**
+  - Setup works once (a transaction checks for existing users).
+  - Login is throttled per client address: 5 failures lock that address for 15 minutes.
+  - Wrong user and wrong password give the same answer in the same time.
+  - The cookie holds a random token; the database stores only its SHA-256. Sessions last 30 days
+    and slide when used in their second half.
+  - A password change ends every session and issues a fresh one for the current client.
+  - `AuthGuard` runs on every `/api` request, including the WebSocket upgrade. Routes opt out
+    with `config: { public: true }`. State-changing requests and upgrades whose `Origin` names
+    another host are refused (403), on top of SameSite=Strict.
+- **REST API** (all JSON, errors are `{ error, issues? }`):
+  - `GET /api/health`
+  - `/api/auth`: `GET`, plus `POST` on `setup`, `login`, `logout` and `password`
+  - `/api/miniservers`:
+    - CRUD on the collection, plus `POST :id/start` and `POST :id/stop`
+    - `GET`/`POST :id/signals`, `DELETE :id/signals/:signalId`
+    - `GET :id/discovered`, `POST :id/discovered/adopt`
+    - Passwords are write-only: an omitted `password` keeps the stored one, `null` removes it.
+  - `GET /api/signals` lists every signal with its current value; `/api/wires` has CRUD.
+  - `/api/bus`:
+    - `GET messages?limit&pattern` and `GET messages/:id/trace`
+    - `GET current?pattern`
+    - `GET`/`POST forces`, `DELETE forces?topic=`
+    - `POST inject`
+- **Error mapping.**
+  - zod → 400
+  - domain errors (taken slug, a target that already has a wire) → 409
+  - SQLite constraint → 409
+  - invalid topic, pattern or past expiry (`RangeError`) → 400
+  - unknown id → 404
+  - anything else → 500 "internal error", logged with the stack
+- **Live stream** (`/api/stream`): a client sends `{type: "subscribe", stream: "bus" | "state",
+  pattern}`.
+  - `bus` delivers every recorded message, including shadowed ones and forces, in batches every
+    50 ms.
+  - `state` sends the current values once, then the latest change per topic per batch.
+  - A slow client never stalls the bus. When its socket buffer exceeds 1 MiB, or more than 2000
+    messages queue up between batches, messages are dropped and it gets `{type: "gap", dropped}`.
+- **Logging.** pino writes JSON lines, or pretty output on a terminal. `SystemEventLogger` mirrors
+  `system/#` events (bus, wire and Miniserver problems, status changes) into the log.
+- **Verified.**
+  - Tests cover auth, the Miniserver API over real UDP (discover, adopt, force to the Miniserver,
+    rename, delete), wires, bus actions, the stream (with backpressure tested on a fake socket),
+    the two-phase snapshot and a full restart.
+  - A live run against the test Miniserver: it went online, discovery listed all packet ids,
+    adopted inputs streamed over the WebSocket, and signals and sessions survived a restart.
+
 ## Dependencies (installed in the milestone that first needs them)
 
 | Where | Packages |
@@ -474,8 +550,9 @@ above:
 | all | typescript 5.9, tsx, eslint 9 + typescript-eslint + @stylistic, @types/node 24 |
 | packages/ici | none (node:dgram, node:crypto) |
 | packages/plugin-sdk, core, api | zod 4 |
-| apps/server | fastify 5, @fastify/websocket, @fastify/cookie, @fastify/static, fastify-type-provider-zod, drizzle-orm, drizzle-kit, @libsql/client, argon2, pino, yauzl, esbuild |
+| apps/server | fastify 5, @fastify/websocket, @fastify/cookie, @fastify/static, pino, pino-pretty, zod 4 (node:sqlite and node:crypto built in); later yauzl, esbuild |
 | apps/web | vue 3, vite, tailwindcss 4 + @tailwindcss/vite, shadcn-vue (reka-ui), @tanstack/vue-virtual, vue-tsc |
 | plugins/calendar | node-ical |
 
-Native `fetch` and `WebSocket` replace axios, ws and socket.io. No lodash.
+Native `fetch` and `WebSocket` replace axios and socket.io (`ws` comes in through
+@fastify/websocket and is used directly only in tests). No lodash.

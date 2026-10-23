@@ -23,10 +23,10 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
 
 ## Core (from the M2 review)
 
-- **Two-phase snapshot persistence.** `takeSnapshot()` clears the dirty set before the database
-  write has succeeded. A failed write loses those changes until the value changes again. Add a
-  take/commit pair when the snapshot store is built in M3.
 - **Narrow interfaces everywhere.** `Recorder` and `ActiveWire`/`WireEngine` take `Pick<EventBus, ...>`.
   Do the same for services added in M3+.
+- **Topics left behind.** A Miniserver slug change leaves forces and snapshot values on the old
+  topics, and an adopted packet's `discovered/<packet>` value stays in the bus until restart.
+  Both are harmless but visible in the inspector. A `RetainedState.forget(topic)` would clean them up.
 - **`node:crypto` in core.** `CausalChain` uses `randomUUID` for its boot id. It's harmless, but
   the boot id could be injected to keep core strictly IO-free.

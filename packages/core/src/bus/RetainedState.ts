@@ -1,4 +1,4 @@
-import type { Value } from "@lox-nexus/plugin-sdk/values"
+import { Value } from "@lox-nexus/plugin-sdk/values"
 import type { BusMessage } from "./BusMessage.ts"
 
 export interface SnapshotEntry {
@@ -24,6 +24,11 @@ export class RetainedState {
   /** the message subscribers currently see, if any */
   effective(topic: string) {
     return this.topics.get(topic)?.effective
+  }
+
+  /** every topic's current message, in first-seen order */
+  *effectiveAll(): Generator<BusMessage> {
+    for (const state of this.topics.values()) if (state.effective) yield state.effective
   }
 
   /** the last non-forced message; while forced, this is what a release restores */
@@ -58,15 +63,26 @@ export class RetainedState {
     if (state) state.effective = undefined
   }
 
-  /** real state values changed since the last call */
-  takeDirty(): SnapshotEntry[] {
+  /**
+   * real state values changed since they were last confirmed. Nothing is cleared here: the
+   * caller confirms after its write succeeded, so a failed write is retried next time.
+   */
+  pending(): SnapshotEntry[] {
     const entries: SnapshotEntry[] = []
     for (const topic of this.dirty) {
       const real = this.topics.get(topic)?.real
       if (real?.value) entries.push({ topic, value: real.value, ts: real.ts })
+      else this.dirty.delete(topic)
     }
-    this.dirty.clear()
     return entries
+  }
+
+  /** marks entries as persisted; a topic that changed again since pending() stays dirty */
+  confirm(entries: readonly SnapshotEntry[]) {
+    for (const entry of entries) {
+      const real = this.topics.get(entry.topic)?.real
+      if (!real?.value || (real.ts === entry.ts && Value.equals(real.value, entry.value))) this.dirty.delete(entry.topic)
+    }
   }
 
   private entry(topic: string): TopicState {
