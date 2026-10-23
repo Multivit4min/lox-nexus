@@ -14,6 +14,7 @@
   "scripts": {
     "dev": "npm run dev -w @lox-nexus/server",
     "dev:web": "npm run dev -w @lox-nexus/web",
+    "dev:web:hmr": "npm run dev:hmr -w @lox-nexus/web",
     "build": "npm run build --workspaces --if-present",
     "typecheck": "tsc -p tsconfig.json && npm run typecheck -w @lox-nexus/web",
     "lint": "eslint .",

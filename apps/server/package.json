@@ -17,7 +17,7 @@
     "zod": "^4.6.7"
   },
   "scripts": {
-    "dev": "node --conditions=@lox-nexus/source --import tsx --watch src/main.ts",
+    "dev": "NEXUS_WEB_DIR=${NEXUS_WEB_DIR:-../web/dist} node --env-file-if-exists=../../.env --conditions=@lox-nexus/source --import tsx --watch src/main.ts",
     "start": "node --conditions=@lox-nexus/source --import tsx src/main.ts"
   },
   "devDependencies": {

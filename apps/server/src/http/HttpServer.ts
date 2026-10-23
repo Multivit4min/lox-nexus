@@ -66,16 +66,19 @@ export class HttpServer extends Disposable {
     return this.app.listen({ port, host })
   }
 
-  // single-page app fallback: unknown GET paths outside /api get index.html so client-side routes survive a reload
+  // single-page app fallback: unknown GET paths outside /api get index.html so client-side routes survive a reload.
+  // The build may appear after boot (`npm run dev:web` builds in watch mode), so its presence is checked per request.
   private serveWeb(webDir: string | undefined) {
-    const index = webDir && path.join(webDir, "index.html")
-    if (!webDir || !index || !fs.existsSync(index)) {
+    if (!webDir) {
       this.app.setNotFoundHandler((_request, reply) => reply.code(404).send({ error: "not found" }))
       return
     }
-    this.app.register(fastifyStatic, { root: webDir, wildcard: false })
+    const index = path.join(webDir, "index.html")
+    // wildcard: files are looked up per request (not globbed at boot), so rebuilt chunks are served
+    this.app.register(fastifyStatic, { root: webDir })
     this.app.setNotFoundHandler((request, reply) => {
       if (request.url.startsWith("/api/") || request.method !== "GET") return reply.code(404).send({ error: "not found" })
+      if (!fs.existsSync(index)) return reply.code(503).send({ error: "web UI not built yet: run npm run dev:web or npm run build" })
       return reply.sendFile("index.html")
     })
   }

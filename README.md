@@ -24,15 +24,19 @@ Requires Node.js 24+.
 ```sh
 npm install
 npm run lint && npm run typecheck && npm test
-npm run dev        # server (watch mode) on http://localhost:8080; first visit runs setup
-npm run dev:web    # web UI (Vite) on http://localhost:5173, proxies /api to the server
-npm run build      # then NEXUS_WEB_DIR=apps/web/dist serves the UI from the server
+npm run dev          # server (watch mode) on http://localhost:8080; serves the UI, first visit runs setup
+npm run dev:web      # rebuilds the UI into apps/web/dist on every save; reload the page to see changes
+npm run dev:web:hmr  # alternative: Vite with hot reload on http://127.0.0.1:5173 (direct access only)
+npm run build        # then NEXUS_WEB_DIR=apps/web/dist serves the UI from the server
 ```
 
-Behind a path-prefix proxy such as code-server, the UI works unchanged: open
-`…/proxy/<port>/`. If the proxy rewrites the `Host` header, set `NEXUS_PUBLIC_ORIGINS` to the
-address in the browser's location bar (e.g. `https://coder.example`), or logins are refused with
-403.
+`npm run dev` reads the repository's `.env` if there is one (variables already set win).
+
+Behind a path-prefix proxy such as code-server, use `dev` + `dev:web` and open `…/proxy/8080/`.
+Vite's hot-reload server can't run under a path prefix (it loads `/@vite/client` from the site
+root), so `dev:web:hmr` only works when the browser reaches port 5173 directly. If the proxy
+rewrites the `Host` header, set `NEXUS_PUBLIC_ORIGINS` to the address in the browser's location
+bar (e.g. `https://coder.example`, in `.env` for development), or logins are refused with 403.
 
 Server settings come from environment variables:
 
