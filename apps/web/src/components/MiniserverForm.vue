@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { reactive, ref } from "vue"
-import type { MiniserverDto, MiniserverInput } from "@lox-nexus/api"
+import { DEFAULT_ICI_PORT, type MiniserverDto, type MiniserverInput } from "@lox-nexus/api"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,8 +18,8 @@ const form = reactive({
   label: props.initial?.label ?? "",
   slug: props.initial?.slug ?? "",
   host: props.initial?.host ?? "",
-  port: props.initial?.port ?? 7777,
-  listenPort: props.initial?.listenPort ?? 61263,
+  port: props.initial?.port ?? DEFAULT_ICI_PORT,
+  listenPort: props.initial?.listenPort ?? DEFAULT_ICI_PORT,
   listenAddress: props.initial?.listenAddress ?? "",
   ownId: props.initial?.ownId ?? "",
   remoteId: props.initial?.remoteId ?? "",

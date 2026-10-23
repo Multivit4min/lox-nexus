@@ -250,7 +250,7 @@ class per file, so it can later replace `loxone-ici` on npm.
 | `lab/` | The protocol lab, described below |
 
 **Protocol lab** (`npm run ici-lab -- <cmd>`, so you can capture against your Miniserver early):
-- `capture --port N [--password P] [--only ids] [--record file] [--duration s]` prints every
+- `capture [--port N] [--password P] [--only ids] [--record file] [--duration s]` prints every
   datagram as an annotated hex dump, with known fields named and unknown bytes highlighted. It diffs each packet against the previous one with the
   same packetId, so you can see exactly which bytes changed when you press a T5 button or move an
   RGBW slider.
@@ -427,6 +427,8 @@ above:
     re-keys every signal's topic through `SignalRegistry.update()`. `WireEngine` rebuilds the
     affected wires, so they survive the rename. Forces and snapshot values are keyed by topic and
     stay on the old topic.
+  - Both the Miniserver's port and our listen port default to Loxone's 61263
+    (`IciSocket.DEFAULT_PORT`, `DEFAULT_ICI_PORT` in the API).
   - Miniservers can share a listen address and port, as Loxone setups usually send everything to
     one port. `SocketPool` (one per `MiniserverManager`) binds one `IciSocket` per address and
     port and closes it with its last user. Each Miniserver's `IciReceiver` keeps only packets

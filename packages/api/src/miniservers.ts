@@ -8,14 +8,18 @@ const segment = z.string().regex(/^[a-z0-9][a-z0-9._-]*$/, "lowercase letters, d
 /** a UDP port; 0 means ephemeral */
 const port = z.int().min(0).max(65535)
 
+/** Loxone's intercommunication port; the Miniserver and Nexus both use it unless configured otherwise */
+export const DEFAULT_ICI_PORT = 61263
+
 /** POST/PUT body for a Miniserver. The server validates again with the Loxone package's schema. */
 export const MiniserverInputSchema = z.object({
   slug: segment,
   label: z.string().max(100),
   host: z.string().min(1),
-  port: port.min(1),
-  /** the Miniserver sends to this port, so it has to be fixed (0 is only for tests) */
-  listenPort: port.min(1),
+  /** defaults to Loxone's intercommunication port */
+  port: port.min(1).default(DEFAULT_ICI_PORT),
+  /** the Miniserver sends to this port, so it has to be fixed (0 is only for tests); Miniservers may share it */
+  listenPort: port.min(1).default(DEFAULT_ICI_PORT),
   /** local IPv4 address to bind; default all interfaces */
   listenAddress: z.ipv4().optional(),
   ownId: iciId,
@@ -26,7 +30,7 @@ export const MiniserverInputSchema = z.object({
   /** ms between re-sends of unchanged outputs; 0 disables */
   resendInterval: z.int().min(0).max(86_400_000).default(10_000)
 })
-/** `enabled` and `resendInterval` are optional on input because the schema defaults them */
+/** `port`, `listenPort`, `enabled` and `resendInterval` are optional on input because the schema defaults them */
 export type MiniserverInput = z.input<typeof MiniserverInputSchema>
 
 /** POST body for a Loxone signal; `id` is assigned by the server. */

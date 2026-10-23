@@ -17,12 +17,12 @@ interface Recorded {
  */
 export class ReplayCommand implements LabCommand {
   readonly name = "replay"
-  readonly usage = "replay <file.jsonl> --host <h> --port <n> [--speed <factor>]"
+  readonly usage = "replay <file.jsonl> --host <h> [--port <n>, default 61263] [--speed <factor>]"
   readonly interruptible = true
 
   async run(args: string[], { out, signal }: LabContext) {
     const { values, positionals } = parseArgs({ args, allowPositionals: true, options: {
-      host: { type: "string" }, port: { type: "string" }, speed: { type: "string", default: "1" }
+      host: { type: "string" }, port: { type: "string", default: String(IciSocket.DEFAULT_PORT) }, speed: { type: "string", default: "1" }
     } })
     const [file] = positionals
     if (!file) throw new Error(`usage: ${this.usage}`)

@@ -18,14 +18,14 @@ import { PayloadDiff } from "../PayloadDiff.ts"
  */
 export class CaptureCommand implements LabCommand {
   readonly name = "capture"
-  readonly usage = "capture --port <n> [--bind <addr>] [--only <id,id>] [--record <file.jsonl>] [--duration <s>] [--password <p>]"
+  readonly usage = "capture [--port <n>, default 61263] [--bind <addr>] [--only <id,id>] [--record <file.jsonl>] [--duration <s>] [--password <p>]"
   readonly interruptible = true
   private readonly decoder = new PacketDecoder()
   private readonly diff = new PayloadDiff()
 
   async run(args: string[], { out, signal }: LabContext) {
     const { values } = parseArgs({ args, options: {
-      port: { type: "string" }, bind: { type: "string" }, only: { type: "string" },
+      port: { type: "string", default: String(IciSocket.DEFAULT_PORT) }, bind: { type: "string" }, only: { type: "string" },
       record: { type: "string" }, duration: { type: "string" }, password: { type: "string" }
     } })
     const port = Args.port(values.port, "port")

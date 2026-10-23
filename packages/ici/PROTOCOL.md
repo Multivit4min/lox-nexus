@@ -250,7 +250,7 @@ check only the sender's IP address.
 
 ## Open questions and capture experiments
 
-Run with `npm run ici-lab -- capture --port <listenPort>` (available from M1). It prints annotated
+Run with `npm run ici-lab -- capture [--port <listenPort>]` (the port defaults to 61263; available from M1). It prints annotated
 hex dumps and diffs each packet against the previous one with the same packet ID.
 
 1. **T5 mask.** Press each T5 button alone, then two at a time, then hold one. Does the payload

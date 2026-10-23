@@ -1,4 +1,4 @@
-import { IciId } from "@lox-nexus/ici"
+import { IciId, IciSocket } from "@lox-nexus/ici"
 import { z } from "zod"
 
 const iciId = z.string().refine(IciId.isValid, "1–8 printable ASCII characters")
@@ -14,10 +14,10 @@ export const MiniserverConfigSchema = z.object({
   label: z.string(),
   /** where the Miniserver listens for intercommunication packets */
   host: z.string().min(1),
-  /** UDP port on the Miniserver; 0 is not valid here */
-  port: port.min(1),
-  /** where Nexus listens; 0 picks a free port (tests) */
-  listenPort: port,
+  /** UDP port on the Miniserver; 0 is not valid here. Defaults to Loxone's intercommunication port */
+  port: port.min(1).default(IciSocket.DEFAULT_PORT),
+  /** where Nexus listens; 0 picks a free port (tests). Defaults like `port`, and may be shared (SocketPool) */
+  listenPort: port.default(IciSocket.DEFAULT_PORT),
   /** local IPv4 address to bind, default all interfaces */
   listenAddress: z.ipv4().optional(),
   /** Nexus's ID as configured for this remote system on the Miniserver */

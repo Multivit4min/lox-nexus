@@ -23,6 +23,8 @@ export interface SocketEvents {
  * - sends still in flight when close() runs are rejected, because dgram drops their callbacks
  */
 export class IciSocket extends EventEmitter<SocketEvents> implements DatagramSender {
+  /** Loxone's intercommunication port; Miniservers send from and to it unless configured otherwise */
+  static readonly DEFAULT_PORT = 61263
   private socket: Socket | undefined
   private binding: Socket | undefined
   private readonly pendingSends = new Set<(error: Error) => void>()
