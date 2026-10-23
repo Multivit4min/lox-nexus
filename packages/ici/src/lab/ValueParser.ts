@@ -9,7 +9,7 @@ export class ValueParser {
 
   private parseAny(type: DataType, text: string): unknown {
     switch (type) {
-      case DataType.Digital: return ["1", "true", "on"].includes(text.toLowerCase())
+      case DataType.Digital: return this.boolean(text)
       case DataType.Analog: return this.number(text)
       case DataType.Text: return text
       case DataType.T5: return { buttons: this.number(text) }
@@ -17,6 +17,13 @@ export class ValueParser {
       case DataType.SmartSingleChannel:
       case DataType.SmartTunableWhite: return { fadeTime: 0.2, ...this.json(text) }
     }
+  }
+
+  private boolean(text: string) {
+    const normalized = text.toLowerCase()
+    if (["1", "true", "on"].includes(normalized)) return true
+    if (["0", "false", "off"].includes(normalized)) return false
+    throw new Error(`"${text}" is not a digital value, use 1/0, true/false or on/off`)
   }
 
   private number(text: string) {

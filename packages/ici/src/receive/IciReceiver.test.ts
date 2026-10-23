@@ -10,8 +10,8 @@ import { IciReceiver, type DataEvent } from "./IciReceiver.ts"
 
 const encoder = new PacketEncoder()
 const from = Fixtures.remote()
-const analog = (packetId: string, value: number, targetId = "claude") =>
-  encoder.encodeData(DataPacket.of({ sourceId: "server", targetId, packetId }, DataType.Analog, value))
+const analog = (packetId: string, value: number, targetId = "claude", sourceId = "server") =>
+  encoder.encodeData(DataPacket.of({ sourceId, targetId, packetId }, DataType.Analog, value))
 
 const setup = (options: Partial<ConstructorParameters<typeof IciReceiver>[1]> = {}) => {
   const socket = new IciSocket()
@@ -35,7 +35,7 @@ describe("IciReceiver", () => {
     assert.ok(!events.includes("malformed"))
   })
 
-  test("marks repeats as unchanged, keyed by source and packet id (review #6)", () => {
+  test("marks repeats as unchanged per packet id (review #6)", () => {
     const { data, feed } = setup()
     feed(analog("rand", 1))
     feed(analog("rand", 1))
@@ -43,6 +43,41 @@ describe("IciReceiver", () => {
     feed(analog("other", 2))
     assert.deepEqual(data.map(event => [event.packet.packetId, event.value, event.changed]),
       [["rand", 1, true], ["rand", 1, false], ["rand", 2, true], ["other", 2, true]])
+  })
+
+  test("two Miniservers with the same packet id don't interfere (review #6, #13)", () => {
+    const { data, feed } = setup()
+    feed(analog("temp", 20, "claude", "house"))
+    feed(analog("temp", 20, "claude", "garage"))
+    feed(analog("temp", 20, "claude", "house"))
+    assert.deepEqual(data.map(event => [event.packet.sourceId, event.changed]),
+      [["house", true], ["garage", true], ["house", false]])
+  })
+
+  test("bounds memory for change detection", () => {
+    const { data, feed } = setup({ maxTrackedPackets: 2 })
+    feed(analog("a", 1))
+    feed(analog("b", 1))
+    feed(analog("c", 1))
+    feed(analog("a", 1))
+    assert.equal(data.at(-1)?.changed, true, "a was evicted, so it counts as new again")
+  })
+
+  test("a known type with a short payload is malformed", () => {
+    const { events, feed } = setup()
+    feed(encoder.encodeData(new DataPacket("server", "claude", "rand", DataType.Analog, Buffer.alloc(1))))
+    assert.deepEqual(events, ["malformed"])
+  })
+
+  test("a throwing listener can't crash the receive path", () => {
+    const { receiver, feed } = setup()
+    const errors: unknown[] = []
+    receiver.on("data", () => { throw new Error("consumer bug") })
+    receiver.on("listenerError", error => errors.push(error))
+    assert.doesNotThrow(() => feed(analog("rand", 1)))
+    assert.equal((errors[0] as Error).message, "consumer bug")
+    receiver.removeAllListeners("listenerError")
+    assert.doesNotThrow(() => feed(analog("rand", 2)))
   })
 
   test("filters by source id when configured", () => {
@@ -68,6 +103,17 @@ describe("IciReceiver", () => {
     const without = setup()
     without.feed(encoder.encodeEncrypted(sealed))
     assert.deepEqual(without.events, ["encrypted"])
+  })
+
+  test("reports decryption with the wrong password as malformed", () => {
+    const sealed = new IciCipher("pw").seal(DataPacket.of({ sourceId: "server", targetId: "claude", packetId: "rand" }, DataType.Analog, 7), Buffer.alloc(16, 3))
+    const wrong = setup({ password: "nope" })
+    wrong.feed(encoder.encodeEncrypted(sealed))
+    assert.deepEqual([wrong.data.length, wrong.events], [0, ["malformed"]])
+  })
+
+  test("rejects invalid source ids up front", () => {
+    assert.throws(() => setup({ sourceIds: ["far-too-long-id"] }), RangeError)
   })
 
   test("dispose stops listening", () => {

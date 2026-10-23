@@ -14,11 +14,16 @@ export interface SocketEvents {
 }
 
 /**
- * A UDP socket that can be bound, closed and bound again. bind() rejects instead of emitting
- * an unhandled "error", and sending on a closed socket rejects instead of throwing.
+ * A UDP socket that can be bound, closed and bound again.
+ *
+ * - bind() rejects instead of emitting an unhandled "error", and refuses while bound or binding
+ * - close() during a pending bind cancels it; the bind rejects and leaves nothing open
+ * - sends still in flight when close() runs are rejected, because dgram drops their callbacks
  */
 export class IciSocket extends EventEmitter<SocketEvents> implements DatagramSender {
   private socket: Socket | undefined
+  private binding: Socket | undefined
+  private readonly pendingSends = new Set<(error: Error) => void>()
 
   get isOpen() {
     return this.socket !== undefined
@@ -29,20 +34,21 @@ export class IciSocket extends EventEmitter<SocketEvents> implements DatagramSen
   }
 
   async bind(port: number, address?: string) {
-    if (this.socket) throw new Error("IciSocket is already bound")
+    if (this.socket || this.binding) throw new Error("IciSocket is already bound or binding")
     const socket = dgram.createSocket("udp4")
+    this.binding = socket
     try {
-      await new Promise<void>((resolve, reject) => {
-        socket.once("error", reject)
-        socket.bind(port, address, () => {
-          socket.off("error", reject)
-          resolve()
-        })
-      })
+      await IciSocket.bindSocket(socket, port, address)
     } catch (error) {
+      if (this.binding === socket) this.binding = undefined
       IciSocket.closeQuietly(socket)
       throw error
     }
+    if (this.binding !== socket) {
+      IciSocket.closeQuietly(socket)
+      throw new Error("IciSocket was closed while binding")
+    }
+    this.binding = undefined
     socket.on("message", (buffer, from) => this.emit("datagram", buffer, from))
     socket.on("error", error => this.emit("socketError", error))
     this.socket = socket
@@ -52,15 +58,39 @@ export class IciSocket extends EventEmitter<SocketEvents> implements DatagramSen
     const socket = this.socket
     if (!socket) return Promise.reject(new Error("IciSocket is not open"))
     return new Promise((resolve, reject) => {
-      socket.send(buffer, port, host, error => (error ? reject(error) : resolve()))
+      this.pendingSends.add(reject)
+      try {
+        socket.send(buffer, port, host, error => {
+          this.pendingSends.delete(reject)
+          if (error) reject(error)
+          else resolve()
+        })
+      } catch (error) {
+        this.pendingSends.delete(reject)
+        reject(error)
+      }
     })
   }
 
   async close() {
+    this.binding = undefined
     const socket = this.socket
     if (!socket) return
     this.socket = undefined
+    const closed = new Error("IciSocket closed while sending")
+    for (const reject of this.pendingSends) reject(closed)
+    this.pendingSends.clear()
     await new Promise<void>(resolve => socket.close(() => resolve()))
+  }
+
+  private static bindSocket(socket: Socket, port: number, address?: string) {
+    return new Promise<void>((resolve, reject) => {
+      socket.once("error", reject)
+      socket.bind(port, address, () => {
+        socket.off("error", reject)
+        resolve()
+      })
+    })
   }
 
   private static closeQuietly(socket: Socket) {

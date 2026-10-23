@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { createHash } from "node:crypto"
+import { createDecipheriv, createHash } from "node:crypto"
 import { describe, test } from "node:test"
 import { PacketDecoder } from "../codec/PacketDecoder.ts"
 import { PacketEncoder } from "../codec/PacketEncoder.ts"
@@ -21,12 +21,19 @@ describe("IciCipher", () => {
     assert.deepEqual([opened.packetId, opened.dataType, opened.value()], ["analog", DataType.Analog, 3.5])
   })
 
-  test("uses the first 16 bytes of SHA256(password) as key", () => {
+  test("uses the first 16 bytes of SHA256(password) as AES-128 key", () => {
     const iv = Buffer.alloc(16, 7)
-    const a = new IciCipher("pw").seal(packet, iv)
+    const sealed = new IciCipher("pw").seal(packet, iv)
     const key = createHash("sha256").update("pw").digest().subarray(0, 16)
-    assert.equal(key.length, 16)
-    assert.notDeepEqual(a.ciphertext, new IciCipher("other").seal(packet, iv).ciphertext)
+    const decipher = createDecipheriv("aes-128-cbc", key, iv).setAutoPadding(false)
+    const body = Buffer.concat([decipher.update(sealed.ciphertext), decipher.final()])
+    assert.equal(body.subarray(0, 6).toString("latin1"), "analog")
+    assert.equal(body.readUint8(11), DataType.Analog)
+  })
+
+  test("a wrong password is rejected instead of yielding garbage", () => {
+    const sealed = new IciCipher("pw").seal(packet, Buffer.alloc(16, 1))
+    assert.throws(() => new IciCipher("wrong").open(sealed), /wrong password/)
   })
 
   test("at least two blocks are produced", () => {

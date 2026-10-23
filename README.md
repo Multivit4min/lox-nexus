@@ -45,4 +45,4 @@ npm run dev:web    # web UI (Vite)
 
 `CLAUDE.md` holds the project conventions. Specialised subagents live in `.claude/agents/`
 (architect, core-dev, loxone-expert, plugin-dev, frontend-dev, reviewer). Ask for one by name, e.g.
-"use the loxone-expert agent to implement the T5 codec", or run `/agents` to inspect them.
+"use the loxone-expert agent to implement the T5 codec". To change an agent, edit its file in `.claude/agents/` or ask Claude to update it.

@@ -17,14 +17,21 @@ export class IciCipher {
     this.key = createHash("sha256").update(password, "utf8").digest().subarray(0, 16)
   }
 
-  /** decrypts the packet into a data packet; throws RangeError if the body is malformed */
+  /**
+   * decrypts the packet into a data packet. There is no MAC, so a wrong password is detected by
+   * structure only: a valid packet id, a zero separator byte and zero padding. Throws RangeError.
+   */
   open(packet: EncryptedPacket): DataPacket {
     const decipher = createDecipheriv(IciCipher.ALGORITHM, this.key, packet.iv).setAutoPadding(false)
     const body = Buffer.concat([decipher.update(packet.ciphertext), decipher.final()])
     const length = body.readUint16LE(9)
-    if (12 + length > body.length) throw new RangeError(`decrypted payload length ${length} exceeds body`)
+    const packetId = IciId.read(body, 0)
+    if (12 + length > body.length) throw new RangeError(`decrypted payload length ${length} exceeds body (wrong password?)`)
+    if (!IciId.isValid(packetId) || body.readUint8(8) !== 0 || body.subarray(12 + length).some(byte => byte !== 0)) {
+      throw new RangeError("decrypted body is not a valid packet (wrong password?)")
+    }
     const payload = Buffer.from(body.subarray(12, 12 + length))
-    return new DataPacket(packet.sourceId, packet.targetId, IciId.read(body, 0), body.readUint8(11), payload)
+    return new DataPacket(packet.sourceId, packet.targetId, packetId, body.readUint8(11), payload)
   }
 
   /** encrypts a data packet; the body is zero-padded to whole AES blocks */

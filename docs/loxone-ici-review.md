@@ -70,16 +70,16 @@ Line references point at the upstream repository. `old/…` references point at 
 |---|---|---|
 | 1 | `PayloadCodecs.test` "text round-trips beyond 255 bytes", `PacketEncoder.test` "uint16", `PacketDecoder.test` "byte-exact" | |
 | 2 | `PacketDecoder.test` "malformed" and "never throws", `IciReceiver.test` "junk" | |
-| 3 | `IciSocket.test` "EADDRINUSE" | Runtime errors are emitted as `socketError`, which can't crash the process |
-| 4 | `IciSocket.test` "closed and bound again" | |
+| 3 | `IciSocket.test` "EADDRINUSE", "runtime socket errors become socketError" | Runtime errors are emitted as `socketError`, which can't crash the process. `IciReceiver` also catches throwing listeners (`listenerError`) |
+| 4 | `IciSocket.test` "rebinding does not duplicate datagram events", "close during bind", "second bind" | |
 | 5 | n/a | No per-type listener buckets. `IciReceiver` emits one `data` event with the value decoded by the codec table, and every codec has round-trip tests |
-| 6 | `IciReceiver.test` "repeats as unchanged" | Byte-equality per (source, packet id) |
+| 6 | `IciReceiver.test` "repeats as unchanged", "two Miniservers with the same packet id", "bounds memory" | Byte-equality per (source, packet id), bounded to 4096 entries by default |
 | 7 | n/a | No partial setters; values are complete objects |
 | 8 | `PayloadCodecs.test` "t5 rejects null" | |
 | 9 | `RemotePeer.test` "resends all outputs with a value" | One scheduler; outputs without a value are never sent |
-| 10 | `RemotePeer.test` "close stops resends", `IciSocket.test` "send on a closed socket" | The resend timer is `unref()`'d |
-| 11 | `RemotePeer.test` "own data type" | The type comes from the output, never from the value's shape. TunableWhite has a codec |
-| 12 | `RemotePeer.test` "failed resends as events", `IciSocket.test` "send on a closed socket" | No connect step, so nothing can hang |
+| 10 | `RemotePeer.test` "close stops resends", `IciSocket.test` "send after close" | The resend timer is `unref()`'d, and a NaN interval is rejected |
+| 11 | `RemotePeer.test` "type byte on the wire comes from the output", "type clashes" | TunableWhite has a codec |
+| 12 | `RemotePeer.test` "failed resends as events", `IciSocket.test` "send after close", "a send still in flight is rejected by close" | No connect step, and in-flight sends are rejected on close instead of hanging |
 | 13 | `IciReceiver.test` "ours and foreign", "source id" | Confirmed necessary by live captures (`red` traffic) |
 | 14 | `IciId.test`, `PacketEncoder.test` "ids that don't fit" | |
 | 15 | `PayloadCodecs.test` "out-of-range and fractional" | |
@@ -87,6 +87,6 @@ Line references point at the upstream repository. `old/…` references point at 
 | 17 | n/a | No pulse helpers in the protocol library; pulses belong to higher layers |
 | 18 | `RemotePeer.test` "exactly once", typed `output<T>()` | |
 | 19 | by construction | Typed `EventEmitter<Events>` from `node:events` |
-| 20 | `PacketDecoder.test` "unknown control bytes", status fixture test, `IciCipher.test` | Never logs; 0x8D decoded; 0x9F implemented (experimental) |
+| 20 | `PacketDecoder.test` "unknown control bytes", "raw datagram", status fixture test, `IciCipher.test` | Never logs. 0x8D decoded. 0x9F implemented (experimental), and a wrong password is rejected structurally |
 | 21 | partly | Exports map with source and dist conditions. Publishing happens in M6 |
-| 22 | 58 tests | Including live-capture fixtures and fuzzing |
+| 22 | 64 tests in `packages/ici` | Including live-capture fixtures and seeded fuzzing |

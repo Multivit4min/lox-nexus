@@ -1,12 +1,14 @@
 import { DataType } from "../DataType.ts"
+import { UdpLimits } from "../packet/UdpLimits.ts"
 import { PayloadCodec } from "./PayloadCodec.ts"
 
-/** UTF-8, NUL-terminated; the terminator counts towards the uint16 payload length. */
+/** UTF-8, NUL-terminated; the terminator counts towards the payload length. */
 export class TextCodec extends PayloadCodec<string> {
   readonly dataType = DataType.Text
   readonly name = "text"
   readonly size = undefined
-  static readonly MAX_BYTES = 0xffff - 1
+  /** one byte less than the UDP payload limit, for the terminator */
+  static readonly MAX_BYTES = UdpLimits.MAX_DATA_PAYLOAD - 1
 
   decode(payload: Buffer) {
     const end = payload.indexOf(0)

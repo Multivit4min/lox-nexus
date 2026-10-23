@@ -1,9 +1,9 @@
 import assert from "node:assert/strict"
-import { randomBytes } from "node:crypto"
 import { describe, test } from "node:test"
 import { DataType } from "../DataType.ts"
 import { DataPacket } from "../packet/DataPacket.ts"
 import { Fixtures } from "../test-support/Fixtures.ts"
+import { SeededRandom } from "../test-support/SeededRandom.ts"
 import { PacketDecoder } from "./PacketDecoder.ts"
 import { PacketEncoder } from "./PacketEncoder.ts"
 
@@ -44,10 +44,11 @@ describe("PacketDecoder", () => {
   })
 
   test("never throws on random or truncated input", () => {
+    const random = new SeededRandom(0x1c1)
     for (let i = 0; i < 2000; i++) {
-      const buffer = randomBytes(i % 80)
-      if (i % 3 === 0 && buffer.length > 0) buffer[0] = [0x9e, 0x9f, 0x8d][i % 9 / 3 | 0]!
-      assert.doesNotThrow(() => decoder.decode(buffer))
+      const buffer = random.bytes(i % 80)
+      if (i % 3 === 0 && buffer.length > 0) buffer[0] = [0x9e, 0x9f, 0x8d][random.int(3)]!
+      assert.doesNotThrow(() => decoder.decode(buffer), buffer.toString("hex"))
     }
     for (const buffer of live.slice(0, 20)) {
       for (let cut = 0; cut <= buffer.length; cut++) assert.doesNotThrow(() => decoder.decode(buffer.subarray(0, cut)))
@@ -57,6 +58,18 @@ describe("PacketDecoder", () => {
   test("reports unknown control bytes without logging (review #20)", () => {
     const result = decoder.decode(Buffer.from([0x42, 0, 0]))
     assert.deepEqual(result.kind === "unknown" && result.control, 0x42)
+  })
+
+  test("keeps the raw datagram so reserved and trailing bytes stay visible (review: unknown bytes)", () => {
+    const wire = encoder.encodeData(DataPacket.of({ sourceId: "a", targetId: "b", packetId: "c" }, DataType.Digital, true))
+    const odd = Buffer.concat([wire, Buffer.from("beef", "hex")])
+    odd[5] = 0x01
+    odd[34] = 0x02
+    const result = decoder.decode(odd)
+    assert.ok(result.kind === "data")
+    assert.deepEqual(result.packet.raw, odd)
+    assert.deepEqual(result.packet.reservedNonZero(), [5, 34])
+    assert.equal(result.packet.trailing().toString("hex"), "beef")
   })
 
   test("keeps unknown data types byte-exact", () => {

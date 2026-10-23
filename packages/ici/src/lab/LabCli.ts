@@ -9,19 +9,25 @@ import { DataTypeNames } from "./DataTypeNames.ts"
 export class LabCli {
   private readonly commands: LabCommand[] = [new CaptureCommand(), new SendCommand(), new ReplayCommand(), new DecodeCommand()]
 
+  /** true if Ctrl+C should abort the command's signal instead of exiting at once */
+  isInterruptible(name: string | undefined) {
+    return this.commands.find(c => c.name === name)?.interruptible ?? false
+  }
+
   /** returns the process exit code */
   async run(argv: string[], context: LabContext): Promise<number> {
     const [name, ...args] = argv
     const command = this.commands.find(c => c.name === name)
     if (!command) {
-      context.out.write(this.help())
-      return name === undefined || name === "help" ? 0 : 1
+      const help = name === undefined || name === "help"
+      ;(help ? context.out : context.err).write(this.help())
+      return help ? 0 : 1
     }
     try {
       await command.run(args, context)
       return 0
     } catch (error) {
-      context.out.write(`error: ${(error as Error).message}\n`)
+      context.err.write(`error: ${error instanceof Error ? error.message : String(error)}\n`)
       return 1
     }
   }

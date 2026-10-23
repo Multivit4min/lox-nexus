@@ -240,8 +240,8 @@ class per file, so it can later replace `loxone-ici` on npm.
 | Folder | Classes |
 |---|---|
 | `id/` | `IciId`: an 8-byte ID, validated (ASCII, max 8 bytes, no silent truncation) |
-| `packet/` | `PacketHeader`, `DataPacket` (0x9E), `EncryptedPacket` (0x9F), `StatusPacket` (0x8D), `UnknownPacket` |
-| `codec/` | `PacketDecoder` / `PacketEncoder`. Both check lengths before reading, and malformed input yields a `MalformedPacket` result instead of a throw. The data length is a uint16 in both directions. |
+| `packet/` | `PacketHeader`, `DataPacket` (0x9E, keeps the raw datagram and reports non-zero reserved or trailing bytes), `EncryptedPacket` (0x9F), `StatusPacket` (0x8D), `UdpLimits` |
+| `codec/` | `PacketDecoder` / `PacketEncoder`. Both check lengths before reading, and every datagram becomes a `DecodeResult` (`data`, `status`, `encrypted`, `unknown` or `malformed`) instead of a throw. The data length is a uint16 in both directions, capped at the UDP limit. |
 | `payload/` | One `PayloadCodec<T>` class per data type: `DigitalCodec`, `AnalogCodec`, `TextCodec`, `T5Codec`, `SmartRgbwCodec`, `SmartSingleChannelCodec`, `SmartTunableWhiteCodec`. There is no raw codec: every `DataPacket` keeps its raw payload, so unknown types and unconfirmed bytes survive byte-exact |
 | `crypto/` | `IciCipher`: AES-128-CBC with key = SHA256(password)[0..16], IV in block 0, per PROTOCOL.md |
 | `transport/` | `IciSocket`: a dgram wrapper whose `bind()` rejects on error. It can close and re-open, uses a typed `EventEmitter<Events>`, and never logs. |
@@ -250,12 +250,13 @@ class per file, so it can later replace `loxone-ici` on npm.
 | `lab/` | The protocol lab, described below |
 
 **Protocol lab** (`npm run ici-lab -- <cmd>`, so you can capture against your Miniserver early):
-- `capture --port N [--password P]` prints every datagram as an annotated hex dump, with known
-  fields named and unknown bytes highlighted. It diffs each packet against the previous one with the
+- `capture --port N [--password P] [--only ids] [--record file] [--duration s]` prints every
+  datagram as an annotated hex dump, with known fields named and unknown bytes highlighted. It diffs each packet against the previous one with the
   same packetId, so you can see exactly which bytes changed when you press a T5 button or move an
   RGBW slider.
-- `record <file>` and `replay <file>` work with JSONL captures. Annotated captures become test
-  fixtures under `packages/ici/test/fixtures/`.
+- `capture --record <file>` writes JSONL captures, and `replay <file>` sends them again with the
+  original timing. Annotated captures become test fixtures under `packages/ici/test/fixtures/`.
+- `decode <hex>` describes a datagram offline.
 - `send --type t5 --raw <hex>` sends a crafted packet, to probe how the Miniserver reacts.
 
 **Open protocol questions, with a capture experiment for each:**

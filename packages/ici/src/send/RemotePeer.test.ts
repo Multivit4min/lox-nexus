@@ -61,11 +61,24 @@ describe("RemotePeer", () => {
     assert.equal(sender.sent.length, 1)
   })
 
-  test("uses the output's own data type and rejects type clashes (review #11)", () => {
+  test("rejects type clashes for the same packet id (review #11)", () => {
     const peer = new RemotePeer(new RecordingSender(), options)
     peer.output("x", DataType.SmartRgbw)
     assert.throws(() => peer.output("x", DataType.Analog), TypeError)
     peer.close()
+  })
+
+  test("the type byte on the wire comes from the output, not the value (review #11)", async () => {
+    const sender = new RecordingSender()
+    const peer = new RemotePeer(sender, options)
+    await peer.output("buttons", DataType.T5).set({ buttons: 1 })
+    await peer.output("level", DataType.Analog).set(1)
+    assert.deepEqual(sender.sent.map(buffer => buffer.readUint8(37)), [DataType.T5, DataType.Analog])
+    peer.close()
+  })
+
+  test("rejects a NaN resend interval instead of flooding the Miniserver", () => {
+    assert.throws(() => new RemotePeer(new RecordingSender(), { ...options, resendInterval: Number.NaN }), RangeError)
   })
 
   test("reports failed resends as events instead of unhandled rejections (review #12)", async () => {

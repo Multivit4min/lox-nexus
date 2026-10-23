@@ -2,7 +2,9 @@ import { parseArgs } from "node:util"
 import { PacketEncoder } from "../../codec/PacketEncoder.ts"
 import { IciCipher } from "../../crypto/IciCipher.ts"
 import { DataPacket } from "../../packet/DataPacket.ts"
+import { PayloadCodecs } from "../../payload/PayloadCodecs.ts"
 import { IciSocket } from "../../transport/IciSocket.ts"
+import { Args } from "../Args.ts"
 import { DataTypeNames } from "../DataTypeNames.ts"
 import type { LabCommand, LabContext } from "../LabCommand.ts"
 import { ValueParser } from "../ValueParser.ts"
@@ -10,6 +12,7 @@ import { ValueParser } from "../ValueParser.ts"
 export class SendCommand implements LabCommand {
   readonly name = "send"
   readonly usage = "send --host <h> --port <n> --src <id> --dst <id> --packet <id> --type <t> (--value <v> | --raw <hex>) [--password <p>] [--from-port <n>]"
+  readonly interruptible = false
   private readonly encoder = new PacketEncoder()
 
   async run(args: string[], { out }: LabContext) {
@@ -18,20 +21,21 @@ export class SendCommand implements LabCommand {
       packet: { type: "string" }, type: { type: "string" }, value: { type: "string" }, raw: { type: "string" },
       password: { type: "string" }, "from-port": { type: "string", default: "0" }
     } })
-    if (!v.host || !v.port || !v.src || !v.dst || !v.packet || !v.type || (v.value === undefined && !v.raw)) {
-      throw new Error(`usage: ${this.usage}`)
-    }
-    const type = DataTypeNames.parse(v.type)
-    const payload = v.raw ? Buffer.from(v.raw, "hex") : DataPacket.of({ sourceId: v.src, targetId: v.dst, packetId: v.packet }, type, new ValueParser().parse(type, v.value!)).payload
-    const packet = new DataPacket(v.src, v.dst, v.packet, type, payload)
+    const host = Args.required(v.host, "host")
+    const port = Args.port(v.port, "port")
+    const type = DataTypeNames.parse(Args.required(v.type, "type"))
+    const payload = v.raw !== undefined
+      ? Args.hex(v.raw, "--raw")
+      : PayloadCodecs.for(type).encode(new ValueParser().parse(type, Args.required(v.value, "value")))
+    const packet = new DataPacket(Args.required(v.src, "src"), Args.required(v.dst, "dst"), Args.required(v.packet, "packet"), type, payload)
     const datagram = v.password
       ? this.encoder.encodeEncrypted(new IciCipher(v.password).seal(packet))
       : this.encoder.encodeData(packet)
     const socket = new IciSocket()
-    await socket.bind(Number(v["from-port"]))
+    await socket.bind(Args.port(v["from-port"], "from-port"))
     try {
-      await socket.send(datagram, Number(v.port), v.host)
-      out.write(`sent ${datagram.length} bytes to ${v.host}:${v.port}: ${datagram.toString("hex")}\n`)
+      await socket.send(datagram, port, host)
+      out.write(`sent ${datagram.length} bytes to ${host}:${port}: ${datagram.toString("hex")}\n`)
     } finally {
       await socket.close()
     }

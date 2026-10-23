@@ -2,11 +2,14 @@ import { DataPacket } from "../packet/DataPacket.ts"
 import { EncryptedPacket } from "../packet/EncryptedPacket.ts"
 import { PacketHeader } from "../packet/PacketHeader.ts"
 import { IciId } from "../id/IciId.ts"
+import { UdpLimits } from "../packet/UdpLimits.ts"
 
 /** Turns packets into datagrams. Validates ids and lengths instead of truncating. */
 export class PacketEncoder {
   encodeData(packet: DataPacket): Buffer {
-    if (packet.payload.length > 0xffff) throw new RangeError(`payload of ${packet.payload.length} bytes exceeds 65535`)
+    if (packet.payload.length > UdpLimits.MAX_DATA_PAYLOAD) {
+      throw new RangeError(`payload of ${packet.payload.length} bytes exceeds the UDP limit of ${UdpLimits.MAX_DATA_PAYLOAD}`)
+    }
     if (!Number.isInteger(packet.dataType) || packet.dataType < 0 || packet.dataType > 0xff) {
       throw new RangeError(`invalid data type ${packet.dataType}`)
     }

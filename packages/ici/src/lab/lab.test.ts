@@ -9,10 +9,13 @@ import { ValueParser } from "./ValueParser.ts"
 
 const runCli = async (...argv: string[]) => {
   const out = new PassThrough()
+  const err = new PassThrough()
   let text = ""
+  let errors = ""
   out.on("data", chunk => (text += chunk))
-  const code = await new LabCli().run(argv, { out, signal: new AbortController().signal })
-  return { code, text }
+  err.on("data", chunk => (errors += chunk))
+  const code = await new LabCli().run(argv, { out, err, signal: new AbortController().signal })
+  return { code, text, errors }
 }
 
 describe("ici-lab", () => {
@@ -30,10 +33,28 @@ describe("ici-lab", () => {
     assert.match(text, /MALFORMED/)
   })
 
-  test("unknown commands print help and fail", async () => {
-    const { code, text } = await runCli("nope")
+  test("unknown commands print help to stderr and fail", async () => {
+    const { code, errors } = await runCli("nope")
     assert.equal(code, 1)
-    assert.match(text, /usage: npm run ici-lab/)
+    assert.match(errors, /usage: npm run ici-lab/)
+  })
+
+  test("decode rejects invalid hex instead of truncating it", async () => {
+    const { code, errors } = await runCli("decode", "9e0g")
+    assert.equal(code, 1)
+    assert.match(errors, /must be hex bytes/)
+  })
+
+  test("send validates its options before touching the network", async () => {
+    const base = ["send", "--host", "127.0.0.1", "--src", "a", "--dst", "b", "--packet", "c", "--value", "1"]
+    assert.match((await runCli(...base, "--port", "99999", "--type", "analog")).errors, /--port must be a port/)
+    assert.match((await runCli(...base, "--port", "1", "--type", "constructor")).errors, /unknown type "constructor"/)
+    assert.match((await runCli(...base, "--port", "1", "--type", "digital", "--value", "ture")).errors, /not a digital value/)
+  })
+
+  test("capture rejects a non-numeric duration", async () => {
+    const { errors } = await runCli("capture", "--port", "0", "--duration", "abc")
+    assert.match(errors, /--duration must be a positive number/)
   })
 
   test("PayloadDiff names the changed byte ranges", () => {

@@ -37,7 +37,7 @@ export class PacketDecoder {
     const header = PacketHeader.read(buffer)
     const packet = new DataPacket(
       header.sourceId, header.targetId, IciId.read(buffer, 26), buffer.readUint8(37),
-      Buffer.from(buffer.subarray(DataPacket.HEADER_SIZE, end))
+      Buffer.from(buffer.subarray(DataPacket.HEADER_SIZE, end)), Buffer.from(buffer)
     )
     return { kind: "data", packet }
   }

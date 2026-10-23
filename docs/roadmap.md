@@ -52,7 +52,7 @@ list passes.
 - `npm ls --workspaces` shows every package linked.
 - A test `import "@lox-nexus/core"` inside a plugin fails lint.
 - A 201-line file fails lint.
-- `/agents` lists all 6 agents.
+- All 6 agent files exist in `.claude/agents/` and show up as agent types in Claude Code.
 - An Edit on `old/` is denied.
 
 ### M1: ICI implementation and protocol lab (`packages/ici`) (done)

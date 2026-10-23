@@ -20,6 +20,13 @@ describe("PacketEncoder", () => {
     assert.equal(buffer.readUint16LE(35), 301)
   })
 
+  test("rejects payloads that can't fit into one UDP datagram", () => {
+    const packet = new DataPacket("claude", "server", "big", DataType.Text, Buffer.alloc(65470))
+    assert.throws(() => encoder.encodeData(packet), /UDP limit/)
+    assert.throws(() => DataPacket.of(address, DataType.Text, "x".repeat(65469)), RangeError)
+    assert.doesNotThrow(() => encoder.encodeData(DataPacket.of(address, DataType.Text, "x".repeat(65468))))
+  })
+
   test("rejects ids that don't fit instead of truncating (review #14)", () => {
     const packet = new DataPacket("claude", "server", "much-too-long", DataType.Digital, Buffer.from([1]))
     assert.throws(() => encoder.encodeData(packet), RangeError)

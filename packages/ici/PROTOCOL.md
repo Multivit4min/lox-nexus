@@ -192,8 +192,8 @@ The RGBW output of a Lighting Controller was captured while its mood was switche
 **Passthrough probe (2026-10-23).** RGBW packets were sent to a Miniserver input wired directly to
 an RGBW output. Every payload came back **byte-identical** within about 30 ms: bytes 6–7 set to
 `0001`, `0100` and `ffff`, fade values 0, 10 and 25, and out-of-range colours 101 and 255. A direct
-input→output connection doesn't interpret or clamp the payload, so it can't explain bytes 6–7. The
-next step is to capture an RGBW output driven by a Lighting Controller.
+input→output connection doesn't interpret or clamp the payload, so it can't explain bytes 6–7. That
+is why the Lighting Controller capture above was needed.
 
 Sending also showed that the Miniserver accepts input packets from any source port. It appears to
 check only the sender's IP address.
