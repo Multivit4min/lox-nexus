@@ -10,11 +10,14 @@ import type { Pending, PublishOptions } from "./Pending.ts"
 import { RetainedState, type SnapshotEntry } from "./RetainedState.ts"
 import { Subscribers, type MessageHandler } from "./Subscribers.ts"
 import { Topic } from "./Topic.ts"
+import type { TopicKinds } from "./TopicKinds.ts"
 
 export interface EventBusOptions {
   clock?: Clock
   chain?: CausalChain
   forces?: ForceStore
+  /** declared kind per topic (usually the SignalRegistry), for delivering forced values */
+  topicKinds?: TopicKinds
 }
 
 const SYSTEM: MessageSource = { kind: "system", id: "bus" }
@@ -23,10 +26,15 @@ export const BUS_ERROR_TOPIC = "system/bus/error"
 /**
  * The message bus. Messages are processed one at a time from a FIFO queue that is never
  * re-entered: anything published by a handler runs after the current message, so effects
- * always follow their causes and order per topic is preserved.
+ * always follow their causes and order per topic is preserved. Nothing thrown while processing
+ * a message escapes: it becomes an event on system/bus/error and the queue keeps draining.
+ *
+ * Boot order: restoreForces() before restoreSnapshot(), so restored values arrive shadowed
+ * instead of briefly reaching subscribers before the force applies.
  */
 export class EventBus extends Disposable {
   readonly chain: CausalChain
+  private readonly clock: Clock
   private readonly retained = new RetainedState()
   private readonly subscribers = new Subscribers((message, error) => this.handlerFailed(message, error))
   private readonly forces: ForceRegistry
@@ -36,11 +44,11 @@ export class EventBus extends Disposable {
 
   constructor(options: EventBusOptions = {}) {
     super()
-    const clock = options.clock ?? new SystemClock()
+    this.clock = options.clock ?? new SystemClock()
     this.chain = options.chain ?? new CausalChain()
-    this.forces = this.own(new ForceRegistry(options.forces ?? new InMemoryForceStore(), clock,
-      topic => this.release(topic, "system", "expired")))
-    this.processor = new BusProcessor(this.chain, clock, this.retained, this.forces, this.subscribers)
+    this.forces = this.own(new ForceRegistry(options.forces ?? new InMemoryForceStore(), this.clock,
+      topic => this.release(topic, "system", "expired", SYSTEM)))
+    this.processor = new BusProcessor(this.chain, this.clock, this.retained, this.forces, this.subscribers, options.topicKinds)
   }
 
   publish(topic: string, value: Value, options: PublishOptions) {
@@ -59,13 +67,14 @@ export class EventBus extends Disposable {
     this.enqueue({ kind: "event", topic, options, extra: { text } })
   }
 
-  /** pins a topic to a value until released (or until info.until) */
+  /** pins a topic to a value until released (or until info.until, which must lie in the future) */
   force(topic: string, value: Value, info: ForceInfo, source: MessageSource = { kind: "user", id: info.by }) {
+    if (info.until !== undefined && info.until <= this.clock.now()) throw new RangeError("a force must not expire in the past")
     this.enqueue({ kind: "force", topic, value, options: { source }, extra: { force: info } })
   }
 
-  release(topic: string, by: string, reason?: string) {
-    this.enqueue({ kind: "release", topic, options: { source: { kind: by === "system" ? "system" : "user", id: by } }, extra: { text: reason } })
+  release(topic: string, by: string, reason?: string, source: MessageSource = { kind: "user", id: by }) {
+    this.enqueue({ kind: "release", topic, options: { source }, extra: reason === undefined ? undefined : { text: reason } })
   }
 
   subscribe(pattern: string, handler: MessageHandler): DisposableLike {
@@ -105,19 +114,32 @@ export class EventBus extends Disposable {
 
   private enqueue(pending: Pending) {
     Topic.assertValid(pending.topic)
+    if (this.isDisposed) return
     this.queue.push(pending)
     if (this.draining) return
     this.draining = true
     try {
-      for (let next = this.queue.shift(); next; next = this.queue.shift()) this.processor.process(next)
+      for (let next = this.queue.shift(); next; next = this.queue.shift()) this.processSafely(next)
     } finally {
       this.draining = false
     }
   }
 
+  private processSafely(pending: Pending) {
+    try {
+      this.processor.process(pending)
+    } catch (error) {
+      if (pending.topic === BUS_ERROR_TOPIC) return
+      this.event(BUS_ERROR_TOPIC, `processing ${pending.kind} on ${pending.topic} failed: ${EventBus.message(error)}`, { source: SYSTEM, cause: pending.options.cause })
+    }
+  }
+
   private handlerFailed(message: BusMessage, error: unknown) {
     if (message.topic === BUS_ERROR_TOPIC) return
-    const text = error instanceof Error ? error.message : String(error)
-    this.event(BUS_ERROR_TOPIC, `handler for ${message.topic} failed: ${text}`, { source: SYSTEM, cause: message })
+    this.event(BUS_ERROR_TOPIC, `handler for ${message.topic} failed: ${EventBus.message(error)}`, { source: SYSTEM, cause: message })
+  }
+
+  private static message(error: unknown) {
+    return error instanceof Error ? error.message : String(error)
   }
 }

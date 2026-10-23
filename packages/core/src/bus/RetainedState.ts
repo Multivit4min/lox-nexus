@@ -37,13 +37,19 @@ export class RetainedState {
     this.entry(topic).kind = "command"
   }
 
+  /** restored values are already persisted, so they don't mark the topic dirty */
   setReal(message: BusMessage) {
     this.entry(message.topic).real = message
-    this.dirty.add(message.topic)
+    if (!message.flags?.restored) this.dirty.add(message.topic)
   }
 
   setEffective(message: BusMessage) {
     this.entry(message.topic).effective = message
+  }
+
+  clearEffective(topic: string) {
+    const state = this.topics.get(topic)
+    if (state) state.effective = undefined
   }
 
   /** real state values changed since the last call */

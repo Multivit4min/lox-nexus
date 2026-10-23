@@ -30,6 +30,14 @@ test("thousand separators and decimal commas", () => {
   assert.equal(parse("1.234,5"), 1234.5)
   assert.equal(parse("1,234.5"), 1234.5)
   assert.equal(parse("12,5"), 12.5)
-  assert.equal(parse("1,000"), 1000)
+  assert.equal(parse("1,234,567"), 1234567)
+  assert.equal(parse("1.234.567"), 1234567)
   assert.equal(parse("20 €"), 20)
+})
+
+test("a single separator is a decimal point (deliberate change: the old code read \"0.125\" as 125)", () => {
+  assert.equal(parse("0.125"), 0.125)
+  assert.equal(parse("0.250 kW".replace(" kW", "")), 0.25)
+  assert.equal(parse("12.500"), 12.5)
+  assert.equal(parse("0,125"), 0.125)
 })

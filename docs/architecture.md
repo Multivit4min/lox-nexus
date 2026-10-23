@@ -320,7 +320,8 @@ marked `@experimental` until a fixture confirms them.
 
 ## Implementation notes: values, bus and wires (M2)
 
-Decisions made while building M2 that refine the design above:
+Decisions made while building M2, including the fixes from its review, that refine the design
+above:
 
 - **Topics.** Segments are lowercase `a-z 0-9 . _ -`, and `Topic.slug("Licht Küche")` gives
   `licht-kueche`. Publishing to an invalid topic throws.
@@ -329,36 +330,64 @@ Decisions made while building M2 that refine the design above:
     message produced by a force.
   - **Taps** (the Recorder, and the inspector stream later) see everything, including `force`,
     `release` and shadowed publishes.
-- **Dedup.** A repeated equal state is dropped entirely, without being recorded, so the
-  Miniserver's 10 s resends don't flood the inspector. `publish(..., { force: true })` bypasses
-  dedup.
-- **Forces.** The forced value is delivered with the kind the topic normally carries: a command
-  for actuator topics, a state otherwise. Releasing restores the last real value, but only for
-  state topics. Forces are persisted through the `ForceStore` interface; the database-backed
-  store arrives in M3.
-- **Ordering.** `EventBus` (API and queue) hands each message to `BusProcessor` (per-kind
-  semantics), which delivers through `Subscribers`. The queue is a FIFO that is never re-entered.
-- **Handler errors.** These become an `event` on `system/bus/error`, caused by the message that
-  failed. The bus never throws because of a handler.
-- **Snapshots.** `takeSnapshot()` returns the real values that changed since the last call, and
-  `restoreSnapshot()` replays them flagged `restored`.
+- **Dedup.** A repeated equal state is dropped without being recorded, and so is a repeated
+  shadowed value while a topic is forced. This keeps the Miniserver's 10 s resends out of the
+  inspector. `publish(..., { force: true })` bypasses dedup.
+- **Equality.** `0` equals `-0`. NaN equals NaN, so repeated NaN readings dedupe. `ValueSchema`
+  rejects non-finite numbers, and conversions never produce them.
+- **Ordering and errors.**
+  - `EventBus` (API and queue) hands each message to `BusProcessor` (per-kind semantics), which
+    delivers through `Subscribers`. The queue is a FIFO that is never re-entered.
+  - Nothing escapes the drain. A handler error, or a failure while processing a message (for
+    example a failing `ForceStore`), becomes an `event` on `system/bus/error`, and the queue keeps
+    going.
+  - A disposed bus ignores new messages.
+- **Forces.**
+  - The forced value is delivered with the topic's declared kind. `TopicKinds` (implemented by
+    `SignalRegistry`) says whether a topic carries commands; the bus falls back to what it has
+    seen, then to `state`. The kind is persisted with the force, so restarts don't have to guess.
+  - Releasing restores the last real value on state topics, keeping its `restored` flag if it
+    came from the snapshot. Otherwise the topic's effective value is cleared.
+  - `until` must lie in the future. Expiries longer than setTimeout's ~24.8 day limit are
+    scheduled in steps.
+  - The store is written before memory changes, so a failed save leaves nothing half-forced.
+  - The database-backed `ForceStore` arrives in M3.
+- **Boot order.** Call `restoreForces()` before `restoreSnapshot()`. Restored values then arrive
+  shadowed, instead of reaching subscribers before the force applies. Restored values don't mark
+  topics dirty, so `takeSnapshot()` returns only live changes.
+- **Causation and loops.**
+  - Every message carries `id`, `causedBy`, `traceId`, `depth`, and `via`: the wire ids on its
+    causal path.
+  - `LoopGuard` drops a value only if the wire is already on that path, or depth reaches 16.
+    Siblings in one trace, such as several states a plugin reports after one command, pass.
+  - `CausalChain` keeps the last 50k causes in a ring, so eviction is O(1).
+  - `Recorder.trace()` returns all roots, so branches whose ancestors were evicted are kept.
 - **Wires.**
   - One wire per target.
   - Values are converted to the target's `valueType` unless it is `any`.
   - `invert` negates the value as a boolean.
   - A `map` without `else` passes unmatched values through unchanged.
   - `throttle` emits on the leading edge, plus the latest value at the end of each window.
-  - When `LoopGuard` drops a value, it reports an `event` on `system/wire/loop`.
+  - Debounce and throttle delays are capped at one day.
+  - When a signal is unregistered, the wires using it are removed with it.
+  - A dropped loop is reported as an `event` on `system/wire/loop`.
 - **Values.**
   - RGBW carries `flags` (bytes 6–7), not `bits`.
   - `t5` is a value type.
-  - Every structured type defaults to a 0.2 s fade.
+  - Every structured type defaults to a 0.2 s fade, and a NaN fade time becomes 0.2 (the old code
+    made it 0).
   - Percentage channels are rounded to whole numbers, which is the wire resolution.
   - The old RGBW→TunableWhite bug is fixed.
-  - RGBW→number still packs `0xRRGGBBWW` like the old converter did. This may be worth replacing
-    later with Loxone's own RGB number format.
-- **`Disposable.after()`** forgets its teardown once the timer fires or is cancelled, so
-  short-lived timers don't accumulate.
+  - Numbers become strings rounded to 5 decimals, as the old serializer did.
+  - RGBW→number still packs `0xRRGGBBWW` like the old converter. This may be worth replacing later
+    with Loxone's own RGB number format.
+- **String parsing.** With only one kind of separator, a single separator is a decimal point
+  (`"0.125"` → 0.125, `"12,5"` → 12.5). It counts as digit grouping only when it repeats
+  (`"1.234.567"`). When both kinds appear, the last one is the decimal point. The old code read
+  `"0.125"` as 125.
+- **`Disposable.after()`** returns a cancel function and forgets its teardown once the timer fires
+  or is cancelled. `ForceRegistry`, debounce, throttle, `Recorder` and `ActiveWire` all manage
+  their timers and subscriptions through `Disposable`.
 
 ## Dependencies (installed in the milestone that first needs them)
 

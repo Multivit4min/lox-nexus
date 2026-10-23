@@ -88,18 +88,22 @@ export class ValueFactory {
     return (this.types as readonly string[]).includes(type)
   }
 
-  /** structural equality; NaN equals NaN so repeated NaN readings dedupe */
+  /** structural equality; 0 equals -0, and NaN equals NaN so repeated NaN readings dedupe */
   equals(a: Value | undefined, b: Value | undefined): boolean {
     if (a === undefined || b === undefined) return a === b
     if (a.type !== b.type) return false
     if (a.type === "null") return true
     const left: unknown = a.value
     const right: unknown = (b as typeof a).value
-    if (typeof left !== "object" || left === null) return Object.is(left, right)
+    if (typeof left !== "object" || left === null) return ValueFactory.same(left, right)
     const l = left as Record<string, unknown>
     const r = right as Record<string, unknown>
     const keys = Object.keys(l)
-    return keys.length === Object.keys(r).length && keys.every(key => Object.is(l[key], r[key]))
+    return keys.length === Object.keys(r).length && keys.every(key => ValueFactory.same(l[key], r[key]))
+  }
+
+  private static same(a: unknown, b: unknown) {
+    return a === b || (typeof a === "number" && typeof b === "number" && Number.isNaN(a) && Number.isNaN(b))
   }
 }
 

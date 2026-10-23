@@ -72,7 +72,16 @@ describe("Converter (deliberate changes)", () => {
 
   test("percent channels are rounded to whole numbers, the wire resolution", () => {
     assert.deepEqual(to(Value.number(85.6), "singleChannel"), single(86))
+  })
+
+  test("non-finite inputs never produce non-finite values", () => {
     assert.deepEqual(to(Value.number(Number.NaN), "rgbw"), rgbw(0))
+    const infiniteFade = Value.tunableWhite({ temperature: 4000, brightness: 50, fadeTime: Infinity })
+    assert.deepEqual(to(infiniteFade, "singleChannel"), single(50, 0.2))
+  })
+
+  test("numbers become strings rounded to 5 decimals, like the old serializer", () => {
+    assert.equal(to(Value.number(0.1 + 0.2), "string"), "0.3")
   })
 
   test("tunable white clamps temperature and brightness", () => {

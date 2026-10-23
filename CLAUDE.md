@@ -87,5 +87,6 @@ Project subagents live in `.claude/agents/`. Delegate when a task matches:
 | `plugin-dev` | building or porting plugins against the public SDK |
 | `frontend-dev` | the Vue UI, schema forms, Bus Inspector |
 | `reviewer` | read-only review of a change against these conventions, plus running checks |
+| `doc-writer` | JSDoc for classes, methods and exported functions after a change; comments only |
 
 Skill: `/port-integration <name>` walks through porting an old integration to a plugin.

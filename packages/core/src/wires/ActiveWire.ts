@@ -1,4 +1,4 @@
-import type { DisposableLike } from "@lox-nexus/plugin-sdk"
+import { Disposable } from "@lox-nexus/plugin-sdk"
 import { Converter, type Value } from "@lox-nexus/plugin-sdk/values"
 import type { BusMessage, Cause, MessageSource } from "../bus/BusMessage.ts"
 import type { EventBus } from "../bus/EventBus.ts"
@@ -10,28 +10,25 @@ import type { WireConfig } from "./WireSchema.ts"
 
 export const WIRE_LOOP_TOPIC = "system/wire/loop"
 
+export type WireBus = Pick<EventBus, "subscribe" | "publish" | "command" | "event">
+
 /** A running wire: listens to its source topic and delivers transformed values to its target. */
-export class ActiveWire implements DisposableLike {
+export class ActiveWire extends Disposable {
   private readonly pipeline: TransformPipeline
-  private readonly subscription: DisposableLike
   private readonly source: MessageSource
 
   constructor(
     readonly config: WireConfig,
     from: Signal,
     private readonly target: Signal,
-    private readonly bus: EventBus,
+    private readonly bus: WireBus,
     private readonly guard: LoopGuard
   ) {
+    super()
     this.source = { kind: "wire", id: config.id, label: config.label }
     const factory = new TransformFactory()
-    this.pipeline = new TransformPipeline(config.transforms.map(t => factory.create(t)), (value, cause) => this.deliver(value, cause))
-    this.subscription = bus.subscribe(from.topic, message => this.handle(message))
-  }
-
-  dispose() {
-    this.subscription.dispose()
-    this.pipeline.dispose()
+    this.pipeline = this.own(new TransformPipeline(config.transforms.map(t => factory.create(t)), (value, cause) => this.deliver(value, cause)))
+    this.own(bus.subscribe(from.topic, message => this.handle(message)))
   }
 
   private handle(message: BusMessage) {

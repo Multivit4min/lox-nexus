@@ -1,8 +1,8 @@
 /** Small numeric helpers shared by the conversions. */
 export class Numbers {
-  /** clamps to [min, max]; undefined or NaN become the fallback */
+  /** clamps to [min, max]; undefined, NaN and ±Infinity become the fallback */
   static clamp(value: number | undefined, min: number, max: number, fallback = min): number {
-    if (value === undefined || Number.isNaN(value)) return fallback
+    if (value === undefined || !Number.isFinite(value)) return fallback
     return Math.min(max, Math.max(min, value))
   }
 

@@ -2,13 +2,15 @@ import { ValueSchema, ValueTypeSchema } from "@lox-nexus/plugin-sdk/values"
 import { z } from "zod"
 
 const range = z.tuple([z.number(), z.number()]).refine(([a, b]) => a !== b, "range must not be empty")
+/** one day; longer delays make no sense for a wire and would overflow setTimeout beyond ~24.8 days */
+const delay = z.int().positive().max(86_400_000)
 
 export const TransformSchema = z.discriminatedUnion("op", [
   z.object({ op: z.literal("invert") }),
   z.object({ op: z.literal("scale"), from: range, to: z.tuple([z.number(), z.number()]), clamp: z.boolean().optional() }),
   z.object({ op: z.literal("map"), cases: z.array(z.object({ when: ValueSchema, then: ValueSchema })), else: ValueSchema.optional() }),
-  z.object({ op: z.literal("debounce"), ms: z.int().positive() }),
-  z.object({ op: z.literal("throttle"), ms: z.int().positive() }),
+  z.object({ op: z.literal("debounce"), ms: delay }),
+  z.object({ op: z.literal("throttle"), ms: delay }),
   z.object({ op: z.literal("convert"), to: ValueTypeSchema })
 ])
 

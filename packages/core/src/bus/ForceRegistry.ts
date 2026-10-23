@@ -1,17 +1,21 @@
-import type { DisposableLike } from "@lox-nexus/plugin-sdk"
+import { Disposable } from "@lox-nexus/plugin-sdk"
 import type { Clock } from "./Clock.ts"
 import type { ForceRecord, ForceStore } from "./ForceStore.ts"
 
 /** Active forces, their persistence and their automatic expiry. */
-export class ForceRegistry implements DisposableLike {
+export class ForceRegistry extends Disposable {
+  /** setTimeout fires after 1 ms for longer delays, so long expiries are scheduled in steps */
+  static readonly MAX_TIMER_MS = 2_147_483_647
   private readonly active = new Map<string, ForceRecord>()
-  private readonly timers = new Map<string, NodeJS.Timeout>()
+  private readonly cancels = new Map<string, () => void>()
 
   constructor(
     private readonly store: ForceStore,
     private readonly clock: Clock,
     private readonly onExpire: (topic: string) => void
-  ) {}
+  ) {
+    super()
+  }
 
   get(topic: string) {
     return this.active.get(topic)
@@ -31,29 +35,34 @@ export class ForceRegistry implements DisposableLike {
     })
   }
 
+  /** persists first, so a failing store leaves nothing half-forced in memory */
   set(record: ForceRecord) {
-    this.clearTimer(record.topic)
-    this.active.set(record.topic, record)
     this.store.save(record)
-    if (record.until !== undefined) {
-      const timer = setTimeout(() => this.onExpire(record.topic), Math.max(0, record.until - this.clock.now()))
-      timer.unref?.()
-      this.timers.set(record.topic, timer)
-    }
+    this.cancel(record.topic)
+    this.active.set(record.topic, record)
+    if (record.until !== undefined) this.schedule(record)
   }
 
   delete(topic: string) {
-    this.clearTimer(topic)
+    if (!this.active.has(topic)) return false
     this.store.delete(topic)
+    this.cancel(topic)
     return this.active.delete(topic)
   }
 
-  dispose() {
-    for (const topic of this.timers.keys()) this.clearTimer(topic)
+  private schedule(record: ForceRecord) {
+    const remaining = Math.max(0, (record.until ?? 0) - this.clock.now())
+    const cancel = this.after(Math.min(remaining, ForceRegistry.MAX_TIMER_MS), () => {
+      this.cancels.delete(record.topic)
+      if (this.active.get(record.topic) !== record) return
+      if (this.clock.now() >= (record.until ?? 0)) this.onExpire(record.topic)
+      else this.schedule(record)
+    })
+    this.cancels.set(record.topic, cancel)
   }
 
-  private clearTimer(topic: string) {
-    clearTimeout(this.timers.get(topic))
-    this.timers.delete(topic)
+  private cancel(topic: string) {
+    this.cancels.get(topic)?.()
+    this.cancels.delete(topic)
   }
 }

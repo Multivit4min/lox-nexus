@@ -57,16 +57,17 @@ describe("forces", () => {
     const { bus, delivered, clock, tapped } = setup()
     bus.publish(topic, Value.number(1), plugin)
     bus.force(topic, Value.number(0), { by: "david", until: clock.now() + 60_000 })
+    clock.advance(60_000)
     mock.timers.tick(60_000)
     assert.deepEqual(delivered.at(-1)?.value, Value.number(1))
     assert.equal(tapped.find(m => m.kind === "release")?.text, "expired")
   })
 
-  test("forces survive a restart; expired ones are dropped", () => {
+  test("forces survive a restart; expired ones are dropped", async () => {
     const { bus, store, clock } = setup()
     bus.force(topic, Value.number(0), { by: "david" })
     bus.force("a/expiring", Value.number(1), { by: "david", until: clock.now() + 1000 })
-    bus.dispose()
+    await bus.dispose()
     clock.advance(5000)
     const restarted = setup(store, clock)
     restarted.bus.restoreForces()

@@ -10,6 +10,7 @@ export { Recorder, type TraceNode } from "./bus/Recorder.ts"
 export { MessageFormatter, type FormatOptions } from "./bus/MessageFormatter.ts"
 export { Topic } from "./bus/Topic.ts"
 export { TopicTrie } from "./bus/TopicTrie.ts"
+export type { TopicKinds } from "./bus/TopicKinds.ts"
 
 export type { Signal } from "./wires/Signal.ts"
 export { SignalRegistry } from "./wires/SignalRegistry.ts"

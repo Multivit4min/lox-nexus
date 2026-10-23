@@ -16,6 +16,6 @@ export class TransformPipeline implements DisposableLike {
   }
 
   dispose() {
-    for (const transform of this.transforms) transform.dispose()
+    for (const transform of this.transforms) void transform.dispose()
   }
 }

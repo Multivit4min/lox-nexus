@@ -1,17 +1,21 @@
 import { Disposable } from "@lox-nexus/plugin-sdk"
-import type { EventBus } from "../bus/EventBus.ts"
-import { ActiveWire } from "./ActiveWire.ts"
+import { ActiveWire, type WireBus } from "./ActiveWire.ts"
 import { LoopGuard } from "./LoopGuard.ts"
+import type { Signal } from "./Signal.ts"
 import type { SignalRegistry } from "./SignalRegistry.ts"
 import { WireSchema, type WireConfig, type WireInput } from "./WireSchema.ts"
 
-/** Owns all wires. A target can be fed by only one wire, so its value always has a single origin. */
+/**
+ * Owns all wires. A target can be fed by only one wire, so its value always has a single origin.
+ * Wires whose source or target signal is unregistered are removed with it.
+ */
 export class WireEngine extends Disposable {
   private readonly wires = new Map<string, ActiveWire>()
   private readonly guard = new LoopGuard()
 
-  constructor(private readonly bus: EventBus, private readonly signals: SignalRegistry) {
+  constructor(private readonly bus: WireBus, private readonly signals: SignalRegistry) {
     super()
+    this.listen(signals, "unregistered", (signal: Signal) => this.removeWiresOf(signal.id))
     this.onDispose(() => this.removeAll())
   }
 
@@ -31,12 +35,18 @@ export class WireEngine extends Disposable {
   remove(id: string) {
     const wire = this.wires.get(id)
     if (!wire) return false
-    wire.dispose()
+    void wire.dispose()
     return this.wires.delete(id)
   }
 
   list(): WireConfig[] {
     return [...this.wires.values()].map(wire => wire.config)
+  }
+
+  private removeWiresOf(signalId: string) {
+    for (const wire of [...this.wires.values()]) {
+      if (wire.config.sourceId === signalId || wire.config.targetId === signalId) this.remove(wire.config.id)
+    }
   }
 
   private removeAll() {

@@ -1,4 +1,4 @@
-import type { DisposableLike } from "@lox-nexus/plugin-sdk"
+import { Disposable } from "@lox-nexus/plugin-sdk"
 import type { BusMessage } from "./BusMessage.ts"
 import type { EventBus } from "./EventBus.ts"
 import { Topic } from "./Topic.ts"
@@ -9,13 +9,13 @@ export interface TraceNode {
 }
 
 /** Keeps the latest messages (including shadowed ones) for the inspector and rebuilds cause chains. */
-export class Recorder implements DisposableLike {
+export class Recorder extends Disposable {
   private readonly buffer: BusMessage[] = []
   private readonly byId = new Map<string, BusMessage>()
-  private readonly tap: DisposableLike
 
-  constructor(bus: EventBus, private readonly capacity = 10_000) {
-    this.tap = bus.tap(message => this.record(message))
+  constructor(bus: Pick<EventBus, "tap">, private readonly capacity = 10_000) {
+    super()
+    this.own(bus.tap(message => this.record(message)))
   }
 
   get size() {
@@ -32,23 +32,22 @@ export class Recorder implements DisposableLike {
     return matching.slice(-limit)
   }
 
-  /** the whole recorded chain the message belongs to, rooted at the oldest recorded ancestor */
-  trace(id: string): TraceNode | undefined {
+  /**
+   * the recorded chain the message belongs to. Usually one root; several when ancestors were
+   * evicted, so sibling branches whose parent is gone are not lost.
+   */
+  trace(id: string): TraceNode[] {
     const message = this.byId.get(id)
-    if (!message) return undefined
+    if (!message) return []
     const members = this.buffer.filter(candidate => candidate.traceId === message.traceId)
     const nodes = new Map(members.map(member => [member.id, { message: member, children: [] as TraceNode[] }]))
-    let root: TraceNode | undefined
+    const roots: TraceNode[] = []
     for (const node of nodes.values()) {
       const parent = node.message.causedBy ? nodes.get(node.message.causedBy) : undefined
       if (parent) parent.children.push(node)
-      else root ??= node
+      else roots.push(node)
     }
-    return root
-  }
-
-  dispose() {
-    this.tap.dispose()
+    return roots
   }
 
   private record(message: BusMessage) {

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import { describe, test } from "node:test"
 import { Value } from "./Value.ts"
+import { Numbers } from "./Numbers.ts"
 import { ValueFormatter } from "./ValueFormatter.ts"
 import { ValueSchema } from "./ValueSchema.ts"
 
@@ -13,6 +14,7 @@ describe("Value", () => {
     assert.ok(!Value.equals(Value.singleChannel({ channel: 5, fadeTime: 1 }), Value.singleChannel({ channel: 5, fadeTime: 2 })))
     assert.ok(Value.equals(Value.null(), Value.null()))
     assert.ok(!Value.equals(Value.null(), undefined))
+    assert.ok(Value.equals(Value.number(0), Value.number(-0)), "0 and -0 must not look like a change")
   })
 
   test("schema accepts valid values and rejects invalid ones", () => {
@@ -20,6 +22,12 @@ describe("Value", () => {
     assert.ok(!ValueSchema.safeParse({ type: "rgbw", value: { red: 101 } }).success)
     assert.ok(!ValueSchema.safeParse({ type: "number", value: "1" }).success)
     assert.ok(!ValueSchema.safeParse({ type: "weird" }).success)
+  })
+
+  test("Numbers.scale keeps the old scaleNumber results; clamp rejects non-finite input", () => {
+    assert.deepEqual([50, 10, 20, 80].map(n => Numbers.scale(n, 0, 100, 0, 255)), [127.5, 25.5, 51, 204])
+    assert.equal(Numbers.clamp(Infinity, 0, Infinity, 0.2), 0.2)
+    assert.equal(Numbers.clamp(Number.NaN, 0, 100, 7), 7)
   })
 
   test("formatter renders every type readably", () => {

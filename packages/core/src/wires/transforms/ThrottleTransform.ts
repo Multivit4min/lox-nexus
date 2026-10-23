@@ -1,35 +1,31 @@
+import { Disposable } from "@lox-nexus/plugin-sdk"
 import type { Value } from "@lox-nexus/plugin-sdk/values"
 import type { Cause } from "../../bus/BusMessage.ts"
 import type { Emit, Transform } from "./Transform.ts"
 
 /** Emits immediately, then at most once per `ms`; the latest value of a window is emitted at its end. */
-export class ThrottleTransform implements Transform {
-  private window: NodeJS.Timeout | undefined
+export class ThrottleTransform extends Disposable implements Transform {
+  private windowOpen = false
   private pending: { value: Value; cause: Cause; next: Emit } | undefined
 
-  constructor(private readonly ms: number) {}
+  constructor(private readonly ms: number) {
+    super()
+  }
 
   push(value: Value, cause: Cause, next: Emit) {
-    if (this.window) {
+    if (this.windowOpen) {
       this.pending = { value, cause, next }
       return
     }
     next(value, cause)
-    this.openWindow()
+    this.windowOpen = true
+    this.after(this.ms, () => this.closeWindow())
   }
 
-  dispose() {
-    clearTimeout(this.window)
-    this.window = undefined
+  private closeWindow() {
+    this.windowOpen = false
+    const pending = this.pending
     this.pending = undefined
-  }
-
-  private openWindow() {
-    this.window = setTimeout(() => {
-      this.window = undefined
-      const pending = this.pending
-      this.pending = undefined
-      if (pending) this.push(pending.value, pending.cause, pending.next)
-    }, this.ms)
+    if (pending) this.push(pending.value, pending.cause, pending.next)
   }
 }

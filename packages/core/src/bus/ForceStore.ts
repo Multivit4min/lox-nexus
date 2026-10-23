@@ -9,6 +9,8 @@ export interface ForceRecord {
   until?: number
   /** epoch ms when the force was set */
   at: number
+  /** how the forced value is delivered, persisted so restarts don't have to guess */
+  kind: "state" | "command"
 }
 
 /** Persistence for forces so they survive restarts. The server provides a database-backed one. */

@@ -20,3 +20,13 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
   offset 11 holds the data type. `IciCipher` currently assumes it does.
 - **SingleChannel bytes 0–2, TunableWhite bytes 6–7, TunableWhite fade unit.** Capture
   `lcout`-style outputs of those types.
+
+## Core (from the M2 review)
+
+- **Two-phase snapshot persistence.** `takeSnapshot()` clears the dirty set before the database
+  write has succeeded. A failed write loses those changes until the value changes again. Add a
+  take/commit pair when the snapshot store is built in M3.
+- **Narrow interfaces everywhere.** `Recorder` and `ActiveWire`/`WireEngine` take `Pick<EventBus, ...>`.
+  Do the same for services added in M3+.
+- **`node:crypto` in core.** `CausalChain` uses `randomUUID` for its boot id. It's harmless, but
+  the boot id could be injected to keep core strictly IO-free.

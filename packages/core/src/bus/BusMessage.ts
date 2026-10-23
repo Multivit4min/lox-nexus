@@ -37,6 +37,10 @@ export interface ForceInfo {
   reason?: string
   /** epoch ms of the automatic release */
   until?: number
+  /** epoch ms when the force was first set; kept across restarts */
+  at?: number
+  /** how the forced value is delivered; defaults to the topic's declared kind */
+  kind?: "state" | "command"
 }
 
 export interface BusMessage {
@@ -55,6 +59,8 @@ export interface BusMessage {
   traceId: string
   /** number of causal hops from the root */
   depth: number
+  /** ids of the wires on the causal path to this message, used to detect loops */
+  via?: string[]
   flags?: MessageFlags
   /** set on force messages */
   force?: ForceInfo
@@ -69,4 +75,5 @@ export interface Cause {
   id: string
   traceId: string
   depth: number
+  via?: readonly string[]
 }

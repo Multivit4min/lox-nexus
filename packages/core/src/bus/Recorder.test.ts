@@ -22,10 +22,24 @@ describe("Recorder", () => {
     })
     bus.publish("a/in", Value.number(0), loxone)
     const leaf = recorder.recent(1)[0]!
-    const tree = recorder.trace(leaf.id)!
+    const roots = recorder.trace(leaf.id)
+    assert.equal(roots.length, 1)
+    const tree = roots[0]!
     assert.equal(tree.message.topic, "a/in")
     assert.deepEqual(tree.children.map(c => c.message.topic), ["a/out1", "a/out2"])
     assert.equal(tree.children[0]!.children[0]!.message.kind, "result")
+  })
+
+  test("keeps sibling branches whose parent was evicted", () => {
+    const bus = new EventBus()
+    const recorder = new Recorder(bus, 2)
+    bus.subscribe("a/in", message => {
+      bus.command("a/x", Value.number(1), { source: { kind: "wire", id: "w1" }, cause: message })
+      bus.command("a/y", Value.number(2), { source: { kind: "wire", id: "w2" }, cause: message })
+    })
+    bus.publish("a/in", Value.number(0), loxone)
+    assert.deepEqual(recorder.trace(recorder.recent(1)[0]!.id).map(root => root.message.topic), ["a/x", "a/y"])
+    assert.deepEqual(recorder.trace("unknown"), [])
   })
 
   test("evicts the oldest messages beyond capacity and filters by pattern", () => {
