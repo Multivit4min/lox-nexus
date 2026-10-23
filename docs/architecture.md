@@ -607,14 +607,25 @@ above:
   - The Bus Inspector.
 - **Intercommunication load.**
   - The Miniserver list shows a compact meter per row, kept live over the `state` stream.
-  - The detail page has a card with:
-    - a meter: blue below 70%, warning from 70%, critical from 100%, each with an icon and a word
-    - the 2-minute average split by direction
-    - an area chart of the last hour against a labeled 100% limit line, with a crosshair tooltip
-      on hover or the arrow keys
-    - the same samples as a table
+  - The detail page shows a small meter with the percentage in the header. A click opens a
+    popover with:
+    - the limit
+    - the rates by direction
+    - the last hour as an area chart against a labeled 100% limit line (crosshair tooltip on
+      hover or the arrow keys), or the same samples as a table
+  - The meter is blue below 70%, warning from 70% and critical from 100%, each level with an icon
+    and a word. History is fetched only while the popover is open.
   - Colors follow the dataviz reference palette and were validated against this UI's light and
     dark card surfaces.
+- **Long lists.** A Miniserver can have thousands of signals, and up to 1000 discovered packets.
+  Every list that can grow uses `VirtualTable`, which renders only the rows in view (so only
+  visible rows track live values), with a search box and an "x of y" count. That covers signals,
+  discovered packets, forces, the load table and the Inspector.
+  - Signals and discovered packets have multi-select. "Select all" means all rows matching the
+    search, never hidden rows. Bulk delete and bulk adopt run one request at a time, show their
+    progress, and reload once at the end.
+  - The cause-chain tree shows 50 children per level until expanded.
+  - The inject dialog suggests known signal topics.
 - **Bus Inspector.**
   - It loads the last 500 messages for the topic pattern, then follows the `bus` stream.
   - Messages go into a 5000-entry `RingBuffer`. The rendered list is replaced once per stream

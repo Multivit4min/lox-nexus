@@ -18,12 +18,15 @@ const open = defineModel<boolean>("open", { required: true })
 const { bus } = AppContext.use()
 
 const target = ref("")
+// every known signal topic as suggestions; the browser's datalist filters as the user types
+const topics = ref<string[]>([])
 const asCommand = ref(false)
 const draft = ref<{ type: ValueType; text: string }>(ValueDraft.from(undefined))
 const error = ref("")
 
 watch(open, isOpen => {
   if (!isOpen) return
+  void bus.signals().then(signals => (topics.value = signals.map(s => s.topic).sort()), () => undefined)
   target.value = props.topic ?? ""
   draft.value = ValueDraft.from(props.current)
   error.value = ""
@@ -50,7 +53,8 @@ async function submit() {
       </DialogHeader>
       <form class="grid gap-4" @submit.prevent="submit">
         <FormField id="inject-topic" label="Topic">
-          <Input id="inject-topic" v-model="target" class="font-mono" placeholder="loxone/haus/in/…" required />
+          <Input id="inject-topic" v-model="target" class="font-mono" placeholder="loxone/haus/in/…" list="inject-topics" autocomplete="off" required />
+          <datalist id="inject-topics"><option v-for="known in topics" :key="known" :value="known"></option></datalist>
         </FormField>
         <FormField id="inject-value" label="Value">
           <ValueEditor v-model:type="draft.type" v-model:text="draft.text" />
