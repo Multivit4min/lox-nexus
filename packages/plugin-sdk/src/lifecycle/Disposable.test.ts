@@ -14,6 +14,14 @@ class Probe extends Disposable {
     this.every(ms, fn)
   }
 
+  later(ms: number, fn: () => void) {
+    return this.after(ms, fn)
+  }
+
+  get pendingTeardowns() {
+    return (this as unknown as { teardowns: Set<unknown> }).teardowns.size
+  }
+
   subscribe(emitter: EventEmitter, fn: () => void) {
     this.listen(emitter, "ping", fn)
   }
@@ -53,6 +61,21 @@ describe("Disposable", () => {
       await probe.dispose()
       mock.timers.tick(1000)
       assert.equal(fn.mock.callCount(), 2)
+    } finally {
+      mock.timers.reset()
+    }
+  })
+
+  test("after() forgets its teardown once fired or cancelled", async () => {
+    mock.timers.enable({ apis: ["setTimeout"] })
+    try {
+      const probe = new Probe()
+      const fired = mock.fn()
+      for (let i = 0; i < 100; i++) probe.later(10, fired)
+      probe.later(10, fired)()
+      mock.timers.tick(10)
+      assert.equal(fired.mock.callCount(), 100)
+      assert.equal(probe.pendingTeardowns, 0)
     } finally {
       mock.timers.reset()
     }

@@ -318,6 +318,48 @@ marked `@experimental` until a fixture confirms them.
 - **Old v1 export:** an importer comes in M6.
 
 
+## Implementation notes: values, bus and wires (M2)
+
+Decisions made while building M2 that refine the design above:
+
+- **Topics.** Segments are lowercase `a-z 0-9 . _ -`, and `Topic.slug("Licht Küche")` gives
+  `licht-kueche`. Publishing to an invalid topic throws.
+- **Message kinds.** There are six: `state`, `command`, `result`, `force`, `release` and `event`.
+  - **Subscribers** receive `state`, `command`, `result` and `event`, including the effective
+    message produced by a force.
+  - **Taps** (the Recorder, and the inspector stream later) see everything, including `force`,
+    `release` and shadowed publishes.
+- **Dedup.** A repeated equal state is dropped entirely, without being recorded, so the
+  Miniserver's 10 s resends don't flood the inspector. `publish(..., { force: true })` bypasses
+  dedup.
+- **Forces.** The forced value is delivered with the kind the topic normally carries: a command
+  for actuator topics, a state otherwise. Releasing restores the last real value, but only for
+  state topics. Forces are persisted through the `ForceStore` interface; the database-backed
+  store arrives in M3.
+- **Ordering.** `EventBus` (API and queue) hands each message to `BusProcessor` (per-kind
+  semantics), which delivers through `Subscribers`. The queue is a FIFO that is never re-entered.
+- **Handler errors.** These become an `event` on `system/bus/error`, caused by the message that
+  failed. The bus never throws because of a handler.
+- **Snapshots.** `takeSnapshot()` returns the real values that changed since the last call, and
+  `restoreSnapshot()` replays them flagged `restored`.
+- **Wires.**
+  - One wire per target.
+  - Values are converted to the target's `valueType` unless it is `any`.
+  - `invert` negates the value as a boolean.
+  - A `map` without `else` passes unmatched values through unchanged.
+  - `throttle` emits on the leading edge, plus the latest value at the end of each window.
+  - When `LoopGuard` drops a value, it reports an `event` on `system/wire/loop`.
+- **Values.**
+  - RGBW carries `flags` (bytes 6–7), not `bits`.
+  - `t5` is a value type.
+  - Every structured type defaults to a 0.2 s fade.
+  - Percentage channels are rounded to whole numbers, which is the wire resolution.
+  - The old RGBW→TunableWhite bug is fixed.
+  - RGBW→number still packs `0xRRGGBBWW` like the old converter did. This may be worth replacing
+    later with Loxone's own RGB number format.
+- **`Disposable.after()`** forgets its teardown once the timer fires or is cancelled, so
+  short-lived timers don't accumulate.
+
 ## Dependencies (installed in the milestone that first needs them)
 
 | Where | Packages |

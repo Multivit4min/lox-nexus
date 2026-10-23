@@ -1,0 +1,81 @@
+import assert from "node:assert/strict"
+import { describe, test } from "node:test"
+import { Value } from "@lox-nexus/plugin-sdk/values"
+import type { BusMessage } from "../bus/BusMessage.ts"
+import { EventBus } from "../bus/EventBus.ts"
+import { WIRE_LOOP_TOPIC } from "./ActiveWire.ts"
+import type { Signal } from "./Signal.ts"
+import { SignalRegistry } from "./SignalRegistry.ts"
+import { WireEngine } from "./WireEngine.ts"
+
+const loxone = { source: { kind: "loxone" as const, id: "haus" } }
+const signal = (id: string, topic: string, direction: Signal["direction"], extra: Partial<Signal> = {}): Signal =>
+  ({ id, topic, label: id, direction, valueType: "any", delivery: "state", ...extra })
+
+const setup = (...signals: Signal[]) => {
+  const bus = new EventBus()
+  const registry = new SignalRegistry()
+  signals.forEach(s => registry.register(s))
+  const engine = new WireEngine(bus, registry)
+  const seen: BusMessage[] = []
+  bus.subscribe("#", message => seen.push(message))
+  return { bus, engine, seen }
+}
+
+describe("WireEngine", () => {
+  test("forwards source values to the target, converted to its type, with causation", () => {
+    const { bus, engine, seen } = setup(
+      signal("dimmer", "loxone/haus/in/dimmer", "source"),
+      signal("light", "ha/z/actuator/light", "target", { valueType: "singleChannel", delivery: "command" }))
+    engine.add({ id: "w1", label: "Dimmer → Licht", sourceId: "dimmer", targetId: "light" })
+    bus.publish("loxone/haus/in/dimmer", Value.number(42), loxone)
+    const [input, output] = seen
+    assert.equal(output!.kind, "command")
+    assert.deepEqual(output!.value, Value.singleChannel({ channel: 42, fadeTime: 0.2 }))
+    assert.deepEqual([output!.source, output!.causedBy], [{ kind: "wire", id: "w1", label: "Dimmer → Licht" }, input!.id])
+  })
+
+  test("ignores restored values unless syncOnStart", () => {
+    const { bus, engine, seen } = setup(
+      signal("a", "x/a", "source"), signal("b", "x/b", "target"), signal("c", "x/c", "source"), signal("d", "x/d", "target"))
+    engine.add({ id: "live", label: "live", sourceId: "a", targetId: "b" })
+    engine.add({ id: "sync", label: "sync", sourceId: "c", targetId: "d", syncOnStart: true })
+    bus.restoreSnapshot([{ topic: "x/a", value: Value.number(1), ts: 0 }, { topic: "x/c", value: Value.number(1), ts: 0 }])
+    assert.deepEqual(seen.map(m => m.topic), ["x/a", "x/c", "x/d"])
+  })
+
+  test("a forced source reaches the target", () => {
+    const { bus, engine, seen } = setup(signal("a", "x/a", "source"), signal("b", "x/b", "target"))
+    engine.add({ id: "w", label: "w", sourceId: "a", targetId: "b" })
+    bus.force("x/a", Value.number(7), { by: "david" })
+    assert.deepEqual(seen.at(-1)?.value, Value.number(7))
+  })
+
+  test("drops a loop inside the bus and reports it (one firing per wire per trace)", () => {
+    const { bus, engine, seen } = setup(
+      signal("a-in", "t/a", "source"), signal("b-out", "t/b", "target"),
+      signal("b-in", "t/b", "source"), signal("a-out", "t/a", "target"))
+    engine.add({ id: "forth", label: "forth", sourceId: "a-in", targetId: "b-out", transforms: [{ op: "invert" }] })
+    engine.add({ id: "back", label: "back", sourceId: "b-in", targetId: "a-out" })
+    bus.publish("t/a", Value.boolean(true), loxone)
+    assert.deepEqual(seen.map(m => [m.topic, m.value?.type === "boolean" ? m.value.value : m.kind]),
+      [["t/a", true], ["t/b", false], ["t/a", false], [WIRE_LOOP_TOPIC, "event"]])
+  })
+
+  test("validates wires: unknown signals, directions, one wire per target, transform config", () => {
+    const { engine } = setup(signal("a", "x/a", "source"), signal("b", "x/b", "target"), signal("c", "x/c", "source"))
+    engine.add({ id: "w1", label: "", sourceId: "a", targetId: "b" })
+    assert.throws(() => engine.add({ id: "w2", label: "", sourceId: "c", targetId: "b" }), /already fed by wire "w1"/)
+    assert.throws(() => engine.add({ id: "w3", label: "", sourceId: "b", targetId: "a" }), /not a source/)
+    assert.throws(() => engine.add({ id: "w4", label: "", sourceId: "nope", targetId: "b" }), /unknown signal/)
+    assert.throws(() => engine.add({ id: "w5", label: "", sourceId: "c", targetId: "b", transforms: [{ op: "debounce", ms: -1 }] }))
+  })
+
+  test("removing a wire stops forwarding", () => {
+    const { bus, engine, seen } = setup(signal("a", "x/a", "source"), signal("b", "x/b", "target"))
+    engine.add({ id: "w", label: "w", sourceId: "a", targetId: "b" })
+    engine.remove("w")
+    bus.publish("x/a", Value.number(1), loxone)
+    assert.deepEqual(seen.map(m => m.topic), ["x/a"])
+  })
+})

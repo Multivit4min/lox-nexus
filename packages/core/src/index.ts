@@ -1,2 +1,19 @@
-// Implemented in M2, see docs/architecture.md
-export {}
+export type { BusMessage, Cause, ForceInfo, MessageFlags, MessageKind, MessageSource } from "./bus/BusMessage.ts"
+export { BUS_ERROR_TOPIC, EventBus, type EventBusOptions } from "./bus/EventBus.ts"
+export type { PublishOptions } from "./bus/Pending.ts"
+export { CausalChain } from "./bus/CausalChain.ts"
+export { SystemClock, type Clock } from "./bus/Clock.ts"
+export { InMemoryForceStore, type ForceRecord, type ForceStore } from "./bus/ForceStore.ts"
+export type { SnapshotEntry } from "./bus/RetainedState.ts"
+export type { MessageHandler } from "./bus/Subscribers.ts"
+export { Recorder, type TraceNode } from "./bus/Recorder.ts"
+export { MessageFormatter, type FormatOptions } from "./bus/MessageFormatter.ts"
+export { Topic } from "./bus/Topic.ts"
+export { TopicTrie } from "./bus/TopicTrie.ts"
+
+export type { Signal } from "./wires/Signal.ts"
+export { SignalRegistry } from "./wires/SignalRegistry.ts"
+export { WireEngine } from "./wires/WireEngine.ts"
+export { WIRE_LOOP_TOPIC } from "./wires/ActiveWire.ts"
+export { LoopGuard } from "./wires/LoopGuard.ts"
+export { TransformSchema, WireSchema, type TransformConfig, type WireConfig, type WireInput } from "./wires/WireSchema.ts"

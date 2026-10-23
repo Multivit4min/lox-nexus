@@ -77,7 +77,7 @@ can run the T5 and RGBW experiments with your Miniserver.
 - **You** run `ici-lab capture` against your Miniserver for the T5 and RGBW experiments, and the
   results are committed as fixtures and documented in PROTOCOL.md.
 
-### M2: values and bus
+### M2: values and bus (done)
 
 - `Value` and `Converter` with golden tests.
 - `EventBus`, `TopicTrie`, `RetainedState`, `ForceRegistry`, `CausalChain`, `LoopGuard`,
