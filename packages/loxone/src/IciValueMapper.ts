@@ -18,7 +18,10 @@ export class IciValueMapper {
     return IciValueMapper.TYPES[dataType]
   }
 
-  /** a decoded ICI value as bus value; undefined for unknown data types */
+  /**
+   * A decoded ICI value as bus value; undefined for unknown data types.
+   * The value is trusted to match the data type (IciReceiver decodes it by that type).
+   */
   static toBus(dataType: number, value: unknown): Value | undefined {
     switch (dataType) {
       case DataType.Digital: return Value.boolean(value as boolean)

@@ -18,7 +18,10 @@ export class MiniserverManager extends Disposable {
     })
   }
 
-  /** validates and adds a Miniserver without starting it */
+  /**
+   * Validates and adds a Miniserver without starting it; its signals are added through the returned instance.
+   * @throws ZodError for an invalid config; Error for a duplicate id or a slug another Miniserver uses
+   */
   add(input: MiniserverConfigInput): Miniserver {
     const config = MiniserverConfigSchema.parse(input)
     if (this.miniservers.has(config.id)) throw new Error(`miniserver "${config.id}" already exists`)
@@ -41,10 +44,12 @@ export class MiniserverManager extends Disposable {
     return miniserver
   }
 
+  /** undefined for unknown ids */
   get(id: string) {
     return this.miniservers.get(id)
   }
 
+  /** snapshot in insertion order */
   list(): Miniserver[] {
     return [...this.miniservers.values()]
   }

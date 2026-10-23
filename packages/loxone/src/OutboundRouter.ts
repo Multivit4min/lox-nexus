@@ -8,6 +8,7 @@ import type { LoxoneTopics } from "./LoxoneTopics.ts"
 import { ProblemReporter } from "./ProblemReporter.ts"
 import type { SignalLookup } from "./SignalLookup.ts"
 
+/** The bus slice the router needs: subscribe for changes, current for the initial value. */
 export type OutboundBus = Pick<EventBus, "subscribe" | "current">
 
 /**
@@ -20,6 +21,7 @@ export type OutboundBus = Pick<EventBus, "subscribe" | "current">
  * then, so there is nothing to send.
  */
 export class OutboundRouter extends Disposable {
+  /** Subscribes and sends the current value of every existing output right away. Disposing unsubscribes; it does not close the peer. */
   constructor(
     private readonly bus: OutboundBus,
     private readonly peer: RemotePeer,
@@ -40,7 +42,7 @@ export class OutboundRouter extends Disposable {
     if (current?.value) this.send(entry, current.value, current)
   }
 
-  /** stops sending and resending a removed output */
+  /** stops sending and resending a removed output (the Miniserver keeps its last value) */
   forget(entry: LoxoneSignalEntry) {
     this.peer.remove(entry.config.packetId)
   }

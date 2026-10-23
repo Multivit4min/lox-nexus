@@ -12,15 +12,22 @@ import { OutboundRouter } from "./OutboundRouter.ts"
 import { ProblemReporter } from "./ProblemReporter.ts"
 import type { SignalLookup } from "./SignalLookup.ts"
 
+/** The slice of EventBus a connection uses; narrow so tests can pass a real bus or a stub. */
 export type MiniserverBus = Pick<EventBus, "publish" | "subscribe" | "event" | "current">
 
-/** Everything that exists while a Miniserver runs: socket, receiver, peer, routers and health. Disposing closes it all. */
+/**
+ * Everything that exists while a Miniserver runs: socket, receiver, peer, routers and health.
+ * Disposing closes it all and, through the HealthMonitor, publishes "stopped". Not reusable: a
+ * restart creates a new connection. Call open() once after construction.
+ */
 export class MiniserverConnection extends Disposable {
   private readonly socket = new IciSocket()
   private readonly problems: ProblemReporter
   private outbound: OutboundRouter | undefined
+  /** exposed so Miniserver can report its state without a bus lookup */
   readonly health: HealthMonitor
 
+  /** Only wires up the health monitor and socket error reporting; no IO until open(). */
   constructor(
     private readonly config: MiniserverConfig,
     private readonly bus: MiniserverBus,
@@ -65,6 +72,7 @@ export class MiniserverConnection extends Disposable {
     if (entry.config.direction === "out") this.outbound?.sync(entry)
   }
 
+  /** a signal was removed while running: an output stops being resent */
   signalRemoved(entry: LoxoneSignalEntry) {
     if (entry.config.direction === "out") this.outbound?.forget(entry)
   }

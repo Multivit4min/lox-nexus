@@ -1,12 +1,12 @@
 import { Disposable } from "@lox-nexus/plugin-sdk"
 import { ActiveWire, type WireBus } from "./ActiveWire.ts"
-
-/** Topic of events about wires that failed to clean up. */
-export const WIRE_ERROR_TOPIC = "system/wire/error"
 import { LoopGuard } from "./LoopGuard.ts"
 import type { Signal } from "./Signal.ts"
 import type { SignalRegistry } from "./SignalRegistry.ts"
 import { WireSchema, type WireConfig, type WireInput } from "./WireSchema.ts"
+
+/** Topic of events about wires that failed to dispose or were dropped because a signal changed. */
+export const WIRE_ERROR_TOPIC = "system/wire/error"
 
 /**
  * Owns all wires. A target can be fed by only one wire, so its value always has a single origin.
@@ -67,6 +67,8 @@ export class WireEngine extends Disposable {
     }
   }
 
+  // Rebuilt rather than patched, and failures are reported (not thrown) because this runs inside
+  // the registry's emit and must not break the caller of update().
   // an ActiveWire holds the signals it was built with, so a changed signal needs a fresh one
   private rebuildWiresOf(signalId: string) {
     for (const wire of [...this.wires.values()]) {

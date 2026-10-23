@@ -2,6 +2,7 @@ import type { BusMessage, EventBus } from "@lox-nexus/core"
 
 /** Waits for bus messages in tests, with a timeout so a missing message fails instead of hanging the suite. */
 export class BusProbe {
+  /** resolves with the first message on `pattern` that satisfies `predicate`; only messages published after the call are seen */
   static next(bus: EventBus, pattern: string, predicate: (m: BusMessage) => boolean = () => true, timeoutMs = 2000) {
     return new Promise<BusMessage>((resolve, reject) => {
       const timer = setTimeout(() => {

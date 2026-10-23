@@ -18,7 +18,11 @@ export class ProblemReporter {
     private readonly clock: Clock
   ) {}
 
-  /** @param key groups repeats of the same problem, e.g. `send:<packetId>` */
+  /**
+   * Publishes the problem unless the same key was reported within QUIET_MS; the next report after
+   * that mentions how many were suppressed.
+   * @param cause the bus message that triggered it, shown in the Bus Inspector
+   * @param key groups repeats of the same problem, e.g. `send:<packetId>` */
   report(key: string, text: string, cause?: Cause) {
     const now = this.clock.now()
     const previous = this.reported.get(key)
@@ -33,6 +37,7 @@ export class ProblemReporter {
     this.bus.event(this.topic, text + suffix, { source: this.source, ...(cause ? { cause } : {}) })
   }
 
+  /** a readable text for anything that was thrown */
   static message(error: unknown) {
     return error instanceof Error ? error.message : String(error)
   }

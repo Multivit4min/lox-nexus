@@ -7,11 +7,13 @@ export class FakeMiniserver {
   static readonly STATUS_FROM_SERVER = Buffer.from("8d000000eb23a294736572766572000000000000000000000000000064", "hex")
   /** the same heartbeat claiming to come from "other" */
   static readonly STATUS_FROM_OTHER = Buffer.from("8d000000eb23a2946f7468657200000000000000000000000000000064", "hex")
+  /** the Miniserver's own socket, public so tests can inspect its address or send raw datagrams */
   readonly socket = new IciSocket()
   private receiver: IciReceiver | undefined
   private peer: RemotePeer | undefined
   private nexusPort: number | undefined
 
+  /** binds a free port on loopback and returns it, for MiniserverConfig.port */
   async start() {
     await this.socket.bind(0, "127.0.0.1")
     this.receiver = new IciReceiver(this.socket, { ownId: "server" })
@@ -25,6 +27,7 @@ export class FakeMiniserver {
     this.peer = new RemotePeer(this.socket, { ownId: "server", remoteId: "claude", host: "127.0.0.1", port: nexusPort, resendInterval: 0 })
   }
 
+  /** sends a value from the "server" id to Nexus; requires connect() first */
   send<T extends DataType>(packetId: string, type: T, value: ValueMap[T]) {
     return this.peer!.output(packetId, type).set(value)
   }
@@ -34,6 +37,7 @@ export class FakeMiniserver {
     return this.peer!.output(packetId, type).resend()
   }
 
+  /** sends arbitrary bytes to Nexus, e.g. a captured status heartbeat */
   sendRaw(buffer: Buffer) {
     return this.socket.send(buffer, this.nexusPort!, "127.0.0.1")
   }
@@ -47,6 +51,7 @@ export class FakeMiniserver {
     }
   }
 
+  /** closes peer, receiver and socket */
   async stop() {
     this.peer?.close()
     this.receiver?.dispose()

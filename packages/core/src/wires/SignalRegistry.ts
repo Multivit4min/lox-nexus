@@ -42,7 +42,8 @@ export class SignalRegistry extends EventEmitter<SignalRegistryEvents> implement
 
   /**
    * Replaces a registered signal, e.g. when its topic changes because its owner was renamed.
-   * Wires refer to signals by id, so they survive this.
+   * Wires refer to signals by id, so they survive this: "updated" makes WireEngine rebuild them,
+   * and they are removed there if the new signal no longer fits. Direction may change as well.
    * @throws RangeError for an invalid topic; Error for an unknown id or a topic another signal has
    */
   update(signal: Signal) {

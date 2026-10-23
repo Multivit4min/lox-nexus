@@ -9,9 +9,12 @@ import type { LoxoneTopics } from "./LoxoneTopics.ts"
 import type { ProblemReporter } from "./ProblemReporter.ts"
 import type { SignalLookup } from "./SignalLookup.ts"
 
+/** Collaborators of InboundRouter, bundled because the router needs most of a Miniserver connection. */
 export interface InboundContext {
+  /** where states are published; only `publish` is needed */
   bus: Pick<EventBus, "publish">
   topics: LoxoneTopics
+  /** attached to every published message so the Bus Inspector shows where it came from */
   source: MessageSource
   /** the Miniserver's id; status heartbeats from anyone else don't count */
   remoteId: string
@@ -22,8 +25,13 @@ export interface InboundContext {
   clock: Clock
 }
 
-/** Turns packets from the Miniserver into bus states: configured inputs, or discovered packet ids. */
+/**
+ * Turns packets from the Miniserver into bus states: configured inputs, or discovered packet ids.
+ * Any data packet and any status heartbeat from the configured remote id feeds the HealthMonitor.
+ * Its listeners are owned, so disposing detaches it from the receiver.
+ */
 export class InboundRouter extends Disposable {
+  /** starts listening to `receiver` immediately */
   constructor(receiver: IciReceiver, private readonly context: InboundContext) {
     super()
     this.listen(receiver, "data", (event: DataEvent) => this.onData(event))
@@ -42,6 +50,7 @@ export class InboundRouter extends Disposable {
       if (changed && busValue) bus.publish(topics.discovered(packet.packetId), busValue, { source })
       return
     }
+    // type mismatches are converted rather than dropped, so a mis-set data type still delivers
     if (!busValue) return problems.report(`type:${packet.packetId}`, `${packet.packetId}: data type ${packet.dataType} is not supported`)
     const expected = IciValueMapper.valueTypeOf(input.config.dataType)
     if (busValue.type !== expected) {
