@@ -4,6 +4,7 @@ import { DataPacket } from "../packet/DataPacket.ts"
 import { EncryptedPacket } from "../packet/EncryptedPacket.ts"
 import { IvBlock, IvKind } from "./IvBlock.ts"
 import { IvSequence } from "./IvSequence.ts"
+import { PayloadShape } from "./PayloadShape.ts"
 
 /** What a 0x9F packet turned out to be. */
 export type OpenedPacket =
@@ -13,12 +14,14 @@ export type OpenedPacket =
 /**
  * AES-128 for 0x9F packets, key = SHA256(password)[0..15].
  *
- * The IV on the wire is an IvBlock encrypted with AES-ECB; decrypting it and finding the magic
- * prefix validates the password. The body is AES-CBC with that IV:
+ * The IV on the wire is an IvBlock encrypted with AES-ECB. The body is AES-CBC with that IV:
  * | 0–8 packet id, NUL-terminated | 9–10 payload length (uint16 LE) | payload | random padding |
- * There is no type byte: the data type comes from the IV's kind.
+ * Confirmed by a capture from our test Miniserver. There is no type byte: it comes from the IV
+ * kind when the kind is a documented one, otherwise from the payload's shape (PayloadShape).
+ * A wrong password is recognised by the body: it never decrypts to a valid packet id. The magic
+ * can't be used for that, since it differs between senders.
  *
- * @experimental layout from a third-party reverse engineering (PROTOCOL.md), awaiting our own capture.
+ * @experimental kinds and handshakes are not confirmed by a capture yet (PROTOCOL.md).
  */
 export class IciCipher {
   private static readonly ID_FIELD = 9
@@ -31,23 +34,26 @@ export class IciCipher {
   }
 
   /**
-   * @throws RangeError for a wrong password (IV prefix mismatch), an unknown kind or a corrupt
-   *   body. Callers on the receive path must catch this.
+   * One block (IV only) is a handshake, judged by its kind (unconfirmed, and unverifiable without a
+   * body). Anything longer is data.
+   * @throws RangeError for a wrong password (no valid packet id in the body), a corrupt body, or a
+   *   payload whose type can't be determined. Callers on the receive path must catch this.
    */
   open(packet: EncryptedPacket): OpenedPacket {
-    const iv = IvBlock.parse(this.ecb("decrypt", packet.iv))
-    if (!iv) throw new RangeError("wrong password: the IV does not decrypt to the Loxone prefix")
-    if (iv.kind === IvKind.Challenge) return { kind: "challenge", iv }
-    if (iv.kind === IvKind.Response) return { kind: "response", iv }
-    const dataType = iv.dataType
-    if (dataType === undefined) throw new RangeError(`unknown encrypted packet kind 0x${iv.kind.toString(16)}`)
+    const iv = IvBlock.parse(this.ecb("decrypt", packet.iv))!
+    if (packet.ciphertext.length === 0) return { kind: iv.kind === IvKind.Response ? "response" : "challenge", iv }
     const decipher = createDecipheriv("aes-128-cbc", this.key, packet.iv).setAutoPadding(false)
     const body = Buffer.concat([decipher.update(packet.ciphertext), decipher.final()])
     if (body.length < IciCipher.HEAD) throw new RangeError("encrypted body is shorter than its header")
-    const length = body.readUint16LE(IciCipher.ID_FIELD)
-    if (IciCipher.HEAD + length > body.length) throw new RangeError(`payload length ${length} exceeds the decrypted body`)
     const packetId = IciId.read(body, 0)
+    if (!IciId.isValid(packetId) || body.subarray(0, IciCipher.ID_FIELD).indexOf(0) < 0) {
+      throw new RangeError("wrong password: the body does not decrypt to a packet id")
+    }
+    const length = body.readUint16LE(IciCipher.ID_FIELD)
+    if (IciCipher.HEAD + length > body.length) throw new RangeError(`payload length ${length} exceeds the decrypted body (wrong password?)`)
     const payload = Buffer.from(body.subarray(IciCipher.HEAD, IciCipher.HEAD + length))
+    const dataType = iv.dataType ?? PayloadShape.infer(payload)
+    if (dataType === undefined) throw new RangeError(`unknown kind 0x${iv.kind.toString(16)} with a ${length}-byte payload`)
     return { kind: "data", packet: new DataPacket(packet.sourceId, packet.targetId, packetId, dataType, payload), iv }
   }
 

@@ -97,7 +97,10 @@ export class MiniserverConnection extends Disposable {
   // a wrong password shows up as "decryption failed"; without these the UI would only show "waiting"
   private reportReceiverProblems(receiver: IciReceiver) {
     this.listen(receiver, "malformed", (reason: string) => this.problems.report("malformed", `dropped a malformed packet: ${reason}`))
-    this.listen(receiver, "encrypted", () => this.problems.report("encrypted", "received an encrypted packet, but no password is configured"))
+    // encrypted packets for other remote systems can share our port; only ours need a password
+    this.listen(receiver, "encrypted", (packet: { targetId: string }) => {
+      if (packet.targetId === this.config.ownId) this.problems.report("encrypted", "received an encrypted packet, but no password is configured")
+    })
     this.listen(receiver, "listenerError", (error: unknown) => this.problems.report("listener", `handling a packet failed: ${ProblemReporter.message(error)}`))
     // answering is part of sending encrypted, which isn't implemented yet; a challenge means the
     // Miniserver expects it and drops encrypted data from us until then

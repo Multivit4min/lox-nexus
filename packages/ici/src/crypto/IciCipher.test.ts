@@ -1,11 +1,11 @@
 import assert from "node:assert/strict"
-import { createDecipheriv, createHash } from "node:crypto"
+import { createCipheriv, createDecipheriv, createHash } from "node:crypto"
 import { describe, test } from "node:test"
 import { PacketDecoder } from "../codec/PacketDecoder.ts"
 import { PacketEncoder } from "../codec/PacketEncoder.ts"
 import { DataType } from "../DataType.ts"
 import { DataPacket } from "../packet/DataPacket.ts"
-import type { EncryptedPacket } from "../packet/EncryptedPacket.ts"
+import { EncryptedPacket } from "../packet/EncryptedPacket.ts"
 import { IciCipher } from "./IciCipher.ts"
 import { IvBlock, IvKind } from "./IvBlock.ts"
 import { IvSequence } from "./IvSequence.ts"
@@ -22,6 +22,18 @@ const decryptRaw = (password: string, sealed: EncryptedPacket) => {
   }
 }
 const iv = (hex: string) => IvBlock.parse(Buffer.from(hex.replace(/ /g, ""), "hex"))!
+/** builds a 0x9F packet the way the Miniserver does, for any IV block (the documented kind check of seal() aside) */
+const sealWithIv = (password: string, packet: DataPacket, block: IvBlock) => {
+  const ecb = createCipheriv("aes-128-ecb", key(password), null).setAutoPadding(false)
+  const wireIv = Buffer.concat([ecb.update(block.toBuffer()), ecb.final()])
+  const head = Buffer.alloc(11)
+  head.write(packet.packetId, 0, "latin1")
+  head.writeUint16LE(packet.payload.length, 9)
+  const plain = Buffer.concat([head, packet.payload])
+  const padded = Buffer.concat([plain, Buffer.alloc((16 - (plain.length % 16)) % 16, 0xa5)])
+  const cbc = createCipheriv("aes-128-cbc", key(password), wireIv).setAutoPadding(false)
+  return new EncryptedPacket(packet.sourceId, packet.targetId, wireIv, Buffer.concat([cbc.update(padded), cbc.final()]))
+}
 
 // the three worked examples of the reverse-engineering document (PROTOCOL.md, 0x9F)
 const examples = [
@@ -55,7 +67,7 @@ describe("IciCipher (0x9F as reverse-engineered)", () => {
     }
   })
 
-  test("a wrong password is detected by the IV prefix", () => {
+  test("a wrong password is detected by the body (no valid packet id)", () => {
     const sealed = new IciCipher("test123").seal(examples[0]!.packet)
     assert.throws(() => new IciCipher("wrong").open(sealed), /wrong password/)
   })
@@ -69,17 +81,32 @@ describe("IciCipher (0x9F as reverse-engineered)", () => {
     assert.equal(cipher.open(cipher.handshake("response", "encrypte", "server")).kind, "response")
   })
 
-  test("IVs from one sequence share the suffix and count up, wrapping at 255", () => {
-    const sequence = new IvSequence(Buffer.from("112233", "hex"))
-    const blocks = Array.from({ length: 257 }, () => sequence.next(IvKind.Analog))
-    assert.deepEqual([blocks[0]!.counter, blocks[255]!.counter, blocks[256]!.counter], [0, 255, 0])
-    assert.ok(blocks.every(block => block.suffix.toString("hex") === "112233"))
+  test("a sequence counts up by one per packet under a constant mask, wrapping at 2^32", () => {
+    const sequence = new IvSequence(0x8a75ae00, 0xfffffffe)
+    const blocks = Array.from({ length: 4 }, () => sequence.next(IvKind.Analog))
+    assert.deepEqual(blocks.map(block => (block.sequence ^ 0x8a75ae00) >>> 0), [0xfffffffe, 0xffffffff, 0, 1])
     assert.notDeepEqual(blocks[0]!.nonce, blocks[1]!.nonce)
   })
 
   test("data types map to IV kinds (digital 0x2B, analog 0x2A, text 0x29)", () => {
     assert.deepEqual([DataType.Digital, DataType.Analog, DataType.Text].map(IvBlock.kindOf), [0x2b, 0x2a, 0x29])
     assert.equal(iv("4c01e2c5 4e 00000000000000 00 000000").dataType, undefined)
-    assert.equal(IvBlock.parse(Buffer.alloc(16)), undefined)
+    assert.equal(IvBlock.parse(Buffer.alloc(15)), undefined)
+  })
+
+  test("our test Miniserver's IV values (other magic, kind 0xC0 for analog) still open, typed by payload", () => {
+    // structure seen live on 2026-10-23: magic 42325d2d, kind c0, masked sequence ae758a5f, ae758a5e, …
+    const live = (counter: number) => new IvBlock(0xc0, Buffer.alloc(7, counter), (0xae758a00 | counter) >>> 0, Buffer.from("42325d2d", "hex"))
+    const values = [[DataType.Analog, 35], [DataType.Digital, true], [DataType.Text, "hello"]] as const
+    for (const [i, [type, value]] of values.entries()) {
+      const plain = DataPacket.of({ ...address, packetId: "analog" }, type, value)
+      // seal() insists on a matching documented kind, so build the packet with the raw key here
+      const sealed = sealWithIv("test", plain, live(0x5f - i))
+      const opened = new IciCipher("test").open(sealed)
+      assert.equal(opened.kind === "data" && opened.packet.dataType, type)
+      assert.deepEqual(opened.kind === "data" && opened.packet.value(), value)
+      assert.equal(opened.iv.magic.toString("hex"), "42325d2d")
+    }
+    assert.throws(() => new IciCipher("other").open(sealWithIv("test", DataPacket.of({ ...address, packetId: "x" }, DataType.Analog, 1), live(1))), /wrong password/)
   })
 })

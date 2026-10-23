@@ -26,7 +26,7 @@ export class PacketDescriber {
     if (!this.cipher) return summary + warnings
     try {
       const opened = this.cipher.open(packet)
-      const iv = `iv kind=0x${opened.iv.kind.toString(16)} counter=${opened.iv.counter} suffix=${opened.iv.suffix.toString("hex")}`
+      const iv = `iv magic=${opened.iv.magic.toString("hex")} kind=0x${opened.iv.kind.toString(16)} seq=0x${opened.iv.sequence.toString(16).padStart(8, "0")}`
       if (opened.kind !== "data") return `🤝 ${opened.kind} ${packet.sourceId}→${packet.targetId}  ${iv}${warnings}`
       return `🔓 ${this.data(opened.packet)}  ${iv}${warnings}`
     } catch (error) {

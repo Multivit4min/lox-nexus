@@ -58,10 +58,11 @@ must be rejected without throwing.
 
 ### 0x9F: encrypted data packet ⚠️
 
-Source: a third-party reverse engineering of Miniserver-to-Miniserver captures (March 2026),
-provided by the project owner. It agrees with the one real 0x9F packet we have (byte 26 = 2 for a
-59-byte packet), but **none of it is confirmed by our own capture yet** (no password known for
-that packet). Implemented in `IciCipher`, `IvBlock`, `IvSequence`.
+Sources: a third-party reverse engineering of Miniserver-to-Miniserver captures (March 2026),
+provided by the project owner, and **our own capture from the test Miniserver on 2026-10-23**
+(remote system `encrypte`, known password, output `analog` mirroring `rand`; fixture
+`test/fixtures/2026-10-23-live/encrypted-analog.jsonl`). Implemented in `IciCipher`, `IvBlock`,
+`IvSequence`, `PayloadShape`. Nexus receives and decrypts live values end to end.
 
 ```
 9f 00 00 00 00 00 00 00 73 65 72 76 65 72 00 00 00 6e 65 78 75 73 00 00 00 00 02 9c bd db 6a 55 51 5f 2d 36 e0 c8 5b 2d 6b 17 71 44 21 54 86 22 6c 63 26 c2 8f dc ca 8e cf af 50
@@ -71,30 +72,34 @@ that packet). Implemented in `IciCipher`, `IvBlock`, `IvSequence`.
 |---|---|---|---|
 | 0 | 1 | Control byte `0x9F` | ✅ |
 | 1–25 | 25 | Same header as 0x9E (source ID at 8–16, target ID at 17–25) | ✅ |
-| 26 | 1 | Number of 16-byte blocks that follow, IV included: 1 = handshake, 2 = digital, 3+ = analog/text (the reverse engineering calls it "flag" 0x01/0x02/0x03) | ⚠️ |
-| 27–42 | 16 | IV: an **IV block encrypted with AES-ECB** (see below) | ⚠️ |
-| 43… | 16·(n−1) | Body, AES-128-CBC with that IV | ⚠️ |
+| 26 | 1 | Number of 16-byte blocks that follow, IV included: 1 = handshake, 2 = digital, 3+ = analog/text (the reverse engineering calls it "flag" 0x01/0x02/0x03). Analog: 3 ✅ | ⚠️ |
+| 27–42 | 16 | IV: an **IV block encrypted with AES-ECB** (see below) | ✅ |
+| 43… | 16·(n−1) | Body, AES-128-CBC with that IV | ✅ |
 
-Key = `SHA256(password)[0..15]`.
+Key = `SHA256(password)[0..15]` ✅. Packets come from source port 65534, like 0x9E.
 
 **IV block** (plaintext of the IV, AES-ECB):
 
-| Offset | Size | Field |
-|---|---|---|
-| 0–3 | 4 | Magic `4C 01 E2 C5`. A receiver ECB-decrypts the IV and checks it: this *is* the password check ("Kennwort falsch" otherwise), so random IVs are rejected |
-| 4 | 1 | Kind: `0x2B` digital, `0x2A` analog, `0x29` text, `0x4E` handshake challenge, `0x4D` handshake response. The data type is not in the body; it comes from here. Other data types: our guess is `0x2B − dataType` (T5 `0x28`, RGBW `0x27`, …) ❓ |
-| 5–11 | 7 | Random nonce |
-| 12 | 1 | Counter, incremented per packet by the sender, wraps |
-| 13–15 | 3 | Sender suffix, constant per device (any value is accepted) |
+| Offset | Size | Field | Status |
+|---|---|---|---|
+| 0–3 | 4 | Magic. Document: `4C 01 E2 C5`, "constant", used by the receiver to check the password. **Ours: `42 32 5D 2D`**, constant per sender, so it is not a universal constant | ⚠️ |
+| 4 | 1 | Kind. Document: `0x2B` digital, `0x2A` analog, `0x29` text, `0x4E` challenge, `0x4D` response. **Ours: analog = `0xC0`.** The data type is not in the body, so the receiver needs this; ours differs, maybe masked like the sequence | ⚠️ |
+| 5–11 | 7 | Random nonce | ✅ |
+| 12–15 | 4 | **Sequence: a 32-bit packet counter (LE), XOR-ed with a constant mask.** Unmasked it rose by exactly 1 per packet over 80 packets. The document reads this as "1-byte counter + constant 3-byte device suffix", which is how it looks over a short time (the higher bytes change only on carries; the document's own examples have different "suffixes") | ✅ |
+
+Because magic and kind differ per sender, Nexus checks the password by the body instead (a wrong
+key never yields a valid NUL-terminated packet id), and takes the data type from a documented kind
+or else from the payload shape (1 byte digital, NUL-terminated text, 8 bytes analog). Smart
+actuator types can't be told from their shape; their kinds are unknown.
 
 **Body** (plaintext):
 
 | Offset | Size | Field |
 |---|---|---|
-| 0–8 | 9 | Packet ID, NUL-terminated |
-| 9–10 | 2 | Payload length (uint16 LE) |
-| 11… | n | Payload, as in 0x9E (text NUL-terminated, length includes the NUL) |
-| … | | Random padding to the block boundary (not a MAC) |
+| 0–8 | 9 | Packet ID, NUL-terminated ✅ |
+| 9–10 | 2 | Payload length (uint16 LE) ✅ |
+| 11… | n | Payload, as in 0x9E (analog: double LE ✅; text NUL-terminated, length includes the NUL ⚠️) |
+| … | | Random padding to the block boundary, not a MAC ✅ |
 
 Worked examples from the document (password unknown, so only the layout can be tested; see
 `IciCipher.test.ts`): analog `CC1` = 42.0 → 75 bytes; digital `CC2` = on → 59 bytes; text
@@ -264,6 +269,8 @@ hex dumps and diffs each packet against the previous one with the same packet ID
    firmware or a Miniserver Gen 2?
 6. **0x8D.** Offset 4–7 is constant (see above). Still open: confirm it against the Miniserver's
    serial number or MAC, and find out what byte 28 means.
-7. **0x9F.** Capture with a known password (the test Miniserver's "encrypte" remote system) to
-   confirm the reverse-engineered layout (IV block, body, kind byte), then the handshake rules
-   and whether a sending Miniserver expects anything from its receiver.
+7. **0x9F.** Layout confirmed for analog (see above). Open: the kind bytes of digital, text and
+   the smart actuator types on our Miniserver (wire such outputs to `encrypte`); whether magic and
+   kind are masked like the sequence; what magic/kind a Miniserver accepts from *us* (sending);
+   handshakes (none seen in 40 s of receiving: a sending Miniserver apparently needs nothing
+   from its receiver).
