@@ -1,0 +1,54 @@
+import assert from "node:assert/strict"
+import { PassThrough } from "node:stream"
+import { describe, test } from "node:test"
+import { DataType } from "../DataType.ts"
+import { Fixtures } from "../test-support/Fixtures.ts"
+import { LabCli } from "./LabCli.ts"
+import { PayloadDiff } from "./PayloadDiff.ts"
+import { ValueParser } from "./ValueParser.ts"
+
+const runCli = async (...argv: string[]) => {
+  const out = new PassThrough()
+  let text = ""
+  out.on("data", chunk => (text += chunk))
+  const code = await new LabCli().run(argv, { out, signal: new AbortController().signal })
+  return { code, text }
+}
+
+describe("ici-lab", () => {
+  test("decode describes a captured RGBW sequence step", async () => {
+    const step = Fixtures.lines<{ hex?: string }>("2026-10-23-live/lighting-moods.jsonl")
+      .find(line => line.hex?.endsWith("640906001e000040"))
+    const { code, text } = await runCli("decode", step!.hex!)
+    assert.equal(code, 0)
+    assert.match(text, /server→claude\s+lcout\s+rgbw/)
+    assert.match(text, /"flags":16384/)
+  })
+
+  test("decode flags malformed input", async () => {
+    const { text } = await runCli("decode", "9e00")
+    assert.match(text, /MALFORMED/)
+  })
+
+  test("unknown commands print help and fail", async () => {
+    const { code, text } = await runCli("nope")
+    assert.equal(code, 1)
+    assert.match(text, /usage: npm run ici-lab/)
+  })
+
+  test("PayloadDiff names the changed byte ranges", () => {
+    const diff = new PayloadDiff()
+    assert.equal(diff.next("k", Buffer.from("640d0d0002000000", "hex")), "new")
+    assert.equal(diff.next("k", Buffer.from("640d0d0002000000", "hex")), "")
+    assert.equal(diff.next("k", Buffer.from("640906001e000040", "hex")), "Δ 1–2: 0d0d→0906 Δ 4: 02→1e Δ 7: 00→40")
+  })
+
+  test("ValueParser handles every type", () => {
+    const parser = new ValueParser()
+    assert.equal(parser.parse(DataType.Digital, "on"), true)
+    assert.equal(parser.parse(DataType.Analog, "2.5"), 2.5)
+    assert.deepEqual(parser.parse(DataType.SmartRgbw, "{\"red\":1,\"green\":2,\"blue\":3,\"white\":4}"),
+      { red: 1, green: 2, blue: 3, white: 4, fadeTime: 0.2, flags: 0 })
+    assert.throws(() => parser.parse(DataType.Analog, "abc"))
+  })
+})

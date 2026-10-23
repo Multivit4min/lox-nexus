@@ -14,8 +14,8 @@ All multi-byte values are little-endian unless stated otherwise. IDs are 8 bytes
 | Control byte | Packet | Status |
 |---|---|---|
 | `0x9E` | Data packet (plain) | ✅ |
-| `0x9F` | Data packet (encrypted, AES-128-CBC) | ⚠️ documented, not yet implemented |
-| `0x8D` | Status packet, sent about every 7 minutes | ❓ fields mostly unknown |
+| `0x9F` | Data packet (encrypted, AES-128-CBC) | ⚠️ implemented in `IciCipher`, layout unconfirmed by a real capture |
+| `0x8D` | Status packet, sent about every 278 s | ⚠️ partially decoded |
 
 ### 0x9E: data packet
 
@@ -42,6 +42,19 @@ Example (ANALOG, from `server` to `remote`, packetId `analog`):
 
 The minimum valid length is 38 bytes plus the payload length. Anything shorter is malformed and
 must be rejected without throwing.
+
+**Observed on a live Miniserver (2026-10-23):**
+- Bytes 1–7, 16, 25 and 34 were `0x00` in every one of several hundred packets.
+- The Miniserver sends from UDP source port **65534**, not from its configured port.
+- Values are sent on change. In addition, **every output is resent on a global 10.0 s tick**. This
+  is one timer for the whole Miniserver, not a per-output timer, so an output that just changed can
+  be resent only a few hundred ms later.
+- Fast-changing values arrived at most about every 500 ms, although the program changed them more
+  often.
+- One Miniserver sends packets for several remote systems (different target IDs) to the same
+  host and port. Receivers **must** filter on the target ID.
+- A Digital output arrives as type `0x00` with a 1-byte payload, and an Analog output as type
+  `0x01` with 8 bytes. Which one is sent depends on the output's type in Loxone Config.
 
 ### 0x9F: encrypted data packet ⚠️
 
@@ -80,13 +93,22 @@ The example above needs the password it was captured with before it can serve as
 | Offset | Size | Field | Status |
 |---|---|---|---|
 | 0 | 1 | Control byte `0x8D` | ✅ |
-| 1–3 | 3 | `0x00` | ❓ |
-| 4–7 | 4 | Changes between packets (counter, uptime or timestamp?) | ❓ |
-| 8–15 | 8 | Miniserver name / own ID | ⚠️ |
-| 16–27 | 12 | `0x00` | ❓ |
-| 28 | 1 | `0x64` (100), meaning unknown | ❓ |
+| 1–3 | 3 | `0x00` | ⚠️ |
+| 4–7 | 4 | Constant per Miniserver. Hypothesis: the tail of the MAC address, byte-reversed (`eb 23 a2 94` → `…94:A2:23:EB`; Loxone's MAC prefix is `50:4F:94`) | ⚠️ |
+| 8–15 | 8 | Own ID of the sending Miniserver (`server`) | ✅ |
+| 16–27 | 12 | `0x00` | ⚠️ |
+| 28 | 1 | `0x64` (100), constant so far | ❓ |
 
-Goal: decode enough of it to use as a heartbeat ("Miniserver alive").
+**Observed on a live Miniserver (2026-10-23, `test/fixtures/2026-10-23-live/status-0x8d.jsonl`):**
+- Interval about **278 s** (4 min 38 s), not about 7 minutes.
+- Each status packet arrived **twice in the same millisecond**, probably once per remote system
+  configured at this address (`claude` and `red`), because the packet carries no target ID.
+- Bytes 4–7 were identical across captures, and identical to the example captured for the old
+  library a year earlier. So it is not a counter or a timestamp.
+- The packet is usable as a heartbeat. Treat a Miniserver as stale after missing two status packets
+  (about 10 min) with no data packets in between.
+
+To confirm the MAC hypothesis, compare against the serial number or MAC shown in Loxone Config.
 
 ## Data types
 
@@ -100,7 +122,7 @@ Goal: decode enough of it to use as a heartbeat ("Miniserver alive").
 | `0x05` | SmartActuatorSingleChannel | 8 | ⚠️ bytes 0–2 unknown |
 | `0x06` | SmartActuatorTunableWhite | 8 | ⚠️ fade unit disputed, bytes 6–7 unknown |
 
-Unknown data types must be preserved byte-exact (`RawCodec`) and reported, never dropped silently.
+Unknown data types must be preserved byte-exact (`DataPacket` keeps the raw payload; `value()` returns `undefined`) and reported, never dropped silently.
 
 ### DIGITAL ✅
 | Offset | Size | Field |
@@ -141,8 +163,40 @@ which the old enum could not represent.
 | 1 | 1 | Green 0–100 | ✅ |
 | 2 | 1 | Blue 0–100 | ✅ |
 | 3 | 1 | White 0–100 | ✅ |
-| 4–5 | 2 | Fade time, uint16, units of 0.1 s | ⚠️ |
-| 6–7 | 2 | Unknown ("bits"), flags? | ❓ |
+| 4–5 | 2 | Fade time, uint16, units of 0.1 s | ✅ (default 0.2 s → `2`; sequence steps of 3.0 s → `30`) |
+| 6–7 | 2 | Flags, uint16 LE. `0x4000` (bit 14) is set on lighting-sequence steps; other bits never seen | ⚠️ |
+
+**Lighting Controller capture (2026-10-23, `test/fixtures/2026-10-23-live/lighting-moods.jsonl`).**
+The RGBW output of a Lighting Controller was captured while its mood was switched over ICI:
+- **Static moods** send exactly one packet per change, with `fade = 2` (0.2 s) and flags `0x0000`.
+  Examples:
+
+  | Mood | Packet |
+  |---|---|
+  | 50 | `w80` |
+  | 51 | `r7 w37` |
+  | 99 | `w100` |
+  | 98 | `r100 g2 b2` |
+  | 0 | all zero |
+- **Animated mood (69, a 3-colour sequence).**
+  - The first packet is the start colour with `fade = 2` and flags `0`.
+  - About 200 ms later the sequence starts. Each step is one packet, roughly every 3.0 s, with
+    `fade = 30` and flags **`0x4000`**: `r100 g9 b6` → `r100 g35 b0` → `r100 g13 b13` → repeat.
+    Each step's fade lasts exactly as long as the step.
+  - Switching to a static mood or off clears the flag immediately.
+- **Hypothesis:** `0x4000` marks a *sequence step*. The actuator should keep fading continuously
+  into the next step instead of treating it as a fresh scene change. Still unconfirmed: whether a
+  static mood with a custom (longer) fade time also sets it, and whether a Smart Actuator behaves
+  differently with and without it.
+
+**Passthrough probe (2026-10-23).** RGBW packets were sent to a Miniserver input wired directly to
+an RGBW output. Every payload came back **byte-identical** within about 30 ms: bytes 6–7 set to
+`0001`, `0100` and `ffff`, fade values 0, 10 and 25, and out-of-range colours 101 and 255. A direct
+input→output connection doesn't interpret or clamp the payload, so it can't explain bytes 6–7. The
+next step is to capture an RGBW output driven by a Lighting Controller.
+
+Sending also showed that the Miniserver accepts input packets from any source port. It appears to
+check only the sender's IP address.
 
 ### SmartActuatorSingleChannel ⚠️
 | Offset | Size | Field | Status |
@@ -168,21 +222,18 @@ hex dumps and diffs each packet against the previous one with the same packet ID
 1. **T5 mask.** Press each T5 button alone, then two at a time, then hold one. Does the payload
    decode as the doubles 1/2/4/8/16 and their sums? What happens on release (back to 0)? Is there a
    long-press encoding?
-2. **RGBW bytes 6–7.** In Loxone Config, change one thing at a time and capture after each change:
-   - fade time
-   - colour only, then white only
-   - master off
-   - scene change
-   - lighting controller "mode"
-
-   Which bits move?
+2. **RGBW bytes 6–7.** `0x4000` appears on sequence steps (see the SmartActuatorRGBW section).
+   Next, in this order:
+   1. Give a static mood a long fade time (e.g. 5 s): does the flag appear?
+   2. Change the speed of the sequence in mood 69: do the flag and the fade value change?
+   3. Send a step with and without `0x4000` to a real RGBW smart actuator and watch how it behaves.
 3. **Fade units.** Configure fade times of 1 s and 2 s on RGBW, SingleChannel and TunableWhite
    outputs, and read bytes 4–5.
 4. **SingleChannel bytes 0–2, TunableWhite bytes 6–7.** Watch for any non-zero value during the
    experiments above.
 5. **Header bytes 1–7, 16, 25, 34.** Do they ever change, for example with encryption, a different
    firmware or a Miniserver Gen 2?
-6. **0x8D.** Capture several status packets over an hour. Is offset 4–7 a counter or a timestamp?
-   What is byte 28?
+6. **0x8D.** Offset 4–7 is constant (see above). Still open: confirm it against the Miniserver's
+   serial number or MAC, and find out what byte 28 means.
 7. **0x9F.** Capture with a known password and decrypt it, to confirm the decrypted layout and
    whether offset 11 is the data type.

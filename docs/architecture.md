@@ -242,10 +242,10 @@ class per file, so it can later replace `loxone-ici` on npm.
 | `id/` | `IciId`: an 8-byte ID, validated (ASCII, max 8 bytes, no silent truncation) |
 | `packet/` | `PacketHeader`, `DataPacket` (0x9E), `EncryptedPacket` (0x9F), `StatusPacket` (0x8D), `UnknownPacket` |
 | `codec/` | `PacketDecoder` / `PacketEncoder`. Both check lengths before reading, and malformed input yields a `MalformedPacket` result instead of a throw. The data length is a uint16 in both directions. |
-| `payload/` | One `PayloadCodec<T>` class per data type: `DigitalCodec`, `AnalogCodec`, `TextCodec`, `T5Codec`, `SmartRgbwCodec`, `SmartSingleChannelCodec`, `SmartTunableWhiteCodec`, plus `RawCodec`, which keeps unknown types byte-exact |
+| `payload/` | One `PayloadCodec<T>` class per data type: `DigitalCodec`, `AnalogCodec`, `TextCodec`, `T5Codec`, `SmartRgbwCodec`, `SmartSingleChannelCodec`, `SmartTunableWhiteCodec`. There is no raw codec: every `DataPacket` keeps its raw payload, so unknown types and unconfirmed bytes survive byte-exact |
 | `crypto/` | `IciCipher`: AES-128-CBC with key = SHA256(password)[0..16], IV in block 0, per PROTOCOL.md |
 | `transport/` | `IciSocket`: a dgram wrapper whose `bind()` rejects on error. It can close and re-open, uses a typed `EventEmitter<Events>`, and never logs. |
-| `receive/` | `InputRouter`: filters on `targetId === ownId` and an optional `sourceId`, and dedupes per `(sourceId, packetId)` with byte-equality |
+| `receive/` | `IciReceiver` (with `DedupTable`): decodes datagrams, filters on `targetId === ownId` and an optional `sourceId`, and dedupes per `(sourceId, packetId)` with byte-equality |
 | `send/` | `RemotePeer` and `Output<T>`. `peer.output("pv", DataType.Analog)` is typed through generics, and `set()` sends exactly once. `ResendScheduler` is one `unref()`'d timer for all outputs (default 10 s). Nothing re-arms after `close()`. |
 | `lab/` | The protocol lab, described below |
 
@@ -280,7 +280,7 @@ marked `@experimental` until a fixture confirms them.
 ### Loxone (packages/loxone)
 
 - **`MiniserverManager`** owns the **`Miniserver`** instances.
-- Each Miniserver owns one `IciSocket`, one `InputRouter` and one `RemotePeer` from `packages/ici`.
+- Each Miniserver owns one `IciSocket`, one `IciReceiver` and one `RemotePeer` from `packages/ici`.
   There is no adapter or workaround layer.
 - **`DiscoveryList`** tracks unknown packetIds so they can be adopted.
 - **Health.** A UDP peer has no connection to check, so status comes from "last packet seen" and,

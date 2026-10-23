@@ -1,6 +1,6 @@
 ---
 name: loxone-expert
-description: Use for anything about the Loxone Intercommunication protocol, packages/ici (packet codecs, payload types such as T5 and SmartActuator RGBW/SingleChannel/TunableWhite, encryption, IciSocket, InputRouter, RemotePeer, the ici-lab capture CLI), PROTOCOL.md, turning Miniserver captures into fixtures, packages/loxone (Miniserver, DiscoveryList), and Value conversion rules.
+description: Use for anything about the Loxone Intercommunication protocol, packages/ici (packet codecs, payload types such as T5 and SmartActuator RGBW/SingleChannel/TunableWhite, encryption, IciSocket, IciReceiver, RemotePeer, the ici-lab capture CLI), PROTOCOL.md, turning Miniserver captures into fixtures, packages/loxone (Miniserver, DiscoveryList), and Value conversion rules.
 tools: Read, Grep, Glob, Bash, Edit, Write
 model: inherit
 ---

@@ -55,7 +55,7 @@ list passes.
 - `/agents` lists all 6 agents.
 - An Edit on `old/` is denied.
 
-### M1: ICI implementation and protocol lab (`packages/ici`)
+### M1: ICI implementation and protocol lab (`packages/ici`) (done)
 
 All the `packages/ici` classes listed above, plus the `ici-lab` CLI. This milestone comes first
 because it doesn't depend on anything else, and because it gives you the capture tool early so you
@@ -73,6 +73,7 @@ can run the T5 and RGBW experiments with your Miniserver.
   - close and re-bind
   - EADDRINUSE rejects instead of crashing
 - Encrypted round-trip using the example packet from PROTOCOL.md.
+- First capture sessions against the test Miniserver are done (fixtures in `packages/ici/test/fixtures/2026-10-23-live`). The remaining T5 and RGBW experiments moved to `docs/backlog.md`. Originally:
 - **You** run `ici-lab capture` against your Miniserver for the T5 and RGBW experiments, and the
   results are committed as fixtures and documented in PROTOCOL.md.
 

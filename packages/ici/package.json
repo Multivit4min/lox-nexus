@@ -8,5 +8,9 @@
       "@lox-nexus/source": "./src/index.ts",
       "default": "./dist/index.js"
     }
+  },
+  "description": "Loxone Intercommunication Interface (ICI) protocol: codecs, UDP transport, protocol lab",
+  "scripts": {
+    "ici-lab": "node --conditions=@lox-nexus/source --import tsx src/lab/main.ts"
   }
 }
