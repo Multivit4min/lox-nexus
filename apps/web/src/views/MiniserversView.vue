@@ -3,10 +3,12 @@ import { onMounted, onUnmounted, ref } from "vue"
 import type { MiniserverDto, MiniserverInput } from "@lox-nexus/api"
 import { Plus } from "@lucide/vue"
 import { useRouter } from "vue-router"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { AppContext } from "../AppContext.ts"
+import ConfigTransferButtons from "../components/ConfigTransferButtons.vue"
 import HealthBadge from "../components/HealthBadge.vue"
 import LoadMeter from "../components/load/LoadMeter.vue"
 import MiniserverForm from "../components/MiniserverForm.vue"
@@ -17,6 +19,7 @@ const api = context.miniservers
 const router = useRouter()
 const list = ref<MiniserverDto[]>([])
 const adding = ref(false)
+const notice = ref<{ ok: boolean; text: string }>()
 // health and load arrive live; the list itself only changes through this UI
 const live = new LiveValues(handlers => context.stream(handlers), "system/loxone/#")
 
@@ -47,10 +50,19 @@ onUnmounted(() => live.close())
 
 <template>
   <div class="mx-auto max-w-5xl space-y-4 p-6">
-    <div class="flex items-center justify-between">
+    <div class="flex flex-wrap items-center justify-between gap-2">
       <h1 class="text-xl font-semibold">Miniservers</h1>
-      <Button @click="adding = true"><Plus class="size-4" /> Add Miniserver</Button>
+      <div class="flex flex-wrap gap-2">
+        <ConfigTransferButtons @result="outcome => (notice = outcome)" @changed="load" />
+        <Button @click="adding = true"><Plus class="size-4" /> Add Miniserver</Button>
+      </div>
     </div>
+    <Alert v-if="notice" :variant="notice.ok ? 'default' : 'destructive'">
+      <AlertDescription class="flex items-start justify-between gap-4">
+        <span>{{ notice.text }}</span>
+        <button type="button" class="text-xs underline" @click="notice = undefined">Dismiss</button>
+      </AlertDescription>
+    </Alert>
     <Table>
       <TableHeader>
         <TableRow>

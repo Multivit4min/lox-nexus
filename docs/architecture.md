@@ -504,8 +504,9 @@ above:
     and is listed as `active: false`.
 - **Deleting.** Deleting a signal or Miniserver also releases forces on its topics, forgets
   their retained values (`EventBus.forget`) and deletes their snapshot rows (`TopicCleanup`). At
-  boot, snapshot rows whose topic no longer belongs to a signal are deleted. A rename still leaves
-  forces on the old topics (see the backlog).
+  boot, snapshot rows whose topic no longer belongs to a signal are deleted. Renaming a
+  Miniserver still leaves forces on the old topics (see the backlog); editing a signal moves them
+  (see "Editing signals" below).
 - **Signals in the database.** The `signals` table is a supertable. `loxone_signals` (and later
   `plugin_signals`) reference it, and `wires` reference `signals` with `ON DELETE CASCADE`.
   Deleting a signal or a Miniserver removes its wires in the database through foreign keys, and
@@ -540,12 +541,14 @@ above:
   - `/api/auth`: `GET`, plus `POST` on `setup`, `login`, `logout` and `password`
   - `/api/miniservers`:
     - CRUD on the collection, plus `POST :id/start` and `POST :id/stop`
-    - `GET`/`POST :id/signals`, `DELETE :id/signals/:signalId`
+    - `GET`/`POST :id/signals`, `PUT`/`DELETE :id/signals/:signalId`
     - `GET :id/discovered`, `POST :id/discovered/adopt`
     - Passwords are write-only: an omitted `password` keeps the stored one, `null` removes it.
   - `GET /api/miniservers/:id/load`: the current intercommunication load and the last hour
     of samples (`load` in percent is also on every Miniserver DTO).
   - `GET /api/signals` lists every signal with its current value; `/api/wires` has CRUD.
+  - `GET /api/config/export` (a download) and `POST /api/config/import`: the whole
+    configuration as one JSON file, see "Config export and import" below.
   - `/api/bus`:
     - `GET messages?limit&pattern` and `GET messages/:id/trace`
     - `GET current?pattern`
@@ -565,7 +568,9 @@ above:
   - `bus` delivers every recorded message, including shadowed ones and forces, in batches every
     50 ms.
   - `state` sends the current values once (`full: true`), then the latest change per topic per
-    batch. Replacing a subscription discards whatever was queued for the old pattern.
+    batch. Replacing a subscription discards whatever was queued for the old pattern. A release
+    that leaves a topic without any value (it was forced before a real value arrived) is sent as
+    `cleared: [topic]`, so clients drop the forced value instead of showing it forever.
   - A ping every 30 s detects half-open connections. Shutdown closes streams with 1001; an ended
     session closes them with 4401 (`StreamCloseCode` in `@lox-nexus/api`).
   - A slow client never stalls the bus. When its socket buffer exceeds 1 MiB, or more than 2000
@@ -655,6 +660,56 @@ above:
     completely (no gaps) in 20 batches per second, at most 51 ms late.
   - Not verified: rendering in a real browser. No browser can run in the dev container (system
     libraries missing).
+
+## Implementation notes: editing signals, forcing from lists, config transfer
+
+- **Editing signals.** `PUT /api/miniservers/:id/signals/:signalId` replaces a signal's packet
+  id, direction, data type, label and slug.
+  - `Miniserver.updateSignal` re-indexes the signal and calls `SignalRegistry.update`, so
+    `WireEngine` rebuilds its wires. A wire that no longer fits (say, a new direction) stays
+    stored and is listed as inactive. A packet id or topic clash leaves everything as it was
+    (409).
+  - When the topic changes, `TopicCleanup.move` re-applies a force on the new topic first, then
+    replays the last real value there as a *restored* value and saves it to the snapshot. The
+    order matters: under a force the replayed value arrives shadowed, so a forced output never
+    sends its real value to the Miniserver. Without a force the value behaves like the boot
+    snapshot: wires ignore it unless they sync on start, and an output sends it under its new
+    packet id, as after a restart.
+  - `EventBus.real(topic)` exposes the value a release would restore, also while forced.
+- **Forcing from the signals list.** Each row of a Miniserver's signals has edit, force (or
+  release) and delete buttons; a forced value shows a lock. The force dialog is the inspector's
+  `ForceDialog`, prefilled with the current value or, without one, the signal's `valueType`
+  default (`LoxoneSignalDto.valueType`). Release goes back to the last value received from the
+  Miniserver (or sent by a wire); without one, the stream's `cleared` empties the cell.
+- **Config export and import** (`ConfigTransfer`, format in `packages/api/src/config.ts`):
+  - The file holds Miniservers (without passwords), their signals and the wires between them,
+    with their ids, as `{ format: "lox-nexus/config", version: 1, … }`. Wires to signals outside
+    the file (plugin signals, later) are left out, because an import couldn't recreate them.
+    Values, forces and users are not part of it.
+  - An import replaces everything through the normal services, so every validation applies.
+    `ConfigCheck` first refuses duplicate ids and slugs and wires to unknown signals (400,
+    nothing changes). Ids are kept. A Miniserver keeps the password stored for the same id.
+    Wires the engine refuses are stored as inactive, as they were exported.
+  - Runtime and database can't share one transaction, so the import takes an export as backup
+    first. When a step fails it clears again (best effort) and restores the backup, then answers
+    409 naming the failed entry, e.g. `miniservers[0].signals[3]: packet id "x" already has an in
+    signal`. If the restore can't bring everything back the answer is 500 and the log says what
+    is missing. SQL never reaches the client.
+  - Forces and last values on Loxone topics are dropped by an import, also by one that is rolled
+    back. Only one import runs at a time; other API changes during an import aren't blocked
+    (see the backlog).
+  - The UI has Export and Import buttons on the Miniservers page. The import asks for
+    confirmation and reports counts, kept passwords and inactive wires.
+- **UI fixes found on the way.** `VirtualTable` subtracted the header from
+  `getTotalSize()` twice, which hid the last 32 px of every virtual list. `MiniserverView` held
+  its `LiveValues` in a plain variable, so the signals card appeared only after the next 5 s
+  refresh.
+- **Verified.** Tests cover editing (clashes, rollback, a forced output of a running Miniserver
+  over UDP that must only ever send the forced value), `TopicCleanup.move`, the stream's
+  `cleared`, export and import (round trip into a second installation, kept passwords, inactive
+  wires, inconsistent files, rollback) and the failure paths of `ConfigTransfer` with fake
+  services. A headless Chromium walkthrough through the code-server proxy forced and released
+  signals, edited one, and exported and re-imported the configuration.
 
 ## Dependencies (installed in the milestone that first needs them)
 

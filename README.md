@@ -15,7 +15,10 @@ forceable event bus that you can watch live.
 - **Plugins.** Installed at runtime from a ZIP or a git repository. Each instance runs in its own
   worker thread, with no restart needed.
 - **Bus Inspector.** Live message stream, cause chains ("Loxone dimmer → wire → Home Assistant light
-  ✓ 59 ms"), force and release any topic, inject test values.
+  ✓ 59 ms"), force and release any topic, inject test values. Signals can also be forced, released
+  and edited straight from a Miniserver's signal list; editing keeps their wires.
+- **Config export and import.** Miniservers, signals and wires as one JSON file (without
+  passwords), e.g. to move an installation; a failed import restores the previous configuration.
 
 ## Getting started
 

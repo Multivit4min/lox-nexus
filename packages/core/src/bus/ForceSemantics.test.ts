@@ -34,6 +34,15 @@ describe("forces", () => {
     assert.deepEqual(tapped.map(m => m.kind), ["state", "force", "state", "state"])
   })
 
+  test("real() is the value a release would restore, also while forced", () => {
+    const { bus } = setup()
+    assert.equal(bus.real(topic), undefined)
+    bus.publish(topic, Value.number(1), plugin)
+    bus.force(topic, Value.number(0), { by: "david" })
+    bus.publish(topic, Value.number(2), plugin)
+    assert.deepEqual([bus.current(topic)?.value, bus.real(topic)?.value], [Value.number(0), Value.number(2)])
+  })
+
   test("release restores the last real value, including ones shadowed meanwhile", () => {
     const { bus, delivered } = setup()
     bus.publish(topic, Value.number(1), plugin)

@@ -71,6 +71,32 @@ describe("StreamClient backpressure", () => {
     assert.equal(batch?.type === "bus" && batch.messages.length, StreamClient.MAX_QUEUED)
   })
 
+  test("state: a release restores the real value, or clears a topic that never had one", () => {
+    socket.request({ type: "subscribe", stream: "state", pattern: "a/#" })
+    bus.publish("a/real", Value.number(1), user)
+    bus.force("a/real", Value.number(5), { by: "t" })
+    bus.force("a/only", Value.number(7), { by: "t" })
+    mock.timers.tick(StreamClient.FLUSH_MS)
+    socket.sent.length = 0
+    bus.release("a/real", "t")
+    bus.release("a/only", "t")
+    mock.timers.tick(StreamClient.FLUSH_MS)
+    const states = socket.sent.filter((e): e is Extract<StreamEvent, { type: "state" }> => e.type === "state")
+    assert.deepEqual(states.map(e => [e.messages.map(m => [m.topic, m.value, m.flags?.forced]), e.cleared]), [
+      [[["a/real", Value.number(1), undefined]], ["a/only"]]
+    ])
+  })
+
+  test("state: a force released within one batch is sent as cleared, not as the forced value", () => {
+    socket.request({ type: "subscribe", stream: "state", pattern: "a/#" })
+    socket.sent.length = 0
+    bus.force("a/brief", Value.number(7), { by: "t" })
+    bus.release("a/brief", "t")
+    mock.timers.tick(StreamClient.FLUSH_MS)
+    const states = socket.sent.filter((e): e is Extract<StreamEvent, { type: "state" }> => e.type === "state")
+    assert.deepEqual(states.map(e => [e.messages.length, e.cleared]), [[0, ["a/brief"]]])
+  })
+
   test("a new pattern discards what was queued for the old one", () => {
     bus.publish("a/x", Value.number(1), user)
     socket.request({ type: "subscribe", stream: "bus", pattern: "b/#" })

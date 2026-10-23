@@ -13,9 +13,10 @@ import ValueEditor from "./ValueEditor.vue"
 
 /**
  * Pins a topic to a value. While forced, every subscriber (wires, the Miniserver) sees this value;
- * real publishes are still recorded as "shadowed". Prefilled with the topic's current value.
+ * real publishes are still recorded as "shadowed". Prefilled with the topic's current value, or
+ * an empty value of `valueType` when it has none yet.
  */
-const props = defineProps<{ topic: string; current?: Value }>()
+const props = defineProps<{ topic: string; current?: Value; valueType?: ValueType }>()
 const open = defineModel<boolean>("open", { required: true })
 const emit = defineEmits<{ done: [] }>()
 const { bus } = AppContext.use()
@@ -25,13 +26,14 @@ const reason = ref("")
 const minutes = ref("")
 const error = ref("")
 
+// immediate: a dialog that is mounted already open (the signals list) is prefilled too
 watch(open, isOpen => {
   if (!isOpen) return
-  draft.value = ValueDraft.from(props.current)
+  draft.value = ValueDraft.from(props.current, props.valueType)
   reason.value = ""
   minutes.value = ""
   error.value = ""
-})
+}, { immediate: true })
 
 async function submit() {
   const parsed = ValueDraft.parse(draft.value.type, draft.value.text)

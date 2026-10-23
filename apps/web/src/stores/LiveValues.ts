@@ -4,7 +4,8 @@ import type { StreamConnection, StreamHandlers, StreamState } from "../api/Strea
 
 /**
  * The current message per topic for a pattern, kept live over the stream's `state` subscription.
- * One instance per view; close() when the view unmounts.
+ * One instance per view; close() when the view unmounts. A topic that loses its value (a force
+ * released before any real value arrived) is removed, so a stale forced value doesn't linger.
  */
 export class LiveValues {
   readonly values = shallowReactive(new Map<string, BusMessageDto>())
@@ -36,5 +37,6 @@ export class LiveValues {
     if (event.type !== "state") return
     if (event.full) this.values.clear()
     for (const message of event.messages) this.values.set(message.topic, message)
+    for (const topic of event.cleared ?? []) this.values.delete(topic)
   }
 }

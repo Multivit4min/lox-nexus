@@ -46,6 +46,11 @@ export class MiniserverApi {
     return this.http.post<LoxoneSignalDto>(`/api/miniservers/${encodeURIComponent(id)}/signals`, input)
   }
 
+  /** keeps the signal's wires; its last value and a force move to the new topic */
+  updateSignal(id: string, signalId: string, input: LoxoneSignalInput) {
+    return this.http.put<LoxoneSignalDto>(`/api/miniservers/${encodeURIComponent(id)}/signals/${encodeURIComponent(signalId)}`, input)
+  }
+
   removeSignal(id: string, signalId: string) {
     return this.http.delete(`/api/miniservers/${encodeURIComponent(id)}/signals/${encodeURIComponent(signalId)}`)
   }

@@ -32,8 +32,9 @@ export class ErrorHandler {
     return reply.code(500).send({ error: "internal error" })
   }
 
-  // node:sqlite reports the extended result code in errcode; the low byte is the primary code
-  private static isConstraint(error: Error) {
+  /** a SQLite constraint violation (unique, foreign key); node:sqlite reports the extended result code in errcode, the low byte is the primary code */
+  static isConstraint(error: unknown) {
+    if (!(error instanceof Error)) return false
     const code = (error as { errcode?: unknown }).errcode
     return typeof code === "number" && (code & 0xff) === ErrorHandler.SQLITE_CONSTRAINT
   }

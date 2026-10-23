@@ -110,6 +110,11 @@ can run the T5 and RGBW experiments with your Miniserver.
 - A manual run against your real Miniserver.
 - The inspector stays responsive at 500 messages per second.
 
+**Added after M3 (done):** editing a Loxone signal (its wires stay; value and force follow a new
+topic), force and release from the signals list, and config export and import of Miniservers,
+signals and wires (see `docs/architecture.md`, "editing signals, forcing from lists, config
+transfer").
+
 ### M4: plugin runtime and Fronius
 
 - SDK runtime and `PluginTestHost`.
@@ -141,8 +146,9 @@ can run the T5 and RGBW experiments with your Miniserver.
 ### M6: hardening and release
 
 - Recorder to disk.
-- Importer for the old v1 export.
-- Backup and export.
+- Importer for the old v1 export (on top of the config import added after M3).
+- Backup of the whole data directory, including plugins, users and values (the config export
+  covers only Miniservers, signals and wires).
 - A Dockerfile for amd64 and arm64.
 - A publish pipeline for the SDK, and a plugin template repo.
 

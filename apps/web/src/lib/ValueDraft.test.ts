@@ -17,3 +17,12 @@ test("explains what is wrong", () => {
   const outOfRange = ValueDraft.parse("rgbw", JSON.stringify({ red: 300, green: 0, blue: 0, white: 0, fadeTime: 0, flags: 0 }))
   assert.match("error" in outOfRange ? outOfRange.error : "", /red/)
 })
+
+test("without a value it starts from a valid default of the given type", () => {
+  for (const type of ValueDraft.TYPES) {
+    const draft = ValueDraft.from(undefined, type)
+    assert.equal(draft.type, type)
+    assert.ok("value" in ValueDraft.parse(draft.type, draft.text), `${type}: ${draft.text}`)
+  }
+  assert.equal(ValueDraft.from(undefined).type, "number")
+})

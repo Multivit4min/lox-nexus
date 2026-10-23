@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from "vue"
+import { onMounted, onUnmounted, ref, shallowRef } from "vue"
 import type { DiscoveredPacketDto, LoxoneSignalDto, LoxoneSignalInput, MiniserverDto, MiniserverInput } from "@lox-nexus/api"
 import { useIntervalFn } from "@vueuse/core"
 import { Pencil, Play, Square, Trash2 } from "@lucide/vue"
@@ -23,7 +23,8 @@ const ms = ref<MiniserverDto>()
 const signals = ref<LoxoneSignalDto[]>([])
 const discovered = ref<DiscoveredPacketDto[]>([])
 const editing = ref(false)
-let live: LiveValues | undefined
+// a ref, so the signals card appears as soon as the stream exists (a plain variable isn't tracked by the template)
+const live = shallowRef<LiveValues>()
 
 async function refresh() {
   ;[ms.value, discovered.value] = await Promise.all([api.get(props.id), api.discovered(props.id)])
@@ -32,14 +33,14 @@ async function refresh() {
 async function load() {
   await refresh()
   signals.value = await api.signals(props.id)
-  live ??= new LiveValues(handlers => context.stream(handlers), `loxone/${ms.value!.slug}/#`)
-  live.watch(`loxone/${ms.value!.slug}/#`)
+  live.value ??= new LiveValues(handlers => context.stream(handlers), `loxone/${ms.value!.slug}/#`)
+  live.value.watch(`loxone/${ms.value!.slug}/#`)
 }
 
 // health, errors, discovery and the load figure change on their own; the stream covers signal values
 useIntervalFn(refresh, 5000)
 onMounted(load)
-onUnmounted(() => live?.close())
+onUnmounted(() => live.value?.close())
 
 async function save(input: MiniserverInput) {
   ms.value = await api.update(props.id, input)
@@ -59,6 +60,11 @@ async function remove() {
 
 async function addSignal(input: LoxoneSignalInput) {
   await api.addSignal(props.id, input)
+  signals.value = await api.signals(props.id)
+}
+
+async function updateSignal(signal: LoxoneSignalDto, input: LoxoneSignalInput) {
+  await api.updateSignal(props.id, signal.id, input)
   signals.value = await api.signals(props.id)
 }
 
@@ -106,7 +112,7 @@ async function adopt(packets: DiscoveredPacketDto[], progress: (done: number) =>
       <AlertTitle>Start failed</AlertTitle>
       <AlertDescription>{{ ms.lastError }}</AlertDescription>
     </Alert>
-    <SignalsCard v-if="live" :signals="signals" :live="live" :add="addSignal" :remove="removeSignals" />
+    <SignalsCard v-if="live" :signals="signals" :live="live" :add="addSignal" :update="updateSignal" :remove="removeSignals" />
     <DiscoveredCard :packets="discovered" :adopt="adopt" />
     <Dialog v-model:open="editing">
       <DialogContent class="sm:max-w-2xl">

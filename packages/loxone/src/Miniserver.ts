@@ -136,6 +136,33 @@ export class Miniserver extends Disposable {
     return config
   }
 
+  /**
+   * Replaces a signal's config (same id). A new slug, packet id or direction moves its topic; its
+   * wires survive because they refer to the id, and are rebuilt by WireEngine (or deactivated if
+   * the new type no longer fits). When running, an output sends its current value under the new
+   * packet id at once.
+   * @returns the validated config with defaults applied
+   * @throws ZodError for an invalid config; Error for an unknown id, or a topic or packet id that another signal has (nothing changes then)
+   */
+  updateSignal(input: LoxoneSignalConfigInput) {
+    const config = LoxoneSignalConfigSchema.parse(input)
+    const previous = this.entries.remove(config.id)
+    if (!previous) throw new Error(`unknown signal "${config.id}"`)
+    let entry: LoxoneSignalEntry
+    try {
+      entry = this.entries.add(config, this.currentTopics.forSignal(config))
+      this.deps.signals.update(Miniserver.signalOf(entry))
+    } catch (error) {
+      this.entries.remove(config.id)
+      this.entries.add(previous.config, previous.topic)
+      throw error
+    }
+    this.connection?.signalRemoved(previous)
+    this.discovery.forget(config.packetId)
+    this.connection?.signalAdded(entry)
+    return config
+  }
+
   /** unregisters the signal, which also removes its wires; returns false for an unknown id */
   removeSignal(id: string) {
     const entry = this.entries.remove(id)

@@ -111,6 +111,11 @@ export class EventBus extends Disposable {
     return this.retained.effective(topic)
   }
 
+  /** the last real (unforced) message of the topic, also while it is forced; what a release would restore */
+  real(topic: string): BusMessage | undefined {
+    return this.retained.real(topic)
+  }
+
   /**
    * the current message of every topic matching the pattern, e.g. for a client that just
    * connected and needs the state before it sees changes

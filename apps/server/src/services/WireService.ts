@@ -79,6 +79,30 @@ export class WireService {
     return WireService.toDto(config, true)
   }
 
+  /**
+   * For an import: stores the wire with its own id and starts it if the engine accepts it. One it
+   * refuses (a target type that no longer fits, a transform from a newer version) is stored anyway
+   * and listed as inactive, as it was when exported.
+   * @returns whether it runs
+   * @throws SQLite constraint error (409) for unknown signals or a target that already has a wire
+   */
+  restore(wire: Required<WireInput>): boolean {
+    let active = true
+    try {
+      this.engine.add(wire)
+    } catch (error) {
+      active = false
+      this.log.warn({ err: error, wire: wire.id }, "imported wire can't be started")
+    }
+    try {
+      this.repo.save(wire)
+    } catch (error) {
+      if (active) this.engine.remove(wire.id)
+      throw error
+    }
+    return active
+  }
+
   /** stops and deletes the wire; @throws HttpError 404 */
   delete(id: string) {
     if (!this.repo.get(id)) throw HttpError.notFound(`wire "${id}"`)

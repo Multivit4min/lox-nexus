@@ -1,29 +1,42 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
 import type { LoxoneSignalDto, LoxoneSignalInput } from "@lox-nexus/api"
-import { Plus, Trash2 } from "@lucide/vue"
+import { Lock, Plus, Trash2 } from "@lucide/vue"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { AppContext } from "../AppContext.ts"
+import { ApiError } from "../api/ApiError.ts"
 import { DataTypes } from "../lib/DataTypes.ts"
 import { Selection } from "../lib/Selection.ts"
 import { TextFilter } from "../lib/TextFilter.ts"
 import type { LiveValues } from "../stores/LiveValues.ts"
 import ListToolbar from "./data/ListToolbar.vue"
+import ForceDialog from "./inspector/ForceDialog.vue"
+import SignalActions from "./SignalActions.vue"
 import VirtualTable from "./data/VirtualTable.vue"
 import SignalForm from "./SignalForm.vue"
 import ValueText from "./ValueText.vue"
 
-/** The configured signals of a Miniserver with live values; searchable, filterable and bulk-deletable, for hundreds of signals. */
+/**
+ * The configured signals of a Miniserver with live values; searchable, filterable and
+ * bulk-deletable, for hundreds of signals. Each row can be edited, forced and released; a release
+ * goes back to the last value received (or sent by a wire).
+ */
 const props = defineProps<{
   signals: LoxoneSignalDto[]
   live: LiveValues
   add: (input: LoxoneSignalInput) => Promise<void>
+  update: (signal: LoxoneSignalDto, input: LoxoneSignalInput) => Promise<void>
   remove: (signals: LoxoneSignalDto[], progress: (done: number) => void) => Promise<void>
 }>()
+const { bus } = AppContext.use()
 const adding = ref(false)
+const editing = ref<LoxoneSignalDto>()
+const forcing = ref<LoxoneSignalDto>()
+const forceOpen = ref(false)
 const query = ref("")
 const direction = ref<"all" | "in" | "out">("all")
 const selection = new Selection()
@@ -34,11 +47,39 @@ const visible = computed(() => {
   return props.signals.filter(s => (direction.value === "all" || s.direction === direction.value) && filter.matches(s.label, s.packetId, s.topic))
 })
 const visibleIds = computed(() => visible.value.map(s => s.id))
-watch(() => props.signals, signals => selection.retain(signals.map(s => s.id)))
+watch(() => props.signals, signals => {
+  selection.retain(signals.map(s => s.id))
+  // an edit or delete may have moved the topic the force dialog is about
+  const target = forcing.value
+  if (target && !signals.some(s => s.id === target.id && s.topic === target.topic)) {
+    forceOpen.value = false
+    forcing.value = undefined
+  }
+})
 
 async function onAdd(input: LoxoneSignalInput) {
   await props.add(input)
   adding.value = false
+}
+
+async function onUpdate(input: LoxoneSignalInput) {
+  await props.update(editing.value!, input)
+  editing.value = undefined
+}
+
+const isForced = (signal: LoxoneSignalDto) => props.live.get(signal.topic)?.flags?.forced === true
+
+function force(signal: LoxoneSignalDto) {
+  forcing.value = signal
+  forceOpen.value = true
+}
+
+async function release(signal: LoxoneSignalDto) {
+  try {
+    await bus.release(signal.topic)
+  } catch (error) {
+    alert(error instanceof ApiError ? error.message : String(error))
+  }
 }
 
 async function removeOne(signal: LoxoneSignalDto) {
@@ -74,7 +115,7 @@ async function removeSelected() {
         </Button>
       </ListToolbar>
       <VirtualTable
-        :rows="visible" :row-key="s => s.id" columns="1.25rem minmax(8rem,1.4fr) minmax(7rem,1fr) 8rem minmax(10rem,2fr) minmax(7rem,1fr) 2rem"
+        :rows="visible" :row-key="s => s.id" columns="1.25rem minmax(8rem,1.4fr) minmax(7rem,1fr) 8rem minmax(10rem,2fr) minmax(7rem,1fr) 6rem"
         :empty="signals.length ? 'No signal matches.' : 'No signals. Add one, or adopt a discovered packet below.'"
       >
         <template #header>
@@ -87,8 +128,14 @@ async function removeSelected() {
           <span class="flex min-w-0 items-center gap-1.5"><Badge variant="outline">{{ row.direction }}</Badge><span class="truncate font-mono text-xs">{{ row.packetId }}</span></span>
           <span class="truncate text-muted-foreground">{{ DataTypes.nameOf(row.dataType) }}</span>
           <span class="truncate font-mono text-xs" :title="row.topic">{{ row.topic }}</span>
-          <span class="truncate"><ValueText :value="live.get(row.topic)?.value" /></span>
-          <Button size="icon" variant="ghost" class="size-7" title="Delete" :disabled="!!progress" @click="removeOne(row)"><Trash2 class="size-4" /></Button>
+          <span class="flex min-w-0 items-center gap-1.5">
+            <Lock v-if="isForced(row)" class="size-3.5 shrink-0 text-amber-600 dark:text-amber-400" aria-label="forced" />
+            <span class="truncate"><ValueText :value="live.get(row.topic)?.value" /></span>
+          </span>
+          <SignalActions
+            :label="row.label" :forced="isForced(row)" :disabled="!!progress"
+            @edit="editing = row" @force="force(row)" @release="release(row)" @remove="removeOne(row)"
+          />
         </template>
       </VirtualTable>
     </CardContent>
@@ -98,5 +145,15 @@ async function removeSelected() {
         <SignalForm :submit="onAdd" />
       </DialogContent>
     </Dialog>
+    <Dialog :open="!!editing" @update:open="open => !open && (editing = undefined)">
+      <DialogContent class="sm:max-w-xl">
+        <DialogHeader><DialogTitle>Edit {{ editing?.label }}</DialogTitle></DialogHeader>
+        <SignalForm v-if="editing" :key="editing.id" :initial="editing" :submit="onUpdate" />
+      </DialogContent>
+    </Dialog>
+    <ForceDialog
+      v-if="forcing" v-model:open="forceOpen" :topic="forcing.topic"
+      :current="live.get(forcing.topic)?.value" :value-type="forcing.valueType"
+    />
   </Card>
 </template>

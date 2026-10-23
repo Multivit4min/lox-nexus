@@ -45,10 +45,11 @@ export class MiniserverService {
   }
 
   /**
-   * @throws ZodError 400 for an invalid config, HttpError 409 for a taken slug
+   * @param id assigned when absent; an import passes the exported one
+   * @throws ZodError 400 for an invalid config, HttpError 409 for a taken slug or id
    */
-  async create(input: MiniserverInput): Promise<MiniserverDto> {
-    const config = MiniserverConfigSchema.parse(MiniserverService.toConfig(randomUUID(), input, undefined))
+  async create(input: MiniserverInput, id: string = randomUUID()): Promise<MiniserverDto> {
+    const config = MiniserverConfigSchema.parse(MiniserverService.toConfig(id, input, undefined))
     const miniserver = this.wrap(() => this.manager.add(config))
     try {
       this.repo.save(config)

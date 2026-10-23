@@ -11,10 +11,12 @@ import { Persistence } from "./db/Persistence.ts"
 import { AuthGuard } from "./http/AuthGuard.ts"
 import { AuthController } from "./http/controllers/AuthController.ts"
 import { BusController } from "./http/controllers/BusController.ts"
+import { ConfigController } from "./http/controllers/ConfigController.ts"
 import { MiniserverController } from "./http/controllers/MiniserverController.ts"
 import { SignalController } from "./http/controllers/SignalController.ts"
 import { HttpServer } from "./http/HttpServer.ts"
 import { SessionCookie } from "./http/SessionCookie.ts"
+import { ConfigTransfer } from "./services/ConfigTransfer.ts"
 import { LoxoneSignalService } from "./services/LoxoneSignalService.ts"
 import { MiniserverService } from "./services/MiniserverService.ts"
 import { SnapshotWriter } from "./services/SnapshotWriter.ts"
@@ -118,6 +120,7 @@ export class NexusApp extends Disposable {
         new MiniserverController(miniservers, loxoneSignals),
         new SignalController(this.signals, this.bus, wires),
         new BusController(this.bus, this.recorder),
+        new ConfigController(new ConfigTransfer({ miniservers, signals: loxoneSignals, wires }, log)),
         stream
       ]
     })

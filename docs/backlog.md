@@ -41,8 +41,6 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
   by a newer version) is logged and skipped. It doesn't show up in the API and can't be deleted
   there. Wires in that state are listed as `active: false`. Do the same for Miniservers and
   signals.
-- **Editing a Loxone signal.** There is no PUT for signals yet. Changing a label, slug or data type
-  means deleting and re-adding it, which deletes its wires.
 - **Domain errors.** Rule violations are recognised as plain `Error`s. A `DomainError` class (or
   error codes) in core and loxone would make the 409 mapping explicit, and allow machine-readable
   codes instead of messages with UUIDs.
@@ -54,3 +52,19 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
 - **One process per data dir.** Nothing stops two servers from using the same database. Add an
   exclusive lock file.
 
+## Signal editing and config transfer (from the review)
+
+- **Imports don't block other changes.** Only a second import is refused. A wire or signal created
+  through the API while an import runs is lost, or makes the import roll back. A lock (409/503 for
+  changing `/api/*` requests during an import) would close this. The backup lives in memory, so a
+  crash mid-import loses it; writing it to the data directory first would make recovery possible.
+- **Imports drop runtime state.** Forces and last values on Loxone topics are gone after an
+  import, also after a rollback. They could be carried over for topics that exist before and after.
+- **Wires to plugin signals.** The export leaves out wires whose ends aren't in the file. Once
+  plugins register signals, decide whether exports should include plugin instances and their
+  signals.
+- **Rolled-back edits keep inactive wires.** If storing an edited signal fails after the runtime
+  change, the signal is put back, but wires the edit made inactive stay inactive until the next
+  boot. Storing only fails when runtime and database disagree, so this is rare.
+- **`Miniserver.ts` is near the size limit** (about 170 of 200 counted lines). Split signal
+  management into its own class with the next feature there.

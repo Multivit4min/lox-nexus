@@ -1,5 +1,5 @@
 import { z } from "zod"
-import type { Value } from "@lox-nexus/plugin-sdk/values"
+import type { Value, ValueType } from "@lox-nexus/plugin-sdk/values"
 
 /** ICI ids are at most 8 characters on the wire */
 const iciId = z.string().min(1).max(8)
@@ -107,6 +107,8 @@ export interface LoxoneSignalDto {
   label: string
   slug?: string
   topic: string
+  /** the bus value type the data type maps to, e.g. "number" for analog */
+  valueType: ValueType
 }
 
 /** A packet id the Miniserver sent although no signal is configured for it. */

@@ -4,7 +4,7 @@ import { Disposable, type DisposableLike } from "@lox-nexus/plugin-sdk"
 import type { WebSocket } from "ws"
 
 /** the slice of EventBus a client needs; tap() sees every message including shadowed ones, subscribe() only effective ones */
-export type StreamBus = Pick<EventBus, "tap" | "subscribe" | "currentMatching">
+export type StreamBus = Pick<EventBus, "tap" | "subscribe" | "currentMatching" | "current">
 
 /** The session a connection was opened with; BusStream closes the connection when it ends. */
 export interface StreamSession {
@@ -21,7 +21,8 @@ export interface StreamSession {
  *   batched every FLUSH_MS. A slow client doesn't stall the bus: when its socket buffer is full
  *   or its queue overflows, messages are dropped and it gets a `gap` with the count instead.
  * - state: the full current state on subscribe (`full: true`), then only the latest change per
- *   topic per flush, so a busy topic costs one entry per batch.
+ *   topic per flush, so a busy topic costs one entry per batch. A release that leaves a topic
+ *   without a value (it was forced before any real value arrived) is sent as `cleared`.
  * A ping every HEARTBEAT_MS without a pong since the last one terminates a half-open connection.
  */
 export class StreamClient extends Disposable {
@@ -36,6 +37,7 @@ export class StreamClient extends Disposable {
   private readonly subscriptions = new Map<"bus" | "state", DisposableLike>()
   private queued: BusMessage[] = []
   private states = new Map<string, BusMessage>()
+  private released = new Set<string>()
   private dropped = 0
   private alive = true
 
@@ -78,6 +80,7 @@ export class StreamClient extends Disposable {
       this.dropped = 0
     } else {
       this.states = new Map()
+      this.released = new Set()
     }
   }
 
@@ -92,9 +95,14 @@ export class StreamClient extends Disposable {
   // the full snapshot is sent before subscribing; both run synchronously, so no change can fall between them
   private subscribeState(pattern: string) {
     this.send({ type: "state", messages: this.bus.currentMatching(pattern), full: true })
-    this.subscriptions.set("state", this.bus.subscribe(pattern, message => {
+    const states = this.bus.subscribe(pattern, message => {
       if (message.kind === "state") this.states.set(message.topic, message)
-    }))
+    })
+    // subscribe() doesn't deliver releases; they matter when no value is restored
+    const releases = this.bus.tap(message => {
+      if (message.kind === "release" && Topic.matches(pattern, message.topic)) this.released.add(message.topic)
+    })
+    this.subscriptions.set("state", { dispose: () => void [states.dispose(), releases.dispose()] })
   }
 
   // runs every FLUSH_MS; when the socket is backed up the batch is counted as dropped instead of buffered further
@@ -108,9 +116,16 @@ export class StreamClient extends Disposable {
     if (this.dropped > 0) this.send({ type: "gap", dropped: this.dropped })
     this.dropped = 0
     if (this.queued.length > 0) this.send({ type: "bus", messages: this.queued })
-    if (this.states.size > 0) this.send({ type: "state", messages: [...this.states.values()] })
+    // checked at flush time: a value published after the release means there is nothing to clear,
+    // and a forced value from the same window must not reach the client after all
+    const cleared = [...this.released].filter(topic => !this.bus.current(topic))
+    for (const topic of cleared) this.states.delete(topic)
+    if (this.states.size > 0 || cleared.length > 0) {
+      this.send({ type: "state", messages: [...this.states.values()], ...(cleared.length > 0 ? { cleared } : {}) })
+    }
     this.queued = []
     this.states = new Map()
+    this.released = new Set()
   }
 
   // terminate() skips the close handshake, which a half-open connection would never answer

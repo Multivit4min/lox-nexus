@@ -18,8 +18,12 @@ export type StreamEvent =
   | { type: "bus"; messages: BusMessageDto[] }
   /** messages were dropped because the client could not keep up */
   | { type: "gap"; dropped: number }
-  /** full: the complete current state after subscribing (replace); otherwise changes since the last batch (merge) */
-  | { type: "state"; messages: BusMessageDto[]; full?: true }
+  /**
+   * full: the complete current state after subscribing (replace); otherwise changes since the last
+   * batch (merge). cleared: topics that no longer have a value (a force was released before any
+   * real value arrived), to be removed.
+   */
+  | { type: "state"; messages: BusMessageDto[]; full?: true; cleared?: string[] }
   | { type: "error"; message: string }
 
 /** WebSocket close codes the UI reacts to. */

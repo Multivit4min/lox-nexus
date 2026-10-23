@@ -37,17 +37,43 @@ export class LoxoneSignalService {
 
   /**
    * Registers first (validates and checks for duplicates), then stores; undone if storing fails.
-   * @throws HttpError 409 for a duplicate packet id or slug, 404 for an unknown Miniserver
+   * @param id assigned when absent; an import passes the exported one
+   * @throws HttpError 409 for a duplicate id, packet id or slug, 404 for an unknown Miniserver
    */
-  add(miniserverId: string, input: LoxoneSignalInput): LoxoneSignalDto {
+  add(miniserverId: string, input: LoxoneSignalInput, id: string = randomUUID()): LoxoneSignalDto {
     const miniserver = this.require(miniserverId)
-    const config = LoxoneSignalService.domain(() => miniserver.addSignal({ ...input, id: randomUUID() }))
+    const config = LoxoneSignalService.domain(() => miniserver.addSignal({ ...input, id }))
     try {
       this.repo.insert({ ...config, miniserverId })
     } catch (error) {
       miniserver.removeSignal(config.id)
       throw error
     }
+    return MiniserverMapper.signalToDto(miniserver, config)
+  }
+
+  /**
+   * Replaces the signal's config; its wires stay. When the topic changes, its last value (flagged
+   * restored, so wires don't act on it) and a force move along. Applied first, then stored; undone
+   * if storing fails.
+   * @throws HttpError 404 unknown Miniserver or signal, 409 for a packet id or topic another signal has
+   */
+  update(miniserverId: string, signalId: string, input: LoxoneSignalInput, by: string): LoxoneSignalDto {
+    const miniserver = this.require(miniserverId)
+    const previous = miniserver.signals().find(signal => signal.id === signalId)
+    const before = miniserver.topicOf(signalId)
+    if (!previous || !before) throw HttpError.notFound(`signal "${signalId}"`)
+    const config = LoxoneSignalService.domain(() => miniserver.updateSignal({ ...input, id: signalId }))
+    try {
+      this.repo.update({ ...config, miniserverId })
+    } catch (error) {
+      // wires the first update made inactive (e.g. a new direction) stay inactive until the next boot;
+      // storing only fails when runtime and database disagree, which is a bug of its own
+      miniserver.updateSignal(previous)
+      throw error
+    }
+    const after = miniserver.topicOf(signalId)!
+    if (after !== before) this.cleanup.move(before, after, by)
     return MiniserverMapper.signalToDto(miniserver, config)
   }
 

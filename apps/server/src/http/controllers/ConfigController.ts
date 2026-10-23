@@ -1,0 +1,32 @@
+import { ConfigExportSchema } from "@lox-nexus/api"
+import type { FastifyInstance } from "fastify"
+import type { ConfigTransfer } from "../../services/ConfigTransfer.ts"
+import type { Controller } from "../Controller.ts"
+
+/**
+ * /api/config: the whole configuration as one JSON file. All routes need a session (401 otherwise).
+ *
+ * - GET /api/config/export: 200, as a download named lox-nexus-config-<date>.json.
+ * - POST /api/config/import: 200 with what was created. Replaces the current configuration.
+ *   400 for a file that isn't a valid export (nothing changes); 409 when a step fails (the
+ *   previous configuration is restored, but forces and last values on its topics are gone) or
+ *   another import is running; 500 when the restore was incomplete too. Other changes made
+ *   during an import are not blocked.
+ */
+export class ConfigController implements Controller {
+  /** exports of a few thousand signals exceed the default 1 MB body limit */
+  static readonly IMPORT_BODY_LIMIT = 16 * 1_048_576
+
+  constructor(private readonly transfer: ConfigTransfer) {}
+
+  register(app: FastifyInstance) {
+    app.get("/api/config/export", (_request, reply) => {
+      const doc = this.transfer.export()
+      const date = doc.exportedAt?.slice(0, 10) ?? "export"
+      // no-store: it lists hosts and ports, and a cached copy would go stale
+      return reply.header("content-disposition", `attachment; filename="lox-nexus-config-${date}.json"`).header("cache-control", "no-store").send(doc)
+    })
+    app.post("/api/config/import", { bodyLimit: ConfigController.IMPORT_BODY_LIMIT }, request =>
+      this.transfer.import(ConfigExportSchema.parse(request.body), request.user!.username))
+  }
+}

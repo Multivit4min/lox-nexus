@@ -49,6 +49,22 @@ export class LoxoneSignalRepository {
     })
   }
 
+  /**
+   * replaces the config of a stored signal (same id and Miniserver); wires keep referring to it
+   * @throws TypeError (a 500: runtime and database disagree) when no such signal is stored for that Miniserver
+   */
+  update(signal: StoredLoxoneSignal) {
+    const { changes } = this.db.run(
+      `UPDATE loxone_signals SET packet_id = :packetId, direction = :direction, data_type = :dataType, label = :label, slug = :slug
+       WHERE id = :id AND miniserver_id = :miniserverId`,
+      {
+        id: signal.id, miniserverId: signal.miniserverId, packetId: signal.packetId, direction: signal.direction,
+        dataType: signal.dataType, label: signal.label, slug: signal.slug ?? null
+      }
+    )
+    if (changes !== 1) throw new TypeError(`loxone signal "${signal.id}" is not stored for miniserver "${signal.miniserverId}"`)
+  }
+
   /** deleting the supertable row cascades to loxone_signals and to the signal's wires */
   delete(id: string) {
     this.db.run("DELETE FROM signals WHERE id = :id", { id })

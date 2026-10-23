@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { reactive, ref } from "vue"
-import type { LoxoneSignalInput } from "@lox-nexus/api"
+import type { LoxoneSignalDto, LoxoneSignalInput } from "@lox-nexus/api"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,10 +9,19 @@ import { ApiError } from "../api/ApiError.ts"
 import { DataTypes } from "../lib/DataTypes.ts"
 import FormField from "./FormField.vue"
 
-/** A new Loxone signal: in = Miniserver → Nexus (a "virtual output" in Loxone Config), out = Nexus → Miniserver. */
-const props = defineProps<{ submit: (input: LoxoneSignalInput) => Promise<void> }>()
+/**
+ * Creates or edits a Loxone signal: in = Miniserver → Nexus (a "virtual output" in Loxone Config),
+ * out = Nexus → Miniserver. Editing keeps the signal's wires.
+ */
+const props = defineProps<{ initial?: LoxoneSignalDto; submit: (input: LoxoneSignalInput) => Promise<void> }>()
 
-const form = reactive({ packetId: "", direction: "in" as "in" | "out", dataType: "1", label: "", slug: "" })
+const form = reactive({
+  packetId: props.initial?.packetId ?? "",
+  direction: props.initial?.direction ?? "in" as "in" | "out",
+  dataType: String(props.initial?.dataType ?? 1),
+  label: props.initial?.label ?? "",
+  slug: props.initial?.slug ?? ""
+})
 const failure = ref<ApiError>()
 
 async function onSubmit() {
@@ -55,6 +64,9 @@ async function onSubmit() {
       </FormField>
     </div>
     <Alert v-if="failure" variant="destructive"><AlertDescription>{{ failure.message }}</AlertDescription></Alert>
-    <Button type="submit">Add signal</Button>
+    <p v-if="initial" class="text-xs text-muted-foreground">
+      Wires stay connected. A new packet ID, direction or topic name moves the signal to a new topic; its last value and any force move with it.
+    </p>
+    <Button type="submit">{{ initial ? "Save" : "Add signal" }}</Button>
   </form>
 </template>

@@ -1,6 +1,7 @@
 import { inject, type InjectionKey } from "vue"
 import { AuthApi } from "./api/AuthApi.ts"
 import { BusApi } from "./api/BusApi.ts"
+import { ConfigApi } from "./api/ConfigApi.ts"
 import { Http } from "./api/Http.ts"
 import { MiniserverApi } from "./api/MiniserverApi.ts"
 import { StreamConnection, type StreamHandlers } from "./api/StreamConnection.ts"
@@ -12,6 +13,7 @@ export class AppContext {
   readonly auth = new AuthApi(this.http)
   readonly miniservers = new MiniserverApi(this.http)
   readonly bus = new BusApi(this.http)
+  readonly config = new ConfigApi(this.http)
   readonly session = new SessionStore(this.auth)
   /** set by main.ts once the router exists: forget the user and go to the login page */
   onSessionEnded: () => void = () => {}

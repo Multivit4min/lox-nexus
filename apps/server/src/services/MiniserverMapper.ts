@@ -1,5 +1,5 @@
 import type { DiscoveredPacketDto, LoxoneSignalDto, MiniserverDto, MiniserverLoadDto } from "@lox-nexus/api"
-import { IntercomLoad, type DiscoveredPacket, type LoxoneSignalConfig, type Miniserver } from "@lox-nexus/loxone"
+import { IciValueMapper, IntercomLoad, type DiscoveredPacket, type LoxoneSignalConfig, type Miniserver } from "@lox-nexus/loxone"
 
 /** Runtime objects to API DTOs. The only place that decides what of a Miniserver leaves the server. */
 export class MiniserverMapper {
@@ -20,7 +20,7 @@ export class MiniserverMapper {
     }
   }
 
-  /** the topic is empty only if the signal vanished from the Miniserver in between, which the callers exclude */
+  /** the current intercommunication load with its documented limits and the stored history */
   static loadToDto(miniserver: Miniserver): MiniserverLoadDto {
     return {
       limitPerSecond: IntercomLoad.LIMIT_PER_SECOND,
@@ -31,8 +31,12 @@ export class MiniserverMapper {
     }
   }
 
+  /** the topic is empty only if the signal vanished from the Miniserver in between, which the callers exclude */
   static signalToDto(miniserver: Miniserver, signal: LoxoneSignalConfig): LoxoneSignalDto {
-    return { ...signal, miniserverId: miniserver.config.id, topic: miniserver.topicOf(signal.id) ?? "" }
+    return {
+      ...signal, miniserverId: miniserver.config.id, topic: miniserver.topicOf(signal.id) ?? "",
+      valueType: IciValueMapper.valueTypeOf(signal.dataType)
+    }
   }
 
   /** a copy, so later discovery updates can't change a response being serialised */

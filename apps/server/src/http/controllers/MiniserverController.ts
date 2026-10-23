@@ -20,7 +20,8 @@ const SignalParams = IdParams.extend({ signalId: z.string().min(1) })
  * - DELETE :id: 204, removes its signals, wires, forces and retained values too.
  * - GET :id/load: 200 with the intercommunication load and the last hour of samples.
  * - POST :id/start, :id/stop: 200 with the Miniserver; start failures show up as `lastError`.
- * - GET/POST :id/signals, DELETE :id/signals/:signalId: 200 / 201 / 204.
+ * - GET/POST :id/signals, PUT/DELETE :id/signals/:signalId: 200 / 201 / 200 / 204. PUT keeps the
+ *   signal's wires; its last value (flagged restored) and a force move to the new topic.
  * - GET :id/discovered: 200. POST :id/discovered/adopt: 201 with the new input signal, 404 for
  *   a packet id that was not seen.
  */
@@ -46,6 +47,10 @@ export class MiniserverController implements Controller {
     app.get("/api/miniservers/:id/signals", request => this.signals.list(MiniserverController.id(request)))
     app.post("/api/miniservers/:id/signals", (request, reply) =>
       reply.code(201).send(this.signals.add(MiniserverController.id(request), LoxoneSignalInputSchema.parse(request.body))))
+    app.put("/api/miniservers/:id/signals/:signalId", request => {
+      const { id, signalId } = SignalParams.parse(request.params)
+      return this.signals.update(id, signalId, LoxoneSignalInputSchema.parse(request.body), request.user!.username)
+    })
     app.delete("/api/miniservers/:id/signals/:signalId", (request, reply) => {
       const { id, signalId } = SignalParams.parse(request.params)
       this.signals.remove(id, signalId, request.user!.username)

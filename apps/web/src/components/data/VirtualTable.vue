@@ -42,7 +42,8 @@ const grid = computed(() => ({ gridTemplateColumns: props.columns }))
       <slot name="header"></slot>
     </div>
     <div v-if="rows.length === 0" class="px-3 py-6 text-center text-muted-foreground">{{ empty }}</div>
-    <div v-else class="relative w-full" :style="{ height: `${virtualizer.getTotalSize() - HEADER}px` }">
+    <!-- getTotalSize() already leaves out the scrollMargin (the header); item.start includes it -->
+    <div v-else class="relative w-full" :style="{ height: `${virtualizer.getTotalSize()}px` }">
       <div
         v-for="item in virtualizer.getVirtualItems()" :key="String(item.key)" role="row"
         class="absolute left-0 grid w-full items-center gap-3 border-b px-3 hover:bg-accent/50"

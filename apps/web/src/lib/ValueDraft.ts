@@ -1,4 +1,4 @@
-import { ValueSchema, type Value, type ValueType } from "@lox-nexus/plugin-sdk/values"
+import { ValueDefaults, ValueSchema, type Value, type ValueType } from "@lox-nexus/plugin-sdk/values"
 
 /**
  * A value being typed into a form: a type and its text. Structured types are edited as JSON of
@@ -7,9 +7,12 @@ import { ValueSchema, type Value, type ValueType } from "@lox-nexus/plugin-sdk/v
 export class ValueDraft {
   static readonly TYPES: ValueType[] = ["number", "boolean", "string", "rgbw", "singleChannel", "tunableWhite", "t5", "null"]
 
-  /** a draft prefilled from an existing value, so forcing a topic starts from what it shows */
-  static from(value: Value | undefined): { type: ValueType; text: string } {
-    if (!value) return { type: "number", text: "0" }
+  /**
+   * a draft prefilled from an existing value, so forcing a topic starts from what it shows
+   * @param fallback the type to start with when there is no value yet, e.g. the signal's type
+   */
+  static from(current: Value | undefined, fallback: ValueType = "number"): { type: ValueType; text: string } {
+    const value = current ?? ValueDefaults.for(fallback)
     if (value.type === "null") return { type: "null", text: "" }
     if (value.type === "string") return { type: "string", text: value.value }
     return { type: value.type, text: typeof value.value === "object" ? JSON.stringify(value.value) : String(value.value) }
