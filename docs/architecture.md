@@ -404,6 +404,35 @@ above:
     teardowns. `ForceRegistry`, debounce, throttle, `Recorder` and `ActiveWire` all manage
   their timers and subscriptions through `Disposable`.
 
+## Implementation notes: Loxone (M3a)
+
+- **Structure.**
+  - `MiniserverManager` owns `Miniserver`s and validates their config with zod. Slugs and ids are
+    unique, and one failing Miniserver (for example a taken port) never stops the others:
+    `startEnabled()` reports failures instead of throwing.
+  - A `Miniserver` registers its signals on the `SignalRegistry` even while stopped, so wires can
+    be built. While running it holds a `MiniserverConnection`: `IciSocket`, `IciReceiver` (filters
+    on our own ID and the Miniserver's ID), `RemotePeer`, an `InboundRouter`, an `OutboundRouter`
+    and a `HealthMonitor`. Stopping disposes all of it.
+- **Topics.**
+  - `loxone/<slug>/in/<packet>` for values from the Miniserver.
+  - `loxone/<slug>/out/<packet>` for values to it.
+  - `loxone/<slug>/discovered/<packet>` for unknown packet ids. They are also kept in the bounded
+    `DiscoveryList` until adopted.
+  - `system/loxone/<slug>/status` carries the health (`waiting`, `online`, `stale`, `stopped`),
+    and `system/loxone/<slug>/error` carries send failures.
+- **Inbound.** Only changed packets are published, so the 10 s resends never reach the bus.
+  Values are converted to the signal's declared type, so a Digital signal fed with an Analog
+  packet becomes a boolean.
+- **Outbound.** Every value delivered on an out topic is sent, converted to the output's data
+  type. That includes forced values and values restored at startup, so the Miniserver gets the
+  last known value after a restart (old Nexus never re-sent unlinked outputs).
+- **Health** is derived from traffic, because UDP has no connection. Any packet marks the
+  Miniserver online; 10 minutes of silence (two missed status heartbeats) mark it stale.
+- **Verified.** A fake Miniserver on loopback (`test-support/FakeMiniserver.ts`) is used in tests.
+  A live run against the test Miniserver covered in and out values, force and release driving
+  the Lighting Controller, and filtering of the other target's (`red`) traffic.
+
 ## Dependencies (installed in the milestone that first needs them)
 
 | Where | Packages |
