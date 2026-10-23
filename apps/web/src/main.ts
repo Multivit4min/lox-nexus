@@ -2,6 +2,7 @@ import { createApp } from "vue"
 import App from "./App.vue"
 import { AppContext } from "./AppContext.ts"
 import { AppRouter } from "./AppRouter.ts"
+import { StaleBuildReload } from "./lib/StaleBuildReload.ts"
 import "./style.css"
 
 // the composition root of the UI: the context is provided, never imported as a global
@@ -13,6 +14,7 @@ const toLogin = () => {
 }
 context.http.onUnauthorized = toLogin
 context.onSessionEnded = toLogin
+StaleBuildReload.install(router)
 document.documentElement.classList.toggle("dark", matchMedia("(prefers-color-scheme: dark)").matches)
 
 createApp(App).provide(AppContext.KEY, context).use(router).mount("#app")
