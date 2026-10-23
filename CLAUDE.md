@@ -59,6 +59,11 @@ Run `npm run lint && npm run typecheck && npm test` before calling a task done.
 - **Tests.** `node:test` + `node:assert/strict`, next to the code as `*.test.ts`. Use
   `mock.timers` instead of sleeps. Network tests bind to 127.0.0.1 on port 0.
 
+## Context hygiene
+
+- Never read `~/.claude/projects/-home-coder-lox-nexus/b6699a34-ae7f-46df-99bc-b32acbc3768f/tool-results/bw3x0ilqc.txt`
+  whole. Search it (grep), or read only the line ranges you need.
+
 ## Boundaries (enforced by eslint `no-restricted-imports`)
 
 - `plugins/*` → only `@lox-nexus/plugin-sdk` (they must be movable to their own repo).
