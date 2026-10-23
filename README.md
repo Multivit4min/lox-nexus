@@ -29,6 +29,11 @@ npm run dev:web    # web UI (Vite) on http://localhost:5173, proxies /api to the
 npm run build      # then NEXUS_WEB_DIR=apps/web/dist serves the UI from the server
 ```
 
+Behind a path-prefix proxy such as code-server, the UI works unchanged: open
+`…/proxy/<port>/`. If the proxy rewrites the `Host` header, set `NEXUS_PUBLIC_ORIGINS` to the
+address in the browser's location bar (e.g. `https://coder.example`), or logins are refused with
+403.
+
 Server settings come from environment variables:
 
 | Variable | Default | |

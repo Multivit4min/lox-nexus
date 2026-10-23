@@ -1,4 +1,5 @@
 import { StreamCloseCode, type StreamEvent, type StreamRequest } from "@lox-nexus/api"
+import { Http } from "./Http.ts"
 
 export type StreamState = "connecting" | "open" | "closed"
 
@@ -50,7 +51,7 @@ export class StreamConnection {
   }
 
   private connect() {
-    const url = new URL("/api/stream", location.href)
+    const url = Http.resolve("/api/stream")
     url.protocol = url.protocol === "https:" ? "wss:" : "ws:"
     const socket = new WebSocket(url)
     this.socket = socket

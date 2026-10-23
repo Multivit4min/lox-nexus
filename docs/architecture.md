@@ -573,7 +573,13 @@ above:
   - a factory for `StreamConnection`s
 
   Views get it with `AppContext.use()`. `AppRouter` sends visitors to setup or login first, and
-  only follows local `next` paths after a login. A 401, or a stream closed with
+  only follows local `next` paths after a login.
+- **Works under a path prefix.** The UI is built with relative asset paths (`base: "./"`) and
+  uses hash routes (`…/#/miniservers`). `Http.resolve()` turns `/api/…` into a URL relative to the
+  page. This lets it run behind proxies that serve it under a prefix and strip that prefix before
+  forwarding, so the server can't know it: code-server's `/proxy/<port>/` and Home Assistant
+  ingress. Verified through code-server: page, all assets and lazy chunks, login, the API and the
+  WebSocket. A 401, or a stream closed with
   `SESSION_ENDED`, leads to the login page.
 - **Screens.**
   - Setup and login.

@@ -5,6 +5,8 @@ import { defineConfig } from "vite"
 
 export default defineConfig({
   plugins: [vue(), tailwindcss()],
+  // relative asset paths, so the built UI works under a proxy prefix (see AppRouter)
+  base: "./",
   resolve: {
     conditions: ["@lox-nexus/source"],
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) }

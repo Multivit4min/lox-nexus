@@ -1,11 +1,15 @@
-import { createRouter, createWebHistory, type Router } from "vue-router"
+import { createRouter, createWebHashHistory, type Router } from "vue-router"
 import type { SessionStore } from "./stores/SessionStore.ts"
 
-/** Routes and the guard that sends visitors to setup or login first. */
+/**
+ * Routes and the guard that sends visitors to setup or login first. Hash history (…/#/miniservers)
+ * keeps the document at the app's root URL, so relative asset and API paths work under any
+ * proxy prefix; the server can't know that prefix, since proxies like code-server strip it.
+ */
 export class AppRouter {
   static create(session: SessionStore): Router {
     const router = createRouter({
-      history: createWebHistory(),
+      history: createWebHashHistory(),
       routes: [
         { path: "/setup", name: "setup", component: () => import("./views/SetupView.vue"), meta: { public: true } },
         { path: "/login", name: "login", component: () => import("./views/LoginView.vue"), meta: { public: true } },
