@@ -1,0 +1,12 @@
+{
+  "name": "@lox-nexus/ici",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "@lox-nexus/source": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  }
+}

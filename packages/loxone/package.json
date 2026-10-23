@@ -1,0 +1,13 @@
+{
+  "name": "@lox-nexus/loxone",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "@lox-nexus/source": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": { "@lox-nexus/core": "*", "@lox-nexus/ici": "*" }
+}

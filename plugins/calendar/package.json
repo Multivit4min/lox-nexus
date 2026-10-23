@@ -1,0 +1,16 @@
+{
+  "name": "@lox-nexus/plugin-calendar",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Calendar plugin for Lox Nexus",
+  "type": "module",
+  "loxNexus": {
+    "apiVersion": 1,
+    "entry": "dist/plugin.js",
+    "name": "Calendar",
+    "icon": "calendar"
+  },
+  "dependencies": {
+    "@lox-nexus/plugin-sdk": "*"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "@lox-nexus/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@lox-nexus/api": "*",
+    "@lox-nexus/core": "*",
+    "@lox-nexus/loxone": "*",
+    "@lox-nexus/plugin-sdk": "*"
+  },
+  "scripts": {
+    "dev": "node --conditions=@lox-nexus/source --import tsx --watch src/main.ts",
+    "start": "node --conditions=@lox-nexus/source --import tsx src/main.ts"
+  }
+}

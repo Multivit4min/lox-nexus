@@ -2,11 +2,11 @@ stages:
   - check
 
 default:
-  image: node:lts
+  image: node:24
 
 .node:
   before_script:
-    - npm ci || npm install
+    - npm ci
 
 lint:
   stage: check

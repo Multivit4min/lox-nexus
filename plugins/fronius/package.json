@@ -1,0 +1,16 @@
+{
+  "name": "@lox-nexus/plugin-fronius",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Fronius plugin for Lox Nexus",
+  "type": "module",
+  "loxNexus": {
+    "apiVersion": 1,
+    "entry": "dist/plugin.js",
+    "name": "Fronius",
+    "icon": "solar"
+  },
+  "dependencies": {
+    "@lox-nexus/plugin-sdk": "*"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "@lox-nexus/plugin-sdk",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Public SDK for Lox Nexus plugins. The only package plugins may depend on.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "@lox-nexus/source": "./src/index.ts",
+      "default": "./dist/index.js"
+    },
+    "./values": {
+      "@lox-nexus/source": "./src/values/index.ts",
+      "default": "./dist/values/index.js"
+    },
+    "./wire": {
+      "@lox-nexus/source": "./src/wire/index.ts",
+      "default": "./dist/wire/index.js"
+    },
+    "./testing": {
+      "@lox-nexus/source": "./src/testing/index.ts",
+      "default": "./dist/testing/index.js"
+    }
+  }
+}

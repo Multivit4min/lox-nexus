@@ -3,22 +3,30 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*",
+    "plugins/*"
+  ],
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "start": "tsx src/index.ts",
-    "build": "tsc",
-    "typecheck": "tsc --noEmit",
+    "dev": "npm run dev -w @lox-nexus/server",
+    "dev:web": "npm run dev -w @lox-nexus/web",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "tsc -p tsconfig.json && npm run typecheck -w @lox-nexus/web",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test": "node --import tsx --test src/index.test.ts"
+    "test": "node --conditions=@lox-nexus/source --import tsx --test \"packages/*/src/**/*.test.ts\" \"apps/server/src/**/*.test.ts\" \"plugins/*/src/**/*.test.ts\""
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
     "@stylistic/eslint-plugin": "^2.0.0",
-    "@types/node": "^22.10.0",
+    "@types/node": "^24.0.0",
     "eslint": "^9.0.0",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2",
+    "typescript": "^5.9.3",
     "typescript-eslint": "^8.0.0"
   }
 }
