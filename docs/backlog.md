@@ -16,8 +16,11 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
   Float64 bitmask hypothesis (1/2/4/8/16).
 - **0x8D status packet.** Compare bytes 4–7 (`eb 23 a2 94`) with the Miniserver's MAC or serial
   number (hypothesis: `50:4F:94:A2:23:EB`). Find out what byte 28 (`0x64`) means.
-- **0x9F encryption.** Capture with a known password to confirm the decrypted layout and whether
-  offset 11 holds the data type. `IciCipher` currently assumes it does.
+- **0x9F encryption.** Receiving is implemented from a third-party reverse engineering
+  (`PROTOCOL.md`), not yet confirmed by our own capture. The test Miniserver has an encrypted remote
+  system (`encrypte`, UDP 61264), but nothing has arrived yet; the dev container probably doesn't
+  receive port 61264. Once packets arrive: capture with `ici-lab capture --port 61264 --password …`,
+  confirm the layout, then build sending (handshake answers, heartbeat, priming, source port 61263).
 - **SingleChannel bytes 0–2, TunableWhite bytes 6–7, TunableWhite fade unit.** Capture
   `lcout`-style outputs of those types.
 

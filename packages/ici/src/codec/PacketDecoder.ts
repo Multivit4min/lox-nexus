@@ -54,7 +54,8 @@ export class PacketDecoder {
     const { BODY_OFFSET, BLOCK_SIZE } = EncryptedPacket
     if (buffer.length < BODY_OFFSET) return this.malformed(buffer, "encrypted packet too short for header")
     const blocks = buffer.readUint8(BODY_OFFSET - 1)
-    if (blocks < 2) return this.malformed(buffer, `encrypted packet needs at least 2 blocks, got ${blocks}`)
+    // 1 block = IV only: a handshake challenge or response
+    if (blocks < 1) return this.malformed(buffer, "encrypted packet announces no blocks")
     if (buffer.length < BODY_OFFSET + blocks * BLOCK_SIZE) {
       return this.malformed(buffer, `encrypted packet announces ${blocks} blocks but is too short`)
     }

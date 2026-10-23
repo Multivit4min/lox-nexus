@@ -25,7 +25,10 @@ export class PacketDescriber {
     const warnings = this.envelopeWarnings(packet)
     if (!this.cipher) return summary + warnings
     try {
-      return `🔓 ${this.data(this.cipher.open(packet))}${warnings}`
+      const opened = this.cipher.open(packet)
+      const iv = `iv kind=0x${opened.iv.kind.toString(16)} counter=${opened.iv.counter} suffix=${opened.iv.suffix.toString("hex")}`
+      if (opened.kind !== "data") return `🤝 ${opened.kind} ${packet.sourceId}→${packet.targetId}  ${iv}${warnings}`
+      return `🔓 ${this.data(opened.packet)}  ${iv}${warnings}`
     } catch (error) {
       return `${summary}  ⚠ ${error instanceof Error ? error.message : String(error)}${warnings}`
     }

@@ -15,7 +15,9 @@ export class CaptureFilter {
     if (result.kind === "data") return this.only.includes(result.packet.packetId)
     if (result.kind !== "encrypted" || !this.cipher) return true
     try {
-      return this.only.includes(this.cipher.open(result.packet).packetId)
+      // handshakes carry no packet id; they are shown, since they explain dropped values
+      const opened = this.cipher.open(result.packet)
+      return opened.kind !== "data" || this.only.includes(opened.packet.packetId)
     } catch {
       return true
     }

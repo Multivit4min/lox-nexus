@@ -40,6 +40,11 @@ export interface ReceiverEvents {
   status: [packet: StatusPacket, from: RemoteInfo]
   /** 0x9F packet while no password is configured */
   encrypted: [packet: EncryptedPacket, from: RemoteInfo]
+  /**
+   * @experimental a 0x9F handshake: a Miniserver receiving encrypted data challenges its sender,
+   * which must answer, or its data is dropped (see PROTOCOL.md)
+   */
+  handshake: [kind: "challenge" | "response", packet: EncryptedPacket, from: RemoteInfo]
   /** well-formed data addressed to another target ID or sent by a source ID we filter out */
   foreign: [packet: DataPacket, from: RemoteInfo]
   /** unrecognised control byte */
@@ -106,11 +111,15 @@ export class IciReceiver extends EventEmitter<ReceiverEvents> {
 
   private handleEncrypted(packet: EncryptedPacket, buffer: Buffer, from: RemoteInfo) {
     if (!this.cipher) return void this.emit("encrypted", packet, from)
+    let opened
     try {
-      this.handleData(this.cipher.open(packet), buffer, from)
+      opened = this.cipher.open(packet)
     } catch (error) {
-      this.emit("malformed", `decryption failed: ${IciReceiver.message(error)}`, buffer, from)
+      return void this.emit("malformed", `decryption failed: ${IciReceiver.message(error)}`, buffer, from)
     }
+    if (opened.kind === "data") return this.handleData(opened.packet, buffer, from)
+    // a handshake between other peers carries no value and concerns nobody here
+    if (this.isForUs(packet)) this.emit("handshake", opened.kind, packet, from)
   }
 
   // a packet counts for dedup only after it passed the filters and its payload decoded
@@ -129,7 +138,7 @@ export class IciReceiver extends EventEmitter<ReceiverEvents> {
     return error instanceof Error ? error.message : String(error)
   }
 
-  private isForUs(packet: DataPacket) {
+  private isForUs(packet: { sourceId: string; targetId: string }) {
     const { ownId, sourceIds } = this.options
     return packet.targetId === ownId && (sourceIds === undefined || sourceIds.includes(packet.sourceId))
   }

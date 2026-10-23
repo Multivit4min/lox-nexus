@@ -1,6 +1,7 @@
 /**
- * A 0x9F packet: the usual header, an AES block count at offset 26, the IV in block 0 and the
- * encrypted body in the remaining blocks. Decrypt with IciCipher.
+ * A 0x9F packet: the usual header, the number of 16-byte blocks at offset 26 (IV included), the
+ * encrypted IV block, then the CBC body. 1 block (IV only) is a handshake, 2 a digital value,
+ * 3+ analog or text. Decrypt with IciCipher.
  */
 export class EncryptedPacket {
   static readonly CONTROL = 0x9f
@@ -14,9 +15,9 @@ export class EncryptedPacket {
   constructor(
     readonly sourceId: string,
     readonly targetId: string,
-    /** first AES block, used as CBC initialisation vector (16 bytes) */
+    /** the IvBlock encrypted with AES-ECB; also the CBC initialisation vector (16 bytes) */
     readonly iv: Buffer,
-    /** all blocks after the IV; a multiple of 16 bytes */
+    /** all blocks after the IV; a multiple of 16 bytes, empty for handshakes */
     readonly ciphertext: Buffer,
     /** the complete datagram as received; undefined for packets built locally */
     readonly raw?: Buffer

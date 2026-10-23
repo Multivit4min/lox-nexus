@@ -19,7 +19,7 @@ const setup = (options: Partial<ConstructorParameters<typeof IciReceiver>[1]> = 
   const data: DataEvent[] = []
   const events: string[] = []
   receiver.on("data", event => data.push(event))
-  for (const name of ["foreign", "status", "malformed", "unknown", "encrypted"] as const) {
+  for (const name of ["foreign", "status", "malformed", "unknown", "encrypted", "handshake"] as const) {
     receiver.on(name, () => events.push(name))
   }
   return { socket, receiver, data, events, feed: (buffer: Buffer) => socket.emit("datagram", buffer, from) }
@@ -106,10 +106,20 @@ describe("IciReceiver", () => {
   })
 
   test("reports decryption with the wrong password as malformed", () => {
-    const sealed = new IciCipher("pw").seal(DataPacket.of({ sourceId: "server", targetId: "claude", packetId: "rand" }, DataType.Analog, 7), Buffer.alloc(16, 3))
+    const sealed = new IciCipher("pw").seal(DataPacket.of({ sourceId: "server", targetId: "claude", packetId: "rand" }, DataType.Analog, 7))
     const wrong = setup({ password: "nope" })
     wrong.feed(encoder.encodeEncrypted(sealed))
     assert.deepEqual([wrong.data.length, wrong.events], [0, ["malformed"]])
+  })
+
+  test("reports handshakes addressed to us, ignores those between others", () => {
+    const cipher = new IciCipher("pw")
+    const { events, receiver, feed } = setup({ password: "pw" })
+    const kinds: string[] = []
+    receiver.on("handshake", kind => kinds.push(kind))
+    feed(encoder.encodeEncrypted(cipher.handshake("challenge", "server", "claude")))
+    feed(encoder.encodeEncrypted(cipher.handshake("challenge", "server", "someone")))
+    assert.deepEqual([events, kinds], [["handshake"], ["challenge"]])
   })
 
   test("rejects invalid source ids up front", () => {

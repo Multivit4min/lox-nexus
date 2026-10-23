@@ -91,6 +91,7 @@ export class MiniserverConnection extends Disposable {
     this.listen(receiver, "status", fromMiniserver)
     this.listen(receiver, "foreign", fromMiniserver)
     this.listen(receiver, "encrypted", fromMiniserver)
+    this.listen(receiver, "handshake", (_kind: string, packet: { sourceId: string }) => fromMiniserver(packet))
   }
 
   // a wrong password shows up as "decryption failed"; without these the UI would only show "waiting"
@@ -98,6 +99,11 @@ export class MiniserverConnection extends Disposable {
     this.listen(receiver, "malformed", (reason: string) => this.problems.report("malformed", `dropped a malformed packet: ${reason}`))
     this.listen(receiver, "encrypted", () => this.problems.report("encrypted", "received an encrypted packet, but no password is configured"))
     this.listen(receiver, "listenerError", (error: unknown) => this.problems.report("listener", `handling a packet failed: ${ProblemReporter.message(error)}`))
+    // answering is part of sending encrypted, which isn't implemented yet; a challenge means the
+    // Miniserver expects it and drops encrypted data from us until then
+    this.listen(receiver, "handshake", (kind: string) => {
+      if (kind === "challenge") this.problems.report("challenge", "the Miniserver sent an encryption handshake challenge; answering it is not implemented yet")
+    })
   }
 
   private publishHealth(health: MiniserverHealth) {
