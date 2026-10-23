@@ -1,0 +1,27 @@
+stages:
+  - check
+
+default:
+  image: node:lts
+
+.node:
+  before_script:
+    - npm ci || npm install
+
+lint:
+  stage: check
+  extends: .node
+  script:
+    - npm run lint
+
+typecheck:
+  stage: check
+  extends: .node
+  script:
+    - npm run typecheck
+
+test:
+  stage: check
+  extends: .node
+  script:
+    - npm test
