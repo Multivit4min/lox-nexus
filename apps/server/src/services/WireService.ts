@@ -5,7 +5,7 @@ import type { Logger } from "pino"
 import type { WireRepository } from "../db/repositories/WireRepository.ts"
 import { HttpError } from "../http/HttpError.ts"
 
-/** Request body of POST/PUT /api/wires: a wire without its id. */
+/** Request body of POST/PUT /api/wires: a wire without its id (the server assigns it). */
 export const WireBodySchema = WireSchema.omit({ id: true })
 
 /**
@@ -28,11 +28,16 @@ export class WireService {
     }
   }
 
+  /** every stored wire; `active` tells whether WireEngine is running it */
   list(): WireDto[] {
     const active = new Set(this.engine.list().map(wire => wire.id))
     return this.repo.list().map(wire => WireService.toDto(wire, active.has(wire.id ?? "")))
   }
 
+  /**
+   * Starts the wire, then stores it; the start is undone if storing fails.
+   * @throws ZodError 400, HttpError 409 for unknown signals or a target that already has a wire
+   */
   create(input: unknown): WireDto {
     const config = WireService.start(this.engine, { ...WireBodySchema.parse(input), id: randomUUID() })
     try {
@@ -47,6 +52,7 @@ export class WireService {
   /**
    * Replaces the running wire. If the new config is refused, or storing it fails (e.g. the target
    * belongs to a stored but inactive wire), the old wire keeps running and nothing changes.
+   * @throws HttpError 404 unknown wire, 409 refused by the engine, ZodError 400
    */
   update(id: string, input: unknown): WireDto {
     const previous = this.repo.get(id)
@@ -73,6 +79,7 @@ export class WireService {
     return WireService.toDto(config, true)
   }
 
+  /** stops and deletes the wire; @throws HttpError 404 */
   delete(id: string) {
     if (!this.repo.get(id)) throw HttpError.notFound(`wire "${id}"`)
     this.repo.delete(id)

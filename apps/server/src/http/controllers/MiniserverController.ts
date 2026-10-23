@@ -5,10 +5,24 @@ import type { LoxoneSignalService } from "../../services/LoxoneSignalService.ts"
 import type { MiniserverService } from "../../services/MiniserverService.ts"
 import type { Controller } from "../Controller.ts"
 
+/** path parameter of every route that addresses one Miniserver */
 const IdParams = z.object({ id: z.string().min(1) })
 const SignalParams = IdParams.extend({ signalId: z.string().min(1) })
 
-/** /api/miniservers: configs, start/stop, signals, and discovered packet ids. */
+/**
+ * /api/miniservers: configs, start/stop, signals, and discovered packet ids. All routes need a
+ * session (401 otherwise). Common answers: 400 invalid body or id, 404 unknown Miniserver or
+ * signal, 409 domain conflict (taken slug, duplicate packet id).
+ *
+ * - GET list, GET :id: 200.
+ * - POST /: 201 with the created Miniserver; a failed start is not an error, see `lastError`.
+ * - PUT :id: 200 with the updated Miniserver.
+ * - DELETE :id: 204, removes its signals, wires, forces and retained values too.
+ * - POST :id/start, :id/stop: 200 with the Miniserver; start failures show up as `lastError`.
+ * - GET/POST :id/signals, DELETE :id/signals/:signalId: 200 / 201 / 204.
+ * - GET :id/discovered: 200. POST :id/discovered/adopt: 201 with the new input signal, 404 for
+ *   a packet id that was not seen.
+ */
 export class MiniserverController implements Controller {
   constructor(private readonly miniservers: MiniserverService, private readonly signals: LoxoneSignalService) {}
 

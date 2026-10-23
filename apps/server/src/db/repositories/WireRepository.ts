@@ -1,6 +1,7 @@
 import type { WireInput } from "@lox-nexus/core"
 import type { Database } from "../Database.ts"
 
+/** A row of `wires`: transforms is JSON text, booleans are 0/1 integers. */
 interface WireRow {
   id: string
   label: string
@@ -15,16 +16,19 @@ interface WireRow {
 export class WireRepository {
   constructor(private readonly db: Database) {}
 
+  /** ordered by label for a stable UI, including wires that WireEngine can't run */
   list(): WireInput[] {
     return this.db.all<WireRow>("SELECT * FROM wires ORDER BY label, id").map(WireRepository.toInput)
   }
 
+  /** undefined when unknown */
   get(id: string): WireInput | undefined {
     const row = this.db.get<WireRow>("SELECT * FROM wires WHERE id = :id", { id })
     return row && WireRepository.toInput(row)
   }
 
   /** inserts or replaces by id */
+  /** @throws when source or target signal doesn't exist (foreign key) or the target already has a wire (unique) */
   save(wire: Required<WireInput>) {
     this.db.run(
       `INSERT INTO wires (id, label, source_id, target_id, transforms, enabled, sync_on_start)
@@ -38,10 +42,12 @@ export class WireRepository {
     )
   }
 
+  /** deleting an unknown id is a no-op */
   delete(id: string) {
     this.db.run("DELETE FROM wires WHERE id = :id", { id })
   }
 
+  // booleans from 0/1 columns; transforms are not validated here
   private static toInput(row: WireRow): WireInput {
     return {
       id: row.id, label: row.label, sourceId: row.source_id, targetId: row.target_id,

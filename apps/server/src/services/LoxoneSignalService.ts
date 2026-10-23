@@ -29,12 +29,16 @@ export class LoxoneSignalService {
     }
   }
 
+  /** @throws HttpError 404 for an unknown Miniserver */
   list(miniserverId: string): LoxoneSignalDto[] {
     const miniserver = this.require(miniserverId)
     return miniserver.signals().map(signal => MiniserverMapper.signalToDto(miniserver, signal))
   }
 
-  /** registers first (validates and checks for duplicates), then stores; undone if storing fails */
+  /**
+   * Registers first (validates and checks for duplicates), then stores; undone if storing fails.
+   * @throws HttpError 409 for a duplicate packet id or slug, 404 for an unknown Miniserver
+   */
   add(miniserverId: string, input: LoxoneSignalInput): LoxoneSignalDto {
     const miniserver = this.require(miniserverId)
     const config = LoxoneSignalService.domain(() => miniserver.addSignal({ ...input, id: randomUUID() }))
@@ -47,7 +51,11 @@ export class LoxoneSignalService {
     return MiniserverMapper.signalToDto(miniserver, config)
   }
 
-  /** deletes the signal, its wires, and its force and stored value */
+  /**
+   * Deletes the signal, its wires, and its force and stored value. `by` is recorded as the one
+   * who released a force.
+   * @throws HttpError 404
+   */
   remove(miniserverId: string, signalId: string, by: string) {
     const miniserver = this.require(miniserverId)
     const topic = miniserver.topicOf(signalId)
@@ -57,26 +65,32 @@ export class LoxoneSignalService {
     this.cleanup.forget(topic, by)
   }
 
+  /** packet ids seen on the wire but not configured, including those already adopted */
   discovered(miniserverId: string): DiscoveredPacketDto[] {
     return this.require(miniserverId).discovery.list().map(MiniserverMapper.discoveredToDto)
   }
 
-  /** turns a discovered packet id into an input signal of the data type it was seen with */
+  /**
+   * Turns a discovered packet id into an input signal of the data type it was seen with.
+   * @throws HttpError 404 for a packet that was not discovered, 400 for a data type the bridge can't map
+   */
   adopt(miniserverId: string, input: AdoptPacket): LoxoneSignalDto {
     const packet = this.require(miniserverId).discovery.list().find(entry => entry.packetId === input.packetId)
     if (!packet) throw HttpError.notFound(`discovered packet "${input.packetId}"`)
-    if (packet.dataType > 6) throw HttpError.badRequest(`data type ${packet.dataType} is not supported`)
+    if (!LoxoneSignalInputSchema.shape.dataType.safeParse(packet.dataType).success) throw HttpError.badRequest(`data type ${packet.dataType} is not supported`)
     return this.add(miniserverId, LoxoneSignalInputSchema.parse({
       packetId: packet.packetId, direction: "in", dataType: packet.dataType, label: input.label ?? packet.packetId, slug: input.slug
     }))
   }
 
+  // @throws HttpError 404
   private require(miniserverId: string): Miniserver {
     const miniserver = this.manager.get(miniserverId)
     if (!miniserver) throw HttpError.notFound(`miniserver "${miniserverId}"`)
     return miniserver
   }
 
+  // domain rule violations from the Loxone package become 409s
   private static domain<T>(work: () => T): T {
     try {
       return work()

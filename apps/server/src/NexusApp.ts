@@ -40,6 +40,7 @@ export interface NexusAppOptions {
  * Disposal runs in reverse: HTTP closes first, the database last.
  */
 export class NexusApp extends Disposable {
+  /** the opened, migrated database; closed last on dispose */
   readonly persistence: Persistence
   readonly signals = new SignalRegistry()
   readonly bus: EventBus
@@ -88,16 +89,17 @@ export class NexusApp extends Disposable {
     return this.http.start(this.config.httpPort, this.config.httpHost)
   }
 
-  /** the HTTP server once started; tests use its inject() */
+  /** the HTTP server; undefined until start() got that far. Tests use its inject(). */
   get server() {
     return this.http
   }
 
-  /** the live stream once started; tests check its open connections */
+  /** the live stream; undefined until start() got that far. Tests check its open connections. */
   get streams() {
     return this.stream
   }
 
+  /** Builds the auth stack and HTTP server. Called once from start(); everything created here is owned by the app. */
   private createHttp(miniservers: MiniserverService, loxoneSignals: LoxoneSignalService, wires: WireService) {
     const { persistence: db, clock, config, log } = this
     const sessions = new SessionService(db.sessions, clock)

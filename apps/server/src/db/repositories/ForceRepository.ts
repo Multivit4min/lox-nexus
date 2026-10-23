@@ -2,6 +2,7 @@ import type { ForceRecord, ForceStore } from "@lox-nexus/core"
 import type { Database } from "../Database.ts"
 import { ValueJson } from "../ValueJson.ts"
 
+/** A row of the `forces` table; `until` and `at` are epoch ms, nullable columns map to optional fields. */
 interface ForceRow {
   topic: string
   value: string
@@ -17,6 +18,7 @@ export class ForceRepository implements ForceStore {
   /** @param warn told about rows that can't be read back; they are skipped, not deleted, so nothing is lost silently */
   constructor(private readonly db: Database, private readonly warn: (message: string) => void = () => {}) {}
 
+  /** all stored forces, read once at boot by EventBus.restoreForces() */
   load(): ForceRecord[] {
     return this.db.all<ForceRow>("SELECT * FROM forces").flatMap(row => {
       const value = ValueJson.parse(row.value)
@@ -32,6 +34,7 @@ export class ForceRepository implements ForceStore {
     })
   }
 
+  /** inserts or replaces: a topic has at most one force */
   save(record: ForceRecord) {
     this.db.run(
       `INSERT INTO forces (topic, value, forced_by, reason, until, at, kind)
@@ -45,6 +48,7 @@ export class ForceRepository implements ForceStore {
     )
   }
 
+  /** called when a force is released or expires */
   delete(topic: string) {
     this.db.run("DELETE FROM forces WHERE topic = :topic", { topic })
   }

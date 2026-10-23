@@ -5,10 +5,22 @@ import type { LoginThrottle } from "../../auth/LoginThrottle.ts"
 import type { Controller } from "../Controller.ts"
 import type { SessionCookie } from "../SessionCookie.ts"
 
-/** /api/auth: who am I, first-run setup, login, logout and password change. */
+/**
+ * /api/auth: who am I, first-run setup, login, logout and password change.
+ *
+ * - GET /api/auth (public): 200 with { setupRequired, user? }.
+ * - POST /api/auth/setup (public): 200 and a session cookie; 400 invalid body; 409 an account
+ *   exists; 429 throttled; 503 hasher busy.
+ * - POST /api/auth/login (public): 200 and a session cookie; 400 invalid body; 401 wrong
+ *   credentials; 429 throttled; 503 hasher busy.
+ * - POST /api/auth/logout (public, so an expired session can still clear its cookie): 204.
+ * - POST /api/auth/password: 204 and a new cookie, other sessions are ended; 400 invalid body or
+ *   wrong current password; 401 not logged in; 503 hasher busy.
+ */
 export class AuthController implements Controller {
   constructor(private readonly auth: AuthService, private readonly throttle: LoginThrottle, private readonly cookie: SessionCookie) {}
 
+  /** Setup and login are throttled per client address (request.ip, see NEXUS_TRUST_PROXY). */
   register(app: FastifyInstance) {
     const open = { config: { public: true } }
     app.get("/api/auth", open, (request): AuthStateDto => this.state(request))
@@ -18,6 +30,7 @@ export class AuthController implements Controller {
     app.post("/api/auth/password", (request, reply) => this.changePassword(request, reply))
   }
 
+  // request.user is set by AuthGuard even on public routes, so the UI learns its login state in one call
   private state(request: FastifyRequest): AuthStateDto {
     return { setupRequired: this.auth.needsSetup(), ...(request.user ? { user: request.user } : {}) }
   }
@@ -51,6 +64,7 @@ export class AuthController implements Controller {
     return true
   }
 
+  // idempotent on purpose: logging out without a (valid) session still succeeds
   private logout(request: FastifyRequest, reply: FastifyReply) {
     const token = this.cookie.read(request)
     if (token) this.auth.logout(token)

@@ -1,6 +1,7 @@
 import type { LoxoneSignalConfig } from "@lox-nexus/loxone"
 import type { Database } from "../Database.ts"
 
+/** A row of `loxone_signals`; data_type is the ICI data type byte. */
 interface LoxoneSignalRow {
   id: string
   miniserver_id: string
@@ -16,20 +17,24 @@ export type StoredLoxoneSignal = Omit<LoxoneSignalConfig, "dataType"> & { dataTy
 
 /** Loxone signals, with a row in the `signals` supertable so wires can reference them. */
 export class LoxoneSignalRepository {
+  /** value of `signals.owner` for rows written here */
   static readonly OWNER = "loxone"
 
   constructor(private readonly db: Database) {}
 
+  /** ordered by label for a stable UI */
   listFor(miniserverId: string): StoredLoxoneSignal[] {
     return this.db.all<LoxoneSignalRow>("SELECT * FROM loxone_signals WHERE miniserver_id = :miniserverId ORDER BY label, id", { miniserverId })
       .map(LoxoneSignalRepository.toSignal)
   }
 
+  /** undefined when unknown */
   get(id: string): StoredLoxoneSignal | undefined {
     const row = this.db.get<LoxoneSignalRow>("SELECT * FROM loxone_signals WHERE id = :id", { id })
     return row && LoxoneSignalRepository.toSignal(row)
   }
 
+  /** both rows are written atomically; throws when the Miniserver already has that packet id in that direction (unique constraint) */
   insert(signal: StoredLoxoneSignal) {
     this.db.transaction(() => {
       this.db.run("INSERT INTO signals (id, owner) VALUES (:id, :owner)", { id: signal.id, owner: LoxoneSignalRepository.OWNER })
@@ -49,6 +54,7 @@ export class LoxoneSignalRepository {
     this.db.run("DELETE FROM signals WHERE id = :id", { id })
   }
 
+  // NULL slug becomes an absent field
   private static toSignal(row: LoxoneSignalRow): StoredLoxoneSignal {
     return {
       id: row.id, miniserverId: row.miniserver_id, packetId: row.packet_id, direction: row.direction,

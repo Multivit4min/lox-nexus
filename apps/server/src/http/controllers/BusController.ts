@@ -5,6 +5,7 @@ import { z } from "zod"
 import { HttpError } from "../HttpError.ts"
 import type { Controller } from "../Controller.ts"
 
+/** the slice of EventBus this controller may use; keeps tests small and the surface visible */
 type InspectorBus = Pick<EventBus, "force" | "release" | "publish" | "command" | "activeForces" | "currentMatching">
 
 const TopicQuery = z.object({ topic: z.string().min(1) })
@@ -14,6 +15,15 @@ const PatternQuery = z.object({ pattern: z.string().min(1).default("#") })
  * /api/bus: what the Bus Inspector needs besides the live stream. Recent messages and traces,
  * current values, forces (set and release) and one-shot injection. Every action is attributed
  * to the logged-in user.
+ *
+ * Routes (all need a session; 401 otherwise, 400 for an invalid body, query, topic or pattern):
+ * - GET /api/bus/messages: 200, recent messages in the Recorder's order.
+ * - GET /api/bus/messages/:id/trace: 200 causal tree; 404 for an unknown or already evicted id.
+ * - GET /api/bus/current: 200, current message per topic matching `pattern` (default #).
+ * - GET /api/bus/forces: 200 active forces.
+ * - POST /api/bus/forces: 204 force set; 400 also for an `until` in the past.
+ * - DELETE /api/bus/forces?topic=: 204 released; 404 when the topic has no force.
+ * - POST /api/bus/inject: 204; publishes (or commands) a value flagged `injected`.
  */
 export class BusController implements Controller {
   constructor(private readonly bus: InspectorBus, private readonly recorder: Pick<Recorder, "recent" | "trace" | "get">) {}
@@ -56,7 +66,7 @@ export class BusController implements Controller {
     return reply.code(204).send()
   }
 
-  // invalid topics, patterns and expiries throw RangeError in the bus: those are bad requests
+  // invalid topics, patterns and expiries throw RangeError in the bus: those are bad requests (400), anything else stays a 500
   private static guard<T>(work: () => T): T {
     try {
       return work()

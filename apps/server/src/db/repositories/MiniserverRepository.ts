@@ -1,6 +1,7 @@
 import type { MiniserverConfig } from "@lox-nexus/loxone"
 import type { Database } from "../Database.ts"
 
+/** A row of `miniservers`: booleans are 0/1 integers, optional fields are NULL; resend_interval is ms. */
 interface MiniserverRow {
   id: string
   slug: string
@@ -23,10 +24,12 @@ interface MiniserverRow {
 export class MiniserverRepository {
   constructor(private readonly db: Database) {}
 
+  /** ordered by label for a stable UI; includes the plain-text password, so never pass these to a DTO unfiltered */
   list(): MiniserverConfig[] {
     return this.db.all<MiniserverRow>("SELECT * FROM miniservers ORDER BY label, id").map(MiniserverRepository.toConfig)
   }
 
+  /** undefined when unknown */
   get(id: string): MiniserverConfig | undefined {
     const row = this.db.get<MiniserverRow>("SELECT * FROM miniservers WHERE id = :id", { id })
     return row && MiniserverRepository.toConfig(row)
@@ -57,6 +60,7 @@ export class MiniserverRepository {
     })
   }
 
+  // NULL columns become absent fields, because the config schema distinguishes absent from undefined-by-default
   private static toConfig(row: MiniserverRow): MiniserverConfig {
     return {
       id: row.id, slug: row.slug, label: row.label, host: row.host, port: row.port, listenPort: row.listen_port,

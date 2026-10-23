@@ -1,5 +1,6 @@
 import type { Database } from "../Database.ts"
 
+/** A row of the `users` table; password_hash is the encoded PasswordHasher output. */
 export interface UserRow {
   id: string
   username: string
@@ -11,6 +12,7 @@ export interface UserRow {
 export class UserRepository {
   constructor(private readonly db: Database) {}
 
+  /** used to detect first-run setup */
   count() {
     return this.db.get<{ n: number }>("SELECT COUNT(*) AS n FROM users")?.n ?? 0
   }
@@ -20,10 +22,12 @@ export class UserRepository {
     return this.db.get<UserRow>("SELECT * FROM users WHERE username = :username", { username })
   }
 
+  /** undefined when the user was deleted */
   findById(id: string) {
     return this.db.get<UserRow>("SELECT * FROM users WHERE id = :id", { id })
   }
 
+  /** @throws when the username exists already (case-insensitively) */
   insert(user: UserRow) {
     this.db.run(
       "INSERT INTO users (id, username, password_hash, created_at) VALUES (:id, :username, :hash, :createdAt)",
@@ -31,6 +35,7 @@ export class UserRepository {
     )
   }
 
+  /** callers revoke the user's sessions in the same transaction */
   updatePassword(id: string, hash: string) {
     this.db.run("UPDATE users SET password_hash = :hash WHERE id = :id", { id, hash })
   }

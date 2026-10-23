@@ -1,6 +1,7 @@
 import { Value } from "@lox-nexus/plugin-sdk/values"
 import type { BusMessage } from "./BusMessage.ts"
 
+/** The last real (unforced) value of a topic, as persisted between restarts. `ts` is epoch ms of that value. */
 export interface SnapshotEntry {
   topic: string
   value: Value

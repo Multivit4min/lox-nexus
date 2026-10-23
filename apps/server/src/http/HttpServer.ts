@@ -9,6 +9,7 @@ import type { AuthGuard } from "./AuthGuard.ts"
 import type { Controller } from "./Controller.ts"
 import { ErrorHandler } from "./ErrorHandler.ts"
 
+/** What HttpServer needs; every field comes from Config or NexusApp. */
 export interface HttpServerOptions {
   /** a pino logger; typed as Fastify's base logger so the app keeps its default type parameters */
   logger: FastifyBaseLogger
@@ -24,6 +25,11 @@ export interface HttpServerOptions {
 export class HttpServer extends Disposable {
   readonly app: FastifyInstance
 
+  /**
+   * Registers everything but does not listen. All controllers live in one encapsulated plugin so
+   * the AuthGuard hook covers every API route and nothing else. The static web UI is served
+   * outside of it, because the login page itself must load without a session.
+   */
   constructor(options: HttpServerOptions) {
     super()
     // one megabyte is plenty for JSON configs; larger bodies are refused before parsing
@@ -52,11 +58,15 @@ export class HttpServer extends Disposable {
     return this.app.ready()
   }
 
-  /** @returns the address it listens on, e.g. http://127.0.0.1:8080 */
+  /**
+   * @returns the address it listens on, e.g. http://127.0.0.1:8080
+   * @throws when the port is taken or the host can't be bound
+   */
   start(port: number, host: string) {
     return this.app.listen({ port, host })
   }
 
+  // single-page app fallback: unknown GET paths outside /api get index.html so client-side routes survive a reload
   private serveWeb(webDir: string | undefined) {
     const index = webDir && path.join(webDir, "index.html")
     if (!webDir || !index || !fs.existsSync(index)) {

@@ -10,6 +10,7 @@ export const StreamRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("subscribe"), stream: z.enum(["bus", "state"]), pattern: z.string().min(1).max(512).default("#") }),
   z.object({ type: z.literal("unsubscribe"), stream: z.enum(["bus", "state"]) })
 ])
+/** `pattern` is optional on input: it defaults to all topics (#) */
 export type StreamRequest = z.input<typeof StreamRequestSchema>
 
 /** Messages the server sends on the stream. */

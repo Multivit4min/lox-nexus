@@ -3,11 +3,14 @@ import { Topic, type BusMessage, type EventBus } from "@lox-nexus/core"
 import { Disposable, type DisposableLike } from "@lox-nexus/plugin-sdk"
 import type { WebSocket } from "ws"
 
+/** the slice of EventBus a client needs; tap() sees every message including shadowed ones, subscribe() only effective ones */
 export type StreamBus = Pick<EventBus, "tap" | "subscribe" | "currentMatching">
 
 /** The session a connection was opened with; BusStream closes the connection when it ends. */
 export interface StreamSession {
+  /** the raw cookie token, kept to re-validate expiry; never sent to the client */
   token: string
+  /** SessionService.hash(token), matched against "revoked" events */
   tokenHash: string
   userId: string
 }
@@ -22,8 +25,11 @@ export interface StreamSession {
  * A ping every HEARTBEAT_MS without a pong since the last one terminates a half-open connection.
  */
 export class StreamClient extends Disposable {
+  /** batching interval; the latency a browser sees for any update */
   static readonly FLUSH_MS = 50
+  /** ping interval; a connection that missed one pong is terminated at the next tick */
   static readonly HEARTBEAT_MS = 30_000
+  /** messages queued per flush before further ones are counted as dropped */
   static readonly MAX_QUEUED = 2000
   /** bytes the socket may have unsent before batches are dropped */
   static readonly MAX_BUFFERED = 1_048_576
@@ -33,6 +39,7 @@ export class StreamClient extends Disposable {
   private dropped = 0
   private alive = true
 
+  /** Starts listening to the socket at once; nothing is sent until the client subscribes. */
   constructor(private readonly socket: WebSocket, private readonly bus: StreamBus, readonly session: StreamSession) {
     super()
     this.listen(socket, "message", (data: Buffer) => this.onRequest(data))
@@ -47,6 +54,7 @@ export class StreamClient extends Disposable {
     this.socket.close(code, reason)
   }
 
+  // invalid JSON, schema or pattern is answered with an `error` event; the connection stays open
   private onRequest(data: Buffer) {
     let request
     try {
@@ -55,14 +63,14 @@ export class StreamClient extends Disposable {
     } catch (error) {
       return this.send({ type: "error", message: `invalid request: ${error instanceof Error ? error.message : String(error)}` })
     }
-    this.drop(request.stream)
+    this.resetStream(request.stream)
     if (request.type === "unsubscribe") return
     if (request.stream === "bus") this.subscribeBus(request.pattern)
     else this.subscribeState(request.pattern)
   }
 
   // whatever was queued for the old subscription belongs to a pattern the client no longer wants
-  private drop(stream: "bus" | "state") {
+  private resetStream(stream: "bus" | "state") {
     void this.subscriptions.get(stream)?.dispose()
     this.subscriptions.delete(stream)
     if (stream === "bus") {
@@ -81,6 +89,7 @@ export class StreamClient extends Disposable {
     }))
   }
 
+  // the full snapshot is sent before subscribing; both run synchronously, so no change can fall between them
   private subscribeState(pattern: string) {
     this.send({ type: "state", messages: this.bus.currentMatching(pattern), full: true })
     this.subscriptions.set("state", this.bus.subscribe(pattern, message => {
@@ -88,6 +97,7 @@ export class StreamClient extends Disposable {
     }))
   }
 
+  // runs every FLUSH_MS; when the socket is backed up the batch is counted as dropped instead of buffered further
   private flush() {
     if (this.socket.readyState !== this.socket.OPEN) return
     if (this.socket.bufferedAmount > StreamClient.MAX_BUFFERED) {
@@ -103,6 +113,7 @@ export class StreamClient extends Disposable {
     this.states = new Map()
   }
 
+  // terminate() skips the close handshake, which a half-open connection would never answer
   private heartbeat() {
     if (!this.alive) return this.socket.terminate()
     this.alive = false

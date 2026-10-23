@@ -3,6 +3,7 @@ import type { Config } from "../config/Config.ts"
 
 /** Creates the process logger: JSON lines, or readable output when attached to a terminal. */
 export class LoggerFactory {
+  /** pretty output needs a TTY, so containers and systemd get plain JSON lines */
   static create(config: Pick<Config, "logLevel">): Logger {
     const pretty = process.stdout.isTTY
     return pino({
@@ -11,7 +12,7 @@ export class LoggerFactory {
     })
   }
 
-  /** for tests */
+  /** a logger that discards everything, for tests */
   static silent(): Logger {
     return pino({ level: "silent" })
   }

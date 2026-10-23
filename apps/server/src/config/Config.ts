@@ -1,9 +1,12 @@
 import path from "node:path"
 import { z } from "zod"
 
+/** accepts true/false/1/0 only; anything else is a configuration error rather than silently false */
 const flag = z.enum(["true", "false", "1", "0"]).transform(text => text === "true" || text === "1")
+/** comma-separated list; blanks are ignored */
 const list = z.string().transform(text => text.split(",").map(item => item.trim()).filter(Boolean))
 
+/** every environment variable the server reads, with defaults */
 const EnvSchema = z.object({
   NEXUS_DATA_DIR: z.string().min(1).default("./data"),
   NEXUS_HTTP_HOST: z.string().min(1).default("0.0.0.0"),
@@ -21,11 +24,14 @@ const EnvSchema = z.object({
 
 /** Process configuration from environment variables. Everything persistent lives under `dataDir`. */
 export class Config {
+  /** absolute path */
   readonly dataDir: string
   readonly httpHost: string
+  /** 0 picks a free port (tests) */
   readonly httpPort: number
   readonly logLevel: z.infer<typeof EnvSchema>["NEXUS_LOG_LEVEL"]
   readonly secureCookies: boolean
+  /** absolute path, if configured */
   readonly webDir: string | undefined
   readonly trustProxy: string[]
   readonly publicOrigins: string[]

@@ -5,9 +5,12 @@ export interface SignalDto {
   id: string
   topic: string
   label: string
+  /** source produces values for wires, target consumes them */
   direction: "source" | "target"
   valueType: string
+  /** how values reach the target: retained state or one-shot command */
   delivery: "state" | "command"
+  /** absent until a value was seen */
   current?: BusMessageDto
 }
 

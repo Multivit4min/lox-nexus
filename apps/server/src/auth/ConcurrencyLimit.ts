@@ -8,11 +8,14 @@ export class BusyError extends Error {
 /**
  * Runs at most `max` tasks at once and queues up to `queue` more. Used for password hashing, which
  * costs 32 MiB and ~100 ms each: unbounded, a burst of logins could exhaust memory and CPU.
+ * Waiters start in arrival order. Refusing early (BusyError) is deliberate: a queue that grows
+ * without bound would only turn an attack into a slow outage.
  */
 export class ConcurrencyLimit {
   private running = 0
   private readonly waiting: Array<() => void> = []
 
+  /** @param max tasks that may run at once @param queue tasks that may wait beyond that */
   constructor(private readonly max: number, private readonly queue: number) {}
 
   /** @throws BusyError when `max` tasks run and `queue` more are waiting */

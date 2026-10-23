@@ -2,6 +2,7 @@ import { ValueSchema, type Value } from "@lox-nexus/plugin-sdk/values"
 
 /** Values as stored in TEXT columns, validated on the way back in. */
 export class ValueJson {
+  /** the inverse of parse() */
   static stringify(value: Value) {
     return JSON.stringify(value)
   }

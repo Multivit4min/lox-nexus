@@ -1,8 +1,11 @@
 import { z } from "zod"
 import type { Value } from "@lox-nexus/plugin-sdk/values"
 
+/** ICI ids are at most 8 characters on the wire */
 const iciId = z.string().min(1).max(8)
+/** one topic segment: lowercase so topics are case-stable */
 const segment = z.string().regex(/^[a-z0-9][a-z0-9._-]*$/, "lowercase letters, digits, '.', '_' or '-'")
+/** a UDP port; 0 means ephemeral */
 const port = z.int().min(0).max(65535)
 
 /** POST/PUT body for a Miniserver. The server validates again with the Loxone package's schema. */
@@ -20,8 +23,10 @@ export const MiniserverInputSchema = z.object({
   /** undefined keeps the stored password, null removes it */
   password: z.string().min(1).nullable().optional(),
   enabled: z.boolean().default(true),
+  /** ms between re-sends of unchanged outputs; 0 disables */
   resendInterval: z.int().min(0).max(86_400_000).default(10_000)
 })
+/** `enabled` and `resendInterval` are optional on input because the schema defaults them */
 export type MiniserverInput = z.input<typeof MiniserverInputSchema>
 
 /** POST body for a Loxone signal; `id` is assigned by the server. */
@@ -43,6 +48,7 @@ export const AdoptPacketSchema = z.object({
 })
 export type AdoptPacket = z.infer<typeof AdoptPacketSchema>
 
+/** stopped: not running; waiting: running, nothing received yet; online: receiving; stale: packets stopped arriving */
 export type MiniserverHealthDto = "stopped" | "waiting" | "online" | "stale"
 
 /** A Miniserver as the UI sees it. The password is never sent back, only whether one is set. */
@@ -58,6 +64,7 @@ export interface MiniserverDto {
   remoteId: string
   hasPassword: boolean
   enabled: boolean
+  /** ms; 0 disables re-sending */
   resendInterval: number
   running: boolean
   health: MiniserverHealthDto
@@ -67,21 +74,27 @@ export interface MiniserverDto {
   lastError?: string
 }
 
+/** A configured Loxone signal; `topic` is where it appears on the bus. */
 export interface LoxoneSignalDto {
   id: string
   miniserverId: string
   packetId: string
   direction: "in" | "out"
+  /** ICI data type byte, see LoxoneSignalInputSchema */
   dataType: number
   label: string
   slug?: string
   topic: string
 }
 
+/** A packet id the Miniserver sent although no signal is configured for it. */
 export interface DiscoveredPacketDto {
   packetId: string
   dataType: number
+  /** the last value seen */
   value?: Value
+  /** epoch ms */
   firstSeen: number
+  /** epoch ms */
   lastSeen: number
 }

@@ -34,7 +34,11 @@ export class SnapshotWriter extends Disposable {
     this.bus.restoreSnapshot(alive)
   }
 
-  /** @returns how many values were stored */
+  /**
+   * Writes the pending values now; also runs every INTERVAL_MS and once on dispose. Never throws:
+   * a failed write is logged and retried with the next batch.
+   * @returns how many values were stored
+   */
   flush(): number {
     const pending = this.bus.pendingSnapshot()
     if (pending.length === 0) return 0

@@ -5,8 +5,10 @@ export const CredentialsSchema = z.object({
   username: z.string().trim().min(1).max(64),
   password: z.string().min(8).max(256)
 })
+/** the parsed body of login and setup */
 export type Credentials = z.infer<typeof CredentialsSchema>
 
+/** POST /api/auth/password body. Only `next` has a minimum length: the current password may predate the rule. */
 export const ChangePasswordSchema = z.object({
   current: z.string().min(1).max(256),
   next: z.string().min(8).max(256)
@@ -17,5 +19,6 @@ export type ChangePassword = z.infer<typeof ChangePasswordSchema>
 export interface AuthStateDto {
   /** no account exists yet: show the setup screen */
   setupRequired: boolean
+  /** present when the request carried a valid session */
   user?: { id: string; username: string }
 }

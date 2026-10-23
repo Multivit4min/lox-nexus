@@ -11,7 +11,9 @@ import { WireRepository } from "./repositories/WireRepository.ts"
 
 /** The migrated database and one repository per table group. */
 export class Persistence {
+  /** for code that needs transactions across repositories */
   readonly db: Database
+  /** names of the migrations applied at construction, for the startup log */
   readonly applied: string[]
   readonly users: UserRepository
   readonly sessions: SessionRepository
@@ -22,6 +24,7 @@ export class Persistence {
   readonly snapshot: SnapshotRepository
 
   /**
+   * Opens the file and migrates it before any repository exists.
    * @param file database path, or ":memory:" for tests
    * @param warn told about stored rows that can't be read back
    */
@@ -37,6 +40,7 @@ export class Persistence {
     this.snapshot = new SnapshotRepository(this.db)
   }
 
+  /** closes the database; repositories must not be used afterwards */
   close() {
     this.db.close()
   }

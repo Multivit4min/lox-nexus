@@ -18,7 +18,11 @@ export interface AuthSession {
   renewed: boolean
 }
 
-/** First-run setup, login, logout and session lookup. */
+/**
+ * First-run setup, login, logout, password change and session lookup. Password checks are
+ * constant-effort: an unknown user costs the same hash as a wrong password, so response time
+ * doesn't reveal which usernames exist.
+ */
 export class AuthService {
   // verified against when the username is unknown, so both cases take the same time; computed
   // up front so the first unknown-user login isn't slower than the others
@@ -57,7 +61,11 @@ export class AuthService {
     return { user, token: this.sessions.create(user.id) }
   }
 
-  /** @returns undefined for an unknown user or a wrong password, without saying which */
+  /**
+   * Callers must throttle first (LoginThrottle), since this does not limit attempts itself.
+   * @returns undefined for an unknown user or a wrong password, without saying which
+   * @throws BusyError when too many hashes are already queued
+   */
   async login(username: string, password: string): Promise<{ user: AuthUser; token: string } | undefined> {
     const row = this.users.findByName(username)
     const valid = await this.hasher.verify(password, row?.password_hash ?? await this.dummyHash)
@@ -65,19 +73,26 @@ export class AuthService {
     return { user: { id: row.id, username: row.username }, token: this.sessions.create(row.id) }
   }
 
-  /** the user behind a session token, if the session is valid */
+  /** for open connections: checks without extending, so an idle open tab doesn't keep a session alive forever */
+  isValid(token: string) {
+    return this.sessions.isValid(token)
+  }
+
+  /** the user behind a session token, if the session is valid; may extend the session (see SessionService.resolve) */
   authenticate(token: string): AuthSession | undefined {
     const session = this.sessions.resolve(token)
     const row = session && this.users.findById(session.userId)
     return row && { user: { id: row.id, username: row.username }, renewed: session.renewed }
   }
 
+  /** ends the session behind the token; unknown tokens are ignored */
   logout(token: string) {
     this.sessions.revoke(token)
   }
 
   /**
    * Every session of the user ends, including on other devices; the caller gets a fresh one.
+   * Hash, update and revocation share one transaction, so a crash can't leave the new password with old sessions alive.
    * @returns the new session token, or undefined when the current password is wrong
    */
   async changePassword(userId: string, current: string, next: string): Promise<string | undefined> {

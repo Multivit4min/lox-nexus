@@ -27,7 +27,10 @@ export class Database {
     this.db.exec(sql)
   }
 
-  /** prepared statements are cached per SQL text */
+  /**
+   * Prepared statements are cached per SQL text, so pass values as named parameters rather than
+   * building the text, or the cache grows with every distinct string.
+   */
   run(sql: string, params: SqlParams = {}) {
     return this.statement(sql).run(params)
   }
@@ -37,6 +40,7 @@ export class Database {
     return this.statement(sql).get(params) as T | undefined
   }
 
+  /** all rows; T is trusted, not checked, so repositories validate what is not plain columns */
   all<T>(sql: string, params: SqlParams = {}): T[] {
     return this.statement(sql).all(params) as T[]
   }
@@ -44,6 +48,9 @@ export class Database {
   /**
    * Runs `work` atomically; a throw rolls it back. A nested call becomes a savepoint, so it is
    * atomic on its own even when the outer transaction catches its error and goes on.
+   * `work` must be synchronous: an await inside would let other code interleave into the open
+   * transaction. The outermost call takes the write lock up front (BEGIN IMMEDIATE), so it waits
+   * for other writers (busy_timeout) instead of failing halfway.
    */
   transaction<T>(work: () => T): T {
     const savepoint = this.depth > 0 ? `nested_${this.depth}` : undefined
@@ -68,10 +75,12 @@ export class Database {
     this.db.exec(savepoint ? `ROLLBACK TO ${savepoint}; RELEASE ${savepoint}` : "ROLLBACK")
   }
 
+  /** closes the file; later calls are ignored. Pending WAL data is checkpointed by SQLite. */
   close() {
     if (this.db.isOpen) this.db.close()
   }
 
+  // SQLite statements are bound to this connection and live until it closes
   private statement(sql: string) {
     let statement = this.statements.get(sql)
     if (!statement) {

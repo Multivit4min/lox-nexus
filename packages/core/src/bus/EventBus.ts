@@ -21,6 +21,7 @@ export interface EventBusOptions {
   topicKinds?: TopicKinds
 }
 
+/** Source of messages the bus itself produces (expiring forces, restored values, error events). */
 const SYSTEM: MessageSource = { kind: "system", id: "bus" }
 /** Topic of the events that report handler and processing failures. */
 export const BUS_ERROR_TOPIC = "system/bus/error"
@@ -47,6 +48,7 @@ export class EventBus extends Disposable {
   private readonly queue: Pending[] = []
   private draining = false
 
+  /** The forces are loaded from the ForceStore later, by restoreForces(), not here. */
   constructor(options: EventBusOptions = {}) {
     super()
     this.clock = options.clock ?? new SystemClock()
@@ -178,6 +180,7 @@ export class EventBus extends Disposable {
     }
   }
 
+  // a failure while reporting a failure is dropped: otherwise a broken error subscriber would loop forever
   private processSafely(pending: Pending) {
     try {
       this.processor.process(pending)

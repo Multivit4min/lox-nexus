@@ -5,6 +5,8 @@ import { ConcurrencyLimit } from "./ConcurrencyLimit.ts"
  * scrypt password hashes from node:crypto (see ADR 0008: no native argon2 build).
  * Stored as `scrypt$N$r$p$salt$hash` so the cost can be raised later without breaking old hashes.
  * At most two hashes run at once and eight wait; beyond that BusyError (503) is thrown.
+ * Salts are random per hash. Passwords are NFC-normalised first, so the same text typed on
+ * different keyboards or platforms verifies.
  */
 export class PasswordHasher {
   private static readonly KEY_LENGTH = 32
@@ -13,6 +15,10 @@ export class PasswordHasher {
   /** @param cost scrypt N; 2^15 uses 32 MiB and roughly 50–100 ms per hash. Tests pass a small value. */
   constructor(private readonly cost = 2 ** 15) {}
 
+  /**
+   * @returns the encoded hash with a fresh random salt
+   * @throws BusyError when the hash queue is full
+   */
   async hash(password: string): Promise<string> {
     const salt = randomBytes(16)
     const options = { N: this.cost, r: 8, p: 1 }
@@ -20,7 +26,12 @@ export class PasswordHasher {
     return ["scrypt", options.N, options.r, options.p, salt.toString("base64url"), key.toString("base64url")].join("$")
   }
 
-  /** false for a wrong password and for anything that is not a hash this class wrote */
+  /**
+   * Uses the cost parameters stored in the hash, not this instance's, so old hashes keep working.
+   * The comparison is constant-time.
+   * @returns false for a wrong password and for anything that is not a hash this class wrote
+   * @throws BusyError when the hash queue is full
+   */
   async verify(password: string, stored: string): Promise<boolean> {
     const [scheme, n, r, p, salt, hash] = stored.split("$")
     if (scheme !== "scrypt" || !salt || !hash) return false

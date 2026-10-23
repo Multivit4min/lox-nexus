@@ -31,7 +31,12 @@ export class AuthGuard {
     this.allowedOrigins = new Set(publicOrigins.map(origin => new URL(origin).origin))
   }
 
-  /** the onRequest hook */
+  /**
+   * The onRequest hook. Order matters: the Origin check comes before the session lookup, so a
+   * cross-site request is refused even when the browser attached a valid cookie.
+   * Answers 403 for a cross-origin state-changing request or WebSocket upgrade, 401 when a
+   * non-public route has no valid session; otherwise it only sets request.user.
+   */
   readonly check = async (request: FastifyRequest, reply: FastifyReply) => {
     if (this.isCrossOrigin(request)) return reply.code(403).send({ error: "cross-origin request refused" })
     const token = this.cookie.read(request)
@@ -42,6 +47,9 @@ export class AuthGuard {
     if (!request.user && !request.routeOptions.config.public) return reply.code(401).send({ error: "login required" })
   }
 
+  // Requests without an Origin header (curl, server-to-server) pass: they carry no browser cookie
+  // jar to abuse. An unparsable Origin counts as cross-origin. WebSocket upgrades are GETs but
+  // browsers don't apply CORS to them, so they are checked like writes.
   private isCrossOrigin(request: FastifyRequest) {
     const upgrade = request.headers.upgrade?.toLowerCase() === "websocket"
     if (AuthGuard.SAFE_METHODS.has(request.method) && !upgrade) return false

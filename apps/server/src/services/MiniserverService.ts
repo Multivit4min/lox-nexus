@@ -34,14 +34,19 @@ export class MiniserverService {
     }
   }
 
+  /** all Miniservers with their live state */
   list(): MiniserverDto[] {
     return this.manager.list().map(MiniserverMapper.toDto)
   }
 
+  /** @throws HttpError 404 */
   get(id: string): MiniserverDto {
     return MiniserverMapper.toDto(this.require(id))
   }
 
+  /**
+   * @throws ZodError 400 for an invalid config, HttpError 409 for a taken slug
+   */
   async create(input: MiniserverInput): Promise<MiniserverDto> {
     const config = MiniserverConfigSchema.parse(MiniserverService.toConfig(randomUUID(), input, undefined))
     const miniserver = this.wrap(() => this.manager.add(config))
@@ -55,18 +60,32 @@ export class MiniserverService {
     return MiniserverMapper.toDto(miniserver)
   }
 
-  /** stores and applies the new config; it restarts if it was running and follows `enabled` */
+  /**
+   * Stores and applies the new config; it restarts if it was running and follows `enabled`.
+   * @throws HttpError 404, ZodError 400
+   */
   async update(id: string, input: MiniserverInput): Promise<MiniserverDto> {
     const miniserver = this.require(id)
-    const config = MiniserverConfigSchema.parse(MiniserverService.toConfig(id, input, miniserver.config.password))
+    const previous = miniserver.config
+    const config = MiniserverConfigSchema.parse(MiniserverService.toConfig(id, input, previous.password))
     this.repo.save(config)
-    await this.manager.update(id, config).catch((error: unknown) => this.failed(miniserver, error))
+    try {
+      await this.manager.update(id, config)
+    } catch (error) {
+      // a refused config (rule violation) is undone; a restart that fails (port taken) is not an
+      // error of the request, it shows up as lastError
+      if (miniserver.config === previous) {
+        this.repo.save(previous)
+        throw HttpError.fromDomain(error)
+      }
+      this.failed(miniserver, error)
+    }
     if (config.enabled && !miniserver.isRunning) await this.tryStart(miniserver)
     if (!config.enabled && miniserver.isRunning) await miniserver.stop()
     return MiniserverMapper.toDto(miniserver)
   }
 
-  /** deletes the Miniserver, its signals and their wires, and everything left on its topics */
+  /** Deletes the Miniserver, its signals and their wires, and everything left on its topics. `by` is recorded on released forces. */
   async remove(id: string, by: string) {
     const { slug } = this.require(id).config
     this.repo.delete(id)
@@ -82,13 +101,15 @@ export class MiniserverService {
     return MiniserverMapper.toDto(miniserver)
   }
 
+  /** runtime only, like start() */
   async stop(id: string) {
     const miniserver = this.require(id)
     await miniserver.stop()
     return MiniserverMapper.toDto(miniserver)
   }
 
-  /** @throws HttpError 404 */
+  /** the running Miniserver, for callers that need the object rather than a DTO
+   * @throws HttpError 404 */
   require(id: string): Miniserver {
     const miniserver = this.manager.get(id)
     if (!miniserver) throw HttpError.notFound(`miniserver "${id}"`)

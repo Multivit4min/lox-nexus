@@ -57,6 +57,15 @@ describe("SessionService", () => {
     assert.equal(sessions.resolve(token), undefined)
     assert.equal(sessions.resolve("made-up"), undefined)
   })
+
+  test("isValid checks without extending", () => {
+    const { clock, sessions } = setup()
+    const token = sessions.create("u")
+    clock.time += SessionService.TTL_MS * 0.9
+    assert.equal(sessions.isValid(token), true)
+    clock.time += SessionService.TTL_MS * 0.2
+    assert.equal(sessions.isValid(token), false, "not extended by the check")
+  })
 })
 
 describe("LoginThrottle", () => {
@@ -76,6 +85,9 @@ describe("LoginThrottle", () => {
     for (let i = 0; i < LoginThrottle.MAX_FAILURES; i++) throttle.begin(`2001:db8:1:2::${i + 1}`)
     assert.ok(throttle.begin("2001:db8:1:2:ffff::9") > 0)
     assert.equal(throttle.begin("2001:db8:1:3::1"), 0)
+    for (let i = 0; i < LoginThrottle.MAX_FAILURES; i++) throttle.begin("2001:db8::1")
+    assert.ok(throttle.begin("2001:DB8:0:0::abcd") > 0, "compressed and uppercase forms share the /64")
+    assert.equal(throttle.begin("2001:db9::1"), 0)
   })
 })
 

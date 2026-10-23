@@ -4,11 +4,19 @@ import { BusyError } from "../auth/ConcurrencyLimit.ts"
 import { SetupDoneError } from "../auth/SetupDoneError.ts"
 import { HttpError } from "./HttpError.ts"
 
-/** Maps errors to JSON responses: { error, issues? }. Unexpected errors are logged and answered with a generic 500. */
+/**
+ * Maps errors to JSON responses: { error, issues? }. Unexpected errors are logged and answered
+ * with a generic 500, so stack traces and SQL never reach the client.
+ *
+ * Status mapping: ZodError 400 (with issues), HttpError its own status, SetupDoneError 409,
+ * BusyError 503 with Retry-After, SQLite constraint violation 409, Fastify's own 4xx (bad JSON,
+ * wrong content type, body too large) passed through, everything else 500.
+ */
 export class ErrorHandler {
   // SQLite's primary result code for constraint violations (unique, foreign key)
   private static readonly SQLITE_CONSTRAINT = 19
 
+  /** installed as Fastify's error handler */
   readonly handle = (error: FastifyError | Error, request: FastifyRequest, reply: FastifyReply) => {
     if (error instanceof z.ZodError) {
       return reply.code(400).send({ error: z.prettifyError(error), issues: error.issues })
@@ -24,6 +32,7 @@ export class ErrorHandler {
     return reply.code(500).send({ error: "internal error" })
   }
 
+  // node:sqlite reports the extended result code in errcode; the low byte is the primary code
   private static isConstraint(error: Error) {
     const code = (error as { errcode?: unknown }).errcode
     return typeof code === "number" && (code & 0xff) === ErrorHandler.SQLITE_CONSTRAINT

@@ -7,7 +7,16 @@ import type { Controller } from "../Controller.ts"
 
 const IdParams = z.object({ id: z.string().min(1) })
 
-/** /api/signals and /api/wires: every registered signal with its current value, and the wires between them. */
+/**
+ * /api/signals and /api/wires: every registered signal with its current value, and the wires
+ * between them. All routes need a session (401 otherwise).
+ *
+ * - GET /api/signals: 200.
+ * - GET /api/wires: 200, including wires that failed to start (`active: false`).
+ * - POST /api/wires: 201; 400 invalid body; 409 unknown signal or the target already has a wire.
+ * - PUT /api/wires/:id: 200; 400 / 409 as above, 404 unknown wire. The old wire keeps running on failure.
+ * - DELETE /api/wires/:id: 204; 404 unknown wire.
+ */
 export class SignalController implements Controller {
   constructor(
     private readonly signals: Pick<SignalRegistry, "list">,
@@ -15,6 +24,7 @@ export class SignalController implements Controller {
     private readonly wires: WireService
   ) {}
 
+  /** the wire bodies are validated by WireService, which owns the transform schema */
   register(app: FastifyInstance) {
     app.get("/api/signals", (): SignalDto[] => this.signals.list().map(signal => {
       const current = this.bus.current(signal.topic)

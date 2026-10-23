@@ -19,10 +19,12 @@ export class MiniserverMapper {
     }
   }
 
+  /** the topic is empty only if the signal vanished from the Miniserver in between, which the callers exclude */
   static signalToDto(miniserver: Miniserver, signal: LoxoneSignalConfig): LoxoneSignalDto {
     return { ...signal, miniserverId: miniserver.config.id, topic: miniserver.topicOf(signal.id) ?? "" }
   }
 
+  /** a copy, so later discovery updates can't change a response being serialised */
   static discoveredToDto(packet: DiscoveredPacket): DiscoveredPacketDto {
     return { ...packet }
   }
