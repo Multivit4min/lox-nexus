@@ -1,4 +1,4 @@
-import type { AdoptPacket, DiscoveredPacketDto, LoxoneSignalDto, LoxoneSignalInput, MiniserverDto, MiniserverInput } from "@lox-nexus/api"
+import type { AdoptPacket, DiscoveredPacketDto, LoxoneSignalDto, LoxoneSignalInput, MiniserverDto, MiniserverInput, MiniserverLoadDto } from "@lox-nexus/api"
 import type { Http } from "./Http.ts"
 
 /** /api/miniservers and their signals and discovered packets */
@@ -23,6 +23,11 @@ export class MiniserverApi {
 
   remove(id: string) {
     return this.http.delete(`/api/miniservers/${encodeURIComponent(id)}`)
+  }
+
+  /** current intercommunication load and the last hour of samples */
+  load(id: string) {
+    return this.http.get<MiniserverLoadDto>(`/api/miniservers/${encodeURIComponent(id)}/load`)
   }
 
   start(id: string) {

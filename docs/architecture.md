@@ -458,6 +458,19 @@ above:
   therefore gets the last known value, including values restored at startup (old Nexus never
   re-sent unlinked outputs). A removed output is taken out of the resend cycle. A release
   without a real value delivers nothing, so the Miniserver keeps the last forced value.
+- **Intercommunication load.** Loxone documents the limit as "an average value of 35 messages
+  per second over a period of 2 minutes. If this is exceeded, secure transmission is no longer
+  guaranteed and a system message appears"
+  ([Network Intercommunication](https://www.loxone.com/enen/kb/network-intercommunication/)).
+  - `IntercomLoad` counts both directions in a `TrafficMeter`: one slot per second over a
+    120 s ring. It counts what the Miniserver sends (to us, and to other targets through our
+    port) and what we send, including the cyclic resends (via `CountingSender`).
+  - Every 5 s it takes a sample (both rates and the percent of 35/s) and keeps one hour in
+    memory. It publishes the whole percent on `system/loxone/<slug>/load`, so wires can react to
+    it.
+  - Traffic between the Miniserver and systems Nexus doesn't see is missing, so the value is a
+    lower bound. Many outputs with the default 10 s resend add up: 100 outputs alone are 10 msg/s,
+    29% of the limit.
 - **Health** is derived from traffic, because UDP has no connection. Any data packet or status
   heartbeat from the Miniserver marks it online; 10 minutes of silence (two missed heartbeats)
   mark it stale.
@@ -529,6 +542,8 @@ above:
     - `GET`/`POST :id/signals`, `DELETE :id/signals/:signalId`
     - `GET :id/discovered`, `POST :id/discovered/adopt`
     - Passwords are write-only: an omitted `password` keeps the stored one, `null` removes it.
+  - `GET /api/miniservers/:id/load`: the current intercommunication load and the last hour
+    of samples (`load` in percent is also on every Miniserver DTO).
   - `GET /api/signals` lists every signal with its current value; `/api/wires` has CRUD.
   - `/api/bus`:
     - `GET messages?limit&pattern` and `GET messages/:id/trace`
@@ -590,6 +605,16 @@ above:
     - signals with live values
     - discovered packets with one-click adoption
   - The Bus Inspector.
+- **Intercommunication load.**
+  - The Miniserver list shows a compact meter per row, kept live over the `state` stream.
+  - The detail page has a card with:
+    - a meter: blue below 70%, warning from 70%, critical from 100%, each with an icon and a word
+    - the 2-minute average split by direction
+    - an area chart of the last hour against a labeled 100% limit line, with a crosshair tooltip
+      on hover or the arrow keys
+    - the same samples as a table
+  - Colors follow the dataviz reference palette and were validated against this UI's light and
+    dark card surfaces.
 - **Bus Inspector.**
   - It loads the last 500 messages for the topic pattern, then follows the `bus` stream.
   - Messages go into a 5000-entry `RingBuffer`. The rendered list is replaced once per stream

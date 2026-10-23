@@ -19,7 +19,13 @@ export class TestApp {
 
   static async start(options: NexusAppOptions = {}, env: Record<string, string> = {}) {
     const test = new TestApp(options, env)
-    test.address = (await test.app.start()) ?? ""
+    try {
+      test.address = (await test.app.start()) ?? ""
+    } catch (error) {
+      // a half-started app keeps timers alive, which would hang the test run instead of failing it
+      await test.dispose().catch(() => undefined)
+      throw error
+    }
     return test
   }
 

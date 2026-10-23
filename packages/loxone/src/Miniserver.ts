@@ -2,6 +2,7 @@ import { SystemClock, type Clock, type MessageSource, type Signal, type SignalRe
 import { Disposable } from "@lox-nexus/plugin-sdk"
 import { Value } from "@lox-nexus/plugin-sdk/values"
 import { DiscoveryList } from "./DiscoveryList.ts"
+import { IntercomLoad } from "./IntercomLoad.ts"
 import { IciValueMapper } from "./IciValueMapper.ts"
 import { LoxoneSignals, type LoxoneSignalEntry } from "./LoxoneSignals.ts"
 import { LoxoneTopics } from "./LoxoneTopics.ts"
@@ -28,6 +29,8 @@ export interface MiniserverDeps {
  */
 export class Miniserver extends Disposable {
   readonly discovery = new DiscoveryList()
+  /** traffic against Loxone's 35 messages/s limit; kept across restarts so the history stays continuous */
+  readonly load: IntercomLoad
   private readonly entries = new LoxoneSignals()
   private readonly clock: Clock
   private current: MiniserverConfig
@@ -45,6 +48,9 @@ export class Miniserver extends Disposable {
     this.current = config
     this.currentTopics = new LoxoneTopics(config.slug)
     this.clock = deps.clock ?? new SystemClock()
+    // whole percent, so the bus dedups samples while the load is steady
+    this.load = this.own(new IntercomLoad(this.clock, sample =>
+      this.deps.bus.publish(this.currentTopics.load, Value.number(Math.round(sample.percent)), { source: this.source })))
     this.onDispose(() => this.serialize(() => this.close()))
     this.publishStopped()
   }
@@ -162,7 +168,7 @@ export class Miniserver extends Disposable {
   // not idempotent for failures: on error nothing is kept, and lastError says why
   private async open() {
     if (this.connection) return
-    const connection = new MiniserverConnection(this.current, this.deps.bus, this.currentTopics, this.entries, this.discovery, this.clock)
+    const connection = new MiniserverConnection(this.current, this.deps.bus, this.currentTopics, this.entries, this.discovery, this.clock, this.load)
     try {
       await connection.open()
     } catch (error) {

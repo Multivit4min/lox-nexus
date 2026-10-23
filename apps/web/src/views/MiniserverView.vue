@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from "vue"
-import type { DiscoveredPacketDto, LoxoneSignalDto, LoxoneSignalInput, MiniserverDto, MiniserverInput } from "@lox-nexus/api"
+import type { DiscoveredPacketDto, LoxoneSignalDto, LoxoneSignalInput, MiniserverDto, MiniserverInput, MiniserverLoadDto } from "@lox-nexus/api"
 import { useIntervalFn } from "@vueuse/core"
 import { Pencil, Play, Square, Trash2 } from "@lucide/vue"
 import { useRouter } from "vue-router"
@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AppContext } from "../AppContext.ts"
 import DiscoveredCard from "../components/DiscoveredCard.vue"
 import HealthBadge from "../components/HealthBadge.vue"
+import LoadCard from "../components/load/LoadCard.vue"
 import MiniserverForm from "../components/MiniserverForm.vue"
 import SignalsCard from "../components/SignalsCard.vue"
 import { LiveValues } from "../stores/LiveValues.ts"
@@ -21,11 +22,12 @@ const router = useRouter()
 const ms = ref<MiniserverDto>()
 const signals = ref<LoxoneSignalDto[]>([])
 const discovered = ref<DiscoveredPacketDto[]>([])
+const traffic = ref<MiniserverLoadDto>()
 const editing = ref(false)
 let live: LiveValues | undefined
 
 async function refresh() {
-  ;[ms.value, discovered.value] = await Promise.all([api.get(props.id), api.discovered(props.id)])
+  ;[ms.value, discovered.value, traffic.value] = await Promise.all([api.get(props.id), api.discovered(props.id), api.load(props.id)])
 }
 
 async function load() {
@@ -35,7 +37,7 @@ async function load() {
   live.watch(`loxone/${ms.value!.slug}/#`)
 }
 
-// health, errors and discovery change on their own; the stream covers signal values
+// health, errors, discovery and load change on their own (load is sampled every 5 s); the stream covers signal values
 useIntervalFn(refresh, 5000)
 onMounted(load)
 onUnmounted(() => live?.close())
@@ -89,6 +91,7 @@ async function adopt(packet: DiscoveredPacketDto) {
       <AlertTitle>Start failed</AlertTitle>
       <AlertDescription>{{ ms.lastError }}</AlertDescription>
     </Alert>
+    <LoadCard v-if="traffic" :load="traffic" />
     <SignalsCard v-if="live" :signals="signals" :live="live" :add="addSignal" :remove="removeSignal" />
     <DiscoveredCard :packets="discovered" :adopt="adopt" />
     <Dialog v-model:open="editing">

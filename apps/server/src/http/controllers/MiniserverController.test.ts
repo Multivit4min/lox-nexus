@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { once } from "node:events"
 import { after, before, describe, test } from "node:test"
-import type { DiscoveredPacketDto, LoxoneSignalDto, MiniserverDto } from "@lox-nexus/api"
+import type { DiscoveredPacketDto, LoxoneSignalDto, MiniserverDto, MiniserverLoadDto } from "@lox-nexus/api"
 import { DataType, IciSocket, RemotePeer } from "@lox-nexus/ici"
 import { Value } from "@lox-nexus/plugin-sdk/values"
 import type { ApiClient } from "../../test-support/ApiClient.ts"
@@ -76,6 +76,13 @@ describe("miniserver API", { timeout: 10_000 }, () => {
     const [buffer] = await packet as [Buffer]
     assert.ok(buffer.includes(Buffer.from("mood")))
     assert.equal((await admin.get("/api/bus/forces")).json<Array<{ by: string }>>()[0]!.by, "admin")
+  })
+
+  test("the load endpoint reports traffic against Loxone's limit", async () => {
+    const load = (await admin.get(`/api/miniservers/${ms.id}/load`)).json<MiniserverLoadDto>()
+    assert.deepEqual([load.limitPerSecond, load.windowSeconds], [35, 120])
+    assert.ok(load.current.incomingPerSecond > 0 && load.current.outgoingPerSecond > 0, "packets went both ways in the tests above")
+    assert.equal(typeof (await admin.get(`/api/miniservers/${ms.id}`)).json<MiniserverDto>().load, "number")
   })
 
   test("renaming keeps signals, updating keeps the password, stop and start work", async () => {

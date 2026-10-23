@@ -94,6 +94,11 @@ export class MiniserverService {
     this.cleanup.forget(`system/loxone/${slug}/#`, by)
   }
 
+  /** current intercommunication load and the last hour of samples */
+  intercomLoad(id: string) {
+    return MiniserverMapper.loadToDto(this.require(id))
+  }
+
   /** runtime only; `enabled` decides what happens at the next boot */
   async start(id: string) {
     const miniserver = this.require(id)

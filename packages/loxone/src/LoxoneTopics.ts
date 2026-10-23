@@ -33,4 +33,9 @@ export class LoxoneTopics {
   get errors() {
     return `system/loxone/${this.slug}/error`
   }
+
+  /** intercommunication load in percent of Loxone's documented limit (see IntercomLoad) */
+  get load() {
+    return `system/loxone/${this.slug}/load`
+  }
 }

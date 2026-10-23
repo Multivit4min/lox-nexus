@@ -72,6 +72,28 @@ export interface MiniserverDto {
   boundPort?: number
   /** why the last start failed, cleared by a successful start */
   lastError?: string
+  /** intercommunication load in percent of Loxone's limit (35 messages/s averaged over 2 minutes) */
+  load: number
+}
+
+/** One point of a Miniserver's load history; rates are 2-minute averages in messages per second. */
+export interface LoadSampleDto {
+  ts: number
+  incomingPerSecond: number
+  outgoingPerSecond: number
+  percent: number
+}
+
+/** GET /api/miniservers/:id/load */
+export interface MiniserverLoadDto {
+  /** Loxone's documented limit: messages per second, averaged over windowSeconds */
+  limitPerSecond: number
+  windowSeconds: number
+  /** how often a sample is taken */
+  sampleMs: number
+  current: LoadSampleDto
+  /** the last hour, oldest first; in memory only, so it starts empty after a restart */
+  history: LoadSampleDto[]
 }
 
 /** A configured Loxone signal; `topic` is where it appears on the bus. */

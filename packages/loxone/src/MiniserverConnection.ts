@@ -3,7 +3,9 @@ import { IciReceiver, IciSocket, RemotePeer } from "@lox-nexus/ici"
 import { Disposable } from "@lox-nexus/plugin-sdk"
 import { Value } from "@lox-nexus/plugin-sdk/values"
 import type { DiscoveryList } from "./DiscoveryList.ts"
+import { CountingSender } from "./CountingSender.ts"
 import { HealthMonitor, type MiniserverHealth } from "./HealthMonitor.ts"
+import type { IntercomLoad } from "./IntercomLoad.ts"
 import { InboundRouter } from "./InboundRouter.ts"
 import type { LoxoneSignalEntry } from "./LoxoneSignals.ts"
 import type { LoxoneTopics } from "./LoxoneTopics.ts"
@@ -34,7 +36,8 @@ export class MiniserverConnection extends Disposable {
     private readonly topics: LoxoneTopics,
     private readonly signals: SignalLookup,
     private readonly discovery: DiscoveryList,
-    private readonly clock: Clock
+    private readonly clock: Clock,
+    private readonly load: Pick<IntercomLoad, "received" | "sent">
   ) {
     super()
     this.problems = new ProblemReporter(bus, topics.errors, this.source, clock)
@@ -54,7 +57,8 @@ export class MiniserverConnection extends Disposable {
     const receiver = new IciReceiver(this.socket, { ownId, sourceIds: [remoteId], ...(password ? { password } : {}) })
     this.onDispose(() => receiver.dispose())
     this.reportReceiverProblems(receiver)
-    const peer = new RemotePeer(this.socket, { ownId, remoteId, host, port, resendInterval })
+    this.countIncoming(receiver, remoteId)
+    const peer = new RemotePeer(new CountingSender(this.socket, () => this.load.sent()), { ownId, remoteId, host, port, resendInterval })
     this.onDispose(() => peer.close())
     const { bus, topics, signals, discovery, clock, source, problems, health } = this
     this.own(new InboundRouter(receiver, { bus, topics, source, remoteId, signals, discovery, health, problems, clock }))
@@ -75,6 +79,18 @@ export class MiniserverConnection extends Disposable {
   /** a signal was removed while running: an output stops being resent */
   signalRemoved(entry: LoxoneSignalEntry) {
     if (entry.config.direction === "out") this.outbound?.forget(entry)
+  }
+
+  // everything the Miniserver sends counts against its limit, including packets for other targets
+  // that arrive on our port; packets from anyone else don't
+  private countIncoming(receiver: IciReceiver, remoteId: string) {
+    const fromMiniserver = (packet: { sourceId: string }) => {
+      if (packet.sourceId === remoteId) this.load.received()
+    }
+    this.listen(receiver, "data", () => this.load.received())
+    this.listen(receiver, "status", fromMiniserver)
+    this.listen(receiver, "foreign", fromMiniserver)
+    this.listen(receiver, "encrypted", fromMiniserver)
   }
 
   // a wrong password shows up as "decryption failed"; without these the UI would only show "waiting"

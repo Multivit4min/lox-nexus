@@ -18,6 +18,7 @@ const SignalParams = IdParams.extend({ signalId: z.string().min(1) })
  * - POST /: 201 with the created Miniserver; a failed start is not an error, see `lastError`.
  * - PUT :id: 200 with the updated Miniserver.
  * - DELETE :id: 204, removes its signals, wires, forces and retained values too.
+ * - GET :id/load: 200 with the intercommunication load and the last hour of samples.
  * - POST :id/start, :id/stop: 200 with the Miniserver; start failures show up as `lastError`.
  * - GET/POST :id/signals, DELETE :id/signals/:signalId: 200 / 201 / 204.
  * - GET :id/discovered: 200. POST :id/discovered/adopt: 201 with the new input signal, 404 for
@@ -35,6 +36,7 @@ export class MiniserverController implements Controller {
       await this.miniservers.remove(MiniserverController.id(request), request.user!.username)
       return reply.code(204).send()
     })
+    app.get("/api/miniservers/:id/load", request => this.miniservers.intercomLoad(MiniserverController.id(request)))
     app.post("/api/miniservers/:id/start", request => this.miniservers.start(MiniserverController.id(request)))
     app.post("/api/miniservers/:id/stop", request => this.miniservers.stop(MiniserverController.id(request)))
     this.registerSignals(app)

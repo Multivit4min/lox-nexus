@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { AppContext } from "../AppContext.ts"
 import HealthBadge from "../components/HealthBadge.vue"
+import LoadMeter from "../components/load/LoadMeter.vue"
 import MiniserverForm from "../components/MiniserverForm.vue"
 import { LiveValues } from "../stores/LiveValues.ts"
 
@@ -16,12 +17,18 @@ const api = context.miniservers
 const router = useRouter()
 const list = ref<MiniserverDto[]>([])
 const adding = ref(false)
-// health changes arrive live; the list itself only changes through this UI
-const live = new LiveValues(handlers => context.stream(handlers), "system/loxone/+/status")
+// health and load arrive live; the list itself only changes through this UI
+const live = new LiveValues(handlers => context.stream(handlers), "system/loxone/#")
 
 const health = (ms: MiniserverDto) => {
   const status = live.get(`system/loxone/${ms.slug}/status`)?.value
   return status?.type === "string" ? status.value : ms.health
+}
+
+// live from the bus (whole percent, every 5 s) once a sample arrived, else from the list
+const loadOf = (ms: MiniserverDto) => {
+  const value = live.get(`system/loxone/${ms.slug}/load`)?.value
+  return value?.type === "number" ? value.value : ms.load
 }
 
 async function load() {
@@ -48,7 +55,7 @@ onUnmounted(() => live.close())
       <TableHeader>
         <TableRow>
           <TableHead>Name</TableHead><TableHead>Topic</TableHead><TableHead>Address</TableHead>
-          <TableHead>Listen port</TableHead><TableHead>Status</TableHead>
+          <TableHead>Listen port</TableHead><TableHead>Status</TableHead><TableHead title="share of Loxone's intercommunication limit (35 msg/s, 2-min average)">Load</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -61,8 +68,9 @@ onUnmounted(() => live.close())
           <TableCell>{{ ms.host }}:{{ ms.port }}</TableCell>
           <TableCell>{{ ms.listenPort }}</TableCell>
           <TableCell><HealthBadge :health="health(ms)" /></TableCell>
+          <TableCell><LoadMeter :percent="loadOf(ms)" compact /></TableCell>
         </TableRow>
-        <TableEmpty v-if="list.length === 0" :colspan="5">No Miniserver yet.</TableEmpty>
+        <TableEmpty v-if="list.length === 0" :colspan="6">No Miniserver yet.</TableEmpty>
       </TableBody>
     </Table>
     <Dialog v-model:open="adding">
