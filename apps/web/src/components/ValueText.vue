@@ -9,8 +9,10 @@ const formatter = new ValueFormatter()
 const text = computed(() => formatter.format(props.value))
 const swatch = computed(() => {
   if (props.value?.type !== "rgbw") return undefined
-  const { red, green, blue } = props.value.value
-  return `rgb(${red * 2.55} ${green * 2.55} ${blue * 2.55})`
+  // the white channel lightens every colour; without it a pure-white mood (w80) would look black
+  const { red, green, blue, white } = props.value.value
+  const channel = (value: number) => Math.min(100, value + white) * 2.55
+  return `rgb(${channel(red)} ${channel(green)} ${channel(blue)})`
 })
 </script>
 

@@ -65,6 +65,11 @@ export class MiniserverApi {
     return this.http.post<LoxoneSignalDto>(`/api/miniservers/${encodeURIComponent(id)}/discovered/adopt`, input)
   }
 
+  /** the same from a project file the user picked: a .Loxone, a Miniserver archive (sps_….zip) or a .LoxCC */
+  readProjectFile(id: string, file: File) {
+    return this.http.upload<LoxoneProjectDto>(`/api/miniservers/${encodeURIComponent(id)}/project/file?${new URLSearchParams({ name: file.name })}`, file)
+  }
+
   /** the intercommunication part of the Miniserver's Loxone Config project, read over FTP with this login */
   readProject(id: string, login: ProjectRead) {
     return this.http.post<LoxoneProjectDto>(`/api/miniservers/${encodeURIComponent(id)}/project`, login)

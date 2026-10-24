@@ -223,6 +223,29 @@ The RGBW output of a Lighting Controller was captured while its mood was switche
   static mood with a custom (longer) fade time also sets it, and whether a Smart Actuator behaves
   differently with and without it.
 
+**Checked against the mood definitions (2026-10-24).** The Loxone Config project (read from
+`/prog`) stores each mood's value for the RGBW output as a number. After subtracting `0x60000000`
+it comes in one of two forms:
+- `20bbbkkkk`: a colour temperature, brightness `bbb` % and `kkkk` Kelvin.
+- `B·1000000 + G·1000 + R`: an RGB colour in percent.
+
+Every captured packet matches its mood byte for byte, so the decoding is correct:
+
+| Mood | Defined as | Packet | |
+|---|---|---|---|
+| 50 "Bright Motion" | 80 %, 4600 K | `w80` | ✅ |
+| 51 "Dimm Motion" | 40 %, 4050 K | `r7 w37` | ✅ |
+| 99 "Bright" | 100 %, 4600 K | `w100` | ✅ |
+| 98 "Alarm" | R100 G2 B2 | `r100 g2 b2` | ✅ exact |
+| 69 sequence | R100 G5 B5, steps R100 G9 B6 → R100 G35 B0 → R100 G13 B13, 3 s | the same steps | ✅ exact |
+| 60 "test" | R0 G2 B50 | expected `g2 b50`, not captured yet | — |
+
+The RGBW payload has no field for a colour temperature. For a Kelvin mood the Miniserver mixes
+it into RGBW itself before sending: 4600 K becomes the white channel alone, and the warmer
+4050 K adds a little red (7 %) to a dimmer white. So a receiver sees white-heavy RGBW for every
+temperature mood, and real colours only for RGB moods. Turning that back into a temperature
+(`Converter` rgbw → tunableWhite) can only be an estimate.
+
 **Passthrough probe (2026-10-23).** RGBW packets were sent to a Miniserver input wired directly to
 an RGBW output. Every payload came back **byte-identical** within about 30 ms: bytes 6–7 set to
 `0001`, `0100` and `ffff`, fade values 0, 10 and 25, and out-of-range colours 101 and 255. A direct

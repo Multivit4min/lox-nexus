@@ -30,11 +30,19 @@ export class Http {
     return this.request<void>("DELETE", url)
   }
 
-  private async request<T>(method: string, url: string, body?: unknown): Promise<T> {
+  /** POST of a file's raw bytes; the answer is JSON as usual */
+  upload<T>(url: string, file: Blob) {
+    return this.send<T>(url, { method: "POST", headers: { "content-type": "application/octet-stream" }, body: file })
+  }
+
+  private request<T>(method: string, url: string, body?: unknown): Promise<T> {
     // no content-type without a body: Fastify rejects an empty JSON body
-    const init: RequestInit = body === undefined
+    return this.send<T>(url, body === undefined
       ? { method }
-      : { method, headers: { "content-type": "application/json" }, body: JSON.stringify(body) }
+      : { method, headers: { "content-type": "application/json" }, body: JSON.stringify(body) })
+  }
+
+  private async send<T>(url: string, init: RequestInit): Promise<T> {
     const response = await fetch(Http.resolve(url), init)
     if (response.status === 204) return undefined as T
     const data = await response.json().catch(() => ({})) as { error?: string; issues?: ApiError["issues"] }

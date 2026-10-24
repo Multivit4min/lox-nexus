@@ -55,6 +55,59 @@ describe("ProjectReader", () => {
   })
 })
 
+/** the fixture zip with its sps0.LoxCC directory record repeated `times` times, all pointing at one entry */
+function repeating(times: number) {
+  const zip = Buffer.from(ProjectFixtures.zip())
+  const end = zip.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]))
+  const [count, size, offset] = [zip.readUInt16LE(end + 10), zip.readUInt32LE(end + 12), zip.readUInt32LE(end + 16)]
+  const directory = zip.subarray(offset, offset + size)
+  const records: Buffer[] = []
+  for (let at = 0; at < directory.length;) {
+    const length = 46 + directory.readUInt16LE(at + 28) + directory.readUInt16LE(at + 30) + directory.readUInt16LE(at + 32)
+    const record = directory.subarray(at, at + length)
+    const named = record.subarray(46, 46 + record.readUInt16LE(28)).toString() === "sps0.LoxCC"
+    for (let i = 0; i < (named ? times : 1); i++) records.push(record)
+    at += length
+  }
+  const newDirectory = Buffer.concat(records)
+  const tail = Buffer.from(zip.subarray(end))
+  tail.writeUInt16LE(count + times - 1, 8)
+  tail.writeUInt16LE(count + times - 1, 10)
+  tail.writeUInt32LE(newDirectory.length, 12)
+  return Buffer.concat([zip.subarray(0, offset), newDirectory, tail])
+}
+
+describe("ProjectReader.file: a project file the user picked", () => {
+  const reader = new ProjectReader(source("unused", new Uint8Array()))
+
+  test("is recognised by its content: a .Loxone (XML), a Miniserver archive or a .LoxCC, whatever its name", () => {
+    const files: Array<[string, Uint8Array]> = [
+      ["Haus.Loxone", Buffer.from(ProjectFixtures.XML)],
+      ["download.bin", ProjectFixtures.zip()],
+      ["sps0.LoxCC", ProjectFixtures.loxcc(Buffer.from(ProjectFixtures.XML))],
+      ["spaced.Loxone", Buffer.from(`\n  ${ProjectFixtures.XML.slice(1)}`)]
+    ]
+    for (const [name, data] of files) {
+      const read = reader.file(name, data)
+      assert.deepEqual([read.file, read.project.title, read.project.peers.length], [name, "Test house", 2], name)
+    }
+  })
+
+  test("anything else, or a corrupt archive, is a ProjectReadError naming the file", () => {
+    const cases: Array<[Uint8Array, RegExp]> = [
+      [Buffer.from("just text"), /"picked" is not a Loxone Config project/],
+      [new Uint8Array(), /"picked" is not a Loxone Config project/],
+      [ProjectFixtures.zip().subarray(0, 40), /"picked" can't be read/],
+      [Buffer.from("<ControlList>"), /"picked" is not a readable project/],
+      [Buffer.from([0xff, 0xfe, 0x3c, 0x00]), /"picked" is UTF-16/],
+      [repeating(2), /the archive has more than one sps0\.LoxCC/]
+    ]
+    for (const [data, message] of cases) {
+      assert.throws(() => reader.file("picked", data), (error: unknown) => error instanceof ProjectReadError && message.test(error.message))
+    }
+  })
+})
+
 /**
  * Against the real test Miniserver (see .env); skipped unless LOXONE_TEST_HOST, LOXONE_TEST_USER
  * and LOXONE_TEST_PASSWORD are set. Read-only: it lists /prog and downloads one file. No wrong-login

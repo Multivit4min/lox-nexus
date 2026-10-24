@@ -47,7 +47,7 @@ export interface NexusAppOptions {
   pluginTransport?: PluginTransport
   pluginTimings?: Partial<SupervisorTimings>
   /** reads Loxone Config projects from Miniservers; tests pass a fake instead of FTP */
-  projectReader?: Pick<ProjectReader, "read">
+  projectReader?: Pick<ProjectReader, "read" | "file">
 }
 
 /** The services the HTTP layer needs, built in start(). */

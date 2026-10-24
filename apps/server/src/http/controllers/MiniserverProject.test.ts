@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { after, before, describe, test } from "node:test"
 import type { LoxoneProjectDto, MiniserverDto } from "@lox-nexus/api"
-import { ProjectReadError, type ReadProject } from "@lox-nexus/loxone"
+import { ProjectReadError, ProjectReader, type ReadProject } from "@lox-nexus/loxone"
 import type { ApiClient } from "../../test-support/ApiClient.ts"
 import { TestApp } from "../../test-support/TestApp.ts"
 
@@ -29,7 +29,9 @@ describe("reading a Miniserver's project over the API", { timeout: 10_000 }, () 
         read: (host, login) => {
           calls.push({ host, ...login })
           return failure ? Promise.reject(failure) : Promise.resolve(project)
-        }
+        },
+        // uploaded files are parsed for real; nothing is downloaded for them
+        file: (name, data) => new ProjectReader({ download: () => Promise.reject(new Error("no download")) }).file(name, data)
       }
     })
     admin = await app.admin()
@@ -66,5 +68,29 @@ describe("reading a Miniserver's project over the API", { timeout: 10_000 }, () 
     assert.equal(calls.length, calls0, "nothing reaches the Miniserver")
     assert.equal((await admin.post("/api/miniservers/nope/project", { username: "a", password: "b" })).statusCode, 404)
     assert.equal((await app.client().post(url, { username: "a", password: "b" })).statusCode, 401)
+  })
+
+  test("an uploaded project file is read the same way, whatever its name; anything else is a 400", async () => {
+    const xml = `<?xml version="1.0" encoding="utf-8"?>
+<ControlList><C Type="Document" Title="Uploaded house"><C Type="LanInt" Pt="61263" MId="ms">
+  <C Type="HItcDev" Title="nexus-dev" sid="nexus" dP="61264" dAd="10.0.0.5"><C Type="HItcIn" Title="PV" tp="1" pid="pv"/></C>
+</C></C></ControlList>`
+    const upload = (body: Buffer, name = "Haus.Loxone") => admin.post(`${url}/file?name=${encodeURIComponent(name)}`, body, { "content-type": "application/octet-stream" })
+    const read = await upload(Buffer.from(xml))
+    assert.equal(read.statusCode, 200, read.body)
+    const dto = read.json<LoxoneProjectDto>()
+    assert.deepEqual([dto.file, dto.title, dto.peers[0]?.signals.map(signal => signal.packetId)], ["Haus.Loxone", "Uploaded house", ["pv"]])
+    const refused = await upload(Buffer.from("a spreadsheet"), "notes.txt")
+    assert.deepEqual([refused.statusCode, refused.json<{ error: string }>().error], [400, "\"notes.txt\" is not a Loxone Config project (.Loxone), a Miniserver archive (sps_….zip) or a .LoxCC file"])
+    assert.equal((await admin.post(`${url}/file`, { not: "a file" })).statusCode, 415, "JSON is refused before it is read")
+    assert.equal((await admin.post("/api/miniservers/nope/project/file", Buffer.from(xml), { "content-type": "application/octet-stream" })).statusCode, 404)
+  })
+
+  test("the upload needs a session, is capped at 32 MB, and only that route takes raw bytes", async () => {
+    const octets = { "content-type": "application/octet-stream" }
+    assert.equal((await app.client().post(`${url}/file`, Buffer.from("<x/>"), octets)).statusCode, 401)
+    assert.equal((await admin.post(`${url}/file`, Buffer.alloc(32 * 1_048_576 + 1), octets)).statusCode, 413)
+    assert.equal((await admin.post("/api/miniservers", Buffer.from("{}"), octets)).statusCode, 415)
+    assert.equal((await admin.post(`${url}/file?name=${encodeURIComponent("a\nb")}`, Buffer.from("<x/>"), octets)).statusCode, 400)
   })
 })

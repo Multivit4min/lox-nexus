@@ -38,7 +38,7 @@ export class HttpServer extends Disposable {
   constructor(options: HttpServerOptions) {
     super()
     // one megabyte is plenty for JSON configs; larger bodies are refused before parsing.
-    // Only the config import raises it for its own route (ConfigController.IMPORT_BODY_LIMIT).
+    // Only the config import and the project file upload raise it for their own routes.
     this.app = Fastify({
       loggerInstance: options.logger,
       bodyLimit: 1_048_576,

@@ -988,6 +988,25 @@ expects), but the Loxone Config project on the Miniserver lists all of them. So 
   - Signals whose type differs get only the new data type, so their names, topics, wires and
     forces stay.
   - Failures are listed per row, and the remaining rows still run.
+- **From a file.** The dialog's second tab reads a project file the user picks:
+  - Loxone Config's own `.Loxone`, which is the same `ControlList` XML (UTF-8 with a BOM)
+  - a Miniserver archive (`sps_….zip` from `/prog`)
+  - a `.LoxCC`
+
+  `POST /api/miniservers/:id/project/file?name=…` takes the raw bytes (`application/octet-stream`,
+  up to 32 MB, the same cap as the FTP download). That route alone gets the raw-body parser, in
+  its own Fastify scope. `ProjectFiles.fromFile` tells the formats apart by content (zip magic,
+  LoxCC magic, or XML), not by name. A file that is none of them, or UTF-16, is a 400 with a
+  message naming it. Nothing is stored.
+  - Other content types get a 415 before their body is read, and the `name` may not contain
+    control characters.
+  - An archive may hold at most 1000 files and exactly one `sps0.LoxCC`. fflate inflates every
+    directory record it accepts, so a crafted archive repeating one 64 MB entry would otherwise
+    block the server for hours. This guards the FTP path too.
+  - Parsing a 32 MB `.Loxone` blocks the event loop for about a second and peaks at about
+    170 MB. That's acceptable for an admin action; moving the parse into a worker would remove it. Verified with a real `.Loxone` (`Default2Go.Loxone` from `/prog`) and a
+  real archive, and in a headless Chromium walkthrough that uploaded the archive and listed its
+  peers.
 - **Verified** against the test Miniserver (firmware 17.2): the newest of 30 project files is
   downloaded, decoded and parsed in about 0.75 s. A headless Chromium walkthrough imported the
   `claude-dev` peer, which needed one type change and five new signals.
