@@ -11,6 +11,16 @@ PV inverter (meter 3) and no battery.
 | `live-gen24-meter-system.json` | GetMeterRealtimeData, Scope=System |
 | `live-gen24-storage-system.json` | GetStorageRealtimeData, Scope=System (empty: no battery) |
 
+The `live-gen24-battery-*` files were recorded the same day from a second GEN24 (compatibility
+range 1.7-7) with a Smart Meter 63A at the grid (meter 0), a BYD Battery-Box Premium HV (storage 0,
+5.7 % charged, "nearly depleted") and an Ohm Pilot (0). Serial numbers are replaced.
+
+| File | Endpoint |
+|---|---|
+| `live-gen24-battery-powerflow.json` | GetPowerFlowRealtimeData |
+| `live-gen24-battery-meter-system.json` | GetMeterRealtimeData, Scope=System |
+| `live-gen24-battery-storage-system.json` | GetStorageRealtimeData, Scope=System |
+
 The others are **synthesized** from the Fronius Solar API v1 documentation (field names, nesting
 and the `Head`/`Body` envelope), with plausible values, to cover what the real installation
 doesn't have (a battery, a missing meter, errors). The recording confirmed their field names

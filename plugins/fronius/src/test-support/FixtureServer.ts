@@ -49,6 +49,13 @@ export class FixtureServer {
       .serve("GetStorageRealtimeData", "live-gen24-storage-system")
   }
 
+  /** recorded from a real GEN24 with a BYD battery and an Ohm Pilot (2026-10-24) */
+  liveGen24Battery() {
+    return this.serve("GetPowerFlowRealtimeData", "live-gen24-battery-powerflow")
+      .serve("GetMeterRealtimeData", "live-gen24-battery-meter-system")
+      .serve("GetStorageRealtimeData", "live-gen24-battery-storage-system")
+  }
+
   /** an inverter without meter, and a Datamanager that doesn't know the storage endpoint */
   produceOnly() {
     return this.serve("GetPowerFlowRealtimeData", "powerflow-produce-only")

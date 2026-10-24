@@ -131,8 +131,9 @@ transfer").
 - The fronius tests pass using only `PluginTestHost`.
 
 **Result:** all of the above, see `docs/architecture.md` ("plugin runtime (M4)") and
-`docs/plugin-authoring.md`. Fronius ran against a real GEN24 (grid meter, a secondary
-"Solax" meter, no battery) through the whole stack; those responses are recorded as fixtures. The plugin UI (instances, signals,
+`docs/plugin-authoring.md`. Fronius ran against two real GEN24 inverters (one with a grid
+meter and a secondary "Solax" meter and no battery, one with a BYD battery and an Ohm Pilot)
+through the whole stack; their responses are recorded as fixtures. The plugin UI (instances, signals,
 catalog, panel) follows in M5; until then the plugins are managed through the API.
 
 ### M5: installer, Calendar, Home Assistant, plugin UI
