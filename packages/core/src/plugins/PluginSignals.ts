@@ -34,7 +34,8 @@ export class PluginSignals extends Disposable {
 
   constructor(
     private instance: PluginInstanceConfig,
-    private readonly pkg: PluginPackage,
+    /** read on every use: a development reload replaces the package and its capabilities */
+    private readonly pkg: () => PluginPackage,
     private readonly bus: PluginBus,
     private readonly registry: Pick<SignalRegistry, "register" | "unregister" | "update">,
     private readonly actuate: (signalId: string, value: Value, cause: BusMessage) => void
@@ -124,9 +125,10 @@ export class PluginSignals extends Disposable {
   }
 
   private entryFor(config: PluginSignalConfig): PluginSignalEntry {
-    const offered = config.kind === "sensor" ? this.pkg.description.sensors : this.pkg.description.actuators
+    const { description, name } = this.pkg()
+    const offered = config.kind === "sensor" ? description.sensors : description.actuators
     const capability = offered.find(candidate => candidate.id === config.capability)
-    if (!capability) throw new Error(`${this.pkg.name} has no ${config.kind} "${config.capability}"`)
+    if (!capability) throw new Error(`${name} has no ${config.kind} "${config.capability}"`)
     return { config, topic: this.topics.forSignal(config), valueType: capability.valueType }
   }
 

@@ -5,6 +5,9 @@ import { ForceRepository } from "./repositories/ForceRepository.ts"
 import { LoadSampleRepository } from "./repositories/LoadSampleRepository.ts"
 import { LoxoneSignalRepository } from "./repositories/LoxoneSignalRepository.ts"
 import { MiniserverRepository } from "./repositories/MiniserverRepository.ts"
+import { PluginInstanceRepository } from "./repositories/PluginInstanceRepository.ts"
+import { PluginSignalRepository } from "./repositories/PluginSignalRepository.ts"
+import { PluginStoreRepository } from "./repositories/PluginStoreRepository.ts"
 import { SessionRepository } from "./repositories/SessionRepository.ts"
 import { SnapshotRepository } from "./repositories/SnapshotRepository.ts"
 import { UserRepository } from "./repositories/UserRepository.ts"
@@ -24,6 +27,9 @@ export class Persistence {
   readonly forces: ForceRepository
   readonly snapshot: SnapshotRepository
   readonly loadSamples: LoadSampleRepository
+  readonly pluginInstances: PluginInstanceRepository
+  readonly pluginSignals: PluginSignalRepository
+  readonly pluginStore: PluginStoreRepository
 
   /**
    * Opens the file and migrates it before any repository exists.
@@ -41,6 +47,9 @@ export class Persistence {
     this.forces = new ForceRepository(this.db, warn)
     this.snapshot = new SnapshotRepository(this.db)
     this.loadSamples = new LoadSampleRepository(this.db, warn)
+    this.pluginInstances = new PluginInstanceRepository(this.db)
+    this.pluginSignals = new PluginSignalRepository(this.db)
+    this.pluginStore = new PluginStoreRepository(this.db, warn)
   }
 
   /** closes the database; repositories must not be used afterwards */

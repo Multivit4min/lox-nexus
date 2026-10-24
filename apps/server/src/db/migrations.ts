@@ -87,4 +87,36 @@ export const MIGRATIONS: readonly Migration[] = [
       ) WITHOUT ROWID;
     `
   }
+  ,
+  {
+    version: 3,
+    name: "plugins",
+    sql: `
+      CREATE TABLE plugin_instances (
+        id TEXT PRIMARY KEY,
+        plugin TEXT NOT NULL,
+        slug TEXT NOT NULL UNIQUE,
+        label TEXT NOT NULL,
+        config TEXT NOT NULL,
+        enabled INTEGER NOT NULL
+      );
+      -- each row also has one in the signals supertable, which wires reference
+      CREATE TABLE plugin_signals (
+        id TEXT PRIMARY KEY REFERENCES signals(id) ON DELETE CASCADE,
+        instance_id TEXT NOT NULL REFERENCES plugin_instances(id) ON DELETE CASCADE,
+        kind TEXT NOT NULL CHECK (kind IN ('sensor', 'actuator')),
+        capability TEXT NOT NULL,
+        params TEXT NOT NULL,
+        label TEXT NOT NULL,
+        slug TEXT NOT NULL,
+        UNIQUE (instance_id, kind, slug)
+      );
+      CREATE TABLE plugin_store (
+        instance_id TEXT NOT NULL REFERENCES plugin_instances(id) ON DELETE CASCADE,
+        key TEXT NOT NULL,
+        value TEXT NOT NULL,
+        PRIMARY KEY (instance_id, key)
+      ) WITHOUT ROWID;
+    `
+  }
 ]

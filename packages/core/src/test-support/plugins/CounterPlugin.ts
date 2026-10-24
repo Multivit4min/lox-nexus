@@ -36,5 +36,10 @@ export class CounterPlugin extends Plugin<{ refuse: boolean }> {
   override start() {
     if (this.config.refuse) throw new Error("refused on purpose")
     this.log.info("started")
+    // a webhook: POST /value with a number as text sets the value like the actuator
+    this.http.route("POST", "/value", request => {
+      this.values.emit("value", Number(request.body))
+      return { status: 202, body: "ok" }
+    })
   }
 }

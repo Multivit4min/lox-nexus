@@ -7,6 +7,10 @@
     ".": {
       "@lox-nexus/source": "./src/index.ts",
       "default": "./dist/index.js"
+    },
+    "./testing": {
+      "@lox-nexus/source": "./src/test-support/index.ts",
+      "default": "./dist/test-support/index.js"
     }
   },
   "dependencies": {

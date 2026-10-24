@@ -59,15 +59,24 @@ export class PluginSession extends Disposable {
    * @throws InitFailedError when the plugin refuses; Error when it times out or exits meanwhile
    */
   async open(init: Omit<Extract<HostMessage, { type: "init" }>, "type">) {
-    const hello = await this.waitFor("hello", this.timings.helloMs, "say hello (does its entry call PluginEntry.define()?)")
-    if (hello.type === "hello" && hello.version !== WIRE_VERSION) {
-      throw new InitFailedError(`the plugin speaks wire version ${hello.version}, this Nexus ${WIRE_VERSION}`)
-    }
+    await this.greet()
     const ready = this.waitFor(["ready", "failed"], this.timings.initMs, "finish starting")
     this.connection.send({ type: "init", ...init })
     const outcome = await ready
     if (outcome.type === "failed") throw new InitFailedError(outcome.error)
     this.every(this.timings.pingMs, () => this.ping())
+  }
+
+  /**
+   * Waits for the plugin's hello and checks its wire version. open() starts with it; on its own
+   * it is enough for `describe`, which needs no init.
+   * @throws InitFailedError for another wire version; Error on timeout or exit
+   */
+  async greet() {
+    const hello = await this.waitFor("hello", this.timings.helloMs, "say hello (does its entry call PluginEntry.define()?)")
+    if (hello.type === "hello" && hello.version !== WIRE_VERSION) {
+      throw new InitFailedError(`the plugin speaks wire version ${hello.version}, this Nexus ${WIRE_VERSION}`)
+    }
   }
 
   /** @throws PluginRequestError with the plugin's message, or Error on timeout or exit */

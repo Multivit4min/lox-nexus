@@ -19,7 +19,9 @@ const EnvSchema = z.object({
   /** comma-separated proxy addresses/CIDRs whose X-Forwarded-For is believed (login throttling is per client address) */
   NEXUS_TRUST_PROXY: list.default([]),
   /** comma-separated origins the UI is reached at through a proxy that rewrites Host, e.g. https://nexus.example */
-  NEXUS_PUBLIC_ORIGINS: list.pipe(z.array(z.url())).default([])
+  NEXUS_PUBLIC_ORIGINS: list.pipe(z.array(z.url())).default([]),
+  /** development: run every plugin in this directory from source (`npm run dev` sets the workspace's plugins/) */
+  NEXUS_DEV_PLUGINS_DIR: z.string().min(1).optional()
 })
 
 /** Process configuration from environment variables. Everything persistent lives under `dataDir`. */
@@ -35,6 +37,8 @@ export class Config {
   readonly webDir: string | undefined
   readonly trustProxy: string[]
   readonly publicOrigins: string[]
+  /** absolute path, if configured */
+  readonly devPluginsDir: string | undefined
 
   /** @throws ZodError naming every invalid variable */
   constructor(env: Record<string, string | undefined> = process.env) {
@@ -47,6 +51,7 @@ export class Config {
     this.webDir = parsed.NEXUS_WEB_DIR && path.resolve(parsed.NEXUS_WEB_DIR)
     this.trustProxy = parsed.NEXUS_TRUST_PROXY
     this.publicOrigins = parsed.NEXUS_PUBLIC_ORIGINS
+    this.devPluginsDir = parsed.NEXUS_DEV_PLUGINS_DIR && path.resolve(parsed.NEXUS_DEV_PLUGINS_DIR)
   }
 
   /** the SQLite file */

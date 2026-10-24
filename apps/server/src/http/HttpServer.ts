@@ -15,6 +15,11 @@ export interface HttpServerOptions {
   logger: FastifyBaseLogger
   guard: AuthGuard
   controllers: Controller[]
+  /**
+   * routes reachable without a session, outside the API (plugin webhooks); each gets its own
+   * encapsulated plugin, so it can parse bodies its own way
+   */
+  publicControllers?: Controller[]
   /** built web UI; served with a fallback to index.html for client-side routes */
   webDir?: string
   /** proxies whose X-Forwarded-For sets request.ip; empty trusts nobody */
@@ -50,6 +55,7 @@ export class HttpServer extends Disposable {
       app.get("/api/health", { config: { public: true } }, () => ({ ok: true }))
       for (const controller of options.controllers) controller.register(app)
     })
+    for (const controller of options.publicControllers ?? []) this.app.register(async app => controller.register(app))
     this.serveWeb(options.webDir)
     this.onDispose(() => this.app.close())
   }

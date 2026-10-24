@@ -1,4 +1,7 @@
-import { EventBus, Recorder, SignalRegistry, SystemClock, WireEngine, type Clock } from "@lox-nexus/core"
+import {
+  EventBus, PackageDescriber, PluginManager, Recorder, SignalRegistry, SystemClock, WireEngine, WorkerTransport,
+  type Clock, type PluginTransport, type SupervisorTimings
+} from "@lox-nexus/core"
 import { MiniserverManager } from "@lox-nexus/loxone"
 import { Disposable } from "@lox-nexus/plugin-sdk"
 import type { Logger } from "pino"
@@ -12,13 +15,20 @@ import { AuthGuard } from "./http/AuthGuard.ts"
 import { AuthController } from "./http/controllers/AuthController.ts"
 import { BusController } from "./http/controllers/BusController.ts"
 import { ConfigController } from "./http/controllers/ConfigController.ts"
+import { HookController } from "./http/controllers/HookController.ts"
 import { MiniserverController } from "./http/controllers/MiniserverController.ts"
+import { PluginController } from "./http/controllers/PluginController.ts"
 import { SignalController } from "./http/controllers/SignalController.ts"
 import { HttpServer } from "./http/HttpServer.ts"
 import { SessionCookie } from "./http/SessionCookie.ts"
+import { DevPluginLoader } from "./plugins/DevPluginLoader.ts"
+import { PluginCatalog } from "./plugins/PluginCatalog.ts"
 import { ConfigTransfer } from "./services/ConfigTransfer.ts"
 import { LoxoneSignalService } from "./services/LoxoneSignalService.ts"
 import { MiniserverService } from "./services/MiniserverService.ts"
+import { PluginLogs } from "./services/PluginLogs.ts"
+import { PluginService } from "./services/PluginService.ts"
+import { PluginSignalService } from "./services/PluginSignalService.ts"
 import { SnapshotWriter } from "./services/SnapshotWriter.ts"
 import { SystemEventLogger } from "./services/SystemEventLogger.ts"
 import { TopicCleanup } from "./services/TopicCleanup.ts"
@@ -32,13 +42,26 @@ export interface NexusAppOptions {
   clock?: Clock
   /** scrypt cost; tests use a small one */
   hasherCost?: number
+  /** how plugins run; tests pass a fake that runs them in-process */
+  pluginTransport?: PluginTransport
+  pluginTimings?: Partial<SupervisorTimings>
+}
+
+/** The services the HTTP layer needs, built in start(). */
+interface Services {
+  miniservers: MiniserverService
+  loxoneSignals: LoxoneSignalService
+  wires: WireService
+  plugins: PluginService
+  pluginSignals: PluginSignalService
 }
 
 /**
  * Composition root: the only place where services are constructed and wired. Boot order matters:
- * forces before anything publishes (restored values then arrive shadowed), signals before wires,
- * wires before the snapshot (so syncOnStart wires see restored values), the snapshot before the
- * Miniservers start (so their outputs get the restored values), HTTP last.
+ * forces before anything publishes (restored values then arrive shadowed), signals (Loxone and
+ * plugin) before wires, wires before the snapshot (so syncOnStart wires see restored values), the
+ * snapshot before the Miniservers start (so their outputs get the restored values), HTTP, and
+ * plugins last, in the background, so a slow plugin never delays the server.
  * Disposal runs in reverse: HTTP closes first, the database last.
  */
 export class NexusApp extends Disposable {
@@ -49,6 +72,10 @@ export class NexusApp extends Disposable {
   readonly recorder: Recorder
   readonly wires: WireEngine
   readonly miniservers: MiniserverManager
+  readonly plugins: PluginManager
+  /** the plugins instances can be created from; development plugins are added at start */
+  readonly pluginCatalog = new PluginCatalog()
+  private readonly pluginTransport: PluginTransport
   private readonly clock: Clock
   private readonly snapshot: SnapshotWriter
   private http: HttpServer | undefined
@@ -66,6 +93,11 @@ export class NexusApp extends Disposable {
     // owned before the Miniservers, so it is disposed after them and saves their last values
     this.snapshot = this.own(new SnapshotWriter(this.bus, this.signals, this.persistence.snapshot, log))
     this.miniservers = this.own(new MiniserverManager({ bus: this.bus, signals: this.signals, clock: this.clock, loadHistory: this.persistence.loadSamples }))
+    this.pluginTransport = options.pluginTransport ?? new WorkerTransport()
+    this.plugins = this.own(new PluginManager({
+      bus: this.bus, registry: this.signals, transport: this.pluginTransport, store: this.persistence.pluginStore,
+      logs: new PluginLogs(log.child({ component: "plugin" })), ...(options.pluginTimings ? { timings: options.pluginTimings } : {})
+    }))
   }
 
   /**
@@ -80,15 +112,34 @@ export class NexusApp extends Disposable {
     const loxoneSignals = new LoxoneSignalService(db.loxoneSignals, this.miniservers, cleanup, log)
     const miniservers = new MiniserverService(db.miniservers, this.miniservers, loxoneSignals, cleanup, log)
     const wires = new WireService(db.wires, this.wires, log)
+    const plugins = new PluginService(db.pluginInstances, db.pluginSignals, this.plugins, this.pluginCatalog, cleanup, log)
+    const pluginSignals = new PluginSignalService(db.pluginSignals, plugins, cleanup)
     this.bus.restoreForces()
     miniservers.load()
+    await this.loadDevPlugins()
+    if (this.isDisposed) return undefined
+    plugins.load()
     wires.load()
     this.snapshot.restore()
     for (const failure of await this.miniservers.startEnabled()) log.warn({ err: failure.error, miniserver: failure.id }, "miniserver failed to start")
     if (this.isDisposed) return undefined
     this.own(new SystemEventLogger(this.bus, log.child({ component: "bus" })))
-    this.http = this.own(this.createHttp(miniservers, loxoneSignals, wires))
-    return this.http.start(this.config.httpPort, this.config.httpHost)
+    this.http = this.own(this.createHttp({ miniservers, loxoneSignals, wires, plugins, pluginSignals }))
+    const address = await this.http.start(this.config.httpPort, this.config.httpHost)
+    // failures show up as each instance's state; nothing to wait for here
+    void this.plugins.startEnabled()
+    return address
+  }
+
+  // development only: plugins/* from source, described by throwaway workers, reloaded on change
+  private async loadDevPlugins() {
+    const dir = this.config.devPluginsDir
+    if (!dir) return
+    const log = this.log.child({ component: "plugins" })
+    const loader = this.own(new DevPluginLoader(dir, new PackageDescriber(this.pluginTransport), this.pluginCatalog, pkg => this.plugins.replacePackage(pkg), log))
+    await loader.load()
+    loader.watch()
+    log.info({ plugins: this.pluginCatalog.list().map(entry => entry.pkg.id) }, "development plugins loaded")
   }
 
   /** the HTTP server; undefined until start() got that far. Tests use its inject(). */
@@ -102,7 +153,7 @@ export class NexusApp extends Disposable {
   }
 
   /** Builds the auth stack and HTTP server. Called once from start(); everything created here is owned by the app. */
-  private createHttp(miniservers: MiniserverService, loxoneSignals: LoxoneSignalService, wires: WireService) {
+  private createHttp({ miniservers, loxoneSignals, wires, plugins, pluginSignals }: Services) {
     const { persistence: db, clock, config, log } = this
     const sessions = new SessionService(db.sessions, clock)
     this.every(60 * 60 * 1000, () => this.pruneSessions(sessions))
@@ -121,8 +172,10 @@ export class NexusApp extends Disposable {
         new SignalController(this.signals, this.bus, wires),
         new BusController(this.bus, this.recorder),
         new ConfigController(new ConfigTransfer({ miniservers, signals: loxoneSignals, wires }, log)),
+        new PluginController(plugins, pluginSignals),
         stream
-      ]
+      ],
+      publicControllers: [new HookController(this.plugins)]
     })
   }
 

@@ -6,6 +6,7 @@ import type { PluginDescription } from "@lox-nexus/plugin-sdk/wire"
 import { EventBus } from "../bus/EventBus.ts"
 import { CounterPlugin } from "../test-support/plugins/CounterPlugin.ts"
 import { SignalRegistry } from "../wires/SignalRegistry.ts"
+import { PackageDescriber } from "./PackageDescriber.ts"
 import { PluginManager } from "./PluginManager.ts"
 import type { PluginSupervisor } from "./PluginSupervisor.ts"
 import type { PluginInstanceConfig, PluginState } from "./PluginTypes.ts"
@@ -85,4 +86,11 @@ describe("plugins in real worker threads (chaos fixtures)", { timeout: 60_000 },
     for (const resource of before) left.splice(left.indexOf(resource), left.includes(resource) ? 1 : 0)
     assert.deepEqual(left, [])
   })
+})
+
+test("PackageDescriber asks a throwaway worker what the plugin offers", async () => {
+  const describer = new PackageDescriber(new WorkerTransport())
+  const description = await describer.describe(entry("counter"))
+  assert.deepEqual([description.sensors.map(s => [s.id, s.valueType]), description.actuators.map(a => a.id)], [[["value", "number"]], ["set"]])
+  await assert.rejects(describer.describe(entry("silent")), /before it could say hello/)
 })

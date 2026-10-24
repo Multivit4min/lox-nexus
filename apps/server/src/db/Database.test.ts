@@ -25,7 +25,7 @@ test("a throwing transaction rolls back everything, nested calls included", () =
 test("migrations run once; the file is private to the user", () => {
   const file = path.join(TestApp.tempDir(), "sub", "nexus.db")
   const db = new Database(file)
-  assert.deepEqual(new Migrator(db, MIGRATIONS).migrate(), ["1_initial", "2_load_samples"])
+  assert.deepEqual(new Migrator(db, MIGRATIONS).migrate(), ["1_initial", "2_load_samples", "3_plugins"])
   assert.deepEqual(new Migrator(db, MIGRATIONS).migrate(), [])
   db.close()
   assert.equal(fs.statSync(file).mode & 0o777, 0o600)

@@ -17,8 +17,10 @@ export class TestApp {
     this.app = new NexusApp(config, LoggerFactory.silent(), { databaseFile: ":memory:", hasherCost: 1024, ...options })
   }
 
-  static async start(options: NexusAppOptions = {}, env: Record<string, string> = {}) {
+  /** @param prepare runs before start, e.g. to put plugins into the catalog */
+  static async start(options: NexusAppOptions = {}, env: Record<string, string> = {}, prepare?: (app: NexusApp) => void) {
     const test = new TestApp(options, env)
+    prepare?.(test.app)
     try {
       test.address = (await test.app.start()) ?? ""
     } catch (error) {
@@ -39,6 +41,14 @@ export class TestApp {
     const client = this.client()
     const response = await client.post("/api/auth/setup", { username: "admin", password: "correct horse" })
     if (response.statusCode !== 200) throw new Error(`setup failed: ${response.body}`)
+    return client
+  }
+
+  /** logs in as the admin that admin() created, e.g. after a restart on the same database */
+  async login() {
+    const client = this.client()
+    const response = await client.post("/api/auth/login", { username: "admin", password: "correct horse" })
+    if (response.statusCode !== 200) throw new Error(`login failed: ${response.body}`)
     return client
   }
 

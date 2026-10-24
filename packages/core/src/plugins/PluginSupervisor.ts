@@ -52,19 +52,24 @@ export class PluginSupervisor extends Disposable {
   private cancelRestart = () => {}
   private cancelStable = () => {}
 
-  constructor(private instance: PluginInstanceConfig, private pkg: PluginPackage, private readonly deps: SupervisorDeps) {
+  constructor(private instance: PluginInstanceConfig, private currentPkg: PluginPackage, private readonly deps: SupervisorDeps) {
     super()
     this.timings = { ...DEFAULT_TIMINGS, ...deps.timings }
     this.backoff = new Backoff(this.timings.backoffInitialMs, this.timings.backoffMaxMs)
     this.topics = new PluginTopics(instance)
     this.calls = new PluginCalls(() => this.session, () => this.signals, deps.bus)
-    this.signals = this.own(new PluginSignals(instance, pkg, deps.bus, deps.registry, (id, value, cause) => this.calls.actuate(id, value, cause)))
+    this.signals = this.own(new PluginSignals(instance, () => this.currentPkg, deps.bus, deps.registry, (id, value, cause) => this.calls.actuate(id, value, cause)))
     this.onDispose(() => this.serialize(() => this.close("stopped")))
     this.publishState()
   }
 
   get config() {
     return this.instance
+  }
+
+  /** the package it runs; replaced by update() */
+  get pkg() {
+    return this.currentPkg
   }
 
   get state() {
@@ -89,13 +94,13 @@ export class PluginSupervisor extends Disposable {
    * Applies a new config or package version (same id). A running plugin restarts with it; a new
    * slug moves every topic, and wires survive because they refer to signal ids.
    */
-  update(instance: PluginInstanceConfig, pkg: PluginPackage = this.pkg): Promise<void> {
+  update(instance: PluginInstanceConfig, pkg: PluginPackage = this.currentPkg): Promise<void> {
     return this.serialize(async () => {
       const wasRunning = this.session !== undefined
       await this.close("stopped")
       if (instance.slug !== this.instance.slug) this.rename(instance)
       this.instance = instance
-      this.pkg = pkg
+      this.currentPkg = pkg
       if (wasRunning && !this.isDisposed) await this.open()
     })
   }
@@ -104,7 +109,7 @@ export class PluginSupervisor extends Disposable {
     if (this.session || this.isDisposed) return
     this.cancelRestart()
     this.setState("starting")
-    const session = new PluginSession(this.deps.transport.open(this.pkg.entry), this.timings)
+    const session = new PluginSession(this.deps.transport.open(this.currentPkg.entry), this.timings)
     this.wire(session)
     try {
       await session.open({ instanceId: this.instance.id, config: this.instance.config, store: this.deps.store.load(this.instance.id) })
