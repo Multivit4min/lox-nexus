@@ -8,6 +8,7 @@ import type { PluginSignalRepository } from "../db/repositories/PluginSignalRepo
 import { HttpError } from "../http/HttpError.ts"
 import type { PluginCatalog } from "../plugins/PluginCatalog.ts"
 import { SecretFields } from "../plugins/SecretFields.ts"
+import type { PluginLogs } from "./PluginLogs.ts"
 import type { TopicCleanup } from "./TopicCleanup.ts"
 
 /**
@@ -23,7 +24,8 @@ export class PluginService {
     private readonly manager: PluginManager,
     private readonly available: PluginCatalog,
     private readonly cleanup: TopicCleanup,
-    private readonly log: Logger
+    private readonly log: Logger,
+    private readonly logs: Pick<PluginLogs, "forget">
   ) {}
 
   /** builds the runtime from the database at boot; a broken signal row is logged and skipped */
@@ -125,6 +127,7 @@ export class PluginService {
     await this.manager.remove(id)
     this.cleanup.forget(`${instance.plugin}/${instance.slug}/#`, by)
     this.cleanup.forget(`system/plugin/${instance.slug}/#`, by)
+    this.logs.forget(id)
   }
 
   /** runtime only; `enabled` decides what happens at the next boot */
@@ -184,11 +187,16 @@ export class PluginService {
   private toDto(instance: PluginInstanceConfig): PluginInstanceDto {
     const supervisor = this.manager.get(instance.id)
     const lastError = supervisor?.lastError
+    const statusMessage = supervisor?.statusMessage
+    const secrets = this.available.get(instance.plugin) ? this.secrets(instance.plugin) : undefined
     return {
       id: instance.id, plugin: instance.plugin, slug: instance.slug, label: instance.label, enabled: instance.enabled,
-      config: this.available.get(instance.plugin) ? this.secrets(instance.plugin).strip(instance.config) : {},
+      config: secrets ? secrets.strip(instance.config) : {},
+      secrets: secrets ? secrets.present(instance.config) : [],
       state: supervisor?.state ?? "unavailable",
-      ...(lastError ? { lastError } : {})
+      restarts: supervisor?.restarts ?? 0,
+      ...(lastError ? { lastError } : {}),
+      ...(statusMessage ? { statusMessage } : {})
     }
   }
 

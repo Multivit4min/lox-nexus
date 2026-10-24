@@ -134,7 +134,7 @@ transfer").
 `docs/plugin-authoring.md`. Fronius ran against two real GEN24 inverters (one with a grid
 meter and a secondary "Solax" meter and no battery, one with a BYD battery and an Ohm Pilot)
 through the whole stack; their responses are recorded as fixtures. The plugin UI (instances, signals,
-catalog, panel) follows in M5; until then the plugins are managed through the API.
+catalog, panel) followed in M5a.
 
 ### Since M4: import from Loxone Config (done)
 
@@ -148,7 +148,7 @@ M5 is done in five parts, in this order. The UI comes first, because the new plu
 usable once they can be configured without the API. The installer comes last, because the
 first-party plugins load from the workspace until then.
 
-1. **M5a: plugin UI.**
+1. **M5a: plugin UI** (done; see `docs/architecture.md`, "plugin UI (M5a)").
    - A Plugins page that lists instances with their state, health message and restart count, with
      start, stop and restart buttons.
    - Creating and editing an instance through a JSON-Schema form renderer that handles boolean,

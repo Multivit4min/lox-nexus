@@ -79,6 +79,8 @@ export class NexusApp extends Disposable {
   /** the plugins instances can be created from; development plugins are added at start */
   readonly pluginCatalog = new PluginCatalog()
   private readonly pluginTransport: PluginTransport
+  /** each plugin instance's recent log lines */
+  readonly pluginLogs: PluginLogs
   private readonly clock: Clock
   private readonly snapshot: SnapshotWriter
   private http: HttpServer | undefined
@@ -97,9 +99,10 @@ export class NexusApp extends Disposable {
     this.snapshot = this.own(new SnapshotWriter(this.bus, this.signals, this.persistence.snapshot, log))
     this.miniservers = this.own(new MiniserverManager({ bus: this.bus, signals: this.signals, clock: this.clock, loadHistory: this.persistence.loadSamples }))
     this.pluginTransport = options.pluginTransport ?? new WorkerTransport()
+    this.pluginLogs = new PluginLogs(log.child({ component: "plugin" }), this.clock)
     this.plugins = this.own(new PluginManager({
       bus: this.bus, registry: this.signals, transport: this.pluginTransport, store: this.persistence.pluginStore,
-      logs: new PluginLogs(log.child({ component: "plugin" })), ...(options.pluginTimings ? { timings: options.pluginTimings } : {})
+      logs: this.pluginLogs, ...(options.pluginTimings ? { timings: options.pluginTimings } : {})
     }))
   }
 
@@ -115,7 +118,7 @@ export class NexusApp extends Disposable {
     const loxoneSignals = new LoxoneSignalService(db.loxoneSignals, this.miniservers, cleanup, log)
     const miniservers = new MiniserverService(db.miniservers, this.miniservers, loxoneSignals, cleanup, log)
     const wires = new WireService(db.wires, this.wires, log)
-    const plugins = new PluginService(db.pluginInstances, db.pluginSignals, this.plugins, this.pluginCatalog, cleanup, log)
+    const plugins = new PluginService(db.pluginInstances, db.pluginSignals, this.plugins, this.pluginCatalog, cleanup, log, this.pluginLogs)
     const pluginSignals = new PluginSignalService(db.pluginSignals, plugins, cleanup)
     this.bus.restoreForces()
     miniservers.load()
@@ -175,7 +178,7 @@ export class NexusApp extends Disposable {
         new SignalController(this.signals, this.bus, wires),
         new BusController(this.bus, this.recorder),
         new ConfigController(new ConfigTransfer({ miniservers, signals: loxoneSignals, wires }, log)),
-        new PluginController(plugins, pluginSignals),
+        new PluginController(plugins, pluginSignals, this.pluginLogs),
         stream
       ],
       publicControllers: [new HookController(this.plugins)]

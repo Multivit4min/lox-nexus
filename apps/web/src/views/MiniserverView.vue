@@ -32,9 +32,13 @@ async function refresh() {
   ;[ms.value, discovered.value] = await Promise.all([api.get(props.id), api.discovered(props.id)])
 }
 
+let unmounted = false
+
 async function load() {
   await refresh()
   signals.value = await api.signals(props.id)
+  // the view may be gone by now, and a stream opened after unmounting would never be closed
+  if (unmounted) return
   live.value ??= new LiveValues(handlers => context.stream(handlers), `loxone/${ms.value!.slug}/#`)
   live.value.watch(`loxone/${ms.value!.slug}/#`)
 }
@@ -42,7 +46,10 @@ async function load() {
 // health, errors, discovery and the load figure change on their own; the stream covers signal values
 useIntervalFn(refresh, 5000)
 onMounted(load)
-onUnmounted(() => live.value?.close())
+onUnmounted(() => {
+  unmounted = true
+  live.value?.close()
+})
 
 async function save(input: MiniserverInput) {
   ms.value = await api.update(props.id, input)

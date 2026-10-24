@@ -98,7 +98,7 @@ describe("PluginSupervisor", () => {
     assert.equal(transport.opened.length, 1, "not before the backoff")
     mock.timers.tick(1)
     await settle()
-    assert.deepEqual([supervisor.state, transport.opened.length], ["running", 2])
+    assert.deepEqual([supervisor.state, transport.opened.length, supervisor.restarts], ["running", 2, 1])
     assert.ok(transport.last.received.some(m => m.type === "signal.add"), "signals are recreated in the new worker")
     transport.last.crash()
     await settle()
@@ -107,7 +107,9 @@ describe("PluginSupervisor", () => {
     assert.equal(transport.opened.length, 2, "the second delay is 2 s")
     mock.timers.tick(1)
     await settle()
-    assert.equal(transport.opened.length, 3)
+    assert.deepEqual([transport.opened.length, supervisor.restarts], [3, 2])
+    await supervisor.stop()
+    assert.equal(supervisor.restarts, 0, "a stop from outside resets the count")
   })
 
   test("a hung plugin is terminated after missed pings", async () => {
@@ -150,7 +152,7 @@ describe("PluginSupervisor", () => {
     const starting = supervisor.start()
     await settle()
     await starting
-    assert.equal(supervisor.state, "degraded")
+    assert.deepEqual([supervisor.state, supervisor.statusMessage], ["degraded", "device unreachable"])
     const errors: string[] = []
     bus.subscribe("system/plugin/home/error", message => void errors.push(message.text ?? ""))
     const failing = manager.add(instance({ id: "i2", slug: "other" }), pkg)

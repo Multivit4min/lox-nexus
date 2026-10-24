@@ -1,6 +1,7 @@
 import { PluginInstanceInputSchema, PluginSignalInputSchema } from "@lox-nexus/api"
 import type { FastifyInstance, FastifyRequest } from "fastify"
 import { z } from "zod"
+import type { PluginLogs } from "../../services/PluginLogs.ts"
 import type { PluginService } from "../../services/PluginService.ts"
 import type { PluginSignalService } from "../../services/PluginSignalService.ts"
 import type { Controller } from "../Controller.ts"
@@ -20,9 +21,14 @@ const SignalParams = IdParams.extend({ signalId: z.string().min(1) })
  * - POST :id/start, :id/stop: 200 with the instance.
  * - GET/POST :id/signals, PUT/DELETE :id/signals/:signalId: 200 / 201 / 200 / 204.
  * - GET :id/catalog, :id/panel: 200 with the plugin's answer.
+ * - GET :id/logs: 200 with the instance's recent log lines, oldest first (kept in memory only).
  */
 export class PluginController implements Controller {
-  constructor(private readonly plugins: PluginService, private readonly signals: PluginSignalService) {}
+  constructor(
+    private readonly plugins: PluginService,
+    private readonly signals: PluginSignalService,
+    private readonly logs: Pick<PluginLogs, "recent">
+  ) {}
 
   register(app: FastifyInstance) {
     app.get("/api/plugins", () => this.plugins.packages())
@@ -38,6 +44,11 @@ export class PluginController implements Controller {
     app.post("/api/plugin-instances/:id/start", request => this.plugins.start(PluginController.id(request)))
     app.post("/api/plugin-instances/:id/stop", request => this.plugins.stop(PluginController.id(request)))
     app.get("/api/plugin-instances/:id/catalog", request => this.plugins.catalog(PluginController.id(request)))
+    app.get("/api/plugin-instances/:id/logs", request => {
+      const id = PluginController.id(request)
+      this.plugins.get(id)
+      return this.logs.recent(id)
+    })
     app.get("/api/plugin-instances/:id/panel", async request => (await this.plugins.panel(PluginController.id(request))) ?? null)
     this.registerSignals(app)
   }

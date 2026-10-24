@@ -807,6 +807,59 @@ above:
   leaves no active handles. API tests cover instances, signals, commands, the store, webhooks,
   refusals, deletion and a restart.
 
+## Implementation notes: plugin UI (M5a)
+
+- **Pages.** "Plugins" lists the instances with their live state (from
+  `system/plugin/<slug>/status`) and their message (the degraded message, or the last error).
+  An instance page holds the following:
+  - start, stop, restart (a stop and a start), edit and delete
+  - the panel, refreshed with the page every 3 s while the plugin runs
+  - the signals with live values, edit, force/release and delete
+  - the catalog browser and the log
+- **Schema forms** (`lib/schema/`). `SchemaFields.parse` turns the JSON Schema that zod writes
+  into a field tree:
+  - string, number, integer, boolean, enum, const, nested object, and array of any of these
+  - `T | null` (a type list or `anyOf` with a null branch) becomes a nullable field
+  - anything else (records, unions, tuples) is edited as JSON text
+
+  `SchemaDraft` converts both ways between values and what the inputs edit. Numbers stay text
+  while typed. `value()` returns a field as follows:
+
+  | Input | Result |
+  |---|---|
+  | empty optional field | left out |
+  | empty required nullable field | `null` |
+  | optional nested object with nothing typed in | left out as a whole |
+  | blank list item | dropped |
+  | empty nullable field that has a default | `null`, since leaving it out would bring the default back |
+  | empty list whose default has items | `[]`, for the same reason |
+  | stored `null` of a nullable object or list | `null`, kept as it is |
+  | text that isn't a number, option or JSON | `SchemaInputError` naming the path (`nested.x`, `tags[2]`) |
+
+  `SchemaFieldInput.vue` renders the tree recursively and emits new drafts instead of changing
+  the one passed in. The plugin stays the authority on validation: a refused config shows up as
+  the instance's error, and refused params as the request's 400.
+- **Secrets.** A secret field (`writeOnly`) always starts empty and is left out when empty, so
+  the server keeps the stored value. `PluginInstanceDto.secrets` names the secret fields that have
+  a stored value, so the form can say "set; leave empty to keep it" and drop `required`.
+  Removing a stored secret is not possible from the UI.
+- **Host additions:**
+  - `PluginSupervisor.statusMessage`: the message of the plugin's last "degraded".
+  - `PluginSupervisor.restarts`: automatic restarts since the last start or stop from outside.
+  - `PluginLogs` keeps each instance's last 200 log lines in memory (`GET :id/logs`), with
+    messages and data (as JSON) cut at 2000 characters each. `PluginService.remove` drops an
+    instance's lines.
+- **Catalog.** `CatalogTree` flattens the tree into searchable rows ("Inverters ▸ Inverter 1").
+  An entry counts as configured when a signal has its kind, capability and params, whatever the
+  key order. "Add" takes an entry as it is; "customize" opens it in the signal form first.
+- **Verified.** Unit tests cover the schema model, drafts, slugs, the catalog rows and the host
+  additions. A headless Chromium walkthrough against the real GEN24 with a battery did the
+  following:
+  - created an instance (a typed "abc" for the poll interval was refused in the form)
+  - added two catalog entries and watched their values arrive live
+  - forced a sensor to 42 and released it back to the real value
+  - stopped and started the instance, and saw the panel update every few seconds
+
 ## Implementation notes: importing from Loxone Config
 
 Out packets can't be discovered on the wire (the Miniserver never says which packet ids it

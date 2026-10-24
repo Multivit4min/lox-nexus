@@ -1,5 +1,5 @@
 import type { ValueType } from "@lox-nexus/plugin-sdk/values"
-import type { PluginDescription } from "@lox-nexus/plugin-sdk/wire"
+import type { LogLevel, PluginDescription } from "@lox-nexus/plugin-sdk/wire"
 import { z } from "zod"
 
 /** one topic segment: lowercase so topics are case-stable */
@@ -44,6 +44,23 @@ export interface PluginInstanceDto {
   state: PluginStateDto
   /** why it last refused to start or crashed */
   lastError?: string
+  /** what the plugin says is wrong while it reports itself degraded */
+  statusMessage?: string
+  /** automatic restarts after crashes since it was last started or stopped by hand */
+  restarts: number
+  /** secret config fields that have a stored value (the values are never sent) */
+  secrets: string[]
+}
+
+/** GET /api/plugin-instances/:id/logs: one of the instance's recent log lines (kept in memory, about 200). */
+export interface PluginLogLineDto {
+  /** epoch ms */
+  ts: number
+  level: LogLevel
+  /** cut at 2000 characters */
+  message: string
+  /** the logged data as JSON, cut at 2000 characters */
+  data?: string
 }
 
 /** POST/PUT body of a plugin signal; `slug` defaults to one derived from the label. */

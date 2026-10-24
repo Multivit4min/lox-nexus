@@ -22,6 +22,7 @@ export interface InboxTarget {
  */
 export class PluginInbox {
   private current: PluginHealth = "running"
+  private note: string | undefined
 
   constructor(private readonly target: InboxTarget) {}
 
@@ -30,9 +31,15 @@ export class PluginInbox {
     return this.current
   }
 
+  /** what the plugin said with its last "degraded"; undefined while it reports "running" */
+  get message() {
+    return this.note
+  }
+
   /** forgets the previous worker's health, for a fresh start */
   reset() {
     this.current = "running"
+    this.note = undefined
   }
 
   receive(message: WorkerMessage) {
@@ -56,6 +63,7 @@ export class PluginInbox {
         return this.target.report(`signal "${message.signalId}" failed: ${message.error}`)
       case "status":
         this.current = message.status
+        this.note = message.status === "degraded" ? message.message ?? "degraded" : undefined
         if (message.status === "degraded") this.target.report(message.message ?? "degraded")
         return this.target.healthChanged(message.status)
     }

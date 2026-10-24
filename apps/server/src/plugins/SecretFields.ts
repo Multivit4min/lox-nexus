@@ -19,6 +19,12 @@ export class SecretFields {
     return Object.fromEntries(Object.entries(value).filter(([name]) => !this.names.has(name)))
   }
 
+  /** names of the secret fields the value has */
+  present(value: unknown): string[] {
+    if (!SecretFields.isRecord(value)) return []
+    return [...this.names].filter(name => value[name] !== undefined)
+  }
+
   /** the input, with secrets it omits taken from the stored value */
   merge(input: Record<string, unknown>, stored: unknown): Record<string, unknown> {
     const kept = SecretFields.isRecord(stored) ? stored : {}

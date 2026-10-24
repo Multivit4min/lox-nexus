@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Activity, LogOut, Server } from "@lucide/vue"
+import { Activity, LogOut, Puzzle, Server } from "@lucide/vue"
 import { useRouter } from "vue-router"
 import { Button } from "@/components/ui/button"
 import { AppContext } from "../AppContext.ts"
@@ -9,6 +9,7 @@ const router = useRouter()
 
 const links = [
   { to: "/miniservers", label: "Miniservers", icon: Server },
+  { to: "/plugins", label: "Plugins", icon: Puzzle },
   { to: "/inspector", label: "Bus Inspector", icon: Activity }
 ]
 

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { after, before, describe, test } from "node:test"
-import type { PluginInstanceDto, PluginPackageDto, PluginSignalDto } from "@lox-nexus/api"
+import type { PluginInstanceDto, PluginLogLineDto, PluginPackageDto, PluginSignalDto } from "@lox-nexus/api"
 import { CounterPlugin, FakePluginTransport } from "@lox-nexus/core/testing"
 import { PluginTestHost } from "@lox-nexus/plugin-sdk/testing"
 import { Value } from "@lox-nexus/plugin-sdk/values"
@@ -63,6 +63,17 @@ describe("plugin API", { timeout: 10_000 }, () => {
     assert.equal(row?.value, "7")
   })
 
+  test("the instance shows its log lines, restarts, set secrets and what it says while degraded", async () => {
+    const logs = (await admin.get(`${base()}/logs`)).json<PluginLogLineDto[]>()
+    assert.ok(logs.some(line => line.level === "info" && line.message === "started" && typeof line.ts === "number"), JSON.stringify(logs))
+    const actuator = (await admin.get(`${base()}/signals`)).json<PluginSignalDto[]>().find(s => s.capability === "set")!
+    await admin.post("/api/bus/inject", { topic: actuator.topic, value: Value.number(13), kind: "command" })
+    await settle()
+    const degraded = (await admin.get(base())).json<PluginInstanceDto>()
+    assert.deepEqual([degraded.state, degraded.statusMessage, degraded.restarts, degraded.secrets], ["degraded", "unlucky number", 0, []])
+    assert.equal((await admin.get("/api/plugin-instances/nope/logs")).statusCode, 404)
+  })
+
   test("webhooks reach the running plugin without a session", async () => {
     const anonymous = app.client()
     const hook = await anonymous.post("/hook/home/value", "42", { "content-type": "text/plain" })
@@ -114,8 +125,10 @@ describe("plugin API", { timeout: 10_000 }, () => {
     await admin.delete(`/api/bus/forces?topic=${encodeURIComponent("counter/house/actuator/setpoint")}`)
   })
 
-  test("deleting removes the instance, its signals and its topics", async () => {
+  test("deleting removes the instance, its signals, its topics and its log lines", async () => {
+    assert.ok(app.app.pluginLogs.recent(instance.id).length > 0)
     assert.equal((await admin.delete(base())).statusCode, 204)
+    assert.deepEqual(app.app.pluginLogs.recent(instance.id), [])
     assert.deepEqual((await admin.get("/api/plugin-instances")).json(), [])
     assert.equal(app.app.signals.list().length, 0)
     assert.deepEqual(app.app.bus.currentMatching("counter/home/#"), [])

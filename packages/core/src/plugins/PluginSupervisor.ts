@@ -46,6 +46,7 @@ export class PluginSupervisor extends Disposable {
   private session: PluginSession | undefined
   private current: PluginState = "stopped"
   private failure: string | undefined
+  private crashes = 0
   private readonly timings: SupervisorTimings
   private readonly backoff: Backoff
   private topics: PluginTopics
@@ -88,13 +89,25 @@ export class PluginSupervisor extends Disposable {
     return this.failure
   }
 
+  /** what the plugin reported with "degraded"; undefined while it is fine or not running */
+  get statusMessage() {
+    return this.session ? this.inbox.message : undefined
+  }
+
+  /** automatic restarts after crashes since the last start() or stop() from outside */
+  get restarts() {
+    return this.crashes
+  }
+
   /** starts the plugin; failing to start is not an error of the call, see `state` and `lastError` */
   start(): Promise<void> {
+    this.crashes = 0
     return this.serialize(() => this.open())
   }
 
   /** stops the plugin gracefully and cancels a pending restart; a stopped instance stays stopped */
   stop(): Promise<void> {
+    this.crashes = 0
     return this.serialize(() => this.close("stopped"))
   }
 
@@ -176,7 +189,13 @@ export class PluginSupervisor extends Disposable {
     this.setState("crashed")
     const delay = this.backoff.next()
     this.report(`${reason}; restarting in ${Math.round(delay / 1000)} s`)
-    this.cancelRestart = this.after(delay, () => void this.start().catch((error: unknown) => this.report(`restarting failed: ${PluginSupervisor.message(error)}`)))
+    this.cancelRestart = this.after(delay, () => void this.restart().catch((error: unknown) => this.report(`restarting failed: ${PluginSupervisor.message(error)}`)))
+  }
+
+  // an automatic start after a crash, counted in `restarts`
+  private restart() {
+    this.crashes++
+    return this.serialize(() => this.open())
   }
 
   private rename(instance: PluginInstanceConfig) {
