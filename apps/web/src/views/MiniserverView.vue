@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, shallowRef } from "vue"
-import type { DiscoveredPacketDto, LoxoneSignalDto, LoxoneSignalInput, MiniserverDto, MiniserverInput } from "@lox-nexus/api"
+import type { DiscoveredPacketDto, LoxoneSignalDto, LoxoneSignalInput, MiniserverDto, MiniserverInput, SignalLoadDto } from "@lox-nexus/api"
 import { useIntervalFn } from "@vueuse/core"
 import { FileDown, Pencil, Play, Square, Trash2 } from "@lucide/vue"
 import { useRouter } from "vue-router"
@@ -24,6 +24,7 @@ const router = useRouter()
 const ms = ref<MiniserverDto>()
 const signals = ref<LoxoneSignalDto[]>([])
 const discovered = ref<DiscoveredPacketDto[]>([])
+const signalLoad = ref<SignalLoadDto>({})
 const editing = ref(false)
 const importing = ref(false)
 // a ref, so the signals card appears as soon as the stream exists (a plain variable isn't tracked by the template)
@@ -33,6 +34,8 @@ const wiresCard = ref<InstanceType<typeof WiresCard>>()
 const wire = (signal: LoxoneSignalDto) => wiresCard.value?.startNew(signal.direction === "in" ? { sourceId: signal.id } : { targetId: signal.id })
 
 async function refresh() {
+  // on its own: a failing load figure must not stop health, errors and discovery from updating
+  api.signalLoad(props.id).then(load => (signalLoad.value = load), () => {})
   ;[ms.value, discovered.value] = await Promise.all([api.get(props.id), api.discovered(props.id)])
 }
 
@@ -126,7 +129,7 @@ async function adopt(packets: DiscoveredPacketDto[], progress: (done: number) =>
       <AlertTitle>Start failed</AlertTitle>
       <AlertDescription>{{ ms.lastError }}</AlertDescription>
     </Alert>
-    <SignalsCard v-if="live" :signals="signals" :live="live" :add="addSignal" :update="updateSignal" :remove="removeSignals" @wire="wire" />
+    <SignalsCard v-if="live" :signals="signals" :live="live" :add="addSignal" :update="updateSignal" :remove="removeSignals" :load="signalLoad" @wire="wire" />
     <WiresCard ref="wiresCard" :owner-id="ms.id" />
     <DiscoveredCard :packets="discovered" :adopt="adopt" />
     <ProjectImportDialog v-model:open="importing" :ms="ms" :signals="signals" @changed="load" />

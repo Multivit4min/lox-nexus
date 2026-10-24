@@ -1,5 +1,6 @@
 import type { Clock } from "@lox-nexus/core"
 import { Disposable } from "@lox-nexus/plugin-sdk"
+import { PacketTraffic, type PacketDirection } from "./PacketTraffic.ts"
 import { TrafficMeter } from "./TrafficMeter.ts"
 
 /** One point of the load history. Rates are averages over the 2-minute window, in messages per second. */
@@ -31,6 +32,7 @@ export class IntercomLoad extends Disposable {
   static readonly HISTORY_MS = 60 * 60 * 1000
   static readonly HISTORY_SAMPLES = IntercomLoad.HISTORY_MS / IntercomLoad.SAMPLE_MS
   private readonly meter: TrafficMeter
+  private readonly packets: PacketTraffic
   private readonly samples: LoadSample[] = []
 
   /**
@@ -40,17 +42,27 @@ export class IntercomLoad extends Disposable {
   constructor(private readonly clock: Clock, private readonly onSample: (sample: LoadSample) => void = () => {}, initial: LoadSample[] = []) {
     super()
     this.meter = new TrafficMeter(clock, IntercomLoad.WINDOW_SECONDS)
+    this.packets = new PacketTraffic(clock, IntercomLoad.WINDOW_SECONDS)
     const since = clock.now() - IntercomLoad.HISTORY_MS
     this.samples.push(...initial.filter(sample => sample.ts > since).slice(-IntercomLoad.HISTORY_SAMPLES))
     this.every(IntercomLoad.SAMPLE_MS, () => this.sample())
   }
 
-  received() {
+  /** @param packetId given for data packets, so they also count towards that signal's share */
+  received(packetId?: string) {
     this.meter.received()
+    if (packetId !== undefined) this.packets.count("in", packetId)
   }
 
-  sent() {
+  /** @param packetId given for data packets, so they also count towards that signal's share */
+  sent(packetId?: string) {
     this.meter.sent()
+    if (packetId !== undefined) this.packets.count("out", packetId)
+  }
+
+  /** one packet id's share of the limit right now, in percent (same window and limit as current()) */
+  percentOf(direction: PacketDirection, packetId: string) {
+    return (this.packets.total(direction, packetId) / IntercomLoad.WINDOW_SECONDS / IntercomLoad.LIMIT_PER_SECOND) * 100
   }
 
   /** the load right now, not yet in the history */
@@ -74,6 +86,7 @@ export class IntercomLoad extends Disposable {
 
   private sample() {
     const sample = this.current()
+    this.packets.prune()
     this.samples.push(sample)
     // by time, not count: after a restart the seeded samples have a gap and must still age out
     const since = sample.ts - IntercomLoad.HISTORY_MS

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto"
-import type { MiniserverDto, MiniserverInput } from "@lox-nexus/api"
+import type { MiniserverDto, MiniserverInput, SignalLoadDto } from "@lox-nexus/api"
 import { MiniserverConfigSchema, type Miniserver, type MiniserverManager } from "@lox-nexus/loxone"
 import type { Logger } from "pino"
 import type { MiniserverRepository } from "../db/repositories/MiniserverRepository.ts"
@@ -98,6 +98,11 @@ export class MiniserverService {
   /** current intercommunication load and the last hour of samples */
   intercomLoad(id: string) {
     return MiniserverMapper.loadToDto(this.require(id))
+  }
+
+  /** each signal's share of the limit; signals without traffic in the window are left out */
+  signalLoad(id: string): SignalLoadDto {
+    return Object.fromEntries(this.require(id).signalLoad())
   }
 
   /** runtime only; `enabled` decides what happens at the next boot */

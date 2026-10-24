@@ -24,6 +24,7 @@ const FileQuery = z.object({ name: z.string().min(1).max(255).regex(/^[^\p{Cc}]+
  * - PUT :id: 200 with the updated Miniserver.
  * - DELETE :id: 204, removes its signals, wires, forces and retained values too.
  * - GET :id/load: 200 with the intercommunication load and the last hour of samples.
+ * - GET :id/signal-load: 200 with each signal's share of that load, by signal id.
  * - POST :id/start, :id/stop: 200 with the Miniserver; start failures show up as `lastError`.
  * - GET/POST :id/signals, PUT/DELETE :id/signals/:signalId: 200 / 201 / 200 / 204. PUT keeps the
  *   signal's wires; its last value (flagged restored) and a force move to the new topic.
@@ -54,6 +55,7 @@ export class MiniserverController implements Controller {
       return reply.code(204).send()
     })
     app.get("/api/miniservers/:id/load", request => this.miniservers.intercomLoad(MiniserverController.id(request)))
+    app.get("/api/miniservers/:id/signal-load", request => this.miniservers.signalLoad(MiniserverController.id(request)))
     app.post("/api/miniservers/:id/start", request => this.miniservers.start(MiniserverController.id(request)))
     app.post("/api/miniservers/:id/stop", request => this.miniservers.stop(MiniserverController.id(request)))
     app.post("/api/miniservers/:id/project", request => this.projects.read(MiniserverController.id(request), ProjectReadSchema.parse(request.body)))

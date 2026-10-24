@@ -238,13 +238,19 @@ Every captured packet matches its mood byte for byte, so the decoding is correct
 | 99 "Bright" | 100 %, 4600 K | `w100` | ✅ |
 | 98 "Alarm" | R100 G2 B2 | `r100 g2 b2` | ✅ exact |
 | 69 sequence | R100 G5 B5, steps R100 G9 B6 → R100 G35 B0 → R100 G13 B13, 3 s | the same steps | ✅ exact |
-| 60 "test" | R0 G2 B50 | expected `g2 b50`, not captured yet | — |
+| 60 "test" | R0 G2 B50 | `g2 b50` (captured 2026-10-24, `lighting-moods-2026-10-24.jsonl`) | ✅ exact |
 
 The RGBW payload has no field for a colour temperature. For a Kelvin mood the Miniserver mixes
 it into RGBW itself before sending: 4600 K becomes the white channel alone, and the warmer
 4050 K adds a little red (7 %) to a dimmer white. So a receiver sees white-heavy RGBW for every
 temperature mood, and real colours only for RGB moods. Turning that back into a temperature
 (`Converter` rgbw → tunableWhite) can only be an estimate.
+
+Two temperature points are not enough to recover the formula. They fit a mix in which pure white
+stands for 4600 K, the midpoint of the controller's 2700–6500 K range (`DayMinTemp`/`DayMaxTemp`),
+and red rises with the mired distance from it: (1e6/4050 − 1e6/4600) / (1e6/2700 − 1e6/4600)
+= 0.193, against red/white = 7/37 = 0.189. How brightness is split between the channels is still
+open; test moods across 2700–6500 K at 100 % and 50 % would settle it.
 
 **Passthrough probe (2026-10-23).** RGBW packets were sent to a Miniserver input wired directly to
 an RGBW output. Every payload came back **byte-identical** within about 30 ms: bytes 6–7 set to

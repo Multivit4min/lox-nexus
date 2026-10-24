@@ -187,6 +187,16 @@ export class Miniserver extends Disposable {
     return this.entries.list().map(entry => entry.config)
   }
 
+  /**
+   * The share of the intercommunication limit of each signal with traffic, in percent, rounded to
+   * 3 decimals (2-minute average in the signal's direction, resends included). Signals without
+   * traffic are left out, which keeps the polled answer small on Miniservers with thousands.
+   */
+  signalLoad(): Map<string, number> {
+    const shares = this.entries.list().map(({ config }) => [config.id, Math.round(this.load.percentOf(config.direction, config.packetId) * 1000) / 1000] as const)
+    return new Map(shares.filter(([, percent]) => percent > 0))
+  }
+
   /** the bus topic of a configured signal; undefined for unknown ids */
   topicOf(id: string) {
     return this.entries.get(id)?.topic

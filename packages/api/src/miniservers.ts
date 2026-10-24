@@ -80,6 +80,13 @@ export interface MiniserverDto {
   load: number
 }
 
+/**
+ * GET /api/miniservers/:id/signal-load: each signal's share of Loxone's intercommunication limit,
+ * in percent (3 decimals), by signal id: a 2-minute average of the packets in the signal's own
+ * direction, resends included. Signals without traffic are left out.
+ */
+export type SignalLoadDto = Record<string, number>
+
 /** One point of a Miniserver's load history; rates are 2-minute averages in messages per second. */
 export interface LoadSampleDto {
   ts: number

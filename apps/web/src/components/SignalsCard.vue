@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
-import type { LoxoneSignalDto, LoxoneSignalInput } from "@lox-nexus/api"
+import type { LoxoneSignalDto, LoxoneSignalInput, SignalLoadDto } from "@lox-nexus/api"
 import { Lock, Plus, Trash2 } from "@lucide/vue"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AppContext } from "../AppContext.ts"
 import { ApiError } from "../api/ApiError.ts"
 import { DataTypes } from "../lib/DataTypes.ts"
+import { LoadShare } from "../lib/LoadShare.ts"
 import { Selection } from "../lib/Selection.ts"
 import { TextFilter } from "../lib/TextFilter.ts"
 import type { LiveValues } from "../stores/LiveValues.ts"
@@ -31,6 +32,8 @@ const props = defineProps<{
   add: (input: LoxoneSignalInput) => Promise<void>
   update: (signal: LoxoneSignalDto, input: LoxoneSignalInput) => Promise<void>
   remove: (signals: LoxoneSignalDto[], progress: (done: number) => void) => Promise<void>
+  /** each signal's share of the intercommunication limit in percent, by id */
+  load?: SignalLoadDto
 }>()
 const emit = defineEmits<{ wire: [signal: LoxoneSignalDto] }>()
 const { bus } = AppContext.use()
@@ -116,12 +119,13 @@ async function removeSelected() {
         </Button>
       </ListToolbar>
       <VirtualTable
-        :rows="visible" :row-key="s => s.id" columns="1.25rem minmax(8rem,1.4fr) minmax(7rem,1fr) 8rem minmax(10rem,2fr) minmax(7rem,1fr) 7.75rem"
+        :rows="visible" :row-key="s => s.id" columns="1.25rem minmax(8rem,1.4fr) minmax(7rem,1fr) 8rem minmax(10rem,2fr) minmax(7rem,1fr) 4rem 7.75rem"
         :empty="signals.length ? 'No signal matches.' : 'No signals. Add one, or adopt a discovered packet below.'"
       >
         <template #header>
           <Checkbox :model-value="selection.stateOf(visibleIds)" aria-label="Select all shown" @update:model-value="selection.toggleAll(visibleIds)" />
-          <span>Name</span><span>Packet</span><span>Type</span><span>Topic</span><span>Value</span><span></span>
+          <span>Name</span><span>Packet</span><span>Type</span><span>Topic</span><span>Value</span>
+          <span class="text-right" title="Share of Loxone's intercommunication limit (35 messages/s, 2-minute average), resends included">Load</span><span></span>
         </template>
         <template #row="{ row }">
           <Checkbox :model-value="selection.has(row.id)" :aria-label="`Select ${row.label}`" @update:model-value="v => selection.toggle(row.id, v === true)" />
@@ -133,6 +137,7 @@ async function removeSelected() {
             <Lock v-if="isForced(row)" class="size-3.5 shrink-0 text-amber-600 dark:text-amber-400" aria-label="forced" />
             <span class="truncate"><ValueText :value="live.get(row.topic)?.value" /></span>
           </span>
+          <span class="text-right text-xs text-muted-foreground tabular-nums">{{ LoadShare.format(load?.[row.id]) }}</span>
           <SignalActions
             :label="row.label" :forced="isForced(row)" :disabled="!!progress" wirable
             @edit="editing = row" @wire="emit('wire', row)" @force="force(row)" @release="release(row)" @remove="removeOne(row)"

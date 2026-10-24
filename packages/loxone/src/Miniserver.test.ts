@@ -114,9 +114,11 @@ describe("Miniserver against a fake Miniserver on loopback", { timeout: 10_000 }
 })
 
 describe("MiniserverManager", { timeout: 10_000 }, () => {
-  test("a taken listen port fails only that Miniserver", async () => {
+  test("a taken listen port fails only that Miniserver", async t => {
     const signals = new SignalRegistry()
     const manager = new MiniserverManager({ bus: new EventBus(), signals })
+    // in a hook: a failing assertion must not leave the socket open and hang the test run
+    t.after(() => manager.dispose())
     const base = { label: "", host: "127.0.0.1", port: 1, ownId: "claude", remoteId: "server" }
     const first = manager.add({ ...base, id: "a", slug: "a", listenPort: 0 })
     await first.start()
@@ -125,7 +127,6 @@ describe("MiniserverManager", { timeout: 10_000 }, () => {
     assert.deepEqual(failures.map(f => [f.id, (f.error as NodeJS.ErrnoException).code]), [["b", "EADDRINUSE"]])
     assert.equal(manager.get("b")!.isRunning, false)
     assert.throws(() => manager.add({ ...base, id: "c", slug: "a", listenPort: 0 }), /slug "a"/)
-    await manager.dispose()
   })
 
   test("removing a Miniserver unregisters its signals", async () => {

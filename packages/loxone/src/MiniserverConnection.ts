@@ -1,5 +1,5 @@
 import type { Clock, EventBus, MessageSource } from "@lox-nexus/core"
-import { IciReceiver, RemotePeer, type IciSocket } from "@lox-nexus/ici"
+import { IciReceiver, RemotePeer, type DataEvent, type IciSocket } from "@lox-nexus/ici"
 import { Disposable } from "@lox-nexus/plugin-sdk"
 import { Value } from "@lox-nexus/plugin-sdk/values"
 import type { DiscoveryList } from "./DiscoveryList.ts"
@@ -65,7 +65,7 @@ export class MiniserverConnection extends Disposable {
     this.onDispose(() => receiver.dispose())
     this.reportReceiverProblems(receiver)
     this.countIncoming(receiver, remoteId)
-    const peer = new RemotePeer(new CountingSender(socket, () => this.load.sent()), { ownId, remoteId, host, port, resendInterval })
+    const peer = new RemotePeer(new CountingSender(socket, packetId => this.load.sent(packetId)), { ownId, remoteId, host, port, resendInterval })
     this.onDispose(() => peer.close())
     const { bus, topics, signals, discovery, clock, source, problems, health } = this
     this.own(new InboundRouter(receiver, { bus, topics, source, remoteId, signals, discovery, health, problems, clock }))
@@ -94,7 +94,8 @@ export class MiniserverConnection extends Disposable {
     const fromMiniserver = (packet: { sourceId: string }) => {
       if (packet.sourceId === remoteId) this.load.received()
     }
-    this.listen(receiver, "data", () => this.load.received())
+    // per signal only for configured inputs: made-up packet ids must not fill PacketTraffic's slots
+    this.listen(receiver, "data", (event: DataEvent) => this.load.received(this.signals.inputFor(event.packet.packetId) ? event.packet.packetId : undefined))
     this.listen(receiver, "status", fromMiniserver)
     this.listen(receiver, "foreign", fromMiniserver)
     this.listen(receiver, "encrypted", fromMiniserver)

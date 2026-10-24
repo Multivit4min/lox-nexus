@@ -12,10 +12,14 @@ const freePort = async () => {
   return port
 }
 
-test("users of one address and port share a socket; the last release closes it", async () => {
+// Cleanup runs in t.after hooks (releasing twice does nothing), so a failing assertion can't
+// leave a socket open and keep the test run alive.
+
+test("users of one address and port share a socket; the last release closes it", async t => {
   const pool = new SocketPool()
   const port = await freePort()
   const [a, b] = await Promise.all([pool.acquire(port, "127.0.0.1"), pool.acquire(port, "127.0.0.1")])
+  t.after(() => Promise.all([a.release(), b.release()]))
   assert.equal(a.socket, b.socket, "concurrent acquires share the bind")
   await a.release()
   await a.release()
@@ -23,25 +27,26 @@ test("users of one address and port share a socket; the last release closes it",
   await b.release()
   assert.equal(b.socket.isOpen, false)
   const again = await pool.acquire(port, "127.0.0.1")
+  t.after(() => again.release())
   assert.notEqual(again.socket, a.socket, "a new socket binds the freed port")
-  await again.release()
 })
 
-test("a port taken elsewhere rejects without holding anything; the next acquire retries", async () => {
+test("a port taken elsewhere rejects without holding anything; the next acquire retries", async t => {
   const pool = new SocketPool()
   const blocker = new IciSocket()
   await blocker.bind(0, "127.0.0.1")
+  t.after(() => blocker.close())
   const port = blocker.address()!.port
   await assert.rejects(pool.acquire(port, "127.0.0.1"), { code: "EADDRINUSE" })
   await blocker.close()
   const lease = await pool.acquire(port, "127.0.0.1")
+  t.after(() => lease.release())
   assert.equal(lease.socket.address()?.port, port)
-  await lease.release()
 })
 
-test("port 0 is never shared", async () => {
+test("port 0 is never shared", async t => {
   const pool = new SocketPool()
   const [a, b] = await Promise.all([pool.acquire(0, "127.0.0.1"), pool.acquire(0, "127.0.0.1")])
+  t.after(() => Promise.all([a.release(), b.release()]))
   assert.notEqual(a.socket.address()?.port, b.socket.address()?.port)
-  await Promise.all([a.release(), b.release()])
 })

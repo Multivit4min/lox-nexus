@@ -635,6 +635,21 @@ above:
     and a word. The server records history all the time; the popover only fetches it while open.
   - Colors follow the dataviz reference palette and were validated against this UI's light and
     dark card surfaces.
+- **Load per signal.** Each Miniserver signal shows its share of Loxone's limit (35 messages/s
+  over 2 minutes), the same measure as the Miniserver's total:
+  - Incoming packets count by packet id. Outgoing ones, cyclic resends included, are counted
+    by `CountingSender`, which reads the packet id from the header (Nexus sends unencrypted).
+  - `PacketTraffic` keeps one `TrafficMeter` per packet id and direction that had traffic, and
+    drops idle ones every 5 s. It tracks at most 4096 packet ids, so a flood of made-up ids can't
+    grow memory.
+  - `GET /api/miniservers/:id/signal-load` answers the share in percent (3 decimals) by signal
+    id, only for signals with traffic, so the answer stays small on Miniservers with thousands of
+    signals. The Miniserver page polls it every 5 s, apart from its other refreshes, so a failed
+    call never stalls health and discovery.
+  - Incoming traffic counts per signal only for configured inputs, so packets with made-up ids
+    can't take PacketTraffic's slots.
+  - The shares don't add up to the total: the total also counts status packets and packets for
+    other targets that share the port.
 - **Long lists.** A Miniserver can have thousands of signals, and up to 1000 discovered packets.
   Every list that can grow uses `VirtualTable`, which renders only the rows in view (so only
   visible rows track live values), with a search box and an "x of y" count. That covers signals,

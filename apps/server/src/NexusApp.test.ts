@@ -5,17 +5,21 @@ import { Value } from "@lox-nexus/plugin-sdk/values"
 import { TestApp } from "./test-support/TestApp.ts"
 
 describe("NexusApp", { timeout: 10_000 }, () => {
-  test("starts, answers health checks without a session, and disposes", async () => {
+  // every app is also disposed in a hook (disposing twice is fine), so a failing assertion can't
+  // leave a server running and keep the test run alive
+  test("starts, answers health checks without a session, and disposes", async t => {
     const test = await TestApp.start()
+    t.after(() => test.dispose())
     assert.match(test.address, /^http:\/\/127\.0\.0\.1:\d+$/)
     assert.equal((await test.client().get("/api/health")).statusCode, 200)
     await test.dispose()
     assert.equal(test.app.isDisposed, true)
   })
 
-  test("config, signals, wires, forces and values survive a restart", async () => {
+  test("config, signals, wires, forces and values survive a restart", async t => {
     const databaseFile = path.join(TestApp.tempDir(), "nexus.db")
     const first = await TestApp.start({ databaseFile })
+    t.after(() => first.dispose())
     const admin = await first.admin()
     const ms = (await admin.post("/api/miniservers", {
       slug: "haus", label: "Haus", host: "127.0.0.1", port: 7000, listenPort: 7001, ownId: "nexus", remoteId: "ms", enabled: false
@@ -28,6 +32,7 @@ describe("NexusApp", { timeout: 10_000 }, () => {
     await first.dispose()
 
     const second = await TestApp.start({ databaseFile })
+    t.after(() => second.dispose())
     const app = second.app
     assert.deepEqual(app.signals.list().map(s => s.topic), ["loxone/haus/in/a", "loxone/haus/out/b"])
     assert.deepEqual(app.wires.list().map(w => w.label), ["a to b"])
