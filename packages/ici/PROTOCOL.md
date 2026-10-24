@@ -273,8 +273,15 @@ for a temperature, `BBBGGGRRR` for RGB) out of the Miniserver failed:
   bytes. A direct input → output link never converts, even across data types (see also the
   passthrough probe below).
 
-Next: put a block between the input and the RGBW output (for example an analog memory), so the
-Miniserver treats the value as a Loxone colour number and has to convert it.
+With a Formula block (`I1`) between the input and an RGBW output it is the same: the output sends
+data type 4 with the 8 bytes of the analog double. An RGBW intercommunication output converts only
+what a Lighting Controller's **Smart** output gives it, never a plain number. Such a payload can be
+recognised: read as a double it is a whole number in a Loxone colour range (`20bbbkkkk` or
+`BBBGGGRRR`), while real RGBW payloads read as denormals or, for sequence steps, as non-integers
+near 2.
+
+Next: a lighting circuit of type Lumitech or RGB (analog output) sent over an Analog
+intercommunication output should carry the controller's colour number unchanged.
 
 **Passthrough probe (2026-10-23).** RGBW packets were sent to a Miniserver input wired directly to
 an RGBW output. Every payload came back **byte-identical** within about 30 ms: bytes 6–7 set to
