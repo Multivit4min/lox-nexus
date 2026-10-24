@@ -860,6 +860,81 @@ above:
   - forced a sensor to 42 and released it back to the real value
   - stopped and started the instance, and saw the panel update every few seconds
 
+## Implementation notes: wire editor (M5b)
+
+- **Pages.** "Wires" lists every wire. The Miniserver and plugin instance pages show the wires of
+  their own signals in the same card, and each signal row has a button that opens a new wire
+  starting at that signal: as its source for a Loxone input or a plugin sensor, as its target
+  for a Loxone output or a plugin actuator. Each wire can be edited, switched on or off, and
+  deleted.
+- **Signal owners.** `Signal.owner` (`{ kind: "miniserver" | "plugin", id }`) is set by
+  `Miniserver` and `PluginSignals` and is passed through in `SignalDto`. The UI uses it to name
+  the owner next to each signal and to tell whether the owner runs.
+- **Why a wire carries nothing.** `WireHealth` gives each wire a level and a reason. The first
+  rule that matches wins:
+
+  | Level | When | Reason shown |
+  |---|---|---|
+  | broken | the server doesn't run it | `WireDto.problem` |
+  | off | switched off | "switched off" |
+  | idle | the source's owner sends nothing: a plugin that isn't running, or a Miniserver that is stopped, waiting for its first packet, or silent (stale) | "no values while plugin "X" is in error" |
+  | idle | the target's owner isn't running | the target's owner and its state |
+  | idle | the target is forced | its subscribers see the forced value |
+  | ok | the source is forced | the wire carries the forced value |
+  | ok | otherwise | "values flow" |
+
+  `WireEngine.problem()` runs `add()`'s checks without starting the wire, and ignores the wire's
+  own running copy. `WireService.list()` uses it to explain each inactive stored wire: an
+  invalid transform (with its path), a missing signal, a wrong direction, or a target already
+  fed by another wire. `WireEngine` keeps the wires a signal update made invalid and starts
+  them again when a later update makes them valid (a Loxone output turned into an input and
+  back). It checks with `problem()` first, so nothing throws inside the registry's emit. Saving
+  a wire also starts it again.
+- **Picking signals.** The pickers search name, owner, topic and type. They hide targets whose
+  type converts uselessly from what the transforms output, and sources that convert uselessly
+  to the chosen target's type, until "all types" is ticked:
+  - Useful conversions: boolean, number and string among each other; the three light types
+    among each other; number or boolean into a light; T5 into boolean, number or string.
+  - The type the transforms output is derived per step: invert gives boolean, scale gives
+    number, convert gives its type, and a map gives its common result type (or `any`).
+
+  A target already fed by another wire shows "fed by …" and can't be picked.
+- **Transforms and preview.**
+  - Steps are edited as drafts (`TransformDraft`). Numbers stay text, a decimal comma is
+    accepted, and `map` values are a type plus text, as in the force dialog.
+  - Each step says what to fix ("from: enter a number", "case 1: then: not a boolean") before
+    anything is sent.
+  - `POST /api/wires/preview` runs one value through the steps with the same transform classes
+    and conversion as `ActiveWire` (`WirePreview`). It starts nothing and touches no bus.
+    Debounce and throttle pass the value through with a note on their timing.
+  - The form shows each step's result and what the target gets as its type. It starts from
+    the source's current value, can be changed, and is re-run 250 ms after the last edit. Only
+    the latest answer is shown, and step values only next to the steps they were computed for.
+- **Reloading.** The wire card reloads wires, signals and their owners every 5 s, except while a
+  form is open or the tab is hidden, and before a new wire is started from a signal row (the
+  signal may be brand new). An older answer never replaces a newer one, and a poll is skipped
+  while a load is still running.
+- **Keyboard.** The pickers are one Tab stop: arrows move through the matches, Enter in the
+  search picks the first one, and the button's name says what is picked.
+- **Types.** `SupportedTransformDto` in `@lox-nexus/api` mirrors core's `TransformSchema`.
+  `WireService` and a server test assign one to the other, so they fail to compile when they
+  drift apart. Stored steps are checked before they reach the UI: one that doesn't fit the schema
+  (written by hand, or imported from a newer version) comes as `{ op: "unsupported", raw }`. The
+  list shows it as "unsupported step", the form says it will be removed on saving, switching
+  such a wire on or off asks to fix it first, and the export writes it as stored. Wire labels
+  are capped at 200 characters and transforms at 50 steps, as in the export format. The
+  preview validates its steps with the same schema, so its issues carry the same paths as a
+  save (`transforms.1.from`).
+- **Verified.** Unit tests cover the type fit, step drafts and wire health; server tests cover
+  owners, the preview, the reasons and the restart after an undone change. A headless Chromium
+  walkthrough with the real GEN24 (battery) and a local, stopped Miniserver did the following:
+  - created a wire from PV power to an analog Loxone output, scaled 0…10000 to 0…100; the
+    preview showed 25 for 2500
+  - saw a non-number refused in the step, and the target locked as "fed by" for a second wire
+  - switched the wire off and on, and added a map step after a refused value
+  - opened a new wire from a Loxone output row on the Miniserver page, with the target already
+    filled in
+
 ## Implementation notes: importing from Loxone Config
 
 Out packets can't be discovered on the wire (the Miniserver never says which packet ids it

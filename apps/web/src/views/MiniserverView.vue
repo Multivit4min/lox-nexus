@@ -14,6 +14,7 @@ import LoadIndicator from "../components/load/LoadIndicator.vue"
 import MiniserverForm from "../components/MiniserverForm.vue"
 import ProjectImportDialog from "../components/project/ProjectImportDialog.vue"
 import SignalsCard from "../components/SignalsCard.vue"
+import WiresCard from "../components/wires/WiresCard.vue"
 import { LiveValues } from "../stores/LiveValues.ts"
 
 const props = defineProps<{ id: string }>()
@@ -27,6 +28,9 @@ const editing = ref(false)
 const importing = ref(false)
 // a ref, so the signals card appears as soon as the stream exists (a plain variable isn't tracked by the template)
 const live = shallowRef<LiveValues>()
+const wiresCard = ref<InstanceType<typeof WiresCard>>()
+// an input of the Miniserver is a wire's source, an output its target
+const wire = (signal: LoxoneSignalDto) => wiresCard.value?.startNew(signal.direction === "in" ? { sourceId: signal.id } : { targetId: signal.id })
 
 async function refresh() {
   ;[ms.value, discovered.value] = await Promise.all([api.get(props.id), api.discovered(props.id)])
@@ -122,7 +126,8 @@ async function adopt(packets: DiscoveredPacketDto[], progress: (done: number) =>
       <AlertTitle>Start failed</AlertTitle>
       <AlertDescription>{{ ms.lastError }}</AlertDescription>
     </Alert>
-    <SignalsCard v-if="live" :signals="signals" :live="live" :add="addSignal" :update="updateSignal" :remove="removeSignals" />
+    <SignalsCard v-if="live" :signals="signals" :live="live" :add="addSignal" :update="updateSignal" :remove="removeSignals" @wire="wire" />
+    <WiresCard ref="wiresCard" :owner-id="ms.id" />
     <DiscoveredCard :packets="discovered" :adopt="adopt" />
     <ProjectImportDialog v-model:open="importing" :ms="ms" :signals="signals" @changed="load" />
     <Dialog v-model:open="editing">

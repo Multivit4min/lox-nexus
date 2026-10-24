@@ -52,7 +52,11 @@ export class ConfigTransfer {
       miniservers: exported,
       wires: wires.list()
         .filter(wire => ids.has(wire.sourceId) && ids.has(wire.targetId))
-        .map(({ id, label, sourceId, targetId, transforms, enabled, syncOnStart }) => ({ id, label, sourceId, targetId, transforms, enabled, syncOnStart }))
+        .map(({ id, label, sourceId, targetId, transforms, enabled, syncOnStart }) => ({
+          id, label, sourceId, targetId, enabled, syncOnStart,
+          // a step this version can't run goes out as stored; the import's schema checks it
+          transforms: transforms.map(step => (step.op === "unsupported" ? step.raw : step)) as ConfigExport["wires"][number]["transforms"]
+        }))
     }
   }
 

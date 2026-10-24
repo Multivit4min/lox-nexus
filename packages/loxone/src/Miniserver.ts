@@ -131,7 +131,7 @@ export class Miniserver extends Disposable {
     const config = LoxoneSignalConfigSchema.parse(input)
     const entry = this.entries.add(config, this.currentTopics.forSignal(config))
     try {
-      this.deps.signals.register(Miniserver.signalOf(entry))
+      this.deps.signals.register(this.signalOf(entry))
     } catch (error) {
       this.entries.remove(config.id)
       throw error
@@ -156,7 +156,7 @@ export class Miniserver extends Disposable {
     let entry: LoxoneSignalEntry
     try {
       entry = this.entries.add(config, this.currentTopics.forSignal(config))
-      this.deps.signals.update(Miniserver.signalOf(entry))
+      this.deps.signals.update(this.signalOf(entry))
     } catch (error) {
       this.entries.remove(config.id)
       this.entries.add(previous.config, previous.topic)
@@ -226,7 +226,7 @@ export class Miniserver extends Disposable {
   private rename(slug: string) {
     this.currentTopics = new LoxoneTopics(slug)
     for (const entry of this.entries.retopic(config => this.currentTopics.forSignal(config))) {
-      this.deps.signals.update(Miniserver.signalOf(entry))
+      this.deps.signals.update(this.signalOf(entry))
     }
     this.publishStopped()
   }
@@ -246,12 +246,13 @@ export class Miniserver extends Disposable {
     return { kind: "loxone", id: this.current.id, label: this.current.label }
   }
 
-  private static signalOf({ config, topic }: LoxoneSignalEntry): Signal {
+  private signalOf({ config, topic }: LoxoneSignalEntry): Signal {
     return {
       id: config.id, topic, label: config.label,
       direction: config.direction === "in" ? "source" : "target",
       valueType: IciValueMapper.valueTypeOf(config.dataType),
-      delivery: "state"
+      delivery: "state",
+      owner: { kind: "miniserver", id: this.current.id }
     }
   }
 }

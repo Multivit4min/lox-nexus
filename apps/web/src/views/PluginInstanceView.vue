@@ -15,6 +15,7 @@ import PanelCard from "../components/plugins/PanelCard.vue"
 import PluginLogsCard from "../components/plugins/PluginLogsCard.vue"
 import PluginSignalsCard from "../components/plugins/PluginSignalsCard.vue"
 import PluginStateBadge from "../components/plugins/PluginStateBadge.vue"
+import WiresCard from "../components/wires/WiresCard.vue"
 import { LiveValues } from "../stores/LiveValues.ts"
 
 const props = defineProps<{ id: string }>()
@@ -32,7 +33,10 @@ const busy = ref(false)
 const live = shallowRef<LiveValues>()
 const failure = ref<string>()
 const missing = ref(false)
+const wiresCard = ref<InstanceType<typeof WiresCard>>()
 let unmounted = false
+// a sensor is a wire's source, an actuator its target
+const wire = (signal: PluginSignalDto) => wiresCard.value?.startNew(signal.kind === "sensor" ? { sourceId: signal.id } : { targetId: signal.id })
 
 const pkg = computed(() => packages.value.find(p => p.id === instance.value?.plugin))
 const running = computed(() => ["running", "degraded"].includes(instance.value?.state ?? ""))
@@ -149,7 +153,8 @@ onUnmounted(() => {
       <AlertDescription>{{ instance.statusMessage }}</AlertDescription>
     </Alert>
     <PanelCard v-if="panel" :panel="panel" :loading="panelLoading" @refresh="refreshPanel" />
-    <PluginSignalsCard v-if="pkg && live" :instance="instance" :description="pkg.description" :signals="signals" :live="live" @changed="loadSignals" />
+    <PluginSignalsCard v-if="pkg && live" :instance="instance" :description="pkg.description" :signals="signals" :live="live" @changed="loadSignals" @wire="wire" />
+    <WiresCard ref="wiresCard" :owner-id="instance.id" />
     <PluginLogsCard :lines="logs" />
     <Dialog v-model:open="editing">
       <DialogContent class="sm:max-w-2xl">

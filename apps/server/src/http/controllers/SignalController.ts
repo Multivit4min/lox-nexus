@@ -16,6 +16,7 @@ const IdParams = z.object({ id: z.string().min(1) })
  * - POST /api/wires: 201; 400 invalid body; 409 unknown signal or the target already has a wire.
  * - PUT /api/wires/:id: 200; 400 / 409 as above, 404 unknown wire. The old wire keeps running on failure.
  * - DELETE /api/wires/:id: 204; 404 unknown wire.
+ * - POST /api/wires/preview: 200 with the value after each transform; 400 invalid transforms, 404 unknown target.
  */
 export class SignalController implements Controller {
   constructor(
@@ -31,6 +32,7 @@ export class SignalController implements Controller {
       return { ...signal, ...(current ? { current } : {}) }
     }))
     app.get("/api/wires", () => this.wires.list())
+    app.post("/api/wires/preview", request => this.wires.preview(request.body))
     app.post("/api/wires", (request, reply) => reply.code(201).send(this.wires.create(request.body)))
     app.put("/api/wires/:id", request => this.wires.update(IdParams.parse(request.params).id, request.body))
     app.delete("/api/wires/:id", (request, reply) => {

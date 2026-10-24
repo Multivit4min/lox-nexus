@@ -20,13 +20,13 @@ export const TransformSchema = z.discriminatedUnion("op", [
 export const WireSchema = z.object({
   id: z.string().min(1),
   /** shown in the inspector and in loop warnings */
-  label: z.string(),
+  label: z.string().max(200),
   /** Signal id of the source; resolved by WireEngine, not validated here */
   sourceId: z.string().min(1),
   /** Signal id of the target; each target can have at most one wire */
   targetId: z.string().min(1),
   /** applied in order before the value is converted to the target's type */
-  transforms: z.array(TransformSchema).default([]),
+  transforms: z.array(TransformSchema).max(50).default([]),
   /** a disabled wire stays registered but forwards nothing */
   enabled: z.boolean().default(true),
   /** forward values restored from the snapshot at startup (default: only live changes) */

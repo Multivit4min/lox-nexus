@@ -18,6 +18,7 @@ export class AppRouter {
         { path: "/miniservers/:id", name: "miniserver", component: () => import("./views/MiniserverView.vue"), props: true },
         { path: "/plugins", name: "plugins", component: () => import("./views/PluginsView.vue") },
         { path: "/plugins/:id", name: "plugin", component: () => import("./views/PluginInstanceView.vue"), props: true },
+        { path: "/wires", name: "wires", component: () => import("./views/WiresView.vue") },
         { path: "/inspector", name: "inspector", component: () => import("./views/InspectorView.vue") },
         { path: "/:rest(.*)*", redirect: "/" }
       ]

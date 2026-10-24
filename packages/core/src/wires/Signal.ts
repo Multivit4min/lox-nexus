@@ -1,5 +1,12 @@
 import type { ValueType } from "@lox-nexus/plugin-sdk/values"
 
+/** What a signal belongs to, so UIs can group signals and tell whether their owner is running. */
+export interface SignalOwner {
+  kind: "miniserver" | "plugin"
+  /** the Miniserver's or plugin instance's id */
+  id: string
+}
+
 /**
  * Anything addressable on the bus: a Loxone packet id or a configured plugin sensor or actuator.
  * Wires reference signals by id, never by topic, so renaming a signal doesn't break wires.
@@ -17,4 +24,6 @@ export interface Signal {
   valueType: ValueType | "any"
   /** how wires deliver to a target: as retained state or as a command */
   delivery: "state" | "command"
+  /** absent for signals not owned by a Miniserver or plugin instance (tests, future system signals) */
+  owner?: SignalOwner
 }

@@ -32,6 +32,7 @@ const props = defineProps<{
   update: (signal: LoxoneSignalDto, input: LoxoneSignalInput) => Promise<void>
   remove: (signals: LoxoneSignalDto[], progress: (done: number) => void) => Promise<void>
 }>()
+const emit = defineEmits<{ wire: [signal: LoxoneSignalDto] }>()
 const { bus } = AppContext.use()
 const adding = ref(false)
 const editing = ref<LoxoneSignalDto>()
@@ -115,7 +116,7 @@ async function removeSelected() {
         </Button>
       </ListToolbar>
       <VirtualTable
-        :rows="visible" :row-key="s => s.id" columns="1.25rem minmax(8rem,1.4fr) minmax(7rem,1fr) 8rem minmax(10rem,2fr) minmax(7rem,1fr) 6rem"
+        :rows="visible" :row-key="s => s.id" columns="1.25rem minmax(8rem,1.4fr) minmax(7rem,1fr) 8rem minmax(10rem,2fr) minmax(7rem,1fr) 7.75rem"
         :empty="signals.length ? 'No signal matches.' : 'No signals. Add one, or adopt a discovered packet below.'"
       >
         <template #header>
@@ -133,8 +134,8 @@ async function removeSelected() {
             <span class="truncate"><ValueText :value="live.get(row.topic)?.value" /></span>
           </span>
           <SignalActions
-            :label="row.label" :forced="isForced(row)" :disabled="!!progress"
-            @edit="editing = row" @force="force(row)" @release="release(row)" @remove="removeOne(row)"
+            :label="row.label" :forced="isForced(row)" :disabled="!!progress" wirable
+            @edit="editing = row" @wire="emit('wire', row)" @force="force(row)" @release="release(row)" @remove="removeOne(row)"
           />
         </template>
       </VirtualTable>

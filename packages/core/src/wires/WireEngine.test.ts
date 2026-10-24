@@ -65,10 +65,21 @@ describe("WireEngine", () => {
   test("validates wires: unknown signals, directions, one wire per target, transform config", () => {
     const { engine } = setup(signal("a", "x/a", "source"), signal("b", "x/b", "target"), signal("c", "x/c", "source"))
     engine.add({ id: "w1", label: "", sourceId: "a", targetId: "b" })
-    assert.throws(() => engine.add({ id: "w2", label: "", sourceId: "c", targetId: "b" }), /already fed by wire "w1"/)
+    assert.throws(() => engine.add({ id: "w2", label: "", sourceId: "c", targetId: "b" }), /"b" is already fed by wire "w1"/)
     assert.throws(() => engine.add({ id: "w3", label: "", sourceId: "b", targetId: "a" }), /not a source/)
-    assert.throws(() => engine.add({ id: "w4", label: "", sourceId: "nope", targetId: "b" }), /unknown signal/)
+    assert.throws(() => engine.add({ id: "w4", label: "", sourceId: "nope", targetId: "b" }), /source signal "nope" does not exist/)
     assert.throws(() => engine.add({ id: "w5", label: "", sourceId: "c", targetId: "b", transforms: [{ op: "debounce", ms: -1 }] }))
+  })
+
+  test("problem() explains what add() would refuse, without starting anything", () => {
+    const { engine } = setup(signal("a", "x/a", "source"), signal("b", "x/b", "target"), signal("c", "x/c", "source"))
+    engine.add({ id: "w1", label: "first", sourceId: "a", targetId: "b" })
+    assert.equal(engine.problem({ id: "w1", label: "first", sourceId: "c", targetId: "b" }), undefined, "its own running wire doesn't count")
+    assert.match(engine.problem({ id: "w2", label: "", sourceId: "c", targetId: "b" }) ?? "", /already fed by wire "first"/)
+    assert.match(engine.problem({ id: "w2", label: "", sourceId: "a", targetId: "gone" }) ?? "", /target signal "gone" does not exist/)
+    assert.match(engine.problem({ id: "w2", label: "", sourceId: "a", targetId: "c" }) ?? "", /"c" is not a target/)
+    assert.match(engine.problem({ id: "w2", label: "", sourceId: "a", targetId: "b", transforms: [{ op: "debounce", ms: 0 }] }) ?? "", /^transforms\.0\.ms: /)
+    assert.deepEqual(engine.list().map(wire => wire.id), ["w1"])
   })
 
   test("removing a wire stops forwarding", () => {

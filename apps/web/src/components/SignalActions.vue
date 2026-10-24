@@ -1,15 +1,18 @@
 <script setup lang="ts">
-import { Lock, Pencil, Trash2, Unlock } from "@lucide/vue"
+import { Cable, Lock, Pencil, Trash2, Unlock } from "@lucide/vue"
 import { Button } from "@/components/ui/button"
 
-/** The buttons at the end of a signal row: edit, force or release, delete. */
-defineProps<{ label: string; forced: boolean; disabled?: boolean }>()
-const emit = defineEmits<{ edit: []; force: []; release: []; remove: [] }>()
+/** The buttons at the end of a signal row: edit, new wire (with `wirable`), force or release, delete. */
+defineProps<{ label: string; forced: boolean; disabled?: boolean; wirable?: boolean }>()
+const emit = defineEmits<{ edit: []; wire: []; force: []; release: []; remove: [] }>()
 </script>
 
 <template>
   <span class="flex justify-end gap-0.5">
     <Button size="icon" variant="ghost" class="size-7" :title="`Edit ${label}`" :disabled="disabled" @click="emit('edit')"><Pencil class="size-4" /></Button>
+    <Button v-if="wirable" size="icon" variant="ghost" class="size-7" :title="`New wire with ${label}`" :disabled="disabled" @click="emit('wire')">
+      <Cable class="size-4" />
+    </Button>
     <Button
       v-if="forced" size="icon" variant="ghost" class="size-7 text-amber-600 dark:text-amber-400" :title="`Release ${label}: back to the last received value`"
       :disabled="disabled" @click="emit('release')"

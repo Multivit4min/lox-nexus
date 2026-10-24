@@ -157,7 +157,7 @@ first-party plugins load from the workspace until then.
    - Per instance: its signals with live values and force and release (reusing the Loxone
      signals table), adding signals from the catalog browser or by hand with a params form, the
      panel (key-value, table, JSON) and recent log lines.
-2. **M5b: wire editor.**
+2. **M5b: wire editor** (done; see `docs/architecture.md`, "wire editor (M5b)").
    - A Wires page and a "wires" section per signal.
    - Picking a source and a target across Loxone and plugin signals, filtered by value type.
    - Editing the transform chain (Invert, Scale, Map, Debounce, Throttle, Convert) with a preview

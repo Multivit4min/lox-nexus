@@ -6,6 +6,7 @@ import { Http } from "./api/Http.ts"
 import { MiniserverApi } from "./api/MiniserverApi.ts"
 import { PluginApi } from "./api/PluginApi.ts"
 import { StreamConnection, type StreamHandlers } from "./api/StreamConnection.ts"
+import { WireApi } from "./api/WireApi.ts"
 import { SessionStore } from "./stores/SessionStore.ts"
 
 /** Everything views need, built once in main.ts and provided to the component tree (no module globals). */
@@ -16,6 +17,7 @@ export class AppContext {
   readonly bus = new BusApi(this.http)
   readonly config = new ConfigApi(this.http)
   readonly plugins = new PluginApi(this.http)
+  readonly wires = new WireApi(this.http)
   readonly session = new SessionStore(this.auth)
   /** set by main.ts once the router exists: forget the user and go to the login page */
   onSessionEnded: () => void = () => {}

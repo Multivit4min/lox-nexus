@@ -1,12 +1,20 @@
 import { randomUUID } from "node:crypto"
-import type { WireDto } from "@lox-nexus/api"
-import { WireSchema, type WireConfig, type WireEngine, type WireInput } from "@lox-nexus/core"
+import { WirePreviewRequestSchema, type TransformDto, type WireDto, type WirePreviewDto } from "@lox-nexus/api"
+import {
+  TransformSchema, WirePreview, WireSchema, type SignalRegistry, type TransformConfig, type WireConfig, type WireEngine, type WireInput
+} from "@lox-nexus/core"
 import type { Logger } from "pino"
 import type { WireRepository } from "../db/repositories/WireRepository.ts"
 import { HttpError } from "../http/HttpError.ts"
 
 /** Request body of POST/PUT /api/wires: a wire without its id (the server assigns it). */
 export const WireBodySchema = WireSchema.omit({ id: true })
+
+/** the preview checks its transforms like a wire's, so issues have the same paths (transforms.1.from) */
+const PreviewSchema = WirePreviewRequestSchema.extend({ transforms: WireSchema.shape.transforms })
+
+/** a stored wire the engine would accept now but doesn't run; the server can't tell why */
+const STOPPED = "not running; save it to start it again"
 
 /**
  * Wires: stored in the database, running in WireEngine. A stored wire that can't start (an
@@ -15,7 +23,14 @@ export const WireBodySchema = WireSchema.omit({ id: true })
  * the engine through SignalRegistry's "unregistered" event.
  */
 export class WireService {
-  constructor(private readonly repo: WireRepository, private readonly engine: WireEngine, private readonly log: Logger) {}
+  private readonly previewer = new WirePreview()
+
+  constructor(
+    private readonly repo: WireRepository,
+    private readonly engine: WireEngine,
+    private readonly signals: Pick<SignalRegistry, "get">,
+    private readonly log: Logger
+  ) {}
 
   /** starts every stored wire; call after all signals are registered */
   load() {
@@ -28,10 +43,25 @@ export class WireService {
     }
   }
 
-  /** every stored wire; `active` tells whether WireEngine is running it */
+  /** every stored wire; `active` tells whether WireEngine is running it, `problem` why not */
   list(): WireDto[] {
     const active = new Set(this.engine.list().map(wire => wire.id))
-    return this.repo.list().map(wire => WireService.toDto(wire, active.has(wire.id ?? "")))
+    return this.repo.list().map(wire => {
+      if (active.has(wire.id ?? "")) return WireService.toDto(wire, true)
+      return { ...WireService.toDto(wire, false), problem: this.engine.problem(wire) ?? STOPPED }
+    })
+  }
+
+  /**
+   * What the transforms make of a value, and what a target gets after the conversion to its type;
+   * nothing is started. Invalid transforms are a 400 with the path of the faulty field.
+   * @throws ZodError 400; HttpError 404 for an unknown target
+   */
+  preview(input: unknown): WirePreviewDto {
+    const request = PreviewSchema.parse(input)
+    const target = request.targetId === undefined ? undefined : this.signals.get(request.targetId)
+    if (request.targetId !== undefined && !target) throw HttpError.notFound(`signal "${request.targetId}"`)
+    return this.previewer.run(request.value, request.transforms, target?.valueType ?? "any")
   }
 
   /**
@@ -122,7 +152,22 @@ export class WireService {
   private static toDto(wire: WireInput, active: boolean): WireDto {
     return {
       id: wire.id, label: wire.label, sourceId: wire.sourceId, targetId: wire.targetId,
-      transforms: (wire.transforms ?? []) as WireDto["transforms"], enabled: wire.enabled ?? true, syncOnStart: wire.syncOnStart ?? false, active
+      transforms: WireService.transformsOf(wire.transforms ?? []), enabled: wire.enabled ?? true, syncOnStart: wire.syncOnStart ?? false, active
     }
+  }
+
+  // stored steps aren't validated (a hand-written row, an import from a newer version), so the
+  // UI gets only steps it can read, and the rest as "unsupported" with what was stored
+  private static transformsOf(stored: unknown): TransformDto[] {
+    if (!Array.isArray(stored)) return [{ op: "unsupported", raw: stored }]
+    return stored.map((step: unknown) => {
+      const parsed = TransformSchema.safeParse(step)
+      return parsed.success ? WireService.mirror(parsed.data) : { op: "unsupported", raw: step }
+    })
+  }
+
+  // fails to compile when TransformDto stops covering what TransformSchema accepts
+  private static mirror(step: TransformConfig): TransformDto {
+    return step
   }
 }

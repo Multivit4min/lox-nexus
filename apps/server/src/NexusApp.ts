@@ -117,7 +117,7 @@ export class NexusApp extends Disposable {
     const cleanup = new TopicCleanup(this.bus, db.snapshot)
     const loxoneSignals = new LoxoneSignalService(db.loxoneSignals, this.miniservers, cleanup, log)
     const miniservers = new MiniserverService(db.miniservers, this.miniservers, loxoneSignals, cleanup, log)
-    const wires = new WireService(db.wires, this.wires, log)
+    const wires = new WireService(db.wires, this.wires, this.signals, log)
     const plugins = new PluginService(db.pluginInstances, db.pluginSignals, this.plugins, this.pluginCatalog, cleanup, log, this.pluginLogs)
     const pluginSignals = new PluginSignalService(db.pluginSignals, plugins, cleanup)
     this.bus.restoreForces()

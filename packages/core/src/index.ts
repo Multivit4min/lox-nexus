@@ -13,11 +13,12 @@ export { Topic } from "./bus/Topic.ts"
 export { TopicTrie } from "./bus/TopicTrie.ts"
 export type { TopicKinds } from "./bus/TopicKinds.ts"
 
-export type { Signal } from "./wires/Signal.ts"
+export type { Signal, SignalOwner } from "./wires/Signal.ts"
 export { SignalRegistry } from "./wires/SignalRegistry.ts"
 export { WIRE_ERROR_TOPIC, WireEngine } from "./wires/WireEngine.ts"
 export { WIRE_LOOP_TOPIC } from "./wires/ActiveWire.ts"
 export { LoopGuard } from "./wires/LoopGuard.ts"
+export { WirePreview, type PreviewStep, type WirePreviewResult } from "./wires/WirePreview.ts"
 export { TransformSchema, WireSchema, type TransformConfig, type WireConfig, type WireInput } from "./wires/WireSchema.ts"
 
 export type { PluginInstanceConfig, PluginLogSink, PluginPackage, PluginSignalConfig, PluginState, PluginStateStore, SignalValueType } from "./plugins/PluginTypes.ts"

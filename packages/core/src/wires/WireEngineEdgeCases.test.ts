@@ -77,7 +77,20 @@ describe("wire edge cases from the M2 review", () => {
     engine.add({ id: "w", label: "w", sourceId: "a", targetId: "b" })
     registry.update(signal("b", "x/b", "source"))
     assert.deepEqual(engine.list(), [])
-    assert.match(seen.find(m => m.topic === "system/wire/error")?.text ?? "", /"w" was removed: signal "b" is not a target/)
+    assert.match(seen.find(m => m.topic === "system/wire/error")?.text ?? "", /"w" was removed: "b" is not a target/)
+  })
+
+  test("a wire removed by an update starts again when a later update makes it valid", () => {
+    const { engine, registry } = setup(signal("a", "x/a", "source"), signal("b", "x/b", "target"))
+    engine.add({ id: "w", label: "", sourceId: "a", targetId: "b" })
+    registry.update(signal("b", "x/b", "source"))
+    assert.deepEqual(engine.list(), [])
+    registry.update(signal("b", "x/b", "target"))
+    assert.deepEqual(engine.list().map(wire => wire.id), ["w"])
+    registry.update(signal("b", "x/b", "source"))
+    engine.remove("w")
+    registry.update(signal("b", "x/b", "target"))
+    assert.deepEqual(engine.list(), [], "a removed wire is forgotten")
   })
 
   test("updating a signal onto another signal's topic is refused", () => {

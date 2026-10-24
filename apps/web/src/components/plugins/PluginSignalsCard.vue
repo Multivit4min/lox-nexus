@@ -24,7 +24,7 @@ import PluginSignalForm from "./PluginSignalForm.vue"
  * released and deleted; new ones come from the plugin's catalog or are configured by hand.
  */
 const props = defineProps<{ instance: PluginInstanceDto; description: PluginDescription; signals: PluginSignalDto[]; live: LiveValues }>()
-const emit = defineEmits<{ changed: [] }>()
+const emit = defineEmits<{ changed: []; wire: [signal: PluginSignalDto] }>()
 const { plugins: api, bus } = AppContext.use()
 const adding = ref(false)
 const preset = ref<CatalogEntry>()
@@ -95,7 +95,7 @@ const remove = (signal: PluginSignalDto) =>
     <CardContent class="space-y-3">
       <ListToolbar v-model="query" :shown="visible.length" :total="signals.length" placeholder="Search name, capability or topic" />
       <VirtualTable
-        :rows="visible" :row-key="s => s.id" columns="minmax(8rem,1.4fr) 5.5rem minmax(6rem,1fr) minmax(10rem,2fr) minmax(7rem,1fr) 6rem"
+        :rows="visible" :row-key="s => s.id" columns="minmax(8rem,1.4fr) 5.5rem minmax(6rem,1fr) minmax(10rem,2fr) minmax(7rem,1fr) 7.75rem"
         :empty="signals.length ? 'No signal matches.' : 'No signals yet. Browse the catalog or add one by hand.'"
       >
         <template #header><span>Name</span><span>Kind</span><span>Capability</span><span>Topic</span><span>Value</span><span></span></template>
@@ -112,8 +112,8 @@ const remove = (signal: PluginSignalDto) =>
             <span class="truncate"><ValueText :value="live.get(row.topic)?.value" /></span>
           </span>
           <SignalActions
-            :label="row.label" :forced="isForced(row)"
-            @edit="editing = row" @force="force(row)" @release="act(() => bus.release(row.topic))" @remove="remove(row)"
+            :label="row.label" :forced="isForced(row)" wirable
+            @edit="editing = row" @wire="emit('wire', row)" @force="force(row)" @release="act(() => bus.release(row.topic))" @remove="remove(row)"
           />
         </template>
       </VirtualTable>

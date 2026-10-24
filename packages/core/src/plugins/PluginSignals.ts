@@ -142,7 +142,8 @@ export class PluginSignals extends Disposable {
     const sensor = entry.config.kind === "sensor"
     return {
       id: entry.config.id, topic: entry.topic, label: entry.config.label, valueType: entry.valueType,
-      direction: sensor ? "source" : "target", delivery: sensor ? "state" : "command"
+      direction: sensor ? "source" : "target", delivery: sensor ? "state" : "command",
+      owner: { kind: "plugin", id: this.instance.id }
     }
   }
 

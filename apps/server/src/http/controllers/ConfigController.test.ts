@@ -72,7 +72,7 @@ describe("config export and import", { timeout: 10_000 }, () => {
     const response = await admin.post("/api/config/import", future)
     assert.equal(response.statusCode, 200, response.body)
     assert.deepEqual([response.json<ConfigImportResultDto>().wires, response.json<ConfigImportResultDto>().inactiveWires], [1, 1])
-    assert.deepEqual((await admin.get("/api/wires")).json<WireDto[]>().map(w => [w.active, w.transforms]), [[false, [{ op: "from-a-newer-version" }]]])
+    assert.deepEqual((await admin.get("/api/wires")).json<WireDto[]>().map(w => [w.active, w.transforms]), [[false, [{ op: "unsupported", raw: { op: "from-a-newer-version" } }]]])
     assert.equal((await admin.post("/api/config/import", exported)).statusCode, 200)
   })
 
