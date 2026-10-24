@@ -260,7 +260,7 @@ export class Miniserver extends Disposable {
     return {
       id: config.id, topic, label: config.label,
       direction: config.direction === "in" ? "source" : "target",
-      valueType: IciValueMapper.valueTypeOf(config.dataType),
+      valueType: IciValueMapper.signalValueType(config),
       delivery: "state",
       owner: { kind: "miniserver", id: this.current.id }
     }

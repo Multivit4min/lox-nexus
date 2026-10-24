@@ -117,5 +117,13 @@ export const MIGRATIONS: readonly Migration[] = [
         PRIMARY KEY (instance_id, key)
       ) WITHOUT ROWID;
     `
+  },
+  {
+    version: 4,
+    name: "lumitech_signals",
+    sql: `
+      -- 1: the signal carries Loxone colour numbers (a Lighting Controller's Lumitech output)
+      ALTER TABLE loxone_signals ADD COLUMN lumitech INTEGER NOT NULL DEFAULT 0;
+    `
   }
 ]

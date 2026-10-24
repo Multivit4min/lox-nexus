@@ -1,5 +1,6 @@
-import { DataType, type ValueMap } from "@lox-nexus/ici"
+import { DataType, LoxoneColor, type LoxoneColorValue, type ValueMap } from "@lox-nexus/ici"
 import { Converter, Value, type ValueType } from "@lox-nexus/plugin-sdk/values"
+import type { LoxoneSignalConfig } from "./MiniserverConfig.ts"
 
 /** Translates between ICI payload values and bus values; both use the same field names. */
 export class IciValueMapper {
@@ -16,6 +17,38 @@ export class IciValueMapper {
   /** the bus value type a data type maps to */
   static valueTypeOf(dataType: DataType): ValueType {
     return IciValueMapper.TYPES[dataType]
+  }
+
+  /** a Lumitech signal carries a colour temperature or an RGB colour, so its type depends on the value */
+  static signalValueType(config: Pick<LoxoneSignalConfig, "dataType" | "lumitech">): ValueType | "any" {
+    return config.lumitech ? "any" : IciValueMapper.valueTypeOf(config.dataType)
+  }
+
+  /** a decoded colour number on the bus: a temperature as tunableWhite, an RGB colour as rgbw (no fade: Lumitech has none) */
+  static colorToBus(color: LoxoneColorValue): Value {
+    if (color.kind === "temperature") return Value.tunableWhite({ temperature: color.kelvin, brightness: color.brightness, fadeTime: 0 })
+    return Value.rgbw({ red: color.red, green: color.green, blue: color.blue, white: 0, fadeTime: 0, flags: 0 })
+  }
+
+  /**
+   * any bus value as a colour number for a Lumitech output: tunableWhite as a temperature, rgbw
+   * and everything else as RGB (white added to each channel). A number is taken as a colour number
+   * as it is (so 50 is red 50 %), never converted.
+   * @throws RangeError for a number that isn't a colour number; the send reports it as a problem
+   */
+  static toLumitech(value: Value): number {
+    if (value.type === "number") {
+      if (!LoxoneColor.parse(value.value)) throw new RangeError(`${value.value} is not a Loxone colour number (20bbbkkkk or BBBGGGRRR)`)
+      return value.value
+    }
+    if (value.type === "tunableWhite") {
+      const kelvin = Math.min(9999, Math.max(1, Math.round(value.value.temperature)))
+      const brightness = Math.min(100, Math.max(0, Math.round(value.value.brightness)))
+      return LoxoneColor.format({ kind: "temperature", brightness, kelvin })
+    }
+    const { red, green, blue, white } = Converter.convert(value, "rgbw").value
+    const channel = (level: number) => Math.min(100, Math.round(level + white))
+    return LoxoneColor.format({ kind: "rgb", red: channel(red), green: channel(green), blue: channel(blue) })
   }
 
   /**

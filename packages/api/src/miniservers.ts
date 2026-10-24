@@ -40,9 +40,19 @@ export const LoxoneSignalInputSchema = z.object({
   /** ICI data type byte: 0 digital, 1 analog, 2 text, 3 T5, 4 RGBW, 5 single channel, 6 tunable white */
   dataType: z.literal([0, 1, 2, 3, 4, 5, 6]),
   label: z.string().max(100),
-  slug: segment.optional()
+  slug: segment.optional(),
+  /** a Loxone colour number (Lumitech output): Analog signals and RGBW inputs only, checked by the server */
+  lumitech: z.boolean().optional()
 })
 export type LoxoneSignalInput = z.input<typeof LoxoneSignalInputSchema>
+
+/** Where a signal may carry Loxone colour numbers; the server's signal schema enforces the same rule. */
+export class LumitechRule {
+  /** Analog signals carry the number itself; an RGBW input may carry its bytes (see PROTOCOL.md) */
+  static allowed(dataType: number, direction: "in" | "out") {
+    return dataType === 1 || (dataType === 4 && direction === "in")
+  }
+}
 
 /** POST body to turn a discovered packet into an input signal; the data type comes from the packet. */
 export const AdoptPacketSchema = z.object({
@@ -117,9 +127,11 @@ export interface LoxoneSignalDto {
   dataType: number
   label: string
   slug?: string
+  /** carries Loxone colour numbers, decoded into tunableWhite or rgbw */
+  lumitech?: boolean
   topic: string
-  /** the bus value type the data type maps to, e.g. "number" for analog */
-  valueType: ValueType
+  /** the bus value type the data type maps to, e.g. "number" for analog; "any" for Lumitech signals */
+  valueType: ValueType | "any"
 }
 
 /** A packet id the Miniserver sent although no signal is configured for it. */

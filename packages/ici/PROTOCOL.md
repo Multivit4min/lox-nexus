@@ -278,7 +278,8 @@ data type 4 with the 8 bytes of the analog double. An RGBW intercommunication ou
 what a Lighting Controller's **Smart** output gives it, never a plain number. Such a payload can be
 recognised: read as a double it is a whole number in a Loxone colour range (`20bbbkkkk` or
 `BBBGGGRRR`), while real RGBW payloads read as denormals or, for sequence steps, as non-integers
-near 2.
+near 2. Two colour numbers can't be told apart from real payloads: 0 (all zero, which means off
+either way) and 2 (red 2 %, whose double is `0000000000000040`, an empty sequence step).
 
 **Lumitech outputs carry the colour number (2026-10-24, `lumitech-moods-2026-10-24.jsonl`).** A
 Lighting Controller output of type **Lumitech** sends the controller's own value, so colour

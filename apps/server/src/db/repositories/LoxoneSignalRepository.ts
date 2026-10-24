@@ -10,6 +10,8 @@ interface LoxoneSignalRow {
   data_type: number
   label: string
   slug: string | null
+  /** 0 or 1 */
+  lumitech: number
 }
 
 /** A stored Loxone signal: its config plus the Miniserver it belongs to. dataType is validated when the Miniserver parses it. */
@@ -39,11 +41,11 @@ export class LoxoneSignalRepository {
     this.db.transaction(() => {
       this.db.run("INSERT INTO signals (id, owner) VALUES (:id, :owner)", { id: signal.id, owner: LoxoneSignalRepository.OWNER })
       this.db.run(
-        `INSERT INTO loxone_signals (id, miniserver_id, packet_id, direction, data_type, label, slug)
-         VALUES (:id, :miniserverId, :packetId, :direction, :dataType, :label, :slug)`,
+        `INSERT INTO loxone_signals (id, miniserver_id, packet_id, direction, data_type, label, slug, lumitech)
+         VALUES (:id, :miniserverId, :packetId, :direction, :dataType, :label, :slug, :lumitech)`,
         {
           id: signal.id, miniserverId: signal.miniserverId, packetId: signal.packetId, direction: signal.direction,
-          dataType: signal.dataType, label: signal.label, slug: signal.slug ?? null
+          dataType: signal.dataType, label: signal.label, slug: signal.slug ?? null, lumitech: signal.lumitech ? 1 : 0
         }
       )
     })
@@ -55,11 +57,12 @@ export class LoxoneSignalRepository {
    */
   update(signal: StoredLoxoneSignal) {
     const { changes } = this.db.run(
-      `UPDATE loxone_signals SET packet_id = :packetId, direction = :direction, data_type = :dataType, label = :label, slug = :slug
+      `UPDATE loxone_signals SET packet_id = :packetId, direction = :direction, data_type = :dataType, label = :label, slug = :slug,
+         lumitech = :lumitech
        WHERE id = :id AND miniserver_id = :miniserverId`,
       {
         id: signal.id, miniserverId: signal.miniserverId, packetId: signal.packetId, direction: signal.direction,
-        dataType: signal.dataType, label: signal.label, slug: signal.slug ?? null
+        dataType: signal.dataType, label: signal.label, slug: signal.slug ?? null, lumitech: signal.lumitech ? 1 : 0
       }
     )
     if (changes !== 1) throw new TypeError(`loxone signal "${signal.id}" is not stored for miniserver "${signal.miniserverId}"`)
@@ -70,11 +73,11 @@ export class LoxoneSignalRepository {
     this.db.run("DELETE FROM signals WHERE id = :id", { id })
   }
 
-  // NULL slug becomes an absent field
+  // NULL slug and a 0 lumitech become absent fields
   private static toSignal(row: LoxoneSignalRow): StoredLoxoneSignal {
     return {
       id: row.id, miniserverId: row.miniserver_id, packetId: row.packet_id, direction: row.direction,
-      dataType: row.data_type, label: row.label, ...(row.slug === null ? {} : { slug: row.slug })
+      dataType: row.data_type, label: row.label, ...(row.slug === null ? {} : { slug: row.slug }), ...(row.lumitech ? { lumitech: true } : {})
     }
   }
 }

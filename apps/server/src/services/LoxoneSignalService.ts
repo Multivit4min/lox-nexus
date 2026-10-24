@@ -104,8 +104,12 @@ export class LoxoneSignalService {
     const packet = this.require(miniserverId).discovery.list().find(entry => entry.packetId === input.packetId)
     if (!packet) throw HttpError.notFound(`discovered packet "${input.packetId}"`)
     if (!LoxoneSignalInputSchema.shape.dataType.safeParse(packet.dataType).success) throw HttpError.badRequest(`data type ${packet.dataType} is not supported`)
+    // an RGBW packet that discovery decoded as a colour temperature came from a Lumitech output:
+    // adopted without the option, the temperature it showed would be lost
+    const lumitech = packet.dataType === 4 && packet.value?.type === "tunableWhite"
     return this.add(miniserverId, LoxoneSignalInputSchema.parse({
-      packetId: packet.packetId, direction: "in", dataType: packet.dataType, label: input.label ?? packet.packetId, slug: input.slug
+      packetId: packet.packetId, direction: "in", dataType: packet.dataType, label: input.label ?? packet.packetId, slug: input.slug,
+      ...(lumitech ? { lumitech } : {})
     }))
   }
 

@@ -35,7 +35,7 @@ export class MiniserverMapper {
   static signalToDto(miniserver: Miniserver, signal: LoxoneSignalConfig): LoxoneSignalDto {
     return {
       ...signal, miniserverId: miniserver.config.id, topic: miniserver.topicOf(signal.id) ?? "",
-      valueType: IciValueMapper.valueTypeOf(signal.dataType)
+      valueType: IciValueMapper.signalValueType(signal)
     }
   }
 

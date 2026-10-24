@@ -5,6 +5,7 @@ export type { RgbwValue, SingleChannelValue, T5Value, TunableWhiteValue, ValueMa
 export { PayloadCodec } from "./payload/PayloadCodec.ts"
 export { PayloadCodecs } from "./payload/PayloadCodecs.ts"
 export { SmartRgbwCodec } from "./payload/SmartRgbwCodec.ts"
+export { LoxoneColor, type LoxoneColorValue } from "./payload/LoxoneColor.ts"
 export { T5Buttons } from "./payload/T5Buttons.ts"
 export { FadeTime } from "./payload/FadeTime.ts"
 

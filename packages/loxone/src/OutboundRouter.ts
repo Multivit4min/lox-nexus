@@ -55,10 +55,12 @@ export class OutboundRouter extends Disposable {
 
   // output() and the conversion throw synchronously, set() rejects: both end up as a problem report
   private send(entry: LoxoneSignalEntry, value: Value, cause: Cause) {
-    const { packetId, dataType } = entry.config
+    const { packetId, dataType, lumitech } = entry.config
     const failed = (error: unknown) => this.problems.report(`send:${packetId}`, `sending ${packetId} failed: ${ProblemReporter.message(error)}`, cause)
     try {
-      this.peer.output(packetId, dataType).set(IciValueMapper.toIci(dataType, value)).catch(failed)
+      // a Lumitech output is always Analog (the config schema checks it)
+      const payload = lumitech ? IciValueMapper.toLumitech(value) : IciValueMapper.toIci(dataType, value)
+      this.peer.output(packetId, dataType).set(payload).catch(failed)
     } catch (error) {
       failed(error)
     }

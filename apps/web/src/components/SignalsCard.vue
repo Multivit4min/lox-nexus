@@ -131,7 +131,7 @@ async function removeSelected() {
           <Checkbox :model-value="selection.has(row.id)" :aria-label="`Select ${row.label}`" @update:model-value="v => selection.toggle(row.id, v === true)" />
           <span class="truncate font-medium" :title="row.label">{{ row.label }}</span>
           <span class="flex min-w-0 items-center gap-1.5"><Badge variant="outline">{{ row.direction }}</Badge><span class="truncate font-mono text-xs">{{ row.packetId }}</span></span>
-          <span class="truncate text-muted-foreground">{{ DataTypes.nameOf(row.dataType) }}</span>
+          <span class="truncate text-muted-foreground">{{ DataTypes.nameOf(row.dataType) }}{{ row.lumitech ? " · Lumitech" : "" }}</span>
           <span class="truncate font-mono text-xs" :title="row.topic">{{ row.topic }}</span>
           <span class="flex min-w-0 items-center gap-1.5">
             <Lock v-if="isForced(row)" class="size-3.5 shrink-0 text-amber-600 dark:text-amber-400" aria-label="forced" />
@@ -159,7 +159,7 @@ async function removeSelected() {
     </Dialog>
     <ForceDialog
       v-if="forcing" v-model:open="forceOpen" :topic="forcing.topic"
-      :current="live.get(forcing.topic)?.value" :value-type="forcing.valueType"
+      :current="live.get(forcing.topic)?.value" :value-type="forcing.valueType === 'any' ? undefined : forcing.valueType"
     />
   </Card>
 </template>

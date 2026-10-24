@@ -44,7 +44,15 @@ export const LoxoneSignalConfigSchema = z.object({
   dataType: z.literal([0, 1, 2, 3, 4, 5, 6]),
   label: z.string(),
   /** topic segment, defaults to the slug of the packet id */
-  slug: segment.optional()
+  slug: segment.optional(),
+  /**
+   * The value is a Loxone colour number (a Lighting Controller's Lumitech or RGB output):
+   * `20bbbkkkk` becomes a tunableWhite value, `BBBGGGRRR` an rgbw one, and back for outputs.
+   * Analog signals only, or RGBW inputs (which then carry the number's raw bytes).
+   */
+  lumitech: z.boolean().optional()
+}).refine(signal => !signal.lumitech || signal.dataType === 1 || (signal.dataType === 4 && signal.direction === "in"), {
+  path: ["lumitech"], message: "only for Analog signals and RGBW inputs"
 })
 
 /** a validated Miniserver config, defaults applied */

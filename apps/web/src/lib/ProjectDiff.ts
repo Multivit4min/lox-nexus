@@ -1,4 +1,4 @@
-import type { LoxoneProjectDto, LoxoneProjectPeerDto, LoxoneProjectSignalDto, LoxoneSignalDto, LoxoneSignalInput, MiniserverDto } from "@lox-nexus/api"
+import { LumitechRule, type LoxoneProjectDto, type LoxoneProjectPeerDto, type LoxoneProjectSignalDto, type LoxoneSignalDto, type LoxoneSignalInput, type MiniserverDto } from "@lox-nexus/api"
 import { DataTypes } from "./DataTypes.ts"
 
 /** new: not configured; same: configured with this type; differs: configured with another type; unsupported: a type Nexus can't map */
@@ -47,8 +47,10 @@ export class ProjectDiff {
     if (dataType === undefined) throw new Error(`data type ${row.signal.dataType} is not supported`)
     const { packetId, direction } = row.signal
     if (!row.existing) return { packetId, direction, dataType, label: row.signal.label.slice(0, 100) }
-    const { label, slug } = row.existing
-    return { packetId, direction, dataType, label, ...(slug === undefined ? {} : { slug }) }
+    const { label, slug, lumitech } = row.existing
+    // a full replace: the Lumitech option stays where the new type still allows it
+    const keep = lumitech && LumitechRule.allowed(dataType, direction)
+    return { packetId, direction, dataType, label, ...(slug === undefined ? {} : { slug }), ...(keep ? { lumitech: true } : {}) }
   }
 
   /** where the peer's settings disagree with the Miniserver's; ICI only works when they match */

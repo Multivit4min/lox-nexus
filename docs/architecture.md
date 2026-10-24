@@ -650,6 +650,31 @@ above:
     can't take PacketTraffic's slots.
   - The shares don't add up to the total: the total also counts status packets and packets for
     other targets that share the port.
+- **Lumitech signals (Loxone colour numbers).** A Smart RGBW output loses colour temperatures:
+  the Miniserver mixes them into RGBW before sending, and no flag marks them (PROTOCOL.md). A
+  Lighting Controller output of type Lumitech sends the controller's own number instead:
+  `20bbbkkkk` for a temperature, or `BBBGGGRRR` for an RGB colour.
+  - A signal's **Lumitech** option, for Analog signals and RGBW inputs, decodes it (`LoxoneColor`
+    in `packages/ici`). Temperatures become `tunableWhite` and colours `rgbw`, so the signal's
+    value type is `any`.
+  - Lumitech outputs (Analog) send `tunableWhite` as a temperature, and `rgbw` and other types
+    as RGB with white added to each channel. A number is taken as a colour number as it is (50 is
+    red 50 %). One that isn't a colour number is refused and reported on the error topic,
+    instead of being turned into some colour.
+  - A Lumitech input that receives a number that isn't a colour number reports it too. Adopting
+    a discovered RGBW packet that showed a colour temperature switches the option on, and a
+    project import keeps it wherever the new data type allows it (`LumitechRule` in
+    `@lox-nexus/api`, which mirrors the server's schema check).
+  - Wired to a plain Analog output, a Lumitech input gives a brightness, not the colour number
+    (the Converter knows no colour numbers). The signal form says so.
+  - A Lumitech output wired to an **RGBW** intercommunication output arrives as the raw bytes of
+    the double. Those are recognised on every RGBW input, because a real RGBW payload never looks
+    like one. Without the option they are converted to RGBW, and the Miniserver's error topic
+    suggests turning the option on.
+  - Stored in `loxone_signals.lumitech` (migration 4), exported with the config, and switched in
+    the signal form. Values show with a swatch tinted by their Kelvin.
+  - Verified live: mood 4 (2200 K, 70 %) shows as "2200K 70%" on the Analog and the RGBW
+    Lumitech signal, while the Smart output next to them shows `r83 g30 w39`.
 - **Long lists.** A Miniserver can have thousands of signals, and up to 1000 discovered packets.
   Every list that can grow uses `VirtualTable`, which renders only the rows in view (so only
   visible rows track live values), with a search box and an "x of y" count. That covers signals,

@@ -39,8 +39,9 @@ export class ConfigTransfer {
       ...(ms.listenAddress === undefined ? {} : { listenAddress: ms.listenAddress }),
       ownId: ms.ownId, remoteId: ms.remoteId, enabled: ms.enabled, resendInterval: ms.resendInterval,
       // the DTO types dataType as a number; the schema checks it when the file is read back
-      signals: signals.list(ms.id).map(({ id, packetId, direction, dataType, label, slug }) => ({
-        id, packetId, direction, dataType: dataType as LoxoneSignalInput["dataType"], label, ...(slug === undefined ? {} : { slug })
+      signals: signals.list(ms.id).map(({ id, packetId, direction, dataType, label, slug, lumitech }) => ({
+        id, packetId, direction, dataType: dataType as LoxoneSignalInput["dataType"], label, ...(slug === undefined ? {} : { slug }),
+        ...(lumitech ? { lumitech } : {})
       }))
     }))
     // a wire to a signal outside the file (a plugin's, later) could not be recreated by an import

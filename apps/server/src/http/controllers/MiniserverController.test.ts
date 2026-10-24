@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import { once } from "node:events"
 import { after, before, describe, test } from "node:test"
 import type { DiscoveredPacketDto, LoxoneSignalDto, MiniserverDto, MiniserverLoadDto, SignalLoadDto } from "@lox-nexus/api"
-import { DataType, IciSocket, RemotePeer } from "@lox-nexus/ici"
+import { DataPacket, DataType, IciSocket, PacketEncoder, RemotePeer } from "@lox-nexus/ici"
 import { Value } from "@lox-nexus/plugin-sdk/values"
 import type { ApiClient } from "../../test-support/ApiClient.ts"
 import { TestApp } from "../../test-support/TestApp.ts"
@@ -66,6 +66,17 @@ describe("miniserver API", { timeout: 10_000 }, () => {
     await arrived
     assert.deepEqual(app.app.bus.current("loxone/haus/in/temp")?.value, Value.number(21.5))
     peer.close()
+  })
+
+  test("an RGBW packet carrying a colour temperature is adopted as a Lumitech signal", async () => {
+    const payload = Buffer.alloc(8)
+    payload.writeDoubleLE(200702200)
+    const discovered = new Promise(resolve => app.app.bus.subscribe("loxone/haus/discovered/lcout", resolve))
+    await loxone.send(new PacketEncoder().encodeData(new DataPacket("ms", "nexus", "lcout", DataType.SmartRgbw, payload)), ms.listenPort, "127.0.0.1")
+    await discovered
+    const adopted = (await admin.post(`/api/miniservers/${ms.id}/discovered/adopt`, { packetId: "lcout" })).json<LoxoneSignalDto>()
+    assert.deepEqual([adopted.dataType, adopted.lumitech], [DataType.SmartRgbw, true], "what discovery showed is kept")
+    await admin.delete(`/api/miniservers/${ms.id}/signals/${adopted.id}`)
   })
 
   test("an output signal sends forced values to the Miniserver", async () => {
