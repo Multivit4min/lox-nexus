@@ -252,6 +252,30 @@ and red rises with the mired distance from it: (1e6/4050 − 1e6/4600) / (1e6/27
 = 0.193, against red/white = 7/37 = 0.189. How brightness is split between the channels is still
 open; test moods across 2700–6500 K at 100 % and 50 % would settle it.
 
+**Kelvin moods and the Analog route (2026-10-24).** More moods (2200 K 70 %, 4000 K 50 %,
+6000 K 90 %) confirm that a temperature leaves the Miniserver already mixed into RGBW, with
+flags `0x0000`. White always equals the smallest of red+white, green+white and blue+white:
+
+| Mood | Packet |
+|---|---|
+| 2200 K, 70 % | `r83 g30 w39` |
+| 4000 K, 50 % | `r10 g1 w46` |
+| 6000 K, 90 % | `g97 b97 w69` (the cool side adds cyan) |
+
+**No field marks a temperature.** Bytes 6–7 are `0x0000` for Kelvin and RGB moods alike, and
+`0x4000` only on sequence steps. Two attempts to get the controller's own value (`20bbbkkkk`
+for a temperature, `BBBGGGRRR` for RGB) out of the Miniserver failed:
+- A Lighting Controller's Smart output wired to an **Analog** intercommunication output (Loxone
+  Config warns "invalid data type") sends only `1` while a mood is on and `0` for off.
+- An Analog intercommunication input wired **directly** to an RGBW intercommunication output
+  (`ktest` → `kout`) forwards the 8 payload bytes unchanged under the output's data type. The
+  analog double `200504000` arrived as "w128, fade 0xe6e5, flags 0x41a7", which are just its
+  bytes. A direct input → output link never converts, even across data types (see also the
+  passthrough probe below).
+
+Next: put a block between the input and the RGBW output (for example an analog memory), so the
+Miniserver treats the value as a Loxone colour number and has to convert it.
+
 **Passthrough probe (2026-10-23).** RGBW packets were sent to a Miniserver input wired directly to
 an RGBW output. Every payload came back **byte-identical** within about 30 ms: bytes 6–7 set to
 `0001`, `0100` and `ffff`, fade values 0, 10 and 25, and out-of-range colours 101 and 255. A direct
