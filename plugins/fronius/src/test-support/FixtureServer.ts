@@ -18,16 +18,19 @@ export class FixtureServer {
 
   private constructor() {}
 
+  /** listens on a free port; call close() when done */
   static async start() {
     const fixture = new FixtureServer()
     await new Promise<void>(resolve => fixture.server.listen(0, "127.0.0.1", resolve))
     return fixture
   }
 
+  /** the raw JSON text of test/fixtures/<name>.json */
   static fixture(name: string) {
     return readFileSync(new URL(`../../test/fixtures/${name}.json`, import.meta.url), "utf8")
   }
 
+  /** base URL to use as the plugin's `host` */
   get url() {
     return `http://127.0.0.1:${(this.server.address() as AddressInfo).port}`
   }
@@ -46,6 +49,7 @@ export class FixtureServer {
       .fail("GetStorageRealtimeData", 404)
   }
 
+  /** answers `route` with a fixture file; returns this for chaining */
   serve(route: string, fixture: string, type = "application/json") {
     this.routes.set(route, { status: 200, type, body: FixtureServer.fixture(fixture) })
     return this
@@ -57,6 +61,7 @@ export class FixtureServer {
     return this
   }
 
+  /** answers `route` with an error status */
   fail(route: string, status = 500) {
     this.routes.set(route, { status, type: "text/plain", body: "failed on purpose" })
     return this

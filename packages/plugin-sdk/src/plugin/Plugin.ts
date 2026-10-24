@@ -27,35 +27,47 @@ export abstract class Plugin<Config = unknown> extends Disposable {
     super()
   }
 
+  /** The instance config, already validated against the static `config` schema (defaults applied). */
   get config(): Config {
     return this.context.config as Config
   }
 
+  /** Shortcut for `context.log`. */
   get log() {
     return this.context.log
   }
 
+  /** Shortcut for `context.store`. */
   get store() {
     return this.context.store
   }
 
+  /** Shortcut for `context.status`. */
   get status() {
     return this.context.status
   }
 
+  /** Shortcut for `context.http`; routes are unauthenticated, see PluginHttp. */
   get http() {
     return this.context.http
   }
 
-  /** Starts the work; a rejection puts the instance into the error state (no restart). */
+  /**
+   * Starts the work. Reject only for problems a restart can't fix (invalid credentials, a missing
+   * device): the instance goes into the error state and is not restarted. For a device that is
+   * merely unreachable, resolve and report `status.set("degraded", ...)` while retrying.
+   */
   start(): void | Promise<void> {}
 
-  /** Optional tree of ready-to-add sensors and actuators, e.g. built from the device's data. */
+  /**
+   * Optional tree of ready-to-add sensors and actuators, e.g. built from the device's data. Asked
+   * on demand by the UI, so it may query the device; a throw is shown to the user as the error.
+   */
   catalog(): CatalogNode[] | Promise<CatalogNode[]> {
     return []
   }
 
-  /** Optional status view for the plugin's page; undefined shows nothing. */
+  /** Optional status view for the plugin's page, asked on demand; undefined shows nothing. */
   panel(): Panel | undefined | Promise<Panel | undefined> {
     return undefined
   }
@@ -66,9 +78,12 @@ export abstract class Plugin<Config = unknown> extends Disposable {
  * of the subclass rather than of Plugin, so subclasses don't need `override` on them.
  */
 export type PluginClass = (new (context: PluginContext) => Plugin) & {
+  /** used in error messages */
   readonly name: string
   /** the instance config schema; default: no config (an empty object) */
   readonly config?: z.ZodType
+  /** the sensors this plugin offers; ids must be unique among sensors */
   readonly sensors?: readonly SensorClass[]
+  /** the actuators this plugin offers; ids must be unique among actuators */
   readonly actuators?: readonly ActuatorClass[]
 }

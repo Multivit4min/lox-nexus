@@ -19,6 +19,7 @@ type Request = Extract<HostMessage, { requestId: number }>
  */
 export class PluginRuntime {
   /** the longest text a message may carry; the host refuses longer ones */
+  /** see the `text` bound in WorkerMessages; longer log, status and error texts are clipped to it */
   static readonly MAX_TEXT = 10_000
   private plugin: Plugin | undefined
   private signals: SignalHost | undefined

@@ -5,6 +5,7 @@ import type { Plugin } from "./Plugin.ts"
 
 /** Where a sensor's values go; the runtime forwards them to the bus. */
 export interface SensorOutput {
+  /** sends a value to the bus, tagged with the cause of the work that is running (see Actuator) */
   emit(value: Value): void
   /** the sensor stopped working after it started; shown on the signal */
   fail(message: string): void
@@ -31,7 +32,7 @@ export abstract class Sensor<P extends Plugin = Plugin, Params = unknown> extend
     super()
   }
 
-  /** Starts producing values; a rejection makes adding the signal fail. */
+  /** Starts producing values; a rejection makes adding the signal fail and disposes the sensor. */
   start(): void | Promise<void> {}
 
   /** sends a value to the bus; equal consecutive values are deduped there */

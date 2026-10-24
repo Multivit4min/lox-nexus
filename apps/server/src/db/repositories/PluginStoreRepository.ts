@@ -28,6 +28,7 @@ export class PluginStoreRepository implements PluginStateStore {
     )
   }
 
+  /** deleting an absent key is a no-op */
   delete(instanceId: string, key: string) {
     this.db.run("DELETE FROM plugin_store WHERE instance_id = :instanceId AND key = :key", { instanceId, key })
   }

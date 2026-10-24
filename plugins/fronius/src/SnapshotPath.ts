@@ -22,6 +22,7 @@ export class SnapshotPath {
     return current
   }
 
+  /** builds a path from segments, e.g. device ids that may be numbers */
   static join(...segments: (string | number)[]) {
     return segments.join(".")
   }

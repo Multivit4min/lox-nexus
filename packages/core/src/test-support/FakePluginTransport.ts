@@ -6,7 +6,9 @@ import type { PluginConnection, PluginConnectionEvents, PluginTransport } from "
 
 /** A plugin "worker" in-process: the SDK's runtime behind a connection, messages delivered as microtasks. */
 export class FakePluginConnection extends EventEmitter<PluginConnectionEvents> implements PluginConnection {
+  /** every host message sent to the plugin, including pings */
   readonly received: HostMessage[] = []
+  /** true once crash() or terminate() ended it; later messages are dropped */
   gone = false
   /** set to stop answering pings, like a hung worker */
   hung = false
@@ -40,9 +42,11 @@ export class FakePluginConnection extends EventEmitter<PluginConnectionEvents> i
 
 /** Opens FakePluginConnections; entries name the plugin classes registered with `add`. */
 export class FakePluginTransport implements PluginTransport {
+  /** every connection opened so far, oldest first (one per start or restart) */
   readonly opened: FakePluginConnection[] = []
   private readonly types = new Map<string, PluginClass>()
 
+  /** registers a class under an entry name; open() of an unregistered entry throws */
   add(entry: string, type: PluginClass) {
     this.types.set(entry, type)
     return this
@@ -56,6 +60,7 @@ export class FakePluginTransport implements PluginTransport {
     return connection
   }
 
+  /** the most recent connection, i.e. the current worker of the instance under test */
   get last() {
     return this.opened.at(-1)!
   }

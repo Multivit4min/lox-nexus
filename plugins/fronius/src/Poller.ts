@@ -17,7 +17,9 @@ export type ProblemReport = (part: PollPart, problem: string | undefined) => voi
 export class Poller extends Disposable implements Listenable {
   /** the last successful poll's data; kept while the inverter is unreachable */
   latest: FroniusSnapshot | undefined
+  /** time of the last successful poll, for the panel */
   lastSuccess: Date | undefined
+  /** the last powerflow failure; kept after recovery. Optional endpoints' failures aren't recorded */
   lastError: { message: string; at: Date } | undefined
   private inFlight: Promise<void> | undefined
   private readonly problems = new Map<PollPart, string>()
@@ -50,6 +52,7 @@ export class Poller extends Disposable implements Listenable {
     await this.inFlight
   }
 
+  /** only "data" exists; this makes the poller usable with Disposable.listen() */
   on(event: "data", listener: (snapshot: FroniusSnapshot) => void) {
     this.events.on(event, listener)
     return this

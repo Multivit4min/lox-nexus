@@ -30,7 +30,10 @@ export class PluginManager extends Disposable {
     return supervisor
   }
 
-  /** @throws Error for an unknown id or a slug another instance uses */
+  /**
+   * Applies a new config (and optionally a package) to an instance, restarting it if it ran.
+   * @throws Error for an unknown id or a slug another instance uses
+   */
   async update(instance: PluginInstanceConfig, pkg?: PluginPackage) {
     const supervisor = this.supervisors.get(instance.id)
     if (!supervisor) throw new Error(`unknown plugin instance "${instance.id}"`)
@@ -39,10 +42,12 @@ export class PluginManager extends Disposable {
     return supervisor
   }
 
+  /** undefined for unknown ids */
   get(id: string) {
     return this.supervisors.get(id)
   }
 
+  /** every supervisor, including stopped ones */
   list() {
     return [...this.supervisors.values()]
   }

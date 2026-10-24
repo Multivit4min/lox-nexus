@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto"
-import { PluginNotRunningError, type PluginInstanceConfig, type PluginManager, type PluginPackage, type PluginSupervisor } from "@lox-nexus/core"
+import { PluginNotRunningError, PluginRequestError, type PluginInstanceConfig, type PluginManager, type PluginPackage, type PluginSupervisor } from "@lox-nexus/core"
 import type { PluginInstanceDto, PluginInstanceInput, PluginPackageDto } from "@lox-nexus/api"
 import { PluginInstanceInputSchema } from "@lox-nexus/api"
 import type { Logger } from "pino"
@@ -48,10 +48,12 @@ export class PluginService {
     }
   }
 
+  /** the plugins that can be instantiated; secret handling is per instance, see secrets() */
   packages(): PluginPackageDto[] {
     return this.available.list().map(({ pkg, version, icon, source }) => ({ id: pkg.id, name: pkg.name, version, source, description: pkg.description, ...(icon ? { icon } : {}) }))
   }
 
+  /** every stored instance, including unavailable ones (state "unavailable"); secrets are stripped */
   list(): PluginInstanceDto[] {
     return this.repo.list().map(instance => this.toDto(instance))
   }
@@ -99,6 +101,7 @@ export class PluginService {
       this.repo.save(instance)
     } catch (error) {
       await this.manager.update(previous)
+      if (previous.enabled) await supervisor.start()
       throw error
     }
     if (previous.slug !== instance.slug) this.moveTopics(supervisor, topics, previous.slug, by)
@@ -130,6 +133,7 @@ export class PluginService {
     return this.get(id)
   }
 
+  /** runtime only, like start(); the instance runs again at the next boot if enabled */
   async stop(id: string) {
     await this.supervisor(id).stop()
     return this.get(id)
@@ -140,6 +144,7 @@ export class PluginService {
     return PluginService.running(() => this.supervisor(id).calls.catalog())
   }
 
+  /** @throws HttpError 409 when the instance isn't running; resolves undefined when the plugin has no panel */
   panel(id: string) {
     return PluginService.running(() => this.supervisor(id).calls.panel())
   }
@@ -187,11 +192,14 @@ export class PluginService {
     }
   }
 
+  // a plugin that throws in catalog() or panel() is a failing upstream: 502 with its message
   private static async running<T>(work: () => Promise<T>) {
     try {
       return await work()
     } catch (error) {
-      throw error instanceof PluginNotRunningError ? HttpError.conflict(error.message) : error
+      if (error instanceof PluginNotRunningError) throw HttpError.conflict(error.message)
+      if (error instanceof PluginRequestError) throw new HttpError(502, `the plugin failed: ${error.message}`)
+      throw error
     }
   }
 

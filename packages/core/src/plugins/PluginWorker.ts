@@ -46,6 +46,7 @@ export class PluginWorker extends EventEmitter<PluginConnectionEvents> implement
     }
   }
 
+  /** dropped silently once the worker is gone; the exit event already told the session */
   send(message: HostMessage) {
     if (!this.gone) this.worker.postMessage(message)
   }

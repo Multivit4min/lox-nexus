@@ -69,7 +69,10 @@ export class PluginCalls {
     return true
   }
 
-  /** runs an actuator for a bus command and publishes the outcome as `result` */
+  /**
+   * Runs an actuator for a bus command and publishes the outcome as `result` under that command.
+   * Returns at once: the outcome arrives later, and a plugin that isn't running reports failure.
+   */
   actuate(signalId: string, value: Value, cause: BusMessage) {
     const topic = this.signals().get(signalId)?.topic
     if (!topic) return
@@ -88,6 +91,7 @@ export class PluginCalls {
     return CatalogNodeSchema.array().parse(await this.running().request({ type: "catalog" }))
   }
 
+  /** @throws PluginNotRunningError; Error when the plugin's answer isn't a valid panel. Resolves undefined when it has none. */
   async panel() {
     return PanelSchema.optional().parse(await this.running().request({ type: "panel" }))
   }

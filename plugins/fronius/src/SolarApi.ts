@@ -25,6 +25,7 @@ export class SolarApi {
     this.base = host.endsWith("/") ? host : `${host}/`
   }
 
+  /** site, inverters and smart loads in one call; the only endpoint every system has */
   powerFlow(signal?: AbortSignal): Promise<PowerFlowData> {
     return this.get("GetPowerFlowRealtimeData.fcgi", {}, powerFlowSchema, signal) as Promise<PowerFlowData>
   }

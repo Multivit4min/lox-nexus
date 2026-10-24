@@ -18,6 +18,7 @@ export interface PluginWorkerData {
  * (tests, tools) it only returns the class.
  */
 export class PluginEntry {
+  /** @returns `type` itself, so it can be the module's default export */
   static define<T extends PluginClass>(type: T): T {
     const data = workerData as Partial<PluginWorkerData> | undefined
     if (isMainThread || !parentPort || typeof data?.loxNexus !== "number") return type

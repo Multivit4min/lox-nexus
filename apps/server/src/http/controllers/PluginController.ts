@@ -12,7 +12,7 @@ const SignalParams = IdParams.extend({ signalId: z.string().min(1) })
  * /api/plugins (what can be instantiated) and /api/plugin-instances. All routes need a session.
  * Common answers: 400 invalid body, unknown plugin or capability, or params the plugin refused;
  * 404 unknown instance or signal; 409 taken slug, unavailable plugin, or (catalog, panel) an
- * instance that isn't running.
+ * instance that isn't running; 502 when the plugin fails to answer catalog or panel.
  *
  * - GET /api/plugins: 200 with every available plugin and its description.
  * - GET/POST /api/plugin-instances, GET/PUT/DELETE :id: 200 / 201 / 200 / 200 / 204. Create and

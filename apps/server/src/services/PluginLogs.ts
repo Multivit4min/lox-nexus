@@ -6,6 +6,7 @@ import type { Logger } from "pino"
 export class PluginLogs implements PluginLogSink {
   constructor(private readonly logger: Logger) {}
 
+  /** `level` maps straight onto the pino level of the same name */
   log(instance: { id: string; slug: string }, level: LogLevel, message: string, data?: unknown) {
     this.logger[level]({ plugin: instance.slug, ...(data === undefined ? {} : { data }) }, message)
   }

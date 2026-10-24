@@ -14,6 +14,7 @@ class ValueSensor extends Sensor<CounterPlugin, { start: number }> {
   }
 }
 
+/** throws for negative numbers and degrades the plugin for 13, so tests reach both failure paths */
 class SetActuator extends Actuator<CounterPlugin, object, Extract<Value, { type: "number" }>> {
   static readonly id = "set"
   static readonly accepts = "number"

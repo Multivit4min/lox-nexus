@@ -10,33 +10,45 @@ export type PluginLogger = Record<LogLevel, (message: string, data?: unknown) =>
  * synchronous from memory; writes are sent to the host, which stores them.
  */
 export interface PluginStore {
+  /** the cast to `T` is not checked; validate data that an older version may have written */
   get<T = unknown>(key: string): T | undefined
-  /** the value must survive structured cloning (plain data) */
+  /**
+   * The value must be JSON (it is stored as JSON; functions, undefined fields and class
+   * instances are dropped or flattened, BigInt and cycles throw). Keys are 1 to 200 characters.
+   * @throws Error for an invalid key or value
+   */
   set(key: string, value: unknown): void
+  /** removing an absent key is a no-op */
   delete(key: string): void
   keys(): string[]
 }
 
 /** The plugin's own view of its health: "degraded" with a message while something is wrong. */
 export interface PluginStatus {
+  /** `message` is clipped to 10 000 characters; "running" clears an earlier degraded state */
   set(status: PluginHealth, message?: string): void
 }
 
-/** A webhook handler; it may throw, which answers 500. */
+/** A webhook handler; when it throws, the caller gets 502 and the error goes to the server log. */
 export type HttpHandler = (request: HttpRequest) => HttpResponse | Promise<HttpResponse>
 
 /** Webhook routes, reachable at /hook/<instance><path> without a login: check a secret yourself. */
 export interface PluginHttp {
-  /** @param path exact path below the instance, e.g. "/github" */
+  /**
+   * @param path exact path below the instance, e.g. "/github"; no wildcards
+   * @throws Error when the method (case-insensitive) and path are already registered
+   */
   route(method: string, path: string, handler: HttpHandler): void
 }
 
 /** Everything a plugin gets from the runtime. */
 export interface PluginContext {
+  /** stable for the life of the configured instance (webhook URLs use the instance's slug instead) */
   readonly instanceId: string
   /** already validated against the plugin's static `config` schema */
   readonly config: unknown
   readonly log: PluginLogger
+  /** persisted across restarts and updates of this instance */
   readonly store: PluginStore
   readonly status: PluginStatus
   readonly http: PluginHttp

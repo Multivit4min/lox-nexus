@@ -83,7 +83,10 @@ export class PluginSession extends Disposable {
     }
   }
 
-  /** @throws PluginRequestError with the plugin's message, or Error on timeout or exit */
+  /**
+   * Sends a request and resolves with the plugin's result.
+   * @throws PluginRequestError with the plugin's message, or Error on timeout or exit
+   */
   request(body: RequestBody, timeoutMs = this.timings.requestMs): Promise<unknown> {
     if (this.over) return Promise.reject(new Error("the plugin is not running"))
     const { requestId, result } = this.requests.create(timeoutMs, body.type)

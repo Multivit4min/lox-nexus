@@ -11,6 +11,7 @@ export class Backoff {
     return delay
   }
 
+  /** called after a stable run, so an old crash doesn't slow down the next restart */
   reset() {
     this.attempt = 0
   }

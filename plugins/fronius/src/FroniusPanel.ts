@@ -8,6 +8,7 @@ type Item = { label: string; value: string }
 export class FroniusPanel {
   constructor(private readonly poller: Pick<Poller, "latest" | "lastSuccess" | "lastError">) {}
 
+  /** battery rows appear only when the inverter reports a battery; missing readings show as a dash */
   build(): Panel {
     const site = this.poller.latest?.powerflow.Site
     const items: Item[] = [

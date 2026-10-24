@@ -11,6 +11,7 @@ import { CatalogFields, type CatalogField } from "./CatalogFields.ts"
 export class FroniusCatalog {
   constructor(private readonly snapshot: FroniusSnapshot | undefined) {}
 
+  /** only fields with a usable value are offered; nullable ones (e.g. PV at night) only where the field allows it */
   build(): CatalogNode[] {
     if (!this.snapshot) return []
     const nodes = [

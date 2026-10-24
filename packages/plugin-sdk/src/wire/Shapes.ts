@@ -27,6 +27,7 @@ export type PluginDescription = z.infer<typeof PluginDescriptionSchema>
 export const CatalogEntrySchema = z.object({
   kind: z.enum(["sensor", "actuator"]),
   capability: z.string(),
+  /** validated against the capability's params schema when the entry is added */
   params: z.unknown(),
   /** suggested name for the signal */
   label: z.string()
@@ -49,6 +50,7 @@ export const CatalogNodeSchema: z.ZodType<CatalogNode> = z.lazy(() => z.object({
 export const PanelSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("keyValue"), items: z.array(z.object({ label: z.string(), value: z.string() })) }),
   z.object({ type: z.literal("table"), columns: z.array(z.string()), rows: z.array(z.array(z.string())) }),
+  /** shown as a formatted tree; data must be JSON */
   z.object({ type: z.literal("json"), data: z.unknown() })
 ])
 export type Panel = z.infer<typeof PanelSchema>
@@ -59,4 +61,5 @@ export const HttpResponseSchema = z.object({
   headers: z.record(z.string(), z.string()).default({}),
   body: z.string().default("")
 })
+/** the input type: `headers` and `body` may be omitted, the runtime fills them in */
 export type HttpResponse = z.input<typeof HttpResponseSchema>

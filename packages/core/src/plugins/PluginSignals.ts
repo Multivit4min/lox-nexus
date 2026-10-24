@@ -90,6 +90,7 @@ export class PluginSignals extends Disposable {
     return this.list().find(entry => entry.config.id === id)
   }
 
+  /** a snapshot; the entries are copies */
   list(): PluginSignalEntry[] {
     return [...this.entries.values()].map(({ config, topic, valueType, error }) => ({ config, topic, valueType, ...(error ? { error } : {}) }))
   }
@@ -124,6 +125,7 @@ export class PluginSignals extends Disposable {
     else entry.error = error
   }
 
+  /** attributes bus messages to the instance, for the inspector */
   get source(): MessageSource {
     return { kind: "plugin", id: this.instance.id, label: this.instance.label }
   }

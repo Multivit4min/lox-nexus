@@ -4,6 +4,7 @@ import type { PluginInstanceConfig, PluginSignalConfig } from "./PluginTypes.ts"
 export class PluginTopics {
   constructor(private readonly instance: Pick<PluginInstanceConfig, "plugin" | "slug">) {}
 
+  /** the signal's bus topic; `kind` and `slug` are part of it, so changing either moves the topic */
   forSignal(signal: Pick<PluginSignalConfig, "kind" | "slug">) {
     return `${this.instance.plugin}/${this.instance.slug}/${signal.kind}/${signal.slug}`
   }

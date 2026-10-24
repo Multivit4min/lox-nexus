@@ -7,9 +7,11 @@ import type { WorkerMessage } from "../wire/WorkerMessages.ts"
 
 /** Options for PluginTestHost.start(). */
 export interface TestHostOptions {
+  /** validated against the plugin's config schema like in production; default `{}` */
   config?: unknown
   /** what the store contains at start, as if persisted by an earlier run */
   store?: Record<string, unknown>
+  /** default "test" */
   instanceId?: string
 }
 
@@ -41,7 +43,10 @@ export class PluginTestHost {
     this.runtime = new PluginRuntime(type, message => this.receive(message))
   }
 
-  /** @throws Error with the plugin's message when init fails (invalid config, start threw) */
+  /**
+   * Starts the plugin and waits for `ready`.
+   * @throws Error with the plugin's message when init fails (invalid config, start threw)
+   */
   static async start(type: PluginClass, options: TestHostOptions = {}) {
     const host = new PluginTestHost(type, options.store ?? {})
     const done = host.waitFor(message => message.type === "ready" || message.type === "failed")
@@ -61,10 +66,12 @@ export class PluginTestHost {
     return this.add("sensor", capability, params)
   }
 
+  /** @returns the new signal's id; throws like addSensor() */
   async addActuator(capability: string, params: unknown = {}) {
     return this.add("actuator", capability, params)
   }
 
+  /** removes the signal; unknown ids are ignored */
   async remove(id: string) {
     await this.request({ type: "signal.remove", requestId: this.nextRequest++, id })
   }
@@ -74,7 +81,7 @@ export class PluginTestHost {
     return this.sent.flatMap(message => (message.type === "emit" && message.signalId === id ? [message.value] : []))
   }
 
-  /** the next value the signal emits; @throws after `timeoutMs` */
+  /** waits for the next value emitted after this call (earlier ones are in values()); @throws after `timeoutMs` */
   async next(id: string, timeoutMs = 2000): Promise<Value> {
     const message = await this.waitFor(m => m.type === "emit" && m.signalId === id, timeoutMs)
     return (message as Extract<WorkerMessage, { type: "emit" }>).value
@@ -88,15 +95,17 @@ export class PluginTestHost {
     await this.request({ type: "actuate", requestId: this.nextRequest++, signalId: id, value, ...(causeId ? { causeId } : {}) })
   }
 
+  /** calls Plugin.catalog() */
   async catalog() {
     return await this.request({ type: "catalog", requestId: this.nextRequest++ }) as CatalogNode[]
   }
 
+  /** calls Plugin.panel() */
   async panel() {
     return await this.request({ type: "panel", requestId: this.nextRequest++ }) as Panel | undefined
   }
 
-  /** calls a webhook route */
+  /** Calls a webhook route; the method defaults to POST. An unknown route answers 404, a throwing handler rejects. */
   async http(request: Partial<HttpRequest> & Pick<HttpRequest, "path">) {
     const full = { method: "POST", query: {}, headers: {}, body: "", ...request }
     return await this.request({ type: "http.request", requestId: this.nextRequest++, request: full }) as Required<HttpResponse>

@@ -22,10 +22,15 @@ export abstract class Actuator<P extends Plugin = Plugin, Params = unknown, V ex
     super()
   }
 
-  /** Optional setup; a rejection makes adding the signal fail. */
+  /** Optional setup; a rejection makes adding the signal fail and disposes the actuator. */
   start(): void | Promise<void> {}
 
-  /** Performs the command; throwing (or rejecting) reports a failed result. */
+  /**
+   * Performs the command; throwing (or rejecting) reports a failed result. Emits and logs made
+   * while it runs carry the command's cause id, including those from async work started here
+   * (promises, timers, listeners created inside run()), so the inspector shows them as its effect.
+   * Commands are serialized per `concurrency`; run() never overlaps itself.
+   */
   abstract run(value: V): void | Promise<void>
 }
 

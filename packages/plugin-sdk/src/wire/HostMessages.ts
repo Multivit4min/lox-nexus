@@ -21,7 +21,9 @@ export type SignalSpec = z.infer<typeof SignalSpecSchema>
 export const HttpRequestSchema = z.object({
   method: z.string(),
   path: z.string(),
+  /** repeated keys are joined with ", " */
   query: z.record(z.string(), z.string()),
+  /** lowercase names; repeated headers are joined with ", "; the session cookie is not forwarded */
   headers: z.record(z.string(), z.string()),
   /** utf-8 text; empty without a body */
   body: z.string()
@@ -37,13 +39,18 @@ export const HostMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("init"), instanceId: z.string(), config: z.unknown(), store: z.record(z.string(), z.unknown()) }),
   /** what the plugin offers: config schema, sensors and actuators with their params (JSON Schema) */
   z.object({ type: z.literal("describe"), requestId }),
+  /** adds and starts a sensor or actuator; the response is ok once its start() resolved */
   z.object({ type: z.literal("signal.add"), requestId, signal: SignalSpecSchema }),
   z.object({ type: z.literal("signal.remove"), requestId, id: z.string() }),
   /** `causeId` is the bus message that triggered it; emits while handling it carry it back */
   z.object({ type: z.literal("actuate"), requestId, signalId: z.string(), value: ValueSchema, causeId: z.string().optional() }),
+  /** answered with a CatalogNode[] */
   z.object({ type: z.literal("catalog"), requestId }),
+  /** answered with a Panel, or no result when the plugin has none */
   z.object({ type: z.literal("panel"), requestId }),
+  /** answered with a full HttpResponse */
   z.object({ type: z.literal("http.request"), requestId, request: HttpRequestSchema }),
+  /** liveness probe; the worker echoes `seq` in `pong` */
   z.object({ type: z.literal("ping"), seq: z.int() }),
   /** dispose everything, answer `stopped`; the host terminates the worker after a grace period */
   z.object({ type: z.literal("shutdown") })

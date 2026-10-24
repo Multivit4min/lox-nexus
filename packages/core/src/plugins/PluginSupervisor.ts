@@ -68,6 +68,7 @@ export class PluginSupervisor extends Disposable {
     this.publishState()
   }
 
+  /** the instance config in force; replaced by update() */
   get config() {
     return this.instance
   }
@@ -77,6 +78,7 @@ export class PluginSupervisor extends Disposable {
     return this.currentPkg
   }
 
+  /** mirrored on the instance's status topic at every change */
   get state() {
     return this.current
   }
@@ -91,6 +93,7 @@ export class PluginSupervisor extends Disposable {
     return this.serialize(() => this.open())
   }
 
+  /** stops the plugin gracefully and cancels a pending restart; a stopped instance stays stopped */
   stop(): Promise<void> {
     return this.serialize(() => this.close("stopped"))
   }
@@ -99,7 +102,8 @@ export class PluginSupervisor extends Disposable {
    * Applies a new config or package version (same id); what is left out stays, resolved when its
    * turn in the lifecycle queue comes, so a queued reload never re-applies an older config. A
    * running plugin restarts with it; a new slug moves every topic, and wires survive because they
-   * refer to signal ids.
+   * refer to signal ids. An instance that was not running (stopped, error, or waiting for a
+   * restart) stays stopped.
    */
   update(instance?: PluginInstanceConfig, pkg?: PluginPackage): Promise<void> {
     return this.serialize(async () => {

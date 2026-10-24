@@ -20,6 +20,7 @@ export class PluginInstanceRepository {
     return this.db.all<PluginInstanceRow>("SELECT * FROM plugin_instances ORDER BY label, id").map(PluginInstanceRepository.toConfig)
   }
 
+  /** undefined for unknown ids */
   get(id: string): PluginInstanceConfig | undefined {
     const row = this.db.get<PluginInstanceRow>("SELECT * FROM plugin_instances WHERE id = :id", { id })
     return row && PluginInstanceRepository.toConfig(row)

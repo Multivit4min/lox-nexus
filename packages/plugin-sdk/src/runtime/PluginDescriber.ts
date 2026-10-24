@@ -5,6 +5,7 @@ import { Declarations } from "./Declarations.ts"
 
 /** Turns a plugin class's static declarations into a PluginDescription (JSON Schemas for UIs). */
 export class PluginDescriber {
+  /** @throws Error when the declarations are invalid, see assertValid() */
   static describe(type: PluginClass): PluginDescription {
     PluginDescriber.assertValid(type)
     return {
