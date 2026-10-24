@@ -1,0 +1,51 @@
+{
+  "Body": {
+    "Data": {
+      "0": {
+        "Current_AC_Phase_1": 1.802,
+        "Current_AC_Phase_2": 1.715,
+        "Current_AC_Phase_3": 1.623,
+        "Current_AC_Sum": 5.14,
+        "Details": { "Manufacturer": "Fronius", "Model": "Smart Meter TS 65A-3", "Serial": "40123456" },
+        "Enable": 1,
+        "EnergyReactive_VArAC_Sum_Consumed": 2016510.0,
+        "EnergyReactive_VArAC_Sum_Produced": 4377070.0,
+        "EnergyReal_WAC_Minus_Absolute": 4201340.0,
+        "EnergyReal_WAC_Plus_Absolute": 2876120.0,
+        "EnergyReal_WAC_Sum_Consumed": 2876120.0,
+        "EnergyReal_WAC_Sum_Produced": 4201340.0,
+        "Frequency_Phase_Average": 50.0,
+        "Meter_Location_Current": 0.0,
+        "PowerApparent_S_Phase_1": 416.6,
+        "PowerApparent_S_Phase_2": 396.4,
+        "PowerApparent_S_Phase_3": 375.2,
+        "PowerApparent_S_Sum": 1188.2,
+        "PowerFactor_Phase_1": -0.99,
+        "PowerFactor_Phase_2": -0.99,
+        "PowerFactor_Phase_3": -0.99,
+        "PowerFactor_Sum": -0.99,
+        "PowerReactive_Q_Phase_1": -47.1,
+        "PowerReactive_Q_Phase_2": -44.8,
+        "PowerReactive_Q_Phase_3": -42.4,
+        "PowerReactive_Q_Sum": -134.3,
+        "PowerReal_P_Phase_1": -413.9,
+        "PowerReal_P_Phase_2": -393.8,
+        "PowerReal_P_Phase_3": -372.9,
+        "PowerReal_P_Sum": -1180.6,
+        "TimeStamp": 1792843205.0,
+        "Visible": 1.0,
+        "Voltage_AC_PhaseToPhase_12": 400.4,
+        "Voltage_AC_PhaseToPhase_23": 399.8,
+        "Voltage_AC_PhaseToPhase_31": 400.9,
+        "Voltage_AC_Phase_1": 231.2,
+        "Voltage_AC_Phase_2": 230.6,
+        "Voltage_AC_Phase_3": 231.0
+      }
+    }
+  },
+  "Head": {
+    "RequestArguments": { "Scope": "System" },
+    "Status": { "Code": 0, "Reason": "", "UserMessage": "" },
+    "TimeStamp": "2026-10-24T12:00:05+00:00"
+  }
+}

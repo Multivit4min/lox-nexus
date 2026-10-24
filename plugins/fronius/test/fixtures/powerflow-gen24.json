@@ -1,0 +1,32 @@
+{
+  "Body": {
+    "Data": {
+      "Inverters": {
+        "1": { "Battery_Mode": "normal", "DT": 1, "E_Day": null, "E_Total": 6758991.0, "E_Year": null, "P": 2950.8, "SOC": 63.2 }
+      },
+      "SecondaryMeters": {},
+      "Site": {
+        "BackupMode": false,
+        "BatteryStandby": false,
+        "E_Day": null,
+        "E_Total": 6758991.0,
+        "E_Year": null,
+        "Meter_Location": "grid",
+        "Mode": "bidirectional",
+        "P_Akku": -412.3,
+        "P_Grid": -1180.6,
+        "P_Load": -1357.9,
+        "P_PV": 3080.4,
+        "rel_Autonomy": 100.0,
+        "rel_SelfConsumption": 61.7
+      },
+      "Smartloads": { "OhmpilotEcos": {}, "Ohmpilots": {} },
+      "Version": "13"
+    }
+  },
+  "Head": {
+    "RequestArguments": {},
+    "Status": { "Code": 0, "Reason": "", "UserMessage": "" },
+    "TimeStamp": "2026-10-24T12:00:05+00:00"
+  }
+}

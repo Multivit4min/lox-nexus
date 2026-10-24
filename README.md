@@ -27,7 +27,8 @@ Requires Node.js 24+.
 ```sh
 npm install
 npm run lint && npm run typecheck && npm test
-npm run dev          # server (watch mode) on http://localhost:8080; serves the UI, first visit runs setup
+npm run dev          # server (watch mode) on http://localhost:8080; serves the UI, first visit runs setup,
+                     # runs plugins/* from source and restarts a plugin when its files change
 npm run dev:web      # rebuilds the UI into apps/web/dist on every save; reload the page to see changes
 npm run dev:web:hmr  # alternative: Vite with hot reload on http://127.0.0.1:5173 (direct access only)
 npm run build        # then NEXUS_WEB_DIR=apps/web/dist serves the UI from the server

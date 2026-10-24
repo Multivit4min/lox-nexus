@@ -147,8 +147,8 @@ The **Bus Inspector** UI is a live virtualized table with:
 ### Plugin SDK (class-oriented)
 
 ```ts
-// plugins/fronius/src/FroniusPlugin.ts
-export default class FroniusPlugin extends Plugin<FroniusConfig> {
+// plugins/fronius/src/FroniusPlugin.ts (src/index.ts: export default PluginEntry.define(FroniusPlugin))
+export class FroniusPlugin extends Plugin<FroniusConfig> {
   static readonly config = froniusConfigSchema            // zod, in its own file
   static readonly sensors = [PowerFlowSensor, BatterySensor, MeterSensor]
   static readonly actuators = []
@@ -156,11 +156,11 @@ export default class FroniusPlugin extends Plugin<FroniusConfig> {
   readonly api = new SolarApi(() => this.config.host)
   readonly poller = this.own(new Poller(this.api))
 
-  async start() {
-    this.every(this.config.pollInterval, () => this.poller.poll())
+  override start() {
+    this.every(this.config.pollInterval * 1000, () => void this.poller.poll())
   }
 
-  catalog() { return new FroniusCatalog(this.poller.latest).build() }
+  override catalog() { return new FroniusCatalog(this.poller.latest).build() }
 }
 
 // plugins/fronius/src/sensors/PowerFlowSensor.ts
@@ -168,7 +168,7 @@ export class PowerFlowSensor extends Sensor<FroniusPlugin, PowerFlowParams> {
   static readonly id = "powerflow"
   static readonly params = z.object({ path: z.enum(["grid", "load", "pv"]) })
 
-  start() {
+  override start() {
     this.listen(this.plugin.poller, "data", data => this.emit(Value.number(data.site[this.params.path])))
   }
 }
@@ -205,8 +205,8 @@ Each class lives in its own file under `packages/core/src/plugins/`:
   (no auto-restart), `crashed` (worker exit, 3 missed pings or OOM, restarted with backoff from 1 s
   to 5 min) and `stopping`. Stopping sends `shutdown`, waits a 5 s grace period, then calls
   `terminate()`. One failing plugin never blocks the boot.
-- **`DevPluginLoader`**: runs workspace `plugins/*` from source with `--import tsx`, and restarts
-  them on file change.
+- **`DevPluginLoader`** (in the server, since it reads the file system): runs workspace `plugins/*`
+  from source with `--import tsx`, and restarts them on file change.
 
 ### Installer (server)
 
@@ -720,6 +720,71 @@ above:
   wires, inconsistent files, rollback) and the failure paths of `ConfigTransfer` with fake
   services. A headless Chromium walkthrough through the code-server proxy forced and released
   signals, edited one, and exported and re-imported the configuration.
+
+## Implementation notes: plugin runtime (M4)
+
+- **SDK** (`@lox-nexus/plugin-sdk`):
+  - `Plugin`, `Sensor` and `Actuator` extend `Disposable`. Their declarations (`config`,
+    `sensors`, `actuators`, `id`, `params`, `valueType`, `accepts`, `concurrency`, `label`) are
+    optional static fields of the subclass, read with defaults by `Declarations`, so subclasses
+    need no `override` on them. Methods (`start`, `catalog`, `panel`) do.
+  - `PluginRuntime` is the worker side: it answers host messages and turns emits, logs, status
+    and store writes into messages. `SignalHost` creates the configured sensors and actuators;
+    `ActuatorRunner` runs one actuator's commands one at a time (`queue`) or only the newest
+    (`latest`, the skipped ones fail with `SupersededError`). `CauseScope` (AsyncLocalStorage)
+    tags everything emitted or logged while an actuator runs with the triggering bus message.
+  - `PluginEntry.define(Class)` is a plugin's entry module. It starts the runtime only when
+    loaded by Nexus as a worker (`workerData.loxNexus`), so tests and tools can import it.
+  - `PluginTestHost` drives the same `PluginRuntime` in-process, so plugin tests exercise what
+    runs in production.
+  - `./wire`: zod schemas of the messages (`WIRE_VERSION` 1), plus the shapes they carry
+    (description, catalog, panel, HTTP request and response). Frozen version-1 samples in a
+    contract test fail on any incompatible change.
+- **Core** (`packages/core/src/plugins/`), behind the `PluginTransport` interface:
+  - `PluginWorker`: a worker thread with `env: {}`, a 128 MB old-generation heap and piped
+    stdout/stderr (logged per line). Every message from it is validated; an invalid one counts as
+    a crash. In development the worker inherits the host's `--import tsx`, so TypeScript entries
+    run unbuilt.
+  - `PluginSession`: one running worker. Hello (with the wire version), init, ready or failed,
+    then pings every 10 s; 3 unanswered pings terminate it. Requests are matched to responses by
+    id with a timeout. close() sends shutdown, waits up to 5 s for `stopped`, then terminates.
+    A session that ends on its own disposes itself, so its timers never outlive the worker.
+  - `PluginSupervisor`: the states stopped, starting, running, degraded, error (refused to
+    start: invalid config, start() threw, other wire version; not restarted), crashed (exit, out
+    of memory, missed pings, invalid message; restarted after 1 s, doubling to 5 min, reset after
+    60 s of stable running) and stopping. Lifecycle calls are serialized. The state is published
+    on `system/plugin/<instance>/status`, problems as events on `system/plugin/<instance>/error`.
+  - `PluginSignals` registers an instance's signals in the `SignalRegistry` even while it is
+    stopped (so wires can be built): sensors are sources (state), actuators targets (command).
+    Commands on actuator topics, including a forced value, go to `PluginCalls.actuate`, which
+    reports a `result` with the duration; a stopped plugin answers "not running". Emits are
+    published under their cause (the last 1000 actuations are remembered).
+  - `PackageDescriber` asks a throwaway worker for the description (JSON Schemas via zod's
+    `toJSONSchema`), so the host never imports plugin code.
+- **Server:**
+  - Tables `plugin_instances`, `plugin_signals` (with a row in the `signals` supertable, so wires
+    reference them) and `plugin_store` (migration 3).
+  - `PluginService` and `PluginSignalService`: the database is the source of truth. A running
+    plugin validates a signal's params; a refusal is a 400 with the plugin's message and nothing
+    is kept. A stopped plugin checks them at its next start and the signal shows its `error`.
+    An instance whose plugin is gone stays stored and is listed as `unavailable`.
+  - Secret config fields (`secret()` in the SDK, `writeOnly` in the description) never leave the
+    server; an update that omits one keeps the stored value. Only top-level fields are detected.
+  - Plugins start in the background after HTTP is up; a plugin's state shows how it went.
+  - **REST:** `GET /api/plugins` (what can be instantiated); `/api/plugin-instances` with CRUD,
+    `POST :id/start|stop`, `GET :id/catalog`, `GET :id/panel`, and `:id/signals` with CRUD.
+  - **Webhooks:** `/hook/<instance slug>/<path>`, any method, outside the session guard, with the
+    body passed on as text. 404 for an unknown instance or route, 503 when it isn't running, 502
+    when the handler fails (details only in the log).
+  - **Development:** `npm run dev` sets `NEXUS_DEV_PLUGINS_DIR` to the workspace's `plugins/`.
+    `DevPluginLoader` reads each `package.json` manifest (`loxNexus.id`, `apiVersion` 1), runs
+    `src/index.ts`, and restarts that plugin's instances 300 ms after its files stop changing.
+- **Verified.** Supervisor tests run the real runtime in-process behind a fake transport with mock
+  timers (start, refusal, crash and backoff, hung worker, stop, signals, rename). Chaos fixtures
+  run in real workers: a start that throws ends in error, a busy loop is detected by missed pings
+  and restarted, a heap bomb dies with "out of memory (limit 32 MB)", and a stop/start cycle
+  leaves no active handles. API tests cover instances, signals, commands, the store, webhooks,
+  refusals, deletion and a restart.
 
 ## Dependencies (installed in the milestone that first needs them)
 

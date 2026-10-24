@@ -1,0 +1,8 @@
+{
+  "Body": { "Data": {} },
+  "Head": {
+    "RequestArguments": { "DeviceClass": "Storage", "Scope": "System" },
+    "Status": { "Code": 255, "Reason": "Storage not supported", "UserMessage": "" },
+    "TimeStamp": "2026-10-24T12:00:05+02:00"
+  }
+}

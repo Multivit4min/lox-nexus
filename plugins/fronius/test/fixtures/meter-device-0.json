@@ -1,0 +1,16 @@
+{
+  "Body": {
+    "Data": {
+      "Details": { "Manufacturer": "Fronius", "Model": "Smart Meter TS 65A-3", "Serial": "40123456" },
+      "Enable": 1,
+      "Frequency_Phase_Average": 50.0,
+      "PowerReal_P_Sum": -1180.6,
+      "Voltage_AC_Phase_1": 231.2
+    }
+  },
+  "Head": {
+    "RequestArguments": { "DeviceClass": "Meter", "DeviceId": "0", "Scope": "Device" },
+    "Status": { "Code": 0, "Reason": "", "UserMessage": "" },
+    "TimeStamp": "2026-10-24T12:00:05+00:00"
+  }
+}

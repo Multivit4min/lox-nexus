@@ -115,7 +115,7 @@ topic), force and release from the signals list, and config export and import of
 signals and wires (see `docs/architecture.md`, "editing signals, forcing from lists, config
 transfer").
 
-### M4: plugin runtime and Fronius
+### M4: plugin runtime and Fronius (done)
 
 - SDK runtime and `PluginTestHost`.
 - `PluginWorker`, `WireProtocol`, `PluginSupervisor`, `DevPluginLoader`.
@@ -129,6 +129,11 @@ transfer").
   - a heap bomb is killed by the memory limit
 - No active handles remain after a stop and start cycle.
 - The fronius tests pass using only `PluginTestHost`.
+
+**Result:** all of the above, see `docs/architecture.md` ("plugin runtime (M4)") and
+`docs/plugin-authoring.md`. The Fronius fixtures are synthesized from the Solar API v1
+documentation; a run against a real inverter is still to do. The plugin UI (instances, signals,
+catalog, panel) follows in M5; until then the plugins are managed through the API.
 
 ### M5: installer, Calendar, Home Assistant, plugin UI
 
