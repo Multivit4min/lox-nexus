@@ -2,7 +2,7 @@ import {
   EventBus, PackageDescriber, PluginManager, Recorder, SignalRegistry, SystemClock, WireEngine, WorkerTransport,
   type Clock, type PluginTransport, type SupervisorTimings
 } from "@lox-nexus/core"
-import { MiniserverManager } from "@lox-nexus/loxone"
+import { MiniserverFtp, MiniserverManager, ProjectReader } from "@lox-nexus/loxone"
 import { Disposable } from "@lox-nexus/plugin-sdk"
 import type { Logger } from "pino"
 import { AuthService } from "./auth/AuthService.ts"
@@ -24,6 +24,7 @@ import { SessionCookie } from "./http/SessionCookie.ts"
 import { DevPluginLoader } from "./plugins/DevPluginLoader.ts"
 import { PluginCatalog } from "./plugins/PluginCatalog.ts"
 import { ConfigTransfer } from "./services/ConfigTransfer.ts"
+import { LoxoneProjectService } from "./services/LoxoneProjectService.ts"
 import { LoxoneSignalService } from "./services/LoxoneSignalService.ts"
 import { MiniserverService } from "./services/MiniserverService.ts"
 import { PluginLogs } from "./services/PluginLogs.ts"
@@ -45,6 +46,8 @@ export interface NexusAppOptions {
   /** how plugins run; tests pass a fake that runs them in-process */
   pluginTransport?: PluginTransport
   pluginTimings?: Partial<SupervisorTimings>
+  /** reads Loxone Config projects from Miniservers; tests pass a fake instead of FTP */
+  projectReader?: Pick<ProjectReader, "read">
 }
 
 /** The services the HTTP layer needs, built in start(). */
@@ -168,7 +171,7 @@ export class NexusApp extends Disposable {
       trustProxy: config.trustProxy,
       controllers: [
         new AuthController(auth, new LoginThrottle(clock), cookie),
-        new MiniserverController(miniservers, loxoneSignals),
+        new MiniserverController(miniservers, loxoneSignals, new LoxoneProjectService(miniservers, this.options.projectReader ?? new ProjectReader(new MiniserverFtp()))),
         new SignalController(this.signals, this.bus, wires),
         new BusController(this.bus, this.recorder),
         new ConfigController(new ConfigTransfer({ miniservers, signals: loxoneSignals, wires }, log)),

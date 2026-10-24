@@ -1,4 +1,6 @@
-import type { AdoptPacket, DiscoveredPacketDto, LoxoneSignalDto, LoxoneSignalInput, MiniserverDto, MiniserverInput, MiniserverLoadDto } from "@lox-nexus/api"
+import type {
+  AdoptPacket, DiscoveredPacketDto, LoxoneProjectDto, LoxoneSignalDto, LoxoneSignalInput, MiniserverDto, MiniserverInput, MiniserverLoadDto, ProjectRead
+} from "@lox-nexus/api"
 import type { Http } from "./Http.ts"
 
 /** /api/miniservers and their signals and discovered packets */
@@ -61,5 +63,10 @@ export class MiniserverApi {
 
   adopt(id: string, input: AdoptPacket) {
     return this.http.post<LoxoneSignalDto>(`/api/miniservers/${encodeURIComponent(id)}/discovered/adopt`, input)
+  }
+
+  /** the intercommunication part of the Miniserver's Loxone Config project, read over FTP with this login */
+  readProject(id: string, login: ProjectRead) {
+    return this.http.post<LoxoneProjectDto>(`/api/miniservers/${encodeURIComponent(id)}/project`, login)
   }
 }

@@ -1,6 +1,7 @@
-import { AdoptPacketSchema, LoxoneSignalInputSchema, MiniserverInputSchema } from "@lox-nexus/api"
+import { AdoptPacketSchema, LoxoneSignalInputSchema, MiniserverInputSchema, ProjectReadSchema } from "@lox-nexus/api"
 import type { FastifyInstance, FastifyRequest } from "fastify"
 import { z } from "zod"
+import type { LoxoneProjectService } from "../../services/LoxoneProjectService.ts"
 import type { LoxoneSignalService } from "../../services/LoxoneSignalService.ts"
 import type { MiniserverService } from "../../services/MiniserverService.ts"
 import type { Controller } from "../Controller.ts"
@@ -24,9 +25,15 @@ const SignalParams = IdParams.extend({ signalId: z.string().min(1) })
  *   signal's wires; its last value (flagged restored) and a force move to the new topic.
  * - GET :id/discovered: 200. POST :id/discovered/adopt: 201 with the new input signal, 404 for
  *   a packet id that was not seen.
+ * - POST :id/project with an FTP login: 200 with the intercommunication part of the Miniserver's
+ *   current Loxone Config project, 502 when it can't be read (unreachable, login refused, no project).
  */
 export class MiniserverController implements Controller {
-  constructor(private readonly miniservers: MiniserverService, private readonly signals: LoxoneSignalService) {}
+  constructor(
+    private readonly miniservers: MiniserverService,
+    private readonly signals: LoxoneSignalService,
+    private readonly projects: LoxoneProjectService
+  ) {}
 
   register(app: FastifyInstance) {
     app.get("/api/miniservers", () => this.miniservers.list())
@@ -40,6 +47,7 @@ export class MiniserverController implements Controller {
     app.get("/api/miniservers/:id/load", request => this.miniservers.intercomLoad(MiniserverController.id(request)))
     app.post("/api/miniservers/:id/start", request => this.miniservers.start(MiniserverController.id(request)))
     app.post("/api/miniservers/:id/stop", request => this.miniservers.stop(MiniserverController.id(request)))
+    app.post("/api/miniservers/:id/project", request => this.projects.read(MiniserverController.id(request), ProjectReadSchema.parse(request.body)))
     this.registerSignals(app)
   }
 

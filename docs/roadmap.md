@@ -136,18 +136,58 @@ meter and a secondary "Solax" meter and no battery, one with a BYD battery and a
 through the whole stack; their responses are recorded as fixtures. The plugin UI (instances, signals,
 catalog, panel) follows in M5; until then the plugins are managed through the API.
 
+### Since M4: import from Loxone Config (done)
+
+Reads the current Loxone Config project from a Miniserver over FTP and imports its
+intercommunication inputs and outputs as signals. See `docs/architecture.md` ("importing from
+Loxone Config").
+
 ### M5: installer, Calendar, Home Assistant, plugin UI
 
-- `PluginInstaller` with `ZipSource` and `GitSource`, versions, rollback and describe.
-- UI: a JSON-Schema form renderer (boolean, array, nested, optional, defaults, secrets), the catalog
-  browser, signals, wires and panels.
-- Port **calendar** and **homeassistant**.
+M5 is done in five parts, in this order. The UI comes first, because the new plugins are only
+usable once they can be configured without the API. The installer comes last, because the
+first-party plugins load from the workspace until then.
+
+1. **M5a: plugin UI.**
+   - A Plugins page that lists instances with their state, health message and restart count, with
+     start, stop and restart buttons.
+   - Creating and editing an instance through a JSON-Schema form renderer that handles boolean,
+     number, enum, array, nested, optional and default fields. Secrets (`writeOnly`) show as
+     "set" and are only sent when changed.
+   - Per instance: its signals with live values and force and release (reusing the Loxone
+     signals table), adding signals from the catalog browser or by hand with a params form, the
+     panel (key-value, table, JSON) and recent log lines.
+2. **M5b: wire editor.**
+   - A Wires page and a "wires" section per signal.
+   - Picking a source and a target across Loxone and plugin signals, filtered by value type.
+   - Editing the transform chain (Invert, Scale, Map, Debounce, Throttle, Convert) with a preview
+     of the converted current value, and the `enabled` and `syncOnStart` switches.
+   - Inactive wires show why they are inactive.
+3. **M5c: Home Assistant plugin.**
+   - The HA WebSocket client: auth, reconnect with backoff, and `subscribe_entities`.
+   - An entity catalog by area and domain. Sensors for state and attributes. Actuators for the
+     common services (light, switch, cover, climate, valve, scene, script, input_*).
+   - Fixes for the two known bugs (`valve.set_valve_position`, and the scene trigger on `false`).
+   - Tests against a mocked HA WebSocket server.
+4. **M5d: Calendar plugin.**
+   - iCal fetch with recurrence.
+   - Sensors for "event active", next start and end, and the current and next title, filtered by
+     a text match.
+   - Fixes for the three known bugs: the end time is ignored, there is a double fetch, and the
+     ignore list grows forever.
+   - `PluginTestHost` tests with `mock.timers`.
+5. **M5e: installer.**
+   - `PluginInstaller` with `ZipSource` and `GitSource`, `ManifestValidator`, staging, versions,
+     rollback and a throwaway describe worker.
+   - Hot update of running instances.
+   - An install UI that shows the source, the commit and the trust warning.
 
 **Verify:**
 - Zip-slip, symlink and zip-bomb fixtures are rejected.
 - The same plugin installs from git and from a ZIP.
 - A hot update needs no restart, and rollback works.
 - Home Assistant works end to end against a mocked HA WebSocket.
+- Each UI part is checked with a headless browser walkthrough.
 
 ### M6: hardening and release
 

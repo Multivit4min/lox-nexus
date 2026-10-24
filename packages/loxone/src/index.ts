@@ -14,3 +14,10 @@ export {
   LoxoneSignalConfigSchema, MiniserverConfigSchema,
   type LoxoneSignalConfig, type LoxoneSignalConfigInput, type MiniserverConfig, type MiniserverConfigInput
 } from "./MiniserverConfig.ts"
+export type { IntercomPeer, IntercomProject, IntercomProjectSignal } from "./project/IntercomProject.ts"
+export { IntercomProjectParser } from "./project/IntercomProjectParser.ts"
+export { LoxCcDecoder } from "./project/LoxCcDecoder.ts"
+export { MiniserverFtp, type DownloadedProject, type FtpCredentials } from "./project/MiniserverFtp.ts"
+export { ProjectFiles } from "./project/ProjectFiles.ts"
+export { ProjectReadError } from "./project/ProjectReadError.ts"
+export { ProjectReader, type ProjectSource, type ReadProject } from "./project/ProjectReader.ts"

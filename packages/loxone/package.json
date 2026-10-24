@@ -12,7 +12,10 @@
   "dependencies": {
     "@lox-nexus/core": "*",
     "@lox-nexus/ici": "*",
-    "zod": "^4.6.7",
-    "@lox-nexus/plugin-sdk": "*"
+    "@lox-nexus/plugin-sdk": "*",
+    "basic-ftp": "^6.2.3",
+    "fflate": "^0.8.3",
+    "saxes": "^6.0.0",
+    "zod": "^4.6.7"
   }
 }

@@ -807,6 +807,65 @@ above:
   leaves no active handles. API tests cover instances, signals, commands, the store, webhooks,
   refusals, deletion and a restart.
 
+## Implementation notes: importing from Loxone Config
+
+Out packets can't be discovered on the wire (the Miniserver never says which packet ids it
+expects), but the Loxone Config project on the Miniserver lists all of them. So Nexus reads it.
+
+- **Where the project is.** The Miniserver keeps every saved project in `/prog` as
+  `sps_<config version>_<yyyymmddhhmmss>.zip`. The newest one holds `sps0.LoxCC` (next to
+  `Emergency.LoxCC`, `LoxAPP3.json` and others). `/dev/fsget` over HTTP needs admin rights, so
+  `MiniserverFtp` (basic-ftp) downloads it over FTP with a Miniserver user that has the FTP right.
+  The login is sent with the request and never stored. The Miniserver only offers plain FTP. It
+  also blocks an address after failed logins, so the tests never try a wrong password against
+  the real one.
+- **`.LoxCC`** (`LoxCcDecoder`, `Lz4Block`): a 16-byte header (magic `0xaabbccee`,
+  compressed size, uncompressed size and a checksum of unknown algorithm, all uint32 LE) and one
+  raw LZ4 block. The decoder checks the magic, every length and offset, and that the output
+  exactly fills the declared size. Before allocating, it refuses sizes over 64 MB and sizes
+  beyond the 255:1 that LZ4 can expand to. Only `sps0.LoxCC` is inflated from the zip (fflate),
+  and only if its declared size is within the limit. Decoding and parsing are synchronous; for a
+  6 MB project that blocks the event loop for well under a second.
+- **FTP limits.** The download is capped at 32 MB. Each socket has a 15 s idle timeout and the
+  whole read a 60 s deadline. Anything the FTP session reports becomes a `ProjectReadError` with
+  a readable message; only programming errors (`TypeError`, `RangeError`) stay 500s. A refused
+  login says that repeated failures make the Miniserver block Nexus' address, which would also
+  cut its ICI traffic. The login fields refuse line breaks (400), because FTP commands are
+  lines. `FakeFtpServer` covers these paths offline.
+- **What is read** (`IntercomProjectParser`, streaming with saxes): the document's `Title` and
+  `Date`, and under each `LanInt` (a Miniserver's Network Intercommunication):
+
+  | Object | Attribute | Becomes |
+  |---|---|---|
+  | `LanInt` | `MId` | `miniserverId` (Nexus' `remoteId`) |
+  | `LanInt` | `Pt` | `miniserverPort` (Nexus' `port`) |
+  | `HItcDev` (one per peer) | `sid` | `id` (Nexus' `ownId`) |
+  | `HItcDev` | `dAd`, `dP` | where the Miniserver sends to (Nexus' address and `listenPort`) |
+  | `HItcDev` | `enc` | `encrypted` |
+  | `HItcDev` | `Title` | `label` |
+  | `HItcIn` | `pid`, `tp` | an `out` signal: the Miniserver receives it |
+  | `HItcOut` | `pid`, `tp` | an `in` signal: the Miniserver sends it |
+
+  The signal's label is its `Title`, plus `Desc` as description. `tp` is the ICI data type byte,
+  which Loxone Config leaves out for digital. Nothing else from the project (owner, address,
+  users, other objects) leaves the package.
+- **API and UI.** `POST /api/miniservers/:id/project` with `{ username, password }` reads from
+  the Miniserver's configured host. It answers `LoxoneProjectDto` (all peers), or 502 with a
+  message the user can act on (`ProjectReadError`: refused login, FTP off, no project, corrupt
+  file). "Import from Loxone Config" on a Miniserver's page preselects the peer whose `id` is
+  this Miniserver's `ownId`. It lists connection settings that differ from the project, then the
+  peer's objects as New, Configured, Type differs or Unsupported type (`ProjectDiff`). Importing
+  goes through the normal signal endpoints, one request at a time:
+  - New signals are named as in Loxone Config.
+  - Signals whose type differs get only the new data type, so their names, topics, wires and
+    forces stay.
+  - Failures are listed per row, and the remaining rows still run.
+- **Verified** against the test Miniserver (firmware 17.2): the newest of 30 project files is
+  downloaded, decoded and parsed in about 0.75 s. A headless Chromium walkthrough imported the
+  `claude-dev` peer, which needed one type change and five new signals.
+  `ProjectReader.test.ts` has a live test that runs when `LOXONE_TEST_HOST`, `LOXONE_TEST_USER`
+  and `LOXONE_TEST_PASSWORD` are set.
+
 ## Dependencies (installed in the milestone that first needs them)
 
 | Where | Packages |
@@ -814,6 +873,7 @@ above:
 | all | typescript 5.9, tsx, eslint 9 + typescript-eslint + @stylistic, @types/node 24 |
 | packages/ici | none (node:dgram, node:crypto) |
 | packages/plugin-sdk, core, api | zod 4 |
+| packages/loxone | zod 4, basic-ftp, saxes, fflate (reading Loxone Config projects) |
 | apps/server | fastify 5, @fastify/websocket, @fastify/cookie, @fastify/static, pino, pino-pretty, zod 4 (node:sqlite and node:crypto built in); later yauzl, esbuild |
 | apps/web | vue 3, vue-router, vite, tailwindcss 4 + @tailwindcss/vite, shadcn-vue (reka-ui, cn, class-variance-authority, @lucide/vue, @vueuse/core, tw-animate-css), @tanstack/vue-virtual, vue-tsc, eslint-plugin-vue |
 | plugins/calendar | node-ical |

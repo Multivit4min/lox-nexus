@@ -2,7 +2,7 @@
 import { onMounted, onUnmounted, ref, shallowRef } from "vue"
 import type { DiscoveredPacketDto, LoxoneSignalDto, LoxoneSignalInput, MiniserverDto, MiniserverInput } from "@lox-nexus/api"
 import { useIntervalFn } from "@vueuse/core"
-import { Pencil, Play, Square, Trash2 } from "@lucide/vue"
+import { FileDown, Pencil, Play, Square, Trash2 } from "@lucide/vue"
 import { useRouter } from "vue-router"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -12,6 +12,7 @@ import DiscoveredCard from "../components/DiscoveredCard.vue"
 import HealthBadge from "../components/HealthBadge.vue"
 import LoadIndicator from "../components/load/LoadIndicator.vue"
 import MiniserverForm from "../components/MiniserverForm.vue"
+import ProjectImportDialog from "../components/project/ProjectImportDialog.vue"
 import SignalsCard from "../components/SignalsCard.vue"
 import { LiveValues } from "../stores/LiveValues.ts"
 
@@ -23,6 +24,7 @@ const ms = ref<MiniserverDto>()
 const signals = ref<LoxoneSignalDto[]>([])
 const discovered = ref<DiscoveredPacketDto[]>([])
 const editing = ref(false)
+const importing = ref(false)
 // a ref, so the signals card appears as soon as the stream exists (a plain variable isn't tracked by the template)
 const live = shallowRef<LiveValues>()
 
@@ -102,6 +104,7 @@ async function adopt(packets: DiscoveredPacketDto[], progress: (done: number) =>
         <div class="ml-auto flex gap-2">
           <Button v-if="ms.running" variant="outline" size="sm" @click="run('stop')"><Square class="size-4" /> Stop</Button>
           <Button v-else variant="outline" size="sm" @click="run('start')"><Play class="size-4" /> Start</Button>
+          <Button variant="outline" size="sm" @click="importing = true"><FileDown class="size-4" /> Import from Loxone Config</Button>
           <Button variant="outline" size="sm" @click="editing = true"><Pencil class="size-4" /> Edit</Button>
           <Button variant="destructive" size="sm" @click="remove"><Trash2 class="size-4" /> Delete</Button>
         </div>
@@ -114,6 +117,7 @@ async function adopt(packets: DiscoveredPacketDto[], progress: (done: number) =>
     </Alert>
     <SignalsCard v-if="live" :signals="signals" :live="live" :add="addSignal" :update="updateSignal" :remove="removeSignals" />
     <DiscoveredCard :packets="discovered" :adopt="adopt" />
+    <ProjectImportDialog v-model:open="importing" :ms="ms" :signals="signals" @changed="load" />
     <Dialog v-model:open="editing">
       <DialogContent class="sm:max-w-2xl">
         <DialogHeader><DialogTitle>Edit {{ ms.label }}</DialogTitle></DialogHeader>
