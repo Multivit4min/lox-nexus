@@ -29,8 +29,11 @@ export class FroniusCatalog {
     const devices = this.at(base)
     if (!FroniusCatalog.isRecord(devices)) return undefined
     const children = Object.keys(devices).map(id => {
-      const name = `${singular} ${id}${FroniusCatalog.model(this.at([...base, id, ...inner, "Details", "Model"]))}`
-      return this.node(name, this.entries([...base, id, ...inner], fields, `${singular} ${id} `))
+      // a secondary meter has the name the installer gave it ("Solax"), which says more than its model
+      const given = this.at(["powerflow", "SecondaryMeters", id, "Label"])
+      const named = base[0] === "meter" && typeof given === "string" && given !== "" ? given : undefined
+      const name = `${singular} ${id}${FroniusCatalog.model(named ?? this.at([...base, id, ...inner, "Details", "Model"]))}`
+      return this.node(name, this.entries([...base, id, ...inner], fields, named ? `${named} ` : `${singular} ${id} `))
     }).filter(node => node !== undefined)
     return children.length > 0 ? { label, children } : undefined
   }

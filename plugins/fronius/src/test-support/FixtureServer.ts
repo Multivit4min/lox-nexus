@@ -42,6 +42,13 @@ export class FixtureServer {
       .serve("GetStorageRealtimeData", "storage-system")
   }
 
+  /** recorded from a real GEN24 (2026-10-24): grid meter, a secondary "Solax" meter, no battery */
+  liveGen24() {
+    return this.serve("GetPowerFlowRealtimeData", "live-gen24-powerflow")
+      .serve("GetMeterRealtimeData", "live-gen24-meter-system")
+      .serve("GetStorageRealtimeData", "live-gen24-storage-system")
+  }
+
   /** an inverter without meter, and a Datamanager that doesn't know the storage endpoint */
   produceOnly() {
     return this.serve("GetPowerFlowRealtimeData", "powerflow-produce-only")

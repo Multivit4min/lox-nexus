@@ -51,7 +51,8 @@ export interface PowerFlowOhmpilot {
 export interface PowerFlowData {
   Site: PowerFlowSite
   Inverters?: Record<string, PowerFlowInverter>
-  SecondaryMeters?: Record<string, { Category?: string; Label?: string; Mloc?: number; P?: number }>
+  /** keyed by meter id; GEN24 firmware sends `MLoc` (the API documentation says `Mloc`) */
+  SecondaryMeters?: Record<string, { Category?: string; Label?: string; MLoc?: number; P?: number }>
   Smartloads?: { Ohmpilots?: Record<string, PowerFlowOhmpilot> }
   Version?: string
 }
