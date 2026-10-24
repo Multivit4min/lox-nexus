@@ -280,8 +280,30 @@ recognised: read as a double it is a whole number in a Loxone colour range (`20b
 `BBBGGGRRR`), while real RGBW payloads read as denormals or, for sequence steps, as non-integers
 near 2.
 
-Next: a lighting circuit of type Lumitech or RGB (analog output) sent over an Analog
-intercommunication output should carry the controller's colour number unchanged.
+**Lumitech outputs carry the colour number (2026-10-24, `lumitech-moods-2026-10-24.jsonl`).** A
+Lighting Controller output of type **Lumitech** sends the controller's own value, so colour
+temperatures survive exactly:
+
+| Mood | Lumitech output → Analog (`lcana`) | Lumitech output → RGBW (`lcout`) | Smart output → RGBW (`lcout2`) |
+|---|---|---|---|
+| 2200 K, 70 % | `200702200` | the double's bytes (`w240 … flags 0x41a7`) | `r83 g30 w39` |
+| 4000 K, 50 % | `200504000` | the double's bytes | `r10 g1 w46` |
+| 6000 K, 90 % | `200906000` | the double's bytes | `g97 b97 w69` |
+| 4700 K, 80 % | `200804700` | the double's bytes | `w80` |
+| red 100 | `100` | the double's bytes (flags `0x4059`) | `r100` |
+| green 80 | `80000` | the double's bytes | `g80 b3` (configured so) |
+| off | `200004600` (0 %, the temperature kept) | the double's bytes | all zero |
+
+**The Loxone colour number.**
+- `20bbbkkkk`: a colour temperature, with brightness `bbb` in % and `kkkk` in Kelvin.
+- Anything up to `100100100`: `BBBGGGRRR`, an RGB colour in %, with red in the lowest three digits.
+
+Loxone Config stores mood values with the output type in the top bits: `0x50000000` for
+Lumitech and `0x60000000` for Smart, plus the colour number.
+
+**The Smart output's mix.** Both 4600 K and 4700 K at 80 % come out as pure white `w80`, so the
+conversion is a table inside the Miniserver, not a formula. Only a Lumitech output gives exact
+temperatures.
 
 **Passthrough probe (2026-10-23).** RGBW packets were sent to a Miniserver input wired directly to
 an RGBW output. Every payload came back **byte-identical** within about 30 ms: bytes 6–7 set to
