@@ -144,6 +144,36 @@ describe("PluginSupervisor", () => {
     assert.deepEqual(results.map(r => r.outcome?.error), ["the plugin is not running"])
   })
 
+  test("a degraded status reported during start is kept; a failing store write is reported, not thrown", async () => {
+    const supervisor = manager.add(instance({ config: { degraded: true } }), pkg)
+    supervisor.signals.add({ id: "s", kind: "actuator", capability: "set", params: {}, label: "", slug: "set" })
+    const starting = supervisor.start()
+    await settle()
+    await starting
+    assert.equal(supervisor.state, "degraded")
+    const errors: string[] = []
+    bus.subscribe("system/plugin/home/error", message => void errors.push(message.text ?? ""))
+    const failing = manager.add(instance({ id: "i2", slug: "other" }), pkg)
+    Object.assign((failing as unknown as { deps: { store: object } }).deps.store, { set: () => { throw new Error("database is locked") } })
+    stored.clear()
+    bus.command("counter/home/actuator/set", Value.number(4), { source: { kind: "user", id: "t" } })
+    await settle()
+    assert.ok(errors.some(text => /handling a "store.set" message failed: database is locked/.test(text)), errors.join("; "))
+  })
+
+  test("disposing during start resolves and leaves no worker behind", async () => {
+    for (const waitForWorker of [false, true]) {
+      const supervisor = manager.add(instance({ id: `d${waitForWorker}`, slug: `d${waitForWorker}` }), pkg)
+      const opened = transport.opened.length
+      const starting = supervisor.start()
+      while (waitForWorker && transport.opened.length === opened) await Promise.resolve()
+      const disposing = supervisor.dispose()
+      await settle()
+      await Promise.all([starting, disposing])
+      assert.ok(transport.opened.every(connection => connection.gone), `no worker left (waited: ${waitForWorker})`)
+    }
+  })
+
   test("signals: invalid params are refused while running; a new slug moves topics, a degraded status is shown", async () => {
     const supervisor = manager.add(instance(), pkg)
     const starting = supervisor.start()

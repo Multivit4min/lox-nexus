@@ -55,7 +55,8 @@ export class PluginManager extends Disposable {
   /** a new build of a plugin (development reload or update): running instances restart with it */
   async replacePackage(pkg: PluginPackage) {
     const affected = this.list().filter(supervisor => supervisor.config.plugin === pkg.id)
-    await Promise.all(affected.map(supervisor => supervisor.update(supervisor.config, pkg)))
+    // no instance passed: each supervisor applies its config as it is when the reload's turn comes
+    await Promise.all(affected.map(supervisor => supervisor.update(undefined, pkg)))
   }
 
   /** deletes: stops it and unregisters its signals (and so their wires) */

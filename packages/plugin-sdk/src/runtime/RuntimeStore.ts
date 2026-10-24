@@ -13,11 +13,15 @@ export class RuntimeStore implements PluginStore {
     return this.values.get(key) as T | undefined
   }
 
-  /** @throws Error for an empty or overlong key, or a value that can't be cloned (functions, classes with state) */
+  /**
+   * @throws Error for an empty or overlong key, undefined (use delete()), or a value JSON can't
+   * hold (BigInt, circular objects); the host stores values as JSON
+   */
   set(key: string, value: unknown) {
     if (key.length === 0 || key.length > 200) throw new Error("store keys must have 1 to 200 characters")
-    // cloning here throws at the caller instead of breaking the message to the host
-    const copy = structuredClone(value)
+    if (value === undefined) throw new Error(`store value for "${key}" is undefined; use delete() to remove a key`)
+    // the round trip throws here, at the plugin's call, instead of in the host; it also drops what JSON would drop
+    const copy: unknown = JSON.parse(JSON.stringify(value))
     this.values.set(key, copy)
     this.send({ type: "store.set", key, value: copy })
   }

@@ -18,7 +18,7 @@ test("instances and signals survive a restart; an instance whose plugin is gone 
 
   const first = await TestApp.start(options(), {}, withCounter(description))
   const admin = await first.admin()
-  const instance = (await admin.post("/api/plugin-instances", { plugin: "counter", slug: "home", label: "Home" })).json<PluginInstanceDto>()
+  const instance = (await admin.post("/api/plugin-instances", { plugin: "counter", slug: "home", label: "Home", config: { token: "s3cret" } })).json<PluginInstanceDto>()
   const signal = (await admin.post(`/api/plugin-instances/${instance.id}/signals`, { kind: "sensor", capability: "value", params: { start: 3 }, label: "V" })).json<PluginSignalDto>()
   await first.dispose()
 
@@ -31,6 +31,6 @@ test("instances and signals survive a restart; an instance whose plugin is gone 
 
   const third = await TestApp.start({ databaseFile: path.join(dir, "nexus.db") })
   const listed = (await (await third.login()).get("/api/plugin-instances")).json<PluginInstanceDto[]>()
-  assert.deepEqual(listed.map(i => [i.slug, i.state]), [["home", "unavailable"]])
+  assert.deepEqual(listed.map(i => [i.slug, i.state, i.config]), [["home", "unavailable", {}]], "without its plugin nobody knows what is secret: no config is shown")
   await third.dispose()
 })

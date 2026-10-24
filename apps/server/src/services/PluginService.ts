@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto"
-import { PluginNotRunningError, type PluginInstanceConfig, type PluginManager } from "@lox-nexus/core"
+import { PluginNotRunningError, type PluginInstanceConfig, type PluginManager, type PluginPackage, type PluginSupervisor } from "@lox-nexus/core"
 import type { PluginInstanceDto, PluginInstanceInput, PluginPackageDto } from "@lox-nexus/api"
 import { PluginInstanceInputSchema } from "@lox-nexus/api"
 import type { Logger } from "pino"
@@ -30,18 +30,21 @@ export class PluginService {
   load() {
     for (const instance of this.repo.list()) {
       const entry = this.available.get(instance.plugin)
-      if (!entry) {
-        this.log.warn({ instance: instance.id, plugin: instance.plugin }, "plugin instance can't run: its plugin is not available")
-        continue
-      }
-      const supervisor = this.manager.add(instance, entry.pkg)
-      for (const signal of this.signalRepo.listFor(instance.id)) {
-        try {
-          supervisor.signals.add(signal)
-        } catch (error) {
-          this.log.error({ err: error, signal: signal.id }, "skipping plugin signal that can't be loaded")
-        }
-      }
+      if (entry) this.attach(instance, entry.pkg)
+      else this.log.warn({ instance: instance.id, plugin: instance.plugin }, "plugin instance can't run: its plugin is not available")
+    }
+  }
+
+  /**
+   * A plugin was (re)loaded, e.g. after an edit in development: running instances restart with
+   * it, and instances that were unavailable get a supervisor and start if enabled.
+   */
+  async packageChanged(pkg: PluginPackage) {
+    await this.manager.replacePackage(pkg)
+    const waiting = this.repo.list().filter(instance => instance.plugin === pkg.id && !this.manager.get(instance.id))
+    for (const instance of waiting) {
+      const supervisor = this.attach(instance, pkg)
+      if (instance.enabled) await supervisor.start()
     }
   }
 
@@ -80,13 +83,17 @@ export class PluginService {
    * restarts with it, and `enabled` decides whether it runs afterwards.
    * @throws HttpError 404, 400 when `plugin` differs, 409 for a taken slug or an unavailable plugin
    */
-  async update(id: string, input: PluginInstanceInput): Promise<PluginInstanceDto> {
+  async update(id: string, input: PluginInstanceInput, by: string): Promise<PluginInstanceDto> {
     const previous = this.stored(id)
     const parsed = PluginInstanceInputSchema.parse(input)
     if (parsed.plugin !== previous.plugin) throw HttpError.badRequest("the plugin of an instance can't change")
+    // unavailable instances hold slugs too, and the manager doesn't know them
+    if (this.repo.list().some(other => other.id !== id && other.slug === parsed.slug)) throw HttpError.conflict(`slug "${parsed.slug}" is already used by another plugin instance`)
     const supervisor = this.supervisor(id)
     const config = this.secrets(previous.plugin).merge(parsed.config, previous.config)
     const instance: PluginInstanceConfig = { ...parsed, id, config }
+    const topics = new Map(supervisor.signals.list().map(entry => [entry.config.id, entry.topic]))
+    if (!instance.enabled) await supervisor.stop()
     await PluginService.domainAsync(() => this.manager.update(instance))
     try {
       this.repo.save(instance)
@@ -94,10 +101,18 @@ export class PluginService {
       await this.manager.update(previous)
       throw error
     }
-    if (previous.slug !== instance.slug) this.cleanup.forget(`system/plugin/${previous.slug}/#`, "system")
+    if (previous.slug !== instance.slug) this.moveTopics(supervisor, topics, previous.slug, by)
     if (instance.enabled) await supervisor.start()
-    else await supervisor.stop()
     return this.toDto(instance)
+  }
+
+  // values and forces follow the signals to their new topics, like a renamed signal's do
+  private moveTopics(supervisor: PluginSupervisor, before: Map<string, string>, oldSlug: string, by: string) {
+    for (const entry of supervisor.signals.list()) {
+      const old = before.get(entry.config.id)
+      if (old && old !== entry.topic) this.cleanup.move(old, entry.topic, by)
+    }
+    this.cleanup.forget(`system/plugin/${oldSlug}/#`, by)
   }
 
   /** deletes the instance, its signals and their wires, its store, and everything on its topics */
@@ -148,12 +163,25 @@ export class PluginService {
     return instance
   }
 
+  private attach(instance: PluginInstanceConfig, pkg: PluginPackage) {
+    const supervisor = this.manager.add(instance, pkg)
+    for (const signal of this.signalRepo.listFor(instance.id)) {
+      try {
+        supervisor.signals.add(signal)
+      } catch (error) {
+        this.log.error({ err: error, signal: signal.id }, "skipping plugin signal that can't be loaded")
+      }
+    }
+    return supervisor
+  }
+
+  // without its plugin, nobody can tell which config fields are secret: show none of them
   private toDto(instance: PluginInstanceConfig): PluginInstanceDto {
     const supervisor = this.manager.get(instance.id)
     const lastError = supervisor?.lastError
     return {
       id: instance.id, plugin: instance.plugin, slug: instance.slug, label: instance.label, enabled: instance.enabled,
-      config: this.secrets(instance.plugin).strip(instance.config),
+      config: this.available.get(instance.plugin) ? this.secrets(instance.plugin).strip(instance.config) : {},
       state: supervisor?.state ?? "unavailable",
       ...(lastError ? { lastError } : {})
     }

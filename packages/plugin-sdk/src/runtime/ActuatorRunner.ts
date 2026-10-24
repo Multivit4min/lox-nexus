@@ -24,16 +24,24 @@ interface Waiting {
 export class ActuatorRunner {
   private readonly waiting: Waiting[] = []
   private busy = false
+  private closed = false
 
   constructor(private readonly actuator: Actuator<Plugin, unknown, Value>, private readonly concurrency: ActuatorConcurrency) {}
 
-  /** resolves when run() finished for this value; rejects with its error or SupersededError */
+  /** resolves when run() finished for this value; rejects with its error, SupersededError, or after close() */
   submit(value: Value, causeId: string | undefined): Promise<void> {
+    if (this.closed) return Promise.reject(new Error("the actuator was removed"))
     return new Promise((resolve, reject) => {
       if (this.concurrency === "latest") this.waiting.splice(0).forEach(entry => entry.reject(new SupersededError()))
       this.waiting.push({ value, causeId, resolve, reject })
       void this.drain()
     })
+  }
+
+  /** rejects every waiting command; the one running finishes. Call before disposing the actuator. */
+  close() {
+    this.closed = true
+    this.waiting.splice(0).forEach(entry => entry.reject(new Error("the actuator was removed")))
   }
 
   private async drain() {

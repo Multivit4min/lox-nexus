@@ -35,14 +35,22 @@ export class PluginSignalService {
       this.repo.delete(config.id)
       throw error
     }
-    return PluginSignalService.toDto(instanceId, supervisor.signals.get(config.id)!)
+    return PluginSignalService.toDto(instanceId, this.require(supervisor, config.id))
   }
 
-  /** Replaces a signal (same id); its wires stay, its value and force follow a new topic. */
+  /**
+   * Replaces a signal's params, label and slug (same id); its wires stay, its value and force
+   * follow a new topic. Kind and capability can't change: that is a different signal, whose
+   * wires wouldn't fit.
+   * @throws HttpError 400 for a changed kind or capability or refused params, 404, 409 taken slug
+   */
   async update(instanceId: string, signalId: string, input: PluginSignalInput, by: string): Promise<PluginSignalDto> {
     const supervisor = this.instances.supervisor(instanceId)
     const previous = this.require(supervisor, signalId)
     const config = this.configOf(supervisor, signalId, input)
+    if (config.kind !== previous.config.kind || config.capability !== previous.config.capability) {
+      throw HttpError.badRequest("kind and capability of a signal can't change; add a new signal instead")
+    }
     await PluginSignalService.refusals(() => supervisor.calls.updateSignal(config))
     try {
       this.repo.update(instanceId, config)
@@ -50,7 +58,7 @@ export class PluginSignalService {
       await supervisor.calls.updateSignal(previous.config).catch(() => undefined)
       throw error
     }
-    const updated = supervisor.signals.get(signalId)!
+    const updated = this.require(supervisor, signalId)
     if (updated.topic !== previous.topic) this.cleanup.move(previous.topic, updated.topic, by)
     return PluginSignalService.toDto(instanceId, updated)
   }

@@ -72,12 +72,19 @@ export class SolarApi {
       // outlive the plugin's stop
       headers: { accept: "application/json", connection: "close" }
     })
-    const type = response.headers.get("content-type") ?? ""
-    if (response.status !== 200 || !type.trim().toLowerCase().startsWith("application/json")) {
+    if (response.status !== 200) {
       await response.body?.cancel()
-      throw new Error(response.status !== 200 ? `HTTP ${response.status}` : `expected application/json, got "${type}"`)
+      throw new Error(`HTTP ${response.status}`)
     }
-    return SolarApi.data(await response.json())
+    // the content type isn't trusted: older Datamanager devices answer JSON as text/javascript
+    const text = await response.text()
+    let body: unknown
+    try {
+      body = JSON.parse(text)
+    } catch {
+      throw new Error(`expected JSON, got ${response.headers.get("content-type") ?? "no content type"}: ${JSON.stringify(text.slice(0, 60))}`)
+    }
+    return SolarApi.data(body)
   }
 
   /** unwraps the envelope; a Head.Status.Code other than 0 is the device saying no */

@@ -81,7 +81,11 @@ export default PluginEntry.define(MyPlugin)
   message on the bus. With `concurrency: "latest"`, values that arrive while one runs replace each
   other and only the newest runs; the skipped ones are reported as superseded.
 - **Causes are automatic.** Whatever the plugin emits or logs while an actuator runs carries the bus
-  message that triggered it, so the inspector shows the effect under its cause.
+  message that triggered it, so the inspector shows the effect under its cause. This follows
+  awaits, timers and promises started inside `run()` for as long as they live, so work that
+  outlives the command (a timer started in `run()`) is still attributed to it.
+- **Store values are JSON.** `this.store.set()` throws for what JSON can't hold (BigInt, circular
+  objects, undefined); dates become strings.
 
 ## What a plugin gets
 

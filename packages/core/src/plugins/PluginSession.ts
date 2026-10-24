@@ -44,6 +44,9 @@ export class PluginSession extends Disposable {
   private unanswered = 0
   private closing = false
   private over = false
+  private endReason = "stopped"
+  /** pending waitFor() calls; they fail with the real reason when the session ends */
+  private readonly waiting = new Set<(reason: string) => void>()
 
   constructor(private readonly connection: PluginConnection, private readonly timings: SessionTimings) {
     super()
@@ -52,6 +55,7 @@ export class PluginSession extends Disposable {
     this.listen(connection, "exit", (reason: string) => this.end(reason))
     this.listen(connection, "invalid", (reason: string) => this.fail(reason))
     this.onDispose(() => this.connection.terminate())
+    this.onDispose(() => this.end("was stopped"))
   }
 
   /**
@@ -112,33 +116,36 @@ export class PluginSession extends Disposable {
 
   private fail(reason: string) {
     this.end(reason)
-    void this.connection.terminate()
+    void this.connection.terminate().catch(() => undefined)
   }
 
   // an ended session disposes itself, or its ping interval would outlive the worker
   private end(reason: string) {
     if (this.over) return
     this.over = true
+    this.endReason = reason
+    for (const waiter of [...this.waiting]) waiter(reason)
     this.requests.failAll(`the plugin ${reason}`)
     if (!this.closing) this.events.emit("ended", reason)
     void this.dispose().catch(() => undefined)
   }
 
-  // rejects on timeout and when the plugin goes away first, so a dead worker never hangs a caller
+  // rejects on timeout and when the session ends first (exit, invalid message, dispose), with that reason
   private waitFor(types: WorkerMessage["type"] | WorkerMessage["type"][], timeoutMs: number, what: string) {
     const wanted = new Set(Array.isArray(types) ? types : [types])
     return new Promise<WorkerMessage>((resolve, reject) => {
+      if (this.over) return reject(new Error(`the plugin ${this.endReason} before it could ${what}`))
       const done = () => {
         cancel()
         this.connection.off("message", onMessage)
-        this.connection.off("exit", onExit)
+        this.waiting.delete(onEnd)
       }
       const onMessage = (message: WorkerMessage) => {
         if (!wanted.has(message.type)) return
         done()
         resolve(message)
       }
-      const onExit = (reason: string) => {
+      const onEnd = (reason: string) => {
         done()
         reject(new Error(`the plugin ${reason} before it could ${what}`))
       }
@@ -147,7 +154,7 @@ export class PluginSession extends Disposable {
         reject(new Error(`the plugin did not ${what} within ${timeoutMs} ms`))
       })
       this.connection.on("message", onMessage)
-      this.connection.on("exit", onExit)
+      this.waiting.add(onEnd)
     })
   }
 }

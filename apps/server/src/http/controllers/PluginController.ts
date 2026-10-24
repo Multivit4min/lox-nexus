@@ -29,7 +29,8 @@ export class PluginController implements Controller {
     app.get("/api/plugin-instances", () => this.plugins.list())
     app.post("/api/plugin-instances", async (request, reply) => reply.code(201).send(await this.plugins.create(PluginInstanceInputSchema.parse(request.body))))
     app.get("/api/plugin-instances/:id", request => this.plugins.get(PluginController.id(request)))
-    app.put("/api/plugin-instances/:id", request => this.plugins.update(PluginController.id(request), PluginInstanceInputSchema.parse(request.body)))
+    app.put("/api/plugin-instances/:id", request =>
+      this.plugins.update(PluginController.id(request), PluginInstanceInputSchema.parse(request.body), request.user!.username))
     app.delete("/api/plugin-instances/:id", async (request, reply) => {
       await this.plugins.remove(PluginController.id(request), request.user!.username)
       return reply.code(204).send()

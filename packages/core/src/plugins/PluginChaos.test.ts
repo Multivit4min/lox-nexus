@@ -10,7 +10,7 @@ import { PackageDescriber } from "./PackageDescriber.ts"
 import { PluginManager } from "./PluginManager.ts"
 import type { PluginSupervisor } from "./PluginSupervisor.ts"
 import type { PluginInstanceConfig, PluginState } from "./PluginTypes.ts"
-import { WorkerTransport } from "./PluginWorker.ts"
+import { WorkerTransport } from "./WorkerTransport.ts"
 
 const entry = (name: string) => new URL(`../test-support/plugins/${name}.ts`, import.meta.url).href
 const oneActuator = (id: string): PluginDescription => ({ config: {}, sensors: [], actuators: [{ id, label: id, params: {}, valueType: "any" }] })
@@ -69,6 +69,21 @@ describe("plugins in real worker threads (chaos fixtures)", { timeout: 60_000 },
     bus.command("bomb/bomb/actuator/bomb", Value.null(), { source: { kind: "user", id: "t" } })
     await reaches(supervisor, "crashed")
     assert.match(supervisor.lastError ?? "", /out of memory \(limit 32 MB\)/)
+  })
+
+  test("a message type from a newer SDK is skipped and logged, not treated as a crash", async () => {
+    const lines: string[] = []
+    const chattyManager = new PluginManager({
+      bus, registry: new SignalRegistry(), transport: new WorkerTransport(),
+      store: { load: () => ({}), set: () => {}, delete: () => {} },
+      logs: { log: (_instance, level, message) => void lines.push(`${level} ${message}`) }
+    })
+    const supervisor = chattyManager.add(instance("chatty", "chatty"), { id: "chatty", name: "Chatty", entry: entry("chatty"), description: oneActuator("x") })
+    await supervisor.start()
+    await new Promise(resolve => setTimeout(resolve, 100))
+    assert.equal(supervisor.state, "running")
+    assert.ok(lines.some(line => /warn ignored a message of unknown type "telemetry.v2"/.test(line)), lines.join("\n"))
+    await chattyManager.dispose()
   })
 
   test("a stop and start cycle leaves no active handles behind", async () => {

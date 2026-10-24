@@ -41,10 +41,11 @@ export class SignalHost {
     }
   }
 
-  /** disposes the signal; unknown ids are ignored */
+  /** disposes the signal; unknown ids are ignored. Commands still waiting for an actuator are rejected. */
   async remove(id: string) {
     const entry = this.entries.get(id)
     this.entries.delete(id)
+    if (entry?.kind === "actuator") entry.runner.close()
     await entry?.instance.dispose()
   }
 
@@ -63,6 +64,7 @@ export class SignalHost {
   async disposeAll() {
     const all = [...this.entries.values()]
     this.entries.clear()
+    for (const entry of all) if (entry.kind === "actuator") entry.runner.close()
     await Promise.allSettled(all.map(entry => entry.instance.dispose()))
   }
 

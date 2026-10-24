@@ -3,7 +3,7 @@ import { createInterface } from "node:readline"
 import { pathToFileURL } from "node:url"
 import { Worker } from "node:worker_threads"
 import { WIRE_VERSION, WorkerMessageSchema, type HostMessage, type PluginWorkerData } from "@lox-nexus/plugin-sdk/wire"
-import type { PluginConnection, PluginConnectionEvents, PluginTransport } from "./PluginTransport.ts"
+import type { PluginConnection, PluginConnectionEvents } from "./PluginTransport.ts"
 
 /** Options for the worker of each plugin. */
 export interface WorkerOptions {
@@ -18,6 +18,9 @@ export interface WorkerOptions {
  */
 export class PluginWorker extends EventEmitter<PluginConnectionEvents> implements PluginConnection {
   static readonly HEAP_MB = 128
+  /** longer stdout/stderr lines are cut, so one runaway print can't flood the log */
+  static readonly MAX_LINE = 10_000
+  private static readonly KNOWN_TYPES: ReadonlySet<string> = new Set(WorkerMessageSchema.options.map(option => option.shape.type.value))
   private readonly worker: Worker
   private failure: string | undefined
   private gone = false
@@ -39,7 +42,7 @@ export class PluginWorker extends EventEmitter<PluginConnectionEvents> implement
       this.emit("exit", this.failure ?? `exited with code ${code}`)
     })
     for (const stream of ["stdout", "stderr"] as const) {
-      createInterface({ input: this.worker[stream] }).on("line", line => this.emit("output", stream, line))
+      createInterface({ input: this.worker[stream] }).on("line", line => this.emit("output", stream, line.slice(0, PluginWorker.MAX_LINE)))
     }
   }
 
@@ -51,18 +54,14 @@ export class PluginWorker extends EventEmitter<PluginConnectionEvents> implement
     if (!this.gone) await this.worker.terminate()
   }
 
+  // a type this host doesn't know comes from a newer SDK and is skipped; a known type with a wrong shape means the plugin is broken
   private receive(raw: unknown) {
     const parsed = WorkerMessageSchema.safeParse(raw)
-    if (parsed.success) this.emit("message", parsed.data)
-    else this.emit("invalid", `sent an invalid message: ${parsed.error.issues[0]?.message ?? "unknown"}`)
-  }
-}
-
-/** The default transport: a worker thread per plugin instance. */
-export class WorkerTransport implements PluginTransport {
-  constructor(private readonly options: WorkerOptions = {}) {}
-
-  open(entry: string) {
-    return new PluginWorker(entry, this.options)
+    if (parsed.success) return void this.emit("message", parsed.data)
+    const type = (raw as { type?: unknown } | null)?.type
+    if (typeof type === "string" && !PluginWorker.KNOWN_TYPES.has(type)) {
+      return void this.emit("output", "stderr", `ignored a message of unknown type "${type.slice(0, 50)}" (built with a newer SDK?)`)
+    }
+    this.emit("invalid", `sent an invalid message: ${parsed.error.issues[0]?.message ?? "unknown"}`)
   }
 }

@@ -68,3 +68,24 @@ describe("PluginRuntime through PluginTestHost", () => {
     await host.stop()
   })
 })
+
+test("store values must survive JSON; actuators reject what is still waiting when removed", async () => {
+  const host = await PluginTestHost.start(EchoPlugin)
+  const plugin = (host as unknown as { runtime: { plugin: EchoPlugin } }).runtime.plugin
+  assert.throws(() => plugin.store.set("big", 10n), /BigInt/)
+  const circular: { self?: unknown } = {}
+  circular.self = circular
+  assert.throws(() => plugin.store.set("loop", circular), /circular/i)
+  assert.throws(() => plugin.store.set("u", undefined), /use delete/)
+  const slow = await host.addActuator("slow")
+  let open = () => {}
+  plugin.gate = new Promise(resolve => (open = resolve))
+  const running = host.actuate(slow, Value.number(1))
+  const waiting = assert.rejects(host.actuate(slow, Value.number(2)), /the actuator was removed/)
+  await host.remove(slow)
+  await waiting
+  open()
+  await running
+  assert.deepEqual(plugin.received, [1], "the waiting command never ran")
+  await host.stop()
+})

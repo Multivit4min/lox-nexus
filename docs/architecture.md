@@ -694,8 +694,9 @@ above:
 - **Config export and import** (`ConfigTransfer`, format in `packages/api/src/config.ts`):
   - The file holds Miniservers (without passwords), their signals and the wires between them,
     with their ids, as `{ format: "lox-nexus/config", version: 1, … }`. Wires to signals outside
-    the file (plugin signals, later) are left out, because an import couldn't recreate them.
-    Values, forces and users are not part of it.
+    the file (plugin signals) are left out, because an import couldn't recreate them, and an
+    import removes them with the Miniservers (the confirmation says so). Plugin instances, values,
+    forces and users are not part of it.
   - An import replaces everything through the normal services, so every validation applies.
     `ConfigCheck` first refuses duplicate ids and slugs and wires to unknown signals (400,
     nothing changes). Ids are kept. A Miniserver keeps the password stored for the same id.
@@ -758,7 +759,16 @@ above:
     stopped (so wires can be built): sensors are sources (state), actuators targets (command).
     Commands on actuator topics, including a forced value, go to `PluginCalls.actuate`, which
     reports a `result` with the duration; a stopped plugin answers "not running". Emits are
-    published under their cause (the last 1000 actuations are remembered).
+    converted to the sensor's declared value type and published under their cause (the last 1000
+    actuations are remembered).
+  - `PluginInbox` routes what a plugin reports (values, logs, store writes, status, failed
+    signals) and never throws: messages arrive in the worker's event callback, where an exception
+    would end the server, so a failure (a store write the database refuses) is reported on the
+    instance's error topic. It keeps the plugin's own health, including a "degraded" sent from
+    start(), which becomes the state once the instance is running.
+  - Message types the host doesn't know (a plugin built with a newer SDK) are skipped and
+    logged; a known type with a wrong shape still counts as a broken plugin. stdout and stderr
+    lines are cut at 10,000 characters.
   - `PackageDescriber` asks a throwaway worker for the description (JSON Schemas via zod's
     `toJSONSchema`), so the host never imports plugin code.
 - **Server:**
@@ -771,14 +781,25 @@ above:
   - Secret config fields (`secret()` in the SDK, `writeOnly` in the description) never leave the
     server; an update that omits one keeps the stored value. Only top-level fields are detected.
   - Plugins start in the background after HTTP is up; a plugin's state shows how it went.
+  - An instance whose plugin is unavailable shows no config at all: without the plugin's schema
+    nobody can tell which fields are secret.
+  - Renaming an instance moves its signals' values and forces to the new topics
+    (`TopicCleanup.move`, like a renamed signal). A signal's kind and capability can't change
+    (400): that would be a different signal, whose wires wouldn't fit.
   - **REST:** `GET /api/plugins` (what can be instantiated); `/api/plugin-instances` with CRUD,
     `POST :id/start|stop`, `GET :id/catalog`, `GET :id/panel`, and `:id/signals` with CRUD.
   - **Webhooks:** `/hook/<instance slug>/<path>`, any method, outside the session guard, with the
-    body passed on as text. 404 for an unknown instance or route, 503 when it isn't running, 502
-    when the handler fails (details only in the log).
+    body passed on as text. 404 for an unknown instance or route, 429 beyond 8 calls in flight per
+    instance, 503 when it isn't running, 502 when the handler fails (details only in the log).
+    The route shares the UI's origin, so the session cookie (and connection headers) are not
+    forwarded, a plugin can't set cookies, and every answer is sandboxed
+    (`content-security-policy: sandbox; default-src 'none'`, `nosniff`, `no-store`).
   - **Development:** `npm run dev` sets `NEXUS_DEV_PLUGINS_DIR` to the workspace's `plugins/`.
-    `DevPluginLoader` reads each `package.json` manifest (`loxNexus.id`, `apiVersion` 1), runs
-    `src/index.ts`, and restarts that plugin's instances 300 ms after its files stop changing.
+    `DevPluginLoader` reads each `package.json` manifest (`loxNexus.id`, `apiVersion` 1; the ids
+    `loxone` and `system` are reserved), runs `src/index.ts`, and restarts that plugin's instances
+    300 ms after its files stop changing; reloads of one plugin run one after another. The whole
+    directory is watched, so a plugin that failed to load, or one added later, loads on its next
+    change, and its unavailable instances start.
 - **Verified.** Supervisor tests run the real runtime in-process behind a fake transport with mock
   timers (start, refusal, crash and backoff, hung worker, stop, signals, rename). Chaos fixtures
   run in real workers: a start that throws ends in error, a busy loop is detected by missed pings

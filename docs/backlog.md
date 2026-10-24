@@ -68,3 +68,21 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
   boot. Storing only fails when runtime and database disagree, so this is rare.
 - **`Miniserver.ts` is near the size limit** (about 170 of 200 counted lines). Split signal
   management into its own class with the next feature there.
+
+## Plugins (from the M4 review)
+
+- **Forces on actuators after a restart.** A force on an actuator topic is delivered once, as a
+  command. After the plugin crashes and restarts, the device may no longer match the force. Replay
+  active forces on an instance's actuator topics once it is running again.
+- **Message size limits.** Text in worker messages is capped, but `store.set` values, log data and
+  responses are not. Plugins are trusted code (ADR 0001), so this is about mistakes, not attacks.
+- **PluginTestHost uses real timers** for its waits. A plugin test that mocks `setTimeout` hangs
+  instead of failing. Take a clock, or wait with `setImmediate` loops.
+- **Config export and plugins.** The export leaves out plugin instances and wires to plugin
+  signals; an import removes Loxone↔plugin wires. Export plugin instances (without secrets) and
+  those wires, so a backup is complete.
+- **`export { z }` from the SDK** ties the SDK's public API to zod's major version. Record that in an
+  ADR before the SDK is published.
+- **Test-support classes.** `FakePluginTransport.ts` holds two classes, and a few small error
+  classes live next to the class that throws them. Fine for now; split if they grow.
+

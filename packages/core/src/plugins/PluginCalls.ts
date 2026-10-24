@@ -51,7 +51,12 @@ export class PluginCalls {
     try {
       await this.recreate(config)
     } catch (error) {
-      this.signals().update(previous)
+      // the refusal is what the caller needs to hear, even if putting the old config back fails too
+      try {
+        this.signals().update(previous)
+      } catch {
+        // the previous config was valid a moment ago; nothing better to do than keep the error
+      }
       await this.recreate(previous).catch(() => undefined)
       throw error
     }

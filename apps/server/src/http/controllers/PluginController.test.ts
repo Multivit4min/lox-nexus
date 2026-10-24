@@ -73,6 +73,18 @@ describe("plugin API", { timeout: 10_000 }, () => {
     assert.equal((await anonymous.post("/hook/nobody/value", "")).statusCode, 404)
   })
 
+  test("webhooks never see the session, can't set cookies, and are sandboxed", async () => {
+    const echo = await admin.get("/hook/home/echo")
+    assert.equal(echo.statusCode, 200)
+    const seen = JSON.parse(echo.body) as Record<string, string>
+    assert.equal(seen.cookie, undefined, "the admin's session cookie stays with Nexus")
+    assert.equal(echo.headers["set-cookie"], undefined)
+    assert.equal(echo.headers["content-security-policy"], "sandbox; default-src 'none'")
+    assert.deepEqual([echo.headers["x-content-type-options"], echo.headers["x-plugin"]], ["nosniff", "yes"])
+    const failed = await app.client().post("/hook/home/fail", "x")
+    assert.deepEqual([failed.statusCode, /internals/.test(failed.body)], [502, false])
+  })
+
   test("a config the plugin refuses ends in error; stop makes webhooks 503", async () => {
     const refused = (await admin.put(base(), { plugin: "counter", slug: "home", label: "Home", config: { refuse: true } })).json<PluginInstanceDto>()
     assert.deepEqual([refused.state, refused.lastError], ["error", "refused on purpose"])
@@ -81,6 +93,25 @@ describe("plugin API", { timeout: 10_000 }, () => {
     assert.equal((await admin.post(`${base()}/stop`)).json<PluginInstanceDto>().state, "stopped")
     assert.equal((await app.client().post("/hook/home/value", "1")).statusCode, 503)
     assert.equal((await admin.get(`${base()}/catalog`)).statusCode, 409)
+  })
+
+  test("renaming the instance moves its topics, values and forces; a signal's kind can't change", async () => {
+    await admin.post(`${base()}/start`)
+    await settle()
+    const set = (await admin.get(`${base()}/signals`)).json<PluginSignalDto[]>().find(s => s.kind === "actuator")!
+    await admin.post("/api/bus/forces", { topic: set.topic, value: Value.number(9) })
+    const renamed = await admin.put(base(), { plugin: "counter", slug: "house", label: "House", config: {} })
+    assert.equal(renamed.statusCode, 200, renamed.body)
+    await settle()
+    const topics = (await admin.get(`${base()}/signals`)).json<PluginSignalDto[]>().map(s => s.topic).sort()
+    assert.deepEqual(topics, ["counter/house/actuator/set", "counter/house/sensor/counter-value"])
+    assert.deepEqual(app.app.bus.activeForces().map(f => f.topic), ["counter/house/actuator/set"], "the force moved along")
+    assert.deepEqual(app.app.bus.currentMatching("counter/home/#"), [])
+    const kindChange = await admin.put(`${base()}/signals/${set.id}`, { kind: "sensor", capability: "value", params: { start: 1 }, label: "Set" })
+    assert.equal(kindChange.statusCode, 400)
+    const relabel = await admin.put(`${base()}/signals/${set.id}`, { kind: "actuator", capability: "set", label: "Setpoint" })
+    assert.deepEqual([relabel.statusCode, relabel.json<PluginSignalDto>().topic], [200, "counter/house/actuator/setpoint"])
+    await admin.delete(`/api/bus/forces?topic=${encodeURIComponent("counter/house/actuator/setpoint")}`)
   })
 
   test("deleting removes the instance, its signals and its topics", async () => {

@@ -53,6 +53,8 @@ export class PluginRuntime {
       await plugin.start()
       this.send({ type: "ready" })
     } catch (error) {
+      // what start() registered before it threw (timers, sockets) must not keep running
+      await this.plugin?.dispose().catch(() => undefined)
       this.send({ type: "failed", error: PluginRuntime.text(error) })
     }
   }

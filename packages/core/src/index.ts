@@ -22,7 +22,9 @@ export { TransformSchema, WireSchema, type TransformConfig, type WireConfig, typ
 
 export type { PluginInstanceConfig, PluginLogSink, PluginPackage, PluginSignalConfig, PluginState, PluginStateStore, SignalValueType } from "./plugins/PluginTypes.ts"
 export type { PluginConnection, PluginConnectionEvents, PluginTransport } from "./plugins/PluginTransport.ts"
-export { PluginWorker, WorkerTransport, type WorkerOptions } from "./plugins/PluginWorker.ts"
+export { PluginWorker, type WorkerOptions } from "./plugins/PluginWorker.ts"
+export { WorkerTransport } from "./plugins/WorkerTransport.ts"
+export { PluginInbox, type InboxTarget } from "./plugins/PluginInbox.ts"
 export { PluginSession, InitFailedError, type SessionTimings } from "./plugins/PluginSession.ts"
 export { PluginSupervisor, DEFAULT_TIMINGS, type SupervisorDeps, type SupervisorTimings } from "./plugins/PluginSupervisor.ts"
 export { PluginSignals, type PluginBus, type PluginSignalEntry } from "./plugins/PluginSignals.ts"

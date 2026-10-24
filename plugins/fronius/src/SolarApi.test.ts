@@ -29,11 +29,14 @@ describe("SolarApi", () => {
     assert.throws(() => api.storage(-1), /device id must be an integer >= 0/)
   })
 
-  test("accepts JSON with a charset and refuses other content types", async () => {
+  test("reads JSON whatever the content type says; a body that isn't JSON is an error", async () => {
     server.serve("GetPowerFlowRealtimeData", "powerflow-gen24", "application/json; charset=utf-8")
     assert.equal((await api.powerFlow()).Site.Mode, "bidirectional")
-    server.serve("GetPowerFlowRealtimeData", "powerflow-gen24", "text/html")
-    await assert.rejects(api.powerFlow(), { message: 'GetPowerFlowRealtimeData: expected application/json, got "text/html"' })
+    // older Datamanager devices answer JSON as text/javascript
+    server.serve("GetPowerFlowRealtimeData", "powerflow-gen24", "text/javascript")
+    assert.equal((await api.powerFlow()).Site.Mode, "bidirectional")
+    server.text("GetPowerFlowRealtimeData", "<html>login</html>")
+    await assert.rejects(api.powerFlow(), { message: 'GetPowerFlowRealtimeData: expected JSON, got text/html: "<html>login</html>"' })
   })
 
   test("errors name the endpoint and the reason", async () => {

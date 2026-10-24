@@ -51,6 +51,12 @@ export class FixtureServer {
     return this
   }
 
+  /** answers with a raw body, e.g. an HTML error page with status 200 */
+  text(route: string, body: string, type = "text/html") {
+    this.routes.set(route, { status: 200, type, body })
+    return this
+  }
+
   fail(route: string, status = 500) {
     this.routes.set(route, { status, type: "text/plain", body: "failed on purpose" })
     return this

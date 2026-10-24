@@ -40,7 +40,7 @@ async function importFile(event: Event) {
   // cleared so that choosing the same file again fires another change event
   input.value = ""
   if (!file) return
-  const question = `Replace the whole configuration with ${file.name}?\n\nAll Miniservers, signals and wires are replaced; forces and last values on them are dropped. If anything fails, the current configuration is restored (without its forces and values).`
+  const question = `Replace the whole configuration with ${file.name}?\n\nAll Miniservers, signals and wires are replaced; forces and last values on them are dropped. Wires between a Miniserver and a plugin are not part of the file and are removed. If anything fails, the current configuration is restored (without its forces and values).`
   if (!confirm(question)) return
   await run(async () => {
     try {

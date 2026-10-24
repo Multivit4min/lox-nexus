@@ -86,8 +86,7 @@ export const MIGRATIONS: readonly Migration[] = [
         PRIMARY KEY (miniserver_id, ts)
       ) WITHOUT ROWID;
     `
-  }
-  ,
+  },
   {
     version: 3,
     name: "plugins",

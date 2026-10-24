@@ -1,9 +1,9 @@
 import { Disposable } from "@lox-nexus/plugin-sdk"
 import { Value } from "@lox-nexus/plugin-sdk/values"
-import type { WorkerMessage } from "@lox-nexus/plugin-sdk/wire"
 import type { SignalRegistry } from "../wires/SignalRegistry.ts"
 import { Backoff } from "./Backoff.ts"
 import { PluginCalls } from "./PluginCalls.ts"
+import { PluginInbox } from "./PluginInbox.ts"
 import { InitFailedError, PluginSession, type SessionTimings } from "./PluginSession.ts"
 import { PluginSignals, type PluginBus } from "./PluginSignals.ts"
 import { PluginTopics } from "./PluginTopics.ts"
@@ -42,6 +42,7 @@ export interface SupervisorDeps {
 export class PluginSupervisor extends Disposable {
   readonly signals: PluginSignals
   readonly calls: PluginCalls
+  private readonly inbox: PluginInbox
   private session: PluginSession | undefined
   private current: PluginState = "stopped"
   private failure: string | undefined
@@ -59,6 +60,10 @@ export class PluginSupervisor extends Disposable {
     this.topics = new PluginTopics(instance)
     this.calls = new PluginCalls(() => this.session, () => this.signals, deps.bus)
     this.signals = this.own(new PluginSignals(instance, () => this.currentPkg, deps.bus, deps.registry, (id, value, cause) => this.calls.actuate(id, value, cause)))
+    this.inbox = new PluginInbox({
+      instance: () => this.instance, signals: this.signals, store: deps.store, logs: deps.logs, report: text => this.report(text),
+      healthChanged: health => this.session && this.setState(health)
+    })
     this.onDispose(() => this.serialize(() => this.close("stopped")))
     this.publishState()
   }
@@ -91,36 +96,44 @@ export class PluginSupervisor extends Disposable {
   }
 
   /**
-   * Applies a new config or package version (same id). A running plugin restarts with it; a new
-   * slug moves every topic, and wires survive because they refer to signal ids.
+   * Applies a new config or package version (same id); what is left out stays, resolved when its
+   * turn in the lifecycle queue comes, so a queued reload never re-applies an older config. A
+   * running plugin restarts with it; a new slug moves every topic, and wires survive because they
+   * refer to signal ids.
    */
-  update(instance: PluginInstanceConfig, pkg: PluginPackage = this.currentPkg): Promise<void> {
+  update(instance?: PluginInstanceConfig, pkg?: PluginPackage): Promise<void> {
     return this.serialize(async () => {
+      const next = instance ?? this.instance
       const wasRunning = this.session !== undefined
       await this.close("stopped")
-      if (instance.slug !== this.instance.slug) this.rename(instance)
-      this.instance = instance
-      this.currentPkg = pkg
+      if (next.slug !== this.instance.slug) this.rename(next)
+      this.instance = next
+      this.currentPkg = pkg ?? this.currentPkg
       if (wasRunning && !this.isDisposed) await this.open()
     })
   }
 
+  // never rejects: every failure becomes a state; a dispose meanwhile closes what was opened
   private async open() {
     if (this.session || this.isDisposed) return
     this.cancelRestart()
+    this.inbox.reset()
     this.setState("starting")
-    const session = new PluginSession(this.deps.transport.open(this.currentPkg.entry), this.timings)
-    this.wire(session)
+    let session: PluginSession | undefined
     try {
+      session = new PluginSession(this.deps.transport.open(this.currentPkg.entry), this.timings)
+      this.wire(session)
       await session.open({ instanceId: this.instance.id, config: this.instance.config, store: this.deps.store.load(this.instance.id) })
     } catch (error) {
-      await session.dispose().catch(() => undefined)
+      await session?.dispose().catch(() => undefined)
       return error instanceof InitFailedError ? this.refused(error.message) : this.crashed(PluginSupervisor.message(error))
     }
+    if (this.isDisposed) return void await session.close().catch(() => undefined)
     this.session = session
     this.failure = undefined
     await this.calls.addAll()
-    this.setState("running")
+    if (this.isDisposed || this.session !== session) return
+    this.setState(this.inbox.health)
     this.cancelStable = this.after(this.timings.stableMs, () => this.backoff.reset())
   }
 
@@ -137,7 +150,7 @@ export class PluginSupervisor extends Disposable {
   }
 
   private wire(session: PluginSession) {
-    session.events.on("message", message => this.receive(message))
+    session.events.on("message", message => this.inbox.receive(message))
     session.events.on("output", (stream, line) => this.deps.logs.log(this.instance, stream === "stderr" ? "warn" : "info", line))
     session.events.on("ended", reason => {
       if (this.session !== session) return
@@ -145,21 +158,6 @@ export class PluginSupervisor extends Disposable {
       this.cancelStable()
       this.crashed(reason)
     })
-  }
-
-  private receive(message: WorkerMessage) {
-    switch (message.type) {
-      case "emit": return this.signals.publish(message.signalId, message.value, message.causeId)
-      case "log": return this.deps.logs.log(this.instance, message.level, message.message, message.data)
-      case "store.set": return this.deps.store.set(this.instance.id, message.key, message.value)
-      case "store.delete": return this.deps.store.delete(this.instance.id, message.key)
-      case "signal.error":
-        this.signals.setError(message.signalId, message.error)
-        return this.report(`signal "${message.signalId}" failed: ${message.error}`)
-      case "status":
-        if (this.session) this.setState(message.status)
-        if (message.status === "degraded") this.report(message.message ?? "degraded")
-    }
   }
 
   private refused(reason: string) {
@@ -174,7 +172,7 @@ export class PluginSupervisor extends Disposable {
     this.setState("crashed")
     const delay = this.backoff.next()
     this.report(`${reason}; restarting in ${Math.round(delay / 1000)} s`)
-    this.cancelRestart = this.after(delay, () => void this.start())
+    this.cancelRestart = this.after(delay, () => void this.start().catch((error: unknown) => this.report(`restarting failed: ${PluginSupervisor.message(error)}`)))
   }
 
   private rename(instance: PluginInstanceConfig) {

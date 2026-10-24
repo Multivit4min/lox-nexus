@@ -8,8 +8,9 @@ export const PluginManifestSchema = z.object({
   version: z.string().default("0.0.0"),
   loxNexus: z.object({
     apiVersion: z.literal(PLUGIN_API_VERSION),
-    /** topic segment and stable reference, e.g. "fronius" */
-    id: z.string().regex(/^[a-z0-9][a-z0-9._-]*$/, "lowercase letters, digits, '.', '_' or '-'"),
+    /** topic segment and stable reference, e.g. "fronius"; "loxone" and "system" belong to Nexus */
+    id: z.string().regex(/^[a-z0-9][a-z0-9._-]*$/, "lowercase letters, digits, '.', '_' or '-'")
+      .refine(id => !["loxone", "system"].includes(id), "loxone and system are reserved topic roots"),
     name: z.string().min(1),
     /** the built bundle, relative to the package; development runs src/index.ts instead */
     entry: z.string().min(1),

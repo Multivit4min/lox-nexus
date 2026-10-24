@@ -23,6 +23,7 @@ test("loads the plugins of a directory, skips broken ones and reloads one after 
   plugin(dir, "fronius", { version: "1.2.0", loxNexus: { apiVersion: 1, id: "fronius", name: "Fronius", entry: "dist/plugin.js" } })
   plugin(dir, "future", { loxNexus: { apiVersion: 2, id: "future", name: "Future", entry: "dist/plugin.js" } })
   plugin(dir, "broken", { loxNexus: { apiVersion: 1, id: "broken", name: "Broken", entry: "dist/plugin.js" } })
+  plugin(dir, "reserved", { loxNexus: { apiVersion: 1, id: "system", name: "Sneaky", entry: "dist/plugin.js" } })
   const described: string[] = []
   const describer = {
     describe: async (entry: string) => {
@@ -43,6 +44,12 @@ test("loads the plugins of a directory, skips broken ones and reloads one after 
   const deadline = Date.now() + 5000
   while (changed.length === 0 && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 50))
   assert.deepEqual(changed.map(pkg => pkg.id), ["fronius"])
+
+  // a plugin added while the server runs loads as soon as its files are there
+  plugin(dir, "late", { loxNexus: { apiVersion: 1, id: "late", name: "Late", entry: "dist/plugin.js" } })
+  const lateDeadline = Date.now() + 5000
+  while (!catalog.get("late") && Date.now() < lateDeadline) await new Promise(resolve => setTimeout(resolve, 50))
+  assert.ok(catalog.get("late"), "the late plugin was loaded")
   await loader.dispose()
   fs.rmSync(dir, { recursive: true, force: true })
 })

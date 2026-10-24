@@ -1,5 +1,5 @@
 import { Disposable, type DisposableLike } from "@lox-nexus/plugin-sdk"
-import type { Value } from "@lox-nexus/plugin-sdk/values"
+import { Converter, type Value } from "@lox-nexus/plugin-sdk/values"
 import type { SignalSpec } from "@lox-nexus/plugin-sdk/wire"
 import { BoundedIndex } from "../bus/BoundedIndex.ts"
 import type { BusMessage, Cause, MessageSource } from "../bus/BusMessage.ts"
@@ -104,12 +104,16 @@ export class PluginSignals extends Disposable {
     this.causes.set(message.id, message)
   }
 
-  /** a sensor's value from the plugin; values for unknown ids or actuators are dropped */
+  /**
+   * a sensor's value from the plugin, converted to the type the sensor declares (so wires and the
+   * Miniserver can rely on it); values for unknown ids or actuators are dropped
+   */
   publish(signalId: string, value: Value, causeId: string | undefined) {
     const entry = this.entries.get(signalId)
     if (entry?.config.kind !== "sensor") return
     const cause = causeId === undefined ? undefined : this.causes.get(causeId)
-    this.bus.publish(entry.topic, value, { source: this.source, ...(cause ? { cause } : {}) })
+    const typed = entry.valueType === "any" ? value : Converter.convert(value, entry.valueType)
+    this.bus.publish(entry.topic, typed, { source: this.source, ...(cause ? { cause } : {}) })
   }
 
   /** marks a signal as refused (or working again with undefined) */

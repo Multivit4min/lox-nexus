@@ -97,7 +97,8 @@ time.
 
 - Polls no longer overlap: a poll that is due while one is still running joins it.
 - Every request has a timeout.
-- `application/json; charset=utf-8` is accepted.
+- Responses are parsed as JSON whatever their content type says (older Datamanager devices send
+  `text/javascript`); a body that isn't JSON is reported with its content type.
 - Device id 0 is a device.
 - Failures show up as the instance status.
 - A missing meter or battery no longer fails the whole poll.

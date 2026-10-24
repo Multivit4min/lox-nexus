@@ -9,11 +9,16 @@ import { PluginManifestSchema } from "./PluginManifest.ts"
 /**
  * Development: runs the workspace's plugins/* from source (src/index.ts, through the tsx the
  * server runs with) and restarts their instances when a file changes. Every worker loads the
- * module afresh, so a restart picks up the edit; the host never imports plugin code itself.
+ * module afresh, so a restart picks up the edit; the host never imports plugin code itself. The
+ * whole directory is watched, so a plugin that failed to load, or one added later, loads as soon
+ * as its files change.
  */
 export class DevPluginLoader extends Disposable {
   /** edits arrive in bursts (save, format, rebuild); one restart per burst */
   static readonly DEBOUNCE_MS = 300
+  private readonly pending = new Map<string, () => void>()
+  /** reloads of one plugin run one after another, so a slow describe can't overtake a newer one */
+  private readonly queues = new Map<string, Promise<void>>()
 
   constructor(
     private readonly dir: string,
@@ -31,22 +36,30 @@ export class DevPluginLoader extends Disposable {
     await Promise.all(names.map(name => this.loadOne(path.join(this.dir, name))))
   }
 
-  /** watches the loaded plugins' src folders and reloads a plugin after its files change */
+  /** watches the directory and reloads a plugin once its files stop changing */
   watch() {
-    for (const { pkg } of this.catalog.list()) {
-      const root = path.dirname(path.dirname(pkg.entry))
-      let cancel = () => {}
-      const watcher = fs.watch(path.join(root, "src"), { recursive: true }, () => {
-        cancel()
-        cancel = this.after(DevPluginLoader.DEBOUNCE_MS, () => void this.reload(root))
-      })
-      this.onDispose(() => watcher.close())
-    }
+    if (!fs.existsSync(this.dir)) return
+    const watcher = fs.watch(this.dir, { recursive: true }, (_event, file) => {
+      const name = file?.toString().split(path.sep)[0]
+      if (name && !this.isDisposed) this.schedule(name)
+    })
+    // a watcher error (the directory was removed, too many files) must not take the server down
+    watcher.on("error", error => this.log.warn({ err: error }, "watching the development plugins stopped"))
+    this.onDispose(() => watcher.close())
+  }
+
+  private schedule(name: string) {
+    this.pending.get(name)?.()
+    this.pending.set(name, this.after(DevPluginLoader.DEBOUNCE_MS, () => {
+      this.pending.delete(name)
+      const next = (this.queues.get(name) ?? Promise.resolve()).then(() => this.reload(path.join(this.dir, name)))
+      this.queues.set(name, next)
+    }))
   }
 
   private async reload(root: string) {
     const pkg = await this.loadOne(root)
-    if (!pkg) return
+    if (!pkg || this.isDisposed) return
     this.log.info({ plugin: pkg.id }, "plugin changed, restarting its instances")
     await this.changed(pkg).catch((error: unknown) => this.log.error({ err: error, plugin: pkg.id }, "restarting the plugin failed"))
   }

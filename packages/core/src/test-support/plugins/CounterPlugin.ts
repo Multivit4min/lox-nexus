@@ -27,19 +27,28 @@ class SetActuator extends Actuator<CounterPlugin, object, Extract<Value, { type:
 }
 
 /** The plugin the host tests run: a sensor and an actuator around one number. */
-export class CounterPlugin extends Plugin<{ refuse: boolean }> {
-  static readonly config = z.object({ refuse: z.boolean().default(false) })
+export class CounterPlugin extends Plugin<{ refuse: boolean; degraded: boolean }> {
+  static readonly config = z.object({ refuse: z.boolean().default(false), degraded: z.boolean().default(false) })
   static readonly sensors = [ValueSensor]
   static readonly actuators = [SetActuator]
   readonly values = new EventEmitter()
 
   override start() {
     if (this.config.refuse) throw new Error("refused on purpose")
+    if (this.config.degraded) this.status.set("degraded", "device unreachable")
     this.log.info("started")
     // a webhook: POST /value with a number as text sets the value like the actuator
     this.http.route("POST", "/value", request => {
       this.values.emit("value", Number(request.body))
       return { status: 202, body: "ok" }
+    })
+    // echoes what reached it, and tries what a hostile plugin would
+    this.http.route("GET", "/echo", request => ({
+      status: 200, body: JSON.stringify(request.headers),
+      headers: { "content-type": "text/html", "set-cookie": "nexus=stolen", "content-security-policy": "default-src *", "x-plugin": "yes" }
+    }))
+    this.http.route("POST", "/fail", () => {
+      throw new Error("handler blew up with internals")
     })
   }
 }

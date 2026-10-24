@@ -116,7 +116,7 @@ export class NexusApp extends Disposable {
     const pluginSignals = new PluginSignalService(db.pluginSignals, plugins, cleanup)
     this.bus.restoreForces()
     miniservers.load()
-    await this.loadDevPlugins()
+    await this.loadDevPlugins(plugins)
     if (this.isDisposed) return undefined
     plugins.load()
     wires.load()
@@ -127,16 +127,16 @@ export class NexusApp extends Disposable {
     this.http = this.own(this.createHttp({ miniservers, loxoneSignals, wires, plugins, pluginSignals }))
     const address = await this.http.start(this.config.httpPort, this.config.httpHost)
     // failures show up as each instance's state; nothing to wait for here
-    void this.plugins.startEnabled()
+    this.plugins.startEnabled().catch((error: unknown) => log.error({ err: error }, "starting the plugins failed"))
     return address
   }
 
   // development only: plugins/* from source, described by throwaway workers, reloaded on change
-  private async loadDevPlugins() {
+  private async loadDevPlugins(plugins: PluginService) {
     const dir = this.config.devPluginsDir
     if (!dir) return
     const log = this.log.child({ component: "plugins" })
-    const loader = this.own(new DevPluginLoader(dir, new PackageDescriber(this.pluginTransport), this.pluginCatalog, pkg => this.plugins.replacePackage(pkg), log))
+    const loader = this.own(new DevPluginLoader(dir, new PackageDescriber(this.pluginTransport), this.pluginCatalog, pkg => plugins.packageChanged(pkg), log))
     await loader.load()
     loader.watch()
     log.info({ plugins: this.pluginCatalog.list().map(entry => entry.pkg.id) }, "development plugins loaded")
