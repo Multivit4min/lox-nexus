@@ -163,7 +163,7 @@ first-party plugins load from the workspace until then.
    - Editing the transform chain (Invert, Scale, Map, Debounce, Throttle, Convert) with a preview
      of the converted current value, and the `enabled` and `syncOnStart` switches.
    - Inactive wires show why they are inactive.
-3. **M5c: Home Assistant plugin.**
+3. **M5c: Home Assistant plugin** (done; see `docs/architecture.md`, "Home Assistant plugin (M5c)", and `plugins/homeassistant/README.md`).
    - The HA WebSocket client: auth, reconnect with backoff, and `subscribe_entities`.
    - An entity catalog by area and domain. Sensors for state and attributes. Actuators for the
      common services (light, switch, cover, climate, valve, scene, script, input_*).

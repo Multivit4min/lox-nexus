@@ -107,11 +107,14 @@ export class PluginSignals extends Disposable {
 
   /**
    * a sensor's value from the plugin, converted to the type the sensor declares (so wires and the
-   * Miniserver can rely on it); values for unknown ids or actuators are dropped
+   * Miniserver can rely on it); values for unknown ids or actuators are dropped. A value clears
+   * the error the sensor reported earlier.
    */
   publish(signalId: string, value: Value, causeId: string | undefined) {
     const entry = this.entries.get(signalId)
     if (entry?.config.kind !== "sensor") return
+    // a sensor that reported a failure and sends values again works again
+    delete entry.error
     const cause = causeId === undefined ? undefined : this.causes.get(causeId)
     const typed = entry.valueType === "any" ? value : Converter.convert(value, entry.valueType)
     this.bus.publish(entry.topic, typed, { source: this.source, ...(cause ? { cause } : {}) })

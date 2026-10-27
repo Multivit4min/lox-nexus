@@ -104,9 +104,10 @@ export class PluginCalls {
   private async create(spec: SignalSpec) {
     const session = this.session()
     if (!session) return
+    // cleared before, not after: a sensor may report a failure from its start(), which arrives before the answer
+    this.signals().setError(spec.id, undefined)
     try {
       await session.request({ type: "signal.add", signal: spec })
-      this.signals().setError(spec.id, undefined)
     } catch (error) {
       this.signals().setError(spec.id, error instanceof Error ? error.message : String(error))
       throw error

@@ -49,7 +49,7 @@ describe("PluginSupervisor", () => {
     mock.timers.reset()
   })
 
-  test("runs the plugin: sensor values reach the bus, commands come back as results with their cause", async () => {
+  test("runs the plugin: sensor values and failures reach the host, commands come back as results with their cause", async () => {
     const supervisor = manager.add(instance(), pkg)
     supervisor.signals.add({ id: "v", kind: "sensor", capability: "value", params: { start: 5 }, label: "Value", slug: "value" })
     supervisor.signals.add({ id: "s", kind: "actuator", capability: "set", params: {}, label: "Set", slug: "set" })
@@ -71,6 +71,18 @@ describe("PluginSupervisor", () => {
     assert.deepEqual([value.value, value.causedBy, value.source.kind], [Value.number(8), command.id, "plugin"])
     assert.deepEqual([result.outcome?.ok, result.causedBy], [true, command.id])
     assert.equal(stored.get("last"), 8, "store writes reach the host")
+
+    const errorOf = (id = "v") => supervisor.signals.list().find(signal => signal.config.id === id)?.error
+    const adding = supervisor.calls.addSignal({ id: "nf", kind: "sensor", capability: "value", params: { start: 404 }, label: "", slug: "nf" })
+    await settle()
+    await adding
+    assert.equal(errorOf("nf"), "not found", "a failure reported during start() stays")
+    bus.command("counter/home/actuator/set", Value.number(404), { source: { kind: "user", id: "t" } })
+    await settle()
+    assert.equal(errorOf(), "not found", "a sensor's reported failure shows on its signal")
+    bus.command("counter/home/actuator/set", Value.number(4), { source: { kind: "user", id: "t" } })
+    await settle()
+    assert.equal(errorOf(), undefined, "until it sends a value again")
   })
 
   test("a plugin that refuses to start ends in error and is not restarted", async () => {

@@ -1053,6 +1053,56 @@ expects), but the Loxone Config project on the Miniserver lists all of them. So 
   `ProjectReader.test.ts` has a live test that runs when `LOXONE_TEST_HOST`, `LOXONE_TEST_USER`
   and `LOXONE_TEST_PASSWORD` are set.
 
+## Implementation notes: Home Assistant plugin (M5c)
+
+`plugins/homeassistant`, written fresh against the SDK. `plugins/homeassistant/README.md` has
+every sensor, actuator and service.
+
+- **Connection.**
+  - `HassSocket` is one authenticated session: the auth handshake, numbered requests with a 10 s
+    timeout, and subscriptions. It uses Node's built-in `WebSocket`, so the plugin has no runtime
+    dependency besides the SDK.
+  - `HassConnection` keeps one session open. It reconnects with a delay that doubles from 1 s to
+    60 s, and pings every 30 s. Disposing it aborts a handshake in progress. A long outage is
+    reported once. Service calls get 60 s, because Home Assistant answers only when the service
+    has finished. Everything else gets 10 s.
+  - A rejected token is never retried, because Home Assistant's ip_ban would lock Nexus out. At
+    start the rejection fails `start()`, so the instance goes to `error` and isn't restarted.
+    Later it leaves the instance degraded until the config is fixed.
+  - An unreachable Home Assistant only makes the instance degraded.
+- **States.**
+  - `EntityStore` applies the compressed `subscribe_entities` events: `a`, `c` with `+`/`-`, and
+    `r`. Every subscription starts with a full list, so after a reconnect entities that disappeared
+    meanwhile are removed, and sensors catch up.
+  - Sensors listen per entity (`changed:<id>`, `removed:<id>`), not to every change.
+  - States are text in Home Assistant. `StateValue` reads numbers and on/off. `unavailable` and
+    `unknown` send nothing, so a Miniserver doesn't drop to 0.
+- **Actuators.**
+  - There is one class per kind of command (on/off, trigger, light brightness, colour and colour
+    temperature, position, tilt, temperature, number, text) plus a generic `service`. Each entity
+    actuator declares its `domains` and an optional `supports(entity)`. The catalog uses these to
+    offer only actuators that fit, and `start()` refuses other domains.
+  - Fixed on the way: `trigger` ignores false (the old integration activated scenes on false),
+    and valves use `valve.set_valve_position` (the old one called it on `water_heater`).
+- **Catalog.** Area ▸ domain ▸ entity, built from the area, device and entity registries on
+  demand. An entity's area is its own or its device's. Hidden and disabled entities are left out.
+  A real installation with 687 entities gives about 1,800 entries (330 KB), which the catalog
+  browser's virtual list handles.
+- **Core change.** A sensor's reported failure (`signal.error`) is now cleared by its next value
+  (`PluginSignals.publish`). Before, a failure stayed until the signal was re-added, so an entity
+  that came back still showed as failed. `PluginCalls` also clears a signal's error before
+  `signal.add` instead of after it, so a failure that a sensor reports from its `start()` stays.
+- **Verified.**
+  - `FakeHomeAssistant` (a `ws` server on 127.0.0.1, test-only) covers states and attributes,
+    unavailable and removed entities, light conversions, a rejected token at start and after a
+    reconnect (no further attempts), an unreachable server, a dropped connection with catch-up,
+    a missed ping, dispose during the handshake and during the backoff, unreadable entity events,
+    every actuator's service call, a refused call, and the catalog's feature gating.
+  - `HassConnection` tests use millisecond timings. The plugin-level reconnect test waits the
+    real 1 s backoff once.
+  - A read-only live test runs against a real instance when `HA_TEST_URL` and `HA_TEST_TOKEN` are
+    set.
+
 ## Dependencies (installed in the milestone that first needs them)
 
 | Where | Packages |
@@ -1063,6 +1113,7 @@ expects), but the Loxone Config project on the Miniserver lists all of them. So 
 | packages/loxone | zod 4, basic-ftp, saxes, fflate (reading Loxone Config projects) |
 | apps/server | fastify 5, @fastify/websocket, @fastify/cookie, @fastify/static, pino, pino-pretty, zod 4 (node:sqlite and node:crypto built in); later yauzl, esbuild |
 | apps/web | vue 3, vue-router, vite, tailwindcss 4 + @tailwindcss/vite, shadcn-vue (reka-ui, cn, class-variance-authority, @lucide/vue, @vueuse/core, tw-animate-css), @tanstack/vue-virtual, vue-tsc, eslint-plugin-vue |
+| plugins/homeassistant | none (Node's `WebSocket`); `ws` only for the test server |
 | plugins/calendar | node-ical |
 
 Native `fetch` and `WebSocket` replace axios and socket.io (`ws` comes in through

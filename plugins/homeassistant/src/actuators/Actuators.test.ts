@@ -1,0 +1,88 @@
+import assert from "node:assert/strict"
+import { after, before, beforeEach, describe, test } from "node:test"
+import { PluginTestHost } from "@lox-nexus/plugin-sdk/testing"
+import { Value } from "@lox-nexus/plugin-sdk/values"
+import { HomeAssistantPlugin } from "../HomeAssistantPlugin.ts"
+import { FakeHomeAssistant } from "../test-support/FakeHomeAssistant.ts"
+import { waitFor } from "../test-support/waitFor.ts"
+
+const rgbw = (red: number, green: number, blue: number, white: number, fadeTime = 0) => Value.rgbw({ red, green, blue, white, fadeTime, flags: 0 })
+
+describe("HomeAssistantPlugin: actuators", { timeout: 15_000 }, () => {
+  let ha: FakeHomeAssistant
+  let host: PluginTestHost
+
+  before(async () => {
+    ha = await FakeHomeAssistant.start()
+    ha.set("light.rgb", "on", { supported_color_modes: ["xy", "color_temp"] })
+    ha.set("light.rgbw", "on", { supported_color_modes: ["rgbw"] })
+    host = await PluginTestHost.start(HomeAssistantPlugin, { config: { url: ha.url, token: FakeHomeAssistant.TOKEN } })
+    await waitFor(() => ha.clients === 1)
+  })
+  after(async () => {
+    await host.stop()
+    await ha.close()
+  })
+  beforeEach(() => void ha.calls.splice(0))
+
+  /** adds the actuator, runs it with each value and returns the service calls made */
+  const run = async (capability: string, params: Record<string, unknown>, ...values: Value[]) => {
+    const id = await host.addActuator(capability, params)
+    for (const value of values) await host.actuate(id, value)
+    await host.remove(id)
+    return ha.calls.splice(0).map(call => [`${call.domain}.${call.service}`, call.service_data, call.target?.entity_id])
+  }
+
+  test("on/off uses each domain's services", async () => {
+    assert.deepEqual(await run("onOff", { entityId: "switch.pump" }, Value.boolean(true), Value.boolean(false)), [
+      ["switch.turn_on", {}, "switch.pump"], ["switch.turn_off", {}, "switch.pump"]
+    ])
+    assert.deepEqual((await run("onOff", { entityId: "cover.blind" }, Value.boolean(true))).map(call => call[0]), ["cover.open_cover"])
+    assert.deepEqual((await run("onOff", { entityId: "lock.door" }, Value.boolean(false))).map(call => call[0]), ["lock.unlock"])
+  })
+
+  test("trigger fires on true only, so a scene isn't activated by the falling edge", async () => {
+    assert.deepEqual(await run("trigger", { entityId: "scene.movie" }, Value.boolean(true), Value.boolean(false)), [["scene.turn_on", {}, "scene.movie"]])
+    assert.deepEqual((await run("trigger", { entityId: "button.restart" }, Value.boolean(true))).map(call => call[0]), ["button.press"])
+  })
+
+  test("light brightness, colour and temperature", async () => {
+    const brightness = await run("lightBrightness", { entityId: "light.rgb" },
+      Value.singleChannel({ channel: 40, fadeTime: 2 }), Value.singleChannel({ channel: 0, fadeTime: 0 }))
+    assert.deepEqual(brightness, [["light.turn_on", { brightness_pct: 40, transition: 2 }, "light.rgb"], ["light.turn_off", {}, "light.rgb"]])
+    const color = await run("lightColor", { entityId: "light.rgb" }, rgbw(50, 0, 0, 20, 1), rgbw(0, 0, 0, 0))
+    assert.deepEqual(color, [
+      ["light.turn_on", { rgb_color: [255, 73, 73], brightness_pct: 70, transition: 1 }, "light.rgb"],
+      ["light.turn_off", {}, "light.rgb"]
+    ], "white is mixed into red, green and blue; the brightest channel is the brightness")
+    const withWhite = await run("lightColor", { entityId: "light.rgbw" }, rgbw(0, 25, 0, 50))
+    assert.deepEqual(withWhite, [["light.turn_on", { rgbw_color: [0, 128, 0, 255], brightness_pct: 50 }, "light.rgbw"]])
+    const temperature = await run("lightTemperature", { entityId: "light.rgb" }, Value.tunableWhite({ temperature: 2700, brightness: 80, fadeTime: 0 }))
+    assert.deepEqual(temperature, [["light.turn_on", { color_temp_kelvin: 2700, brightness_pct: 80 }, "light.rgb"]])
+  })
+
+  test("positions, temperatures, numbers and texts", async () => {
+    assert.deepEqual(await run("position", { entityId: "valve.garden" }, Value.number(30)), [["valve.set_valve_position", { position: 30 }, "valve.garden"]])
+    assert.deepEqual(await run("position", { entityId: "cover.blind" }, Value.number(120)), [["cover.set_cover_position", { position: 100 }, "cover.blind"]])
+    assert.deepEqual(await run("tilt", { entityId: "cover.blind" }, Value.number(45)), [["cover.set_cover_tilt_position", { tilt_position: 45 }, "cover.blind"]])
+    assert.deepEqual(await run("temperature", { entityId: "climate.living" }, Value.number(21.5)), [["climate.set_temperature", { temperature: 21.5 }, "climate.living"]])
+    assert.deepEqual(await run("number", { entityId: "input_number.level" }, Value.number(3)), [["input_number.set_value", { value: 3 }, "input_number.level"]])
+    assert.deepEqual(await run("text", { entityId: "select.mode" }, Value.string("eco")), [["select.select_option", { option: "eco" }, "select.mode"]])
+    assert.deepEqual(await run("text", { entityId: "climate.living" }, Value.string("off")), [["climate.set_hvac_mode", { hvac_mode: "off" }, "climate.living"]])
+  })
+
+  test("a service call puts the value in its field, or triggers without one", async () => {
+    const volume = await run("service", { domain: "media_player", service: "volume_set", entityId: "media_player.kitchen", field: "volume_level" }, Value.number(0.4))
+    assert.deepEqual(volume, [["media_player.volume_set", { volume_level: 0.4 }, "media_player.kitchen"]])
+    const notify = await run("service", { domain: "notify", service: "notify", data: { message: "door open" } }, Value.boolean(true), Value.boolean(false), Value.number(0))
+    assert.deepEqual(notify, [["notify.notify", { message: "door open" }, undefined]])
+  })
+
+  test("a refused call fails the command; entities of another domain are refused when added", async () => {
+    ha.failNext = { code: "service_validation_error", message: "Value 500 for input_number.level outside of range 0 - 100" }
+    const id = await host.addActuator("number", { entityId: "input_number.level" })
+    await assert.rejects(host.actuate(id, Value.number(500)), /outside of range/)
+    await host.remove(id)
+    await assert.rejects(host.addActuator("position", { entityId: "switch.pump" }), /works with cover, valve entities, not switch/)
+  })
+})

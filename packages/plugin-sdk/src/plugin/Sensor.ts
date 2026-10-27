@@ -7,7 +7,7 @@ import type { Plugin } from "./Plugin.ts"
 export interface SensorOutput {
   /** sends a value to the bus, tagged with the cause of the work that is running (see Actuator) */
   emit(value: Value): void
-  /** the sensor stopped working after it started; shown on the signal */
+  /** the sensor stopped working after it started; shown on the signal until it emits again */
   fail(message: string): void
 }
 
@@ -40,7 +40,7 @@ export abstract class Sensor<P extends Plugin = Plugin, Params = unknown> extend
     if (!this.isDisposed) this.output.emit(value)
   }
 
-  /** reports that the sensor can't deliver values anymore, e.g. the entity it follows was deleted */
+  /** reports that the sensor can't deliver values anymore, e.g. the entity it follows was deleted; the next emit() clears it */
   protected fail(message: string) {
     if (!this.isDisposed) this.output.fail(message)
   }

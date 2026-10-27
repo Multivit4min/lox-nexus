@@ -76,7 +76,8 @@ export default PluginEntry.define(MyPlugin)
   restarted. Use it for configuration mistakes. A device that is merely unreachable should not
   fail start: report it with `this.status.set("degraded", "inverter unreachable")` and recover.
 - **Sensors and actuators** are created per configured signal, with validated `params`, and disposed
-  when the signal is removed or the plugin stops. A sensor that breaks later calls `this.fail()`.
+  when the signal is removed or the plugin stops. A sensor that can't deliver (also from its
+  `start()`) calls `this.fail()`; the failure shows on the signal until its next `emit()`.
 - **`run()`** of an actuator gets the value converted to `accepts`. Its outcome becomes a `result`
   message on the bus. With `concurrency: "latest"`, values that arrive while one runs replace each
   other and only the newest runs; the skipped ones are reported as superseded.
