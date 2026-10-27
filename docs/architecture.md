@@ -539,6 +539,22 @@ above:
   - Logout and password changes revoke sessions. A password change ends every session and issues
     a fresh one for the current client. Revocation closes open streams of those sessions with
     close code 4401, and streams also re-check their session every minute.
+  - A forgotten password is reset on the command line (`npm run reset-password [-- <user>]`).
+    - Shell access to the data directory is the proof of ownership, so there is no reset in the UI
+      or by mail.
+    - `PasswordReset` checks the account before asking, applies the API's length rule and refuses
+      control characters. It updates the hash and ends all of the account's sessions in one
+      transaction.
+    - `ResetPasswordCommand` reads the password hidden at a terminal (`TerminalPassword` with
+      `LineEditor`: escape sequences dropped, raw mode restored on every exit) or from piped input
+      (`PipedPassword`: one UTF-8 stream, first line).
+    - It may run next to the server: sessions are read from the database on every request, and
+      open streams notice within their minute.
+    - It opens the database without migrating (`Persistence` with `migrate: false`), so a running
+      server of another version never finds a changed schema. It refuses when migrations are
+      pending.
+    - A login whose password check was still running when the hash changed gets no session
+      (`AuthService.login` re-checks the hash in the session's transaction).
   - `AuthGuard` is a hook of the API plugin, so it runs for every API route however the URL is
     spelled. It never looks at `request.url` (the router decodes `/%61pi`, the raw URL doesn't).
     Routes opt out with `config: { public: true }`.

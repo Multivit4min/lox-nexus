@@ -5,9 +5,11 @@ import { MIGRATIONS } from "../db/migrations.ts"
 import { Migrator } from "../db/Migrator.ts"
 import { SessionRepository } from "../db/repositories/SessionRepository.ts"
 import { UserRepository } from "../db/repositories/UserRepository.ts"
+import { AuthService } from "./AuthService.ts"
 import { BusyError, ConcurrencyLimit } from "./ConcurrencyLimit.ts"
 import { LoginThrottle } from "./LoginThrottle.ts"
 import { PasswordHasher } from "./PasswordHasher.ts"
+import { PasswordReset } from "./PasswordReset.ts"
 import { SessionService } from "./SessionService.ts"
 
 class ManualClock {
@@ -101,5 +103,31 @@ describe("ConcurrencyLimit", () => {
     release()
     await first
     assert.equal(await second, "queued")
+  })
+})
+
+describe("AuthService", () => {
+  test("a login still checking the old password when the password is reset gets no session", async () => {
+    const db = new Database(":memory:")
+    new Migrator(db, MIGRATIONS).migrate()
+    const users = new UserRepository(db)
+    const sessionRows = new SessionRepository(db)
+    const clock = new ManualClock()
+    const real = new PasswordHasher(1024)
+    users.insert({ id: "u1", username: "admin", password_hash: await real.hash("old password"), created_at: 0 })
+    // verify() waits until the test lets it finish, so the reset can happen in between
+    let finish: (() => void) | undefined
+    const slow = { hash: (password: string) => real.hash(password), verify: async (password: string, stored: string) => {
+      const result = await real.verify(password, stored)
+      if (password === "old password") await new Promise<void>(resolve => (finish = resolve))
+      return result
+    } } as PasswordHasher
+    const auth = new AuthService(db, users, new SessionService(sessionRows, clock), slow, clock)
+    const login = auth.login("admin", "old password")
+    while (!finish) await new Promise(resolve => setImmediate(resolve))
+    await new PasswordReset(db, users, sessionRows, real).reset("admin", "new password")
+    finish!()
+    assert.equal(await login, undefined)
+    assert.deepEqual(db.all("SELECT * FROM sessions"), [])
   })
 })

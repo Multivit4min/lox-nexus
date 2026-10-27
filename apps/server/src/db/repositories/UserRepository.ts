@@ -22,6 +22,11 @@ export class UserRepository {
     return this.db.get<UserRow>("SELECT * FROM users WHERE username = :username", { username })
   }
 
+  /** every username, sorted; for tools that let an operator pick an account */
+  usernames() {
+    return this.db.all<{ username: string }>("SELECT username FROM users ORDER BY username").map(row => row.username)
+  }
+
   /** undefined when the user was deleted */
   findById(id: string) {
     return this.db.get<UserRow>("SELECT * FROM users WHERE id = :id", { id })

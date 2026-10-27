@@ -70,7 +70,10 @@ export class AuthService {
     const row = this.users.findByName(username)
     const valid = await this.hasher.verify(password, row?.password_hash ?? await this.dummyHash)
     if (!row || !valid) return undefined
-    return { user: { id: row.id, username: row.username }, token: this.sessions.create(row.id) }
+    // the hash may have changed while verify() ran (a password change or reset, which end all
+    // sessions); the old password must not open a new one after that
+    const token = this.db.transaction(() => this.users.findById(row.id)?.password_hash === row.password_hash ? this.sessions.create(row.id) : undefined)
+    return token === undefined ? undefined : { user: { id: row.id, username: row.username }, token }
   }
 
   /** for open connections: checks without extending, so an idle open tab doesn't keep a session alive forever */

@@ -56,6 +56,9 @@ Server settings come from environment variables:
 | `NEXUS_DOCS_DIR` | | built documentation site (`npm run docs:build` → `apps/docs/dist`), served at `/docs/` without a login |
 | `NEXUS_DEV_PLUGINS_DIR` | | development: run every plugin in this directory from source (`npm run dev` sets the workspace's `plugins/`) |
 
+Forgot the password? `npm run reset-password` sets a new one (see the installation guide in the
+docs).
+
 ## Repository layout
 
 | Path | Purpose |

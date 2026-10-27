@@ -51,13 +51,13 @@ export class SessionService extends EventEmitter<SessionEvents> {
     return { userId: session.user_id, renewed }
   }
 
-  /** ends one session (logout) and tells listeners, so live WebSocket connections close at once */
   /** true while the session exists and hasn't expired; unlike resolve() it never extends it */
   isValid(token: string) {
     const session = this.sessions.find(SessionService.hash(token))
     return session !== undefined && session.expires_at > this.clock.now()
   }
 
+  /** ends one session (logout) and tells listeners, so live WebSocket connections close at once */
   revoke(token: string) {
     const tokenHash = SessionService.hash(token)
     this.sessions.delete(tokenHash)

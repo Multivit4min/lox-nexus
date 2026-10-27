@@ -18,8 +18,7 @@ export class Migrator {
    * @returns the names of the migrations that were applied
    */
   migrate(): string[] {
-    const current = this.db.get<{ user_version: number }>("PRAGMA user_version")?.user_version ?? 0
-    const pending = [...this.migrations].filter(m => m.version > current).sort((a, b) => a.version - b.version)
+    const pending = this.pendingMigrations()
     for (const migration of pending) {
       this.db.transaction(() => {
         this.db.exec(migration.sql)
@@ -28,5 +27,15 @@ export class Migrator {
       })
     }
     return pending.map(m => `${m.version}_${m.name}`)
+  }
+
+  /** the names of the migrations migrate() would apply, without applying them */
+  pending(): string[] {
+    return this.pendingMigrations().map(m => `${m.version}_${m.name}`)
+  }
+
+  private pendingMigrations() {
+    const current = this.db.get<{ user_version: number }>("PRAGMA user_version")?.user_version ?? 0
+    return [...this.migrations].filter(m => m.version > current).sort((a, b) => a.version - b.version)
   }
 }

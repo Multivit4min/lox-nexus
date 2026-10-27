@@ -49,6 +49,38 @@ Then:
 2. Add a plugin instance on the **Plugins** page, if you want to connect another system.
 3. Connect signals with [wires](wires.md).
 
+## Forgot your password?
+
+Run this on the machine where Nexus runs, as the user the server runs as, with the same
+`NEXUS_DATA_DIR`:
+
+```sh
+npm run reset-password                # the only account
+npm run reset-password -- admin       # name it when there are several
+```
+
+It checks the account first, then asks for the new password twice without showing it. You can
+also pipe it in, for a script or over `ssh` without a terminal:
+
+```sh
+read -rs NEW_PASSWORD                 # typed without echo, and kept out of the shell history
+printf '%s\n' "$NEW_PASSWORD" | npm run reset-password
+```
+
+Every session of the account is signed out. Nexus can keep running: the next request of an old
+session is refused, and open pages go to the login within a minute. Having shell access to the
+data directory is what proves you own the installation, so there is no reset by e-mail or from the
+login page.
+
+- The command runs inside `apps/server`, like `npm start -w`, so a relative `NEXUS_DATA_DIR`
+  resolves there. The default (`./data`) is the directory `npm run dev` uses.
+- Like `npm run dev`, it reads a `.env` file at the repository root. If your server gets its
+  variables elsewhere (a systemd unit, a container), set `NEXUS_DATA_DIR` for the command too. It
+  prints the database it opens, so check that line.
+- It never changes the database's schema. If the server of this version hasn't run on that data
+  directory yet (for example right after a `git pull`), it refuses and asks you to start the
+  server once first.
+
 ## Configuration
 
 Everything is configured through environment variables. Empty variables count as unset.

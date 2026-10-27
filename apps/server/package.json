@@ -18,7 +18,8 @@
   },
   "scripts": {
     "dev": "NEXUS_WEB_DIR=${NEXUS_WEB_DIR:-../web/dist} NEXUS_DOCS_DIR=${NEXUS_DOCS_DIR:-../docs/dist} NEXUS_DEV_PLUGINS_DIR=${NEXUS_DEV_PLUGINS_DIR:-../../plugins} node --env-file-if-exists=../../.env --conditions=@lox-nexus/source --import tsx --watch src/main.ts",
-    "start": "node --conditions=@lox-nexus/source --import tsx src/main.ts"
+    "start": "node --conditions=@lox-nexus/source --import tsx src/main.ts",
+    "reset-password": "node --env-file-if-exists=../../.env --conditions=@lox-nexus/source --import tsx src/reset-password.ts"
   },
   "devDependencies": {
     "@lox-nexus/ici": "*",

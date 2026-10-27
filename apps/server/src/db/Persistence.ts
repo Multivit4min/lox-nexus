@@ -19,6 +19,8 @@ export class Persistence {
   readonly db: Database
   /** names of the migrations applied at construction, for the startup log */
   readonly applied: string[]
+  /** names of the migrations not applied, when opened with `migrate: false` */
+  readonly pending: string[]
   readonly users: UserRepository
   readonly sessions: SessionRepository
   readonly miniservers: MiniserverRepository
@@ -35,10 +37,14 @@ export class Persistence {
    * Opens the file and migrates it before any repository exists.
    * @param file database path, or ":memory:" for tests
    * @param warn told about stored rows that can't be read back
+   * @param options.migrate false for tools that run next to a server: they must not change the
+   *   schema under it, and check `pending` instead
    */
-  constructor(file: string, warn: (message: string) => void) {
+  constructor(file: string, warn: (message: string) => void, options: { migrate?: boolean } = {}) {
     this.db = new Database(file)
-    this.applied = new Migrator(this.db, MIGRATIONS).migrate()
+    const migrator = new Migrator(this.db, MIGRATIONS)
+    this.applied = options.migrate === false ? [] : migrator.migrate()
+    this.pending = migrator.pending()
     this.users = new UserRepository(this.db)
     this.sessions = new SessionRepository(this.db)
     this.miniservers = new MiniserverRepository(this.db)
