@@ -50,6 +50,8 @@ async function onSubmit() {
             <AlertDescription>{{ error }}</AlertDescription>
           </Alert>
           <Button type="submit" :disabled="busy">{{ action }}</Button>
+          <!-- relative to the page, like the header's link; the docs need no login -->
+          <a href="docs/" target="_blank" rel="noopener" class="text-center text-sm text-muted-foreground hover:underline">Documentation</a>
         </form>
       </CardContent>
     </Card>

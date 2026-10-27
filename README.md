@@ -53,6 +53,8 @@ Server settings come from environment variables:
 | `NEXUS_WEB_DIR` | | built web UI to serve |
 | `NEXUS_TRUST_PROXY` | | reverse proxy addresses whose `X-Forwarded-For` is trusted |
 | `NEXUS_PUBLIC_ORIGINS` | | origins the UI is reached at through a proxy that rewrites `Host` |
+| `NEXUS_DOCS_DIR` | | built documentation site (`npm run docs:build` → `apps/docs/dist`), served at `/docs/` without a login |
+| `NEXUS_DEV_PLUGINS_DIR` | | development: run every plugin in this directory from source (`npm run dev` sets the workspace's `plugins/`) |
 
 ## Repository layout
 

@@ -43,7 +43,7 @@ export default tseslint.config(
     }
   },
   {
-    files: ["apps/web/**"],
+    files: ["apps/web/**", "apps/docs/src/assets/**"],
     languageOptions: { globals: globals.browser }
   },
   {
@@ -61,5 +61,7 @@ export default tseslint.config(
   restrictImports(["packages/loxone/**", "packages/api/**"], ["server", "web"],
     "Libraries must not depend on apps."),
   restrictImports(["apps/web/**"], ["core", "loxone", "ici", "server"],
-    "The web UI talks to the server through @lox-nexus/api only (plus plugin-sdk/values).")
+    "The web UI talks to the server through @lox-nexus/api only (plus plugin-sdk/values)."),
+  restrictImports(["apps/docs/**"], ["core", "loxone", "ici", "api", "server", "web", "plugin-sdk"],
+    "The docs site reads the SDK's source through TypeDoc only, so it can be built and hosted on its own.")
 )

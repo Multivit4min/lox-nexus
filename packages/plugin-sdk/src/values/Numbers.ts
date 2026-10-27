@@ -11,7 +11,6 @@ export class Numbers {
     return Math.round(Numbers.clamp(value, 0, 100, fallback))
   }
 
-  /** linear mapping from [min, max] to [toMin, toMax], not clamped; min must differ from max (otherwise the result is NaN or Infinity) */
   /** a fade time in seconds as the wire carries it: 0–6553.5 s in steps of 0.1 s; invalid becomes 0.2 s */
   static fade(seconds: number) {
     return Math.round(Numbers.clamp(seconds, 0, 6553.5, 0.2) * 10) / 10

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": [
+    "../../packages/plugin-sdk/src/index.ts",
+    "../../packages/plugin-sdk/src/values/index.ts",
+    "../../packages/plugin-sdk/src/testing/index.ts",
+    "../../packages/plugin-sdk/src/wire/index.ts"
+  ],
+  "tsconfig": "../../packages/plugin-sdk/tsconfig.json",
+  "plugin": [
+    "typedoc-plugin-markdown"
+  ],
+  "out": "content/reference/sdk",
+  "outputFileStrategy": "modules",
+  "entryFileName": "index",
+  "readme": "none",
+  "hidePageHeader": true,
+  "hideBreadcrumbs": true,
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "sort": [
+    "source-order"
+  ],
+  "disableSources": true,
+  "logLevel": "Warn",
+  "excludeExternals": true,
+  "useHTMLAnchors": true,
+  "name": "SDK reference"
+}

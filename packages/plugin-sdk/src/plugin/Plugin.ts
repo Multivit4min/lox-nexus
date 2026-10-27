@@ -6,7 +6,9 @@ import type { PluginContext } from "./PluginContext.ts"
 import type { SensorClass } from "./Sensor.ts"
 
 /**
- * Base class of a plugin. One instance runs per configured plugin instance, in its own worker.
+ * Base class of a plugin. One instance runs per configured plugin instance, in its own worker
+ * thread, so a plugin that crashes or hangs affects nothing else. Extend it, declare the static
+ * fields below, and export the class with PluginEntry.define().
  *
  * Subclasses declare what they offer as static fields (see PluginClass; all optional) and do
  * their work in start(); everything registered with own(), every(), after() or listen() is

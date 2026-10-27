@@ -3,6 +3,7 @@
   "include": [
     "packages/*/src",
     "apps/server/src",
+    "apps/docs/src",
     "plugins/*/src"
   ]
 }

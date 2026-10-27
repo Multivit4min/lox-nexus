@@ -129,5 +129,9 @@ export class ValueFactory {
   }
 }
 
-/** The single instance behind the `Value` namespace-style API; also a type, see above. */
+/**
+ * Factories and helpers for values: `Value.number(3)`, `Value.boolean(true)`,
+ * `Value.rgbw({ ... })`, `Value.equals(a, b)`. `Value` is also the union type of all values, so
+ * the same name works in type positions (`emit(value: Value)`).
+ */
 export const Value = new ValueFactory()

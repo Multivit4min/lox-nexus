@@ -1,7 +1,15 @@
-// The public SDK for plugins: base classes, lifetimes and the worker entry. Values, the wire
-// protocol and test helpers live in the ./values, ./wire and ./testing subpaths.
+/**
+ * The public SDK for plugins: the base classes (Plugin, Sensor, Actuator), lifetimes
+ * (Disposable), the worker entry (PluginEntry) and config helpers (secret, z).
+ *
+ * Values, the host/worker protocol and the test helpers live in the subpaths
+ * `@lox-nexus/plugin-sdk/values`, `/wire` and `/testing`.
+ *
+ * @packageDocumentation
+ * @module @lox-nexus/plugin-sdk
+ */
 export { Disposable } from "./lifecycle/Disposable.ts"
-export type { DisposableLike, Listenable, Teardown } from "./lifecycle/Disposable.ts"
+export type { DisposableLike, Listenable, Listener, Teardown } from "./lifecycle/Disposable.ts"
 export { Plugin, type PluginClass } from "./plugin/Plugin.ts"
 export { Sensor, type SensorClass, type SensorOutput } from "./plugin/Sensor.ts"
 export { Actuator, type ActuatorClass, type ActuatorConcurrency } from "./plugin/Actuator.ts"

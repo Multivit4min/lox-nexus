@@ -1,4 +1,11 @@
-// The host/worker protocol (@lox-nexus/plugin-sdk/wire): messages, validated on both sides, and the shapes they carry.
+/**
+ * The host/worker protocol: the messages between Nexus and a plugin worker, validated with zod
+ * on both sides, and the shapes they carry (catalog, panel, HTTP request and response). Most
+ * plugins only need the types; the messages are for tools and hosts.
+ *
+ * @packageDocumentation
+ * @module @lox-nexus/plugin-sdk/wire
+ */
 export { HostMessageSchema, HttpRequestSchema, SignalSpecSchema, WIRE_VERSION, type HostMessage, type HttpRequest, type SignalSpec } from "./HostMessages.ts"
 export { LogLevelSchema, PluginHealthSchema, WorkerMessageSchema, type LogLevel, type PluginHealth, type WorkerMessage } from "./WorkerMessages.ts"
 export {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Activity, Cable, LogOut, Puzzle, Server } from "@lucide/vue"
+import { Activity, BookOpen, Cable, LogOut, Puzzle, Server } from "@lucide/vue"
 import { useRouter } from "vue-router"
 import { Button } from "@/components/ui/button"
 import { AppContext } from "../AppContext.ts"
@@ -35,6 +35,11 @@ async function logout() {
         </RouterLink>
       </nav>
       <div class="ml-auto flex items-center gap-2 text-sm text-muted-foreground">
+        <!-- relative to the page (hash routes), so it also works behind a proxy prefix -->
+        <a href="docs/" target="_blank" rel="noopener" class="flex items-center gap-2 rounded-md px-3 py-1.5 hover:bg-accent hover:text-accent-foreground">
+          <BookOpen class="size-4" />
+          Docs
+        </a>
         {{ session.state.user?.username }}
         <Button variant="ghost" size="icon" title="Log out" @click="logout">
           <LogOut class="size-4" />

@@ -1,0 +1,38 @@
+{
+  "title": "Lox Nexus",
+  "sections": [
+    {
+      "title": "Getting started",
+      "pages": [
+        "index.md",
+        "guide/installation.md",
+        "guide/concepts.md",
+        "guide/loxone.md",
+        "guide/wires.md"
+      ]
+    },
+    {
+      "title": "Writing plugins",
+      "pages": [
+        "plugins/index.md",
+        "plugins/authoring.md",
+        "plugins/sdk-at-a-glance.md",
+        "plugins/values.md",
+        "plugins/testing.md",
+        "plugins/publishing.md"
+      ]
+    },
+    {
+      "title": "First-party plugins",
+      "pages": [
+        "plugins/fronius.md",
+        "plugins/homeassistant.md",
+        "plugins/calendar.md"
+      ]
+    },
+    {
+      "title": "SDK reference",
+      "dir": "reference/sdk"
+    }
+  ]
+}

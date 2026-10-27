@@ -16,6 +16,8 @@ const EnvSchema = z.object({
   NEXUS_SECURE_COOKIES: flag.default(false),
   /** directory with the built web UI; served when it exists */
   NEXUS_WEB_DIR: z.string().min(1).optional(),
+  /** directory with the built documentation site (apps/docs/dist); served at /docs/ without a login */
+  NEXUS_DOCS_DIR: z.string().min(1).optional(),
   /** comma-separated proxy addresses/CIDRs whose X-Forwarded-For is believed (login throttling is per client address) */
   NEXUS_TRUST_PROXY: list.default([]),
   /** comma-separated origins the UI is reached at through a proxy that rewrites Host, e.g. https://nexus.example */
@@ -35,6 +37,8 @@ export class Config {
   readonly secureCookies: boolean
   /** absolute path, if configured */
   readonly webDir: string | undefined
+  /** absolute path, if configured */
+  readonly docsDir: string | undefined
   readonly trustProxy: string[]
   readonly publicOrigins: string[]
   /** absolute path, if configured */
@@ -49,6 +53,7 @@ export class Config {
     this.logLevel = parsed.NEXUS_LOG_LEVEL
     this.secureCookies = parsed.NEXUS_SECURE_COOKIES
     this.webDir = parsed.NEXUS_WEB_DIR && path.resolve(parsed.NEXUS_WEB_DIR)
+    this.docsDir = parsed.NEXUS_DOCS_DIR && path.resolve(parsed.NEXUS_DOCS_DIR)
     this.trustProxy = parsed.NEXUS_TRUST_PROXY
     this.publicOrigins = parsed.NEXUS_PUBLIC_ORIGINS
     this.devPluginsDir = parsed.NEXUS_DEV_PLUGINS_DIR && path.resolve(parsed.NEXUS_DEV_PLUGINS_DIR)

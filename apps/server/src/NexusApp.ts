@@ -171,6 +171,7 @@ export class NexusApp extends Disposable {
       logger: log,
       guard: new AuthGuard(auth, cookie, config.publicOrigins),
       webDir: config.webDir,
+      docsDir: config.docsDir,
       trustProxy: config.trustProxy,
       controllers: [
         new AuthController(auth, new LoginThrottle(clock), cookie),

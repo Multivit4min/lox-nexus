@@ -1,0 +1,19 @@
+{
+  "name": "@lox-nexus/docs",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Documentation site for Lox Nexus: a static build with relative links, served at /docs/ or hosted anywhere",
+  "type": "module",
+  "scripts": {
+    "reference": "typedoc",
+    "build": "npm run reference && node --import tsx src/main.ts",
+    "dev": "npm run reference && node --import tsx src/main.ts --watch"
+  },
+  "devDependencies": {
+    "markdown-it": "^15.0.3",
+    "shiki": "^4.5.0",
+    "typedoc": "^0.28.20",
+    "typedoc-plugin-markdown": "^4.14.1",
+    "zod": "^4.6.7"
+  }
+}

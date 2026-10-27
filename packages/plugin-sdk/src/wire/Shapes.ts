@@ -34,7 +34,16 @@ export const CatalogEntrySchema = z.object({
 })
 export type CatalogEntry = z.infer<typeof CatalogEntrySchema>
 
-/** A browsable tree ("Kitchen ▸ Light ▸ brightness"); leaves carry entries. */
+/**
+ * A browsable tree ("Kitchen ▸ Light ▸ brightness") returned by Plugin.catalog(). A node has a
+ * label and children, entries, or both; the user picks entries to add them as signals:
+ *
+ * ```ts
+ * [{ label: "Kitchen", children: [{ label: "Light", entries: [
+ *   { kind: "sensor", capability: "state", params: { entityId: "light.kitchen" }, label: "Kitchen light" }
+ * ] }] }]
+ * ```
+ */
 export interface CatalogNode {
   label: string
   children?: CatalogNode[]
@@ -46,16 +55,28 @@ export const CatalogNodeSchema: z.ZodType<CatalogNode> = z.lazy(() => z.object({
   entries: z.array(CatalogEntrySchema).optional()
 }))
 
-/** A declarative status view a plugin shows on its page; plugins ship no UI code. */
+/**
+ * A declarative status view a plugin shows on its page, returned by Plugin.panel(); plugins ship
+ * no UI code. Three shapes exist (cells are plain strings, so format numbers yourself):
+ *
+ * ```ts
+ * { type: "keyValue", items: [{ label: "Firmware", value: "1.34" }] }
+ * { type: "table", columns: ["Meter", "Power"], rows: [["Grid", "412 W"]] }
+ * { type: "json", data: { anything: "JSON-serialisable" } }
+ * ```
+ *
+ * Never put secrets in a panel.
+ */
 export const PanelSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("keyValue"), items: z.array(z.object({ label: z.string(), value: z.string() })) }),
   z.object({ type: z.literal("table"), columns: z.array(z.string()), rows: z.array(z.array(z.string())) }),
   /** shown as a formatted tree; data must be JSON */
   z.object({ type: z.literal("json"), data: z.unknown() })
 ])
+/** A status view: a key-value list, a table or a JSON tree; see PanelSchema for the three shapes. */
 export type Panel = z.infer<typeof PanelSchema>
 
-/** What a webhook handler answers; `body` is utf-8 text. */
+/** What a webhook handler answers (see PluginHttp.route); `body` is utf-8 text, `headers` and `body` default to empty. */
 export const HttpResponseSchema = z.object({
   status: z.int().min(100).max(599),
   headers: z.record(z.string(), z.string()).default({}),

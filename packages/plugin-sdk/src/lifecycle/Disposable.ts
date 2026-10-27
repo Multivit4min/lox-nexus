@@ -6,9 +6,9 @@ export interface DisposableLike {
   dispose(): void | Promise<void>
 }
 
-// Node's EventEmitter types listeners with any[]; this keeps listen() compatible with it.
+/** An event listener as listen() takes it. Typed with any[] like Node's EventEmitter, so emitters fit. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Listener = (...args: any[]) => void
+export type Listener = (...args: any[]) => void
 
 /** Structural subset of EventEmitter (and similar) needed by listen(). */
 export interface Listenable {
@@ -96,6 +96,10 @@ export abstract class Disposable implements DisposableLike {
    * runs fn once after ms milliseconds unless disposed before; returns a cancel function.
    * Both firing and cancelling forget the teardown, so repeated use does not accumulate entries.
    * Delays beyond MAX_TIMER_MS are scheduled in steps, so they don't fire early.
+   *
+   * The delay counts elapsed time, not wall-clock time: a clock step (an NTP sync after boot)
+   * is not noticed. For a deadline given as a wall-clock time, wait in shorter slices and
+   * re-check the time each time.
    * @throws RangeError for negative or non-finite delays
    */
   protected after(ms: number, fn: () => void): () => void {

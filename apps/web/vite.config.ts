@@ -15,6 +15,6 @@ export default defineConfig({
     // "localhost" may bind only ::1, which IPv4 tunnels and port forwarders can't reach
     host: "127.0.0.1",
     // the dev UI talks to `npm run dev` on 8080; same origin for cookies and the WebSocket
-    proxy: { "/api": { target: "http://127.0.0.1:8080", ws: true } }
+    proxy: { "/api": { target: "http://127.0.0.1:8080", ws: true }, "/docs": { target: "http://127.0.0.1:8080" } }
   }
 })

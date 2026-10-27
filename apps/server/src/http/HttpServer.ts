@@ -7,6 +7,7 @@ import { Disposable } from "@lox-nexus/plugin-sdk"
 import Fastify, { LogController, type FastifyBaseLogger, type FastifyInstance } from "fastify"
 import type { AuthGuard } from "./AuthGuard.ts"
 import type { Controller } from "./Controller.ts"
+import { DocsSite } from "./DocsSite.ts"
 import { ErrorHandler } from "./ErrorHandler.ts"
 
 /** What HttpServer needs; every field comes from Config or NexusApp. */
@@ -22,6 +23,8 @@ export interface HttpServerOptions {
   publicControllers?: Controller[]
   /** built web UI; served with a fallback to index.html for client-side routes */
   webDir?: string
+  /** built documentation site; served at /docs/ without a login */
+  docsDir?: string
   /** proxies whose X-Forwarded-For sets request.ip; empty trusts nobody */
   trustProxy?: string[]
 }
@@ -56,7 +59,7 @@ export class HttpServer extends Disposable {
       for (const controller of options.controllers) controller.register(app)
     })
     for (const controller of options.publicControllers ?? []) this.app.register(async app => controller.register(app))
-    this.serveWeb(options.webDir)
+    this.serveWeb(options.webDir, new DocsSite(options.docsDir))
     this.onDispose(() => this.app.close())
   }
 
@@ -73,17 +76,20 @@ export class HttpServer extends Disposable {
     return this.app.listen({ port, host })
   }
 
-  // single-page app fallback: unknown GET paths outside /api get index.html so client-side routes survive a reload.
-  // The build may appear after boot (`npm run dev:web` builds in watch mode), so its presence is checked per request.
-  private serveWeb(webDir: string | undefined) {
+  // Single-page app fallback: unknown GET paths outside /api and /docs get index.html, so client-side routes survive a
+  // reload. The docs answer their own unknown paths. Both builds may appear after boot (`npm run dev:web` builds in
+  // watch mode), so their presence is checked per request.
+  private serveWeb(webDir: string | undefined, docs: DocsSite) {
+    docs.register(this.app)
     if (!webDir) {
-      this.app.setNotFoundHandler((_request, reply) => reply.code(404).send({ error: "not found" }))
+      this.app.setNotFoundHandler((request, reply) => docs.handles(request) ? docs.notFound(request, reply) : reply.code(404).send({ error: "not found" }))
       return
     }
     const index = path.join(webDir, "index.html")
     // wildcard: files are looked up per request (not globbed at boot), so rebuilt chunks are served
     this.app.register(fastifyStatic, { root: webDir })
     this.app.setNotFoundHandler((request, reply) => {
+      if (docs.handles(request)) return docs.notFound(request, reply)
       if (request.url.startsWith("/api/") || request.method !== "GET") return reply.code(404).send({ error: "not found" })
       if (!fs.existsSync(index)) return reply.code(503).send({ error: "web UI not built yet: run npm run dev:web or npm run build" })
       return reply.sendFile("index.html")

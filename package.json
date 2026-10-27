@@ -15,11 +15,13 @@
     "dev": "npm run dev -w @lox-nexus/server",
     "dev:web": "npm run dev -w @lox-nexus/web",
     "dev:web:hmr": "npm run dev:hmr -w @lox-nexus/web",
+    "docs:build": "npm run build -w @lox-nexus/docs",
+    "docs:dev": "npm run dev -w @lox-nexus/docs",
     "build": "npm run build --workspaces --if-present",
     "typecheck": "tsc -p tsconfig.json && npm run typecheck -w @lox-nexus/web",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test": "node --conditions=@lox-nexus/source --import tsx --test \"packages/*/src/**/*.test.ts\" \"apps/server/src/**/*.test.ts\" \"apps/web/src/**/*.test.ts\" \"plugins/*/src/**/*.test.ts\"",
+    "test": "node --conditions=@lox-nexus/source --import tsx --test \"packages/*/src/**/*.test.ts\" \"apps/server/src/**/*.test.ts\" \"apps/web/src/**/*.test.ts\" \"apps/docs/src/**/*.test.ts\" \"plugins/*/src/**/*.test.ts\"",
     "ici-lab": "node --conditions=@lox-nexus/source --import tsx packages/ici/src/lab/main.ts"
   },
   "devDependencies": {
