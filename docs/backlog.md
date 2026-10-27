@@ -86,3 +86,28 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
 - **Test-support classes.** `FakePluginTransport.ts` holds two classes, and a few small error
   classes live next to the class that throws them. Fine for now; split if they grow.
 
+
+## Plugin SDK (found while building Home Assistant and Calendar, M5c/M5d)
+
+- **Panels with sections.** A panel is one type (keyValue, table or json). Calendar wants facts
+  plus a table of upcoming events and squeezes both into keyValue rows. Allow a list of panels or
+  titled sections.
+- **Shared params with `.refine()`.** zod can't infer fields through a generic
+  `z.object({...shared, ...extra}).refine(...)`, so Calendar's `FilterParams` needs a cast.
+  Refinements also don't reach the JSON Schema (known limit of the supported subset).
+- **Testing with a clock.** `mock.timers.tick()` moves `Date` to the end of the tick before the due
+  timers run, so timers set from callbacks see the wrong time; Calendar steps minute by minute.
+  Together with "PluginTestHost uses real timers" above: give the testing host an injectable
+  clock, and a typed `plugin` accessor (Calendar and Fronius tests cast into its internals).
+- **Sensor errors from `fail()`** clear on the next `emit()` (M5c). A sensor that recovers without
+  a value to send (an entity back as `unavailable`) has no way to clear its error; consider an
+  explicit `recover()`.
+
+## First-party plugins
+
+- **Calendar: conditional GET.** Send `If-None-Match`/`If-Modified-Since`, so an unchanged feed
+  isn't downloaded and parsed (seconds of blocking work for big feeds) every 15 minutes.
+- **Home Assistant: live actuator test.** Service calls are only tested against the simulated
+  server; run them against the real instance once the user names entities that may be switched.
+- **Home Assistant: events.** No `subscribe_events` (e.g. `zha_event` buttons), `input_datetime`,
+  calendar or todo services yet.

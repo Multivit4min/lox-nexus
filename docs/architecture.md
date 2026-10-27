@@ -1103,6 +1103,42 @@ every sensor, actuator and service.
   - A read-only live test runs against a real instance when `HA_TEST_URL` and `HA_TEST_TOKEN` are
     set.
 
+## Implementation notes: Calendar plugin (M5d)
+
+`plugins/calendar`, built by the plugin-dev agent against the SDK only. Every sensor, setting and
+limit is in `plugins/calendar/README.md`.
+
+- **Reading.**
+  - `FeedClient` fetches an iCal link: webcal becomes https, basic auth comes from the config or
+    the URL, and feeds are capped at 8 MB because the worker's heap is 128 MB.
+  - The link is secret, because private links carry a token. Messages name the host only.
+  - One read at start (not awaited), then one per `refreshMinutes`. A failed read keeps the last
+    calendar and makes the instance degraded.
+- **Parsing.**
+  - `IcsReader` is the only class that uses node-ical. It expands recurrences (RRULE, EXDATE,
+    RECURRENCE-ID) into plain `Occurrence`s from now − 1 day to now + 400 days.
+  - Each series is capped at 1000 occurrences and the whole feed at 20 000. What gets cut is
+    reported.
+  - A feed that doesn't parse as a whole is split per UID (`IcsSplitter`), so one broken rule
+    skips one event rather than the feed.
+  - Events without a UID get a stable one: a hash of their start and summary.
+  - All-day and floating times are read in a configurable `timeZone`, the server's by default,
+    so a container in UTC still starts all-day events at local midnight.
+- **Sensors** (`active`, `title`, `time`) share a filter (text or regex, lead and lag minutes).
+  - Each sensor schedules one `after()` timer for its next change, capped at 15 minutes against
+    wall-clock steps.
+  - Nothing is sent before the first read, so a restart doesn't blink Loxone outputs.
+  - `time` sends 1 000 000 minutes (or 0 for dates) when there is no event.
+- **Dismiss** hides one occurrence: a matching one that is active by its own lead and lag, or one
+  that a sensor of the instance shows right now. Dismissals live in the store until the
+  occurrence's end + 1 day, so the list doesn't grow.
+- **Old bugs fixed, one test each:** the end time counts, one read at start instead of two, and
+  pruned dismissals instead of a list that grows forever. Recurring events, which the old
+  integration ignored, are expanded.
+- **Verified.** 46 tests against a node:http feed server with mocked clocks: time zones (also with
+  the process zone switched), DST gaps, recurrence edge cases, broken and huge feeds, failures and
+  401s, dismissals, and a stop that leaves no handles. The bundle needs only `node:` builtins.
+
 ## Dependencies (installed in the milestone that first needs them)
 
 | Where | Packages |
@@ -1114,7 +1150,7 @@ every sensor, actuator and service.
 | apps/server | fastify 5, @fastify/websocket, @fastify/cookie, @fastify/static, pino, pino-pretty, zod 4 (node:sqlite and node:crypto built in); later yauzl, esbuild |
 | apps/web | vue 3, vue-router, vite, tailwindcss 4 + @tailwindcss/vite, shadcn-vue (reka-ui, cn, class-variance-authority, @lucide/vue, @vueuse/core, tw-animate-css), @tanstack/vue-virtual, vue-tsc, eslint-plugin-vue |
 | plugins/homeassistant | none (Node's `WebSocket`); `ws` only for the test server |
-| plugins/calendar | node-ical |
+| plugins/calendar | node-ical (bundled by esbuild) |
 
 Native `fetch` and `WebSocket` replace axios and socket.io (`ws` comes in through
 @fastify/websocket and is used directly only in tests). No lodash.

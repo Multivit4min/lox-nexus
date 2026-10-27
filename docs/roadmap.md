@@ -169,7 +169,7 @@ first-party plugins load from the workspace until then.
      common services (light, switch, cover, climate, valve, scene, script, input_*).
    - Fixes for the two known bugs (`valve.set_valve_position`, and the scene trigger on `false`).
    - Tests against a mocked HA WebSocket server.
-4. **M5d: Calendar plugin.**
+4. **M5d: Calendar plugin** (done; see `docs/architecture.md`, "Calendar plugin (M5d)", and `plugins/calendar/README.md`).
    - iCal fetch with recurrence.
    - Sensors for "event active", next start and end, and the current and next title, filtered by
      a text match.

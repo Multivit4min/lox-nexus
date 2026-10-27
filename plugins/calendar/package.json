@@ -6,11 +6,19 @@
   "type": "module",
   "loxNexus": {
     "apiVersion": 1,
+    "id": "calendar",
     "entry": "dist/plugin.js",
     "name": "Calendar",
     "icon": "calendar"
   },
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --target=node24 --conditions=@lox-nexus/source --outfile=dist/plugin.js"
+  },
   "dependencies": {
-    "@lox-nexus/plugin-sdk": "*"
+    "@lox-nexus/plugin-sdk": "*",
+    "node-ical": "^0.27.3"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
   }
 }

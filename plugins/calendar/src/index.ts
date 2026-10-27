@@ -1,3 +1,4 @@
-// Calendar plugin: ported in a later milestone (fronius M4, calendar and homeassistant M5).
-// May import only @lox-nexus/plugin-sdk, enforced by eslint.
-export {}
+import { PluginEntry } from "@lox-nexus/plugin-sdk"
+import { CalendarPlugin } from "./CalendarPlugin.ts"
+
+export default PluginEntry.define(CalendarPlugin)
