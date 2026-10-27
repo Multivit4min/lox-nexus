@@ -1,6 +1,7 @@
 import type { ValueOf } from "@lox-nexus/plugin-sdk/values"
 import type { EntityState } from "../entities/EntityStore.ts"
 import { EntityActuator } from "./EntityActuator.ts"
+import { StateValue } from "../entities/StateValue.ts"
 
 /** CoverEntityFeature.SET_POSITION and ValveEntityFeature.SET_POSITION share the bit */
 const SET_POSITION = 4
@@ -18,6 +19,10 @@ export class PositionActuator extends EntityActuator<ValueOf<"number">> {
 
   static supports(entity: EntityState) {
     return EntityActuator.hasFeatures(entity, SET_POSITION)
+  }
+
+  static current(entity: EntityState) {
+    return StateValue.current(entity, "current_position", "%")
   }
 
   async run({ value }: ValueOf<"number">) {

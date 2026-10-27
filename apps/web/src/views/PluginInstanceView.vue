@@ -112,14 +112,14 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="missing" class="mx-auto max-w-5xl space-y-2 p-6">
+  <div v-if="missing" class="mx-auto max-w-[96rem] space-y-2 p-6">
     <h1 class="text-xl font-semibold">Plugin instance not found</h1>
     <p class="text-sm text-muted-foreground">It may have been deleted. <RouterLink to="/plugins" class="underline">Back to the plugins</RouterLink></p>
   </div>
-  <div v-else-if="failure && !instance" class="mx-auto max-w-5xl p-6">
+  <div v-else-if="failure && !instance" class="mx-auto max-w-[96rem] p-6">
     <Alert variant="destructive"><AlertTitle>Can't load the instance</AlertTitle><AlertDescription>{{ failure }}</AlertDescription></Alert>
   </div>
-  <div v-else-if="instance" class="mx-auto max-w-5xl space-y-4 p-6">
+  <div v-else-if="instance" class="mx-auto max-w-[96rem] space-y-4 p-6">
     <div>
       <div class="flex flex-wrap items-center gap-3">
         <h1 class="text-xl font-semibold">{{ instance.label }}</h1>

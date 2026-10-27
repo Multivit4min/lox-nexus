@@ -23,6 +23,18 @@ export class StateValue {
     return Value.string(state)
   }
 
+  /**
+   * The value with its unit, for the catalog: the entity's own unit_of_measurement for its state,
+   * `unit` for an attribute. undefined when there's nothing to show.
+   */
+  static current(entity: EntityState, attribute?: string, unit?: string): { value: Value; unit?: string } | undefined {
+    const value = StateValue.of(entity, attribute)
+    if (!value) return undefined
+    const own = entity.attributes.unit_of_measurement
+    const shown = attribute === undefined ? (typeof own === "string" && own !== "" ? own : undefined) : unit
+    return shown === undefined ? { value } : { value, unit: shown }
+  }
+
   /** attributes are typed JSON already; lists and objects aren't a single value */
   static fromAttribute(raw: unknown): Value | undefined {
     if (raw === null) return Value.null()

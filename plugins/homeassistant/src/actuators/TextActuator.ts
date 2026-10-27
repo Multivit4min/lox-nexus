@@ -1,5 +1,7 @@
 import type { ValueOf } from "@lox-nexus/plugin-sdk/values"
 import { EntityActuator } from "./EntityActuator.ts"
+import type { EntityState } from "../entities/EntityStore.ts"
+import { StateValue } from "../entities/StateValue.ts"
 
 /** the service and its field, per domain */
 const SERVICES: Record<string, [service: string, field: string]> = {
@@ -17,6 +19,10 @@ export class TextActuator extends EntityActuator<ValueOf<"string">> {
   static readonly accepts = "string"
   static readonly domains = Object.keys(SERVICES)
   static readonly concurrency = "latest"
+
+  static current(entity: EntityState) {
+    return StateValue.current(entity)
+  }
 
   async run({ value }: ValueOf<"string">) {
     const [service, field] = SERVICES[this.domain]!

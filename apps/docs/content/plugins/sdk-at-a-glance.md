@@ -261,7 +261,7 @@ Plugin authors need only the shapes ([reference](../reference/sdk/@lox-nexus/plu
 
 ```ts
 interface CatalogNode { label: string; children?: CatalogNode[]; entries?: CatalogEntry[] }
-type CatalogEntry = { kind: "sensor" | "actuator"; capability: string; params: unknown; label: string }
+type CatalogEntry = { kind: "sensor" | "actuator"; capability: string; params: unknown; label: string; value?: Value; unit?: string }
 type Panel =
   | { type: "keyValue"; items: { label: string; value: string }[] }
   | { type: "table"; columns: string[]; rows: string[][] }

@@ -140,8 +140,11 @@ describe("CalendarPlugin", { timeout: 20_000 }, () => {
     ])
     assert.deepEqual(byTitle?.children?.map(node => node.label), ["Training", "Club meeting", "Training (moved)"])
     assert.deepEqual(byTitle?.children?.[1]?.entries, [
-      { kind: "sensor", capability: "active", params: { match: "Club meeting" }, label: "Club meeting active" },
-      { kind: "sensor", capability: "time", params: { match: "Club meeting", which: "nextStart" }, label: "Minutes until the next Club meeting" },
+      { kind: "sensor", capability: "active", params: { match: "Club meeting" }, label: "Club meeting active", value: Value.boolean(false) },
+      {
+        kind: "sensor", capability: "time", params: { match: "Club meeting", which: "nextStart" }, label: "Minutes until the next Club meeting",
+        value: Value.number(3480), unit: "min"
+      },
       { kind: "actuator", capability: "dismiss", params: { match: "Club meeting" }, label: "Dismiss Club meeting" }
     ])
     for (const entry of [...any?.entries ?? [], ...byTitle?.children?.flatMap(node => node.entries ?? []) ?? []]) {

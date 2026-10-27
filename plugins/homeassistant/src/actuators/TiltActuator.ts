@@ -1,6 +1,7 @@
 import type { ValueOf } from "@lox-nexus/plugin-sdk/values"
 import type { EntityState } from "../entities/EntityStore.ts"
 import { EntityActuator } from "./EntityActuator.ts"
+import { StateValue } from "../entities/StateValue.ts"
 
 /** CoverEntityFeature.SET_TILT_POSITION */
 const SET_TILT_POSITION = 128
@@ -15,6 +16,10 @@ export class TiltActuator extends EntityActuator<ValueOf<"number">> {
 
   static supports(entity: EntityState) {
     return EntityActuator.hasFeatures(entity, SET_TILT_POSITION)
+  }
+
+  static current(entity: EntityState) {
+    return StateValue.current(entity, "current_tilt_position", "%")
   }
 
   async run({ value }: ValueOf<"number">) {

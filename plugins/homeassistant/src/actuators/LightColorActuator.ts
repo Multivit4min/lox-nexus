@@ -22,6 +22,11 @@ export class LightColorActuator extends EntityActuator<ValueOf<"rgbw">> {
     return new LightState(entity).modes.some(mode => COLOR_MODES.includes(mode))
   }
 
+  static current(entity: EntityState) {
+    const value = new LightState(entity).color()
+    return value && { value }
+  }
+
   async run({ value }: ValueOf<"rgbw">) {
     const transition = EntityActuator.transition(value.fadeTime)
     const data = this.serviceData(value)

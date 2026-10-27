@@ -12,6 +12,14 @@ export interface EntityActuatorClass {
   readonly domains: readonly string[]
   /** whether this entity supports it, e.g. a cover that can be set to a position; default: every entity of the domains */
   supports?(entity: EntityState, domain: string): boolean
+  /** what the entity reports now for what this actuator sets, shown in the catalog; default: nothing */
+  current?(entity: EntityState): CurrentValue | undefined
+}
+
+/** A value shown next to a catalog entry, with its unit when Home Assistant names one. */
+export interface CurrentValue {
+  value: Value
+  unit?: string
 }
 
 /**

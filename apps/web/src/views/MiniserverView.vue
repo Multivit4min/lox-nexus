@@ -109,7 +109,7 @@ async function adopt(packets: DiscoveredPacketDto[], progress: (done: number) =>
 </script>
 
 <template>
-  <div v-if="ms" class="mx-auto max-w-5xl space-y-4 p-6">
+  <div v-if="ms" class="mx-auto max-w-[96rem] space-y-4 p-6">
     <div>
       <div class="flex flex-wrap items-center gap-3">
         <h1 class="text-xl font-semibold">{{ ms.label }}</h1>

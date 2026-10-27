@@ -1,6 +1,7 @@
 import type { ValueOf } from "@lox-nexus/plugin-sdk/values"
 import type { EntityState } from "../entities/EntityStore.ts"
 import { EntityActuator } from "./EntityActuator.ts"
+import { StateValue } from "../entities/StateValue.ts"
 
 /** ClimateEntityFeature and WaterHeaterEntityFeature TARGET_TEMPERATURE share the bit */
 const TARGET_TEMPERATURE = 1
@@ -18,6 +19,11 @@ export class TemperatureActuator extends EntityActuator<ValueOf<"number">> {
 
   static supports(entity: EntityState) {
     return EntityActuator.hasFeatures(entity, TARGET_TEMPERATURE)
+  }
+
+  /** the target temperature; Home Assistant gives its unit only in the global config */
+  static current(entity: EntityState) {
+    return StateValue.current(entity, "temperature")
   }
 
   async run({ value }: ValueOf<"number">) {

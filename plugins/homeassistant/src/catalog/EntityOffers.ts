@@ -5,6 +5,7 @@ import { EntityId } from "../entities/EntityId.ts"
 import type { EntityState } from "../entities/EntityStore.ts"
 import { LightState } from "../entities/LightState.ts"
 import { StateValue } from "../entities/StateValue.ts"
+import { Value } from "@lox-nexus/plugin-sdk/values"
 
 /** attributes that describe the entity rather than measure something */
 const DESCRIPTIVE = new Set([
@@ -27,16 +28,24 @@ export class EntityOffers {
 
   private sensors(): CatalogEntry[] {
     const entityId = this.entityId
-    const entries: CatalogEntry[] = [{ kind: "sensor", capability: "state", params: { entityId }, label: `${this.name} state` }]
+    const entries: CatalogEntry[] = [{ kind: "sensor", capability: "state", params: { entityId }, label: `${this.name} state`, ...StateValue.current(this.entity) }]
     for (const [attribute, raw] of Object.entries(this.entity.attributes)) {
-      if (DESCRIPTIVE.has(attribute) || StateValue.fromAttribute(raw) === undefined) continue
-      entries.push({ kind: "sensor", capability: "state", params: { entityId, attribute }, label: `${this.name} ${attribute}` })
+      const value = DESCRIPTIVE.has(attribute) ? undefined : StateValue.fromAttribute(raw)
+      if (value) entries.push({ kind: "sensor", capability: "state", params: { entityId, attribute }, label: `${this.name} ${attribute}`, value })
     }
-    if (EntityId.domain(entityId) === "light") {
-      entries.push({ kind: "sensor", capability: "light", params: { entityId, part: "brightness" }, label: `${this.name} light brightness` })
-      const colors = new LightState(this.entity).modes.some(mode => !["onoff", "brightness"].includes(mode))
-      if (colors) entries.push({ kind: "sensor", capability: "light", params: { entityId, part: "color" }, label: `${this.name} light colour` })
-    }
+    if (EntityId.domain(entityId) === "light") entries.push(...this.lightSensors())
+    return entries
+  }
+
+  private lightSensors(): CatalogEntry[] {
+    const entityId = this.entityId
+    const light = new LightState(this.entity)
+    const known = !StateValue.MISSING.has(this.entity.state)
+    const brightness = known ? { value: Value.singleChannel({ channel: light.brightness, fadeTime: 0 }) } : {}
+    const entries: CatalogEntry[] = [{ kind: "sensor", capability: "light", params: { entityId, part: "brightness" }, label: `${this.name} light brightness`, ...brightness }]
+    if (!light.modes.some(mode => !["onoff", "brightness"].includes(mode))) return entries
+    const color = known ? light.color() : undefined
+    entries.push({ kind: "sensor", capability: "light", params: { entityId, part: "color" }, label: `${this.name} light colour`, ...(color ? { value: color } : {}) })
     return entries
   }
 
@@ -44,7 +53,10 @@ export class EntityOffers {
     const domain = EntityId.domain(this.entityId)
     return Actuators.forEntities
       .filter(type => type.domains.includes(domain) && (type.supports?.(this.entity, domain) ?? true))
-      .map(type => ({ kind: "actuator", capability: type.id, params: { entityId: this.entityId }, label: `${this.name} ${this.label(type.id, type.label, domain)}` }))
+      .map(type => ({
+        kind: "actuator", capability: type.id, params: { entityId: this.entityId },
+        label: `${this.name} ${this.label(type.id, type.label, domain)}`, ...type.current?.(this.entity)
+      }))
   }
 
   /** on/off says what true and false do, e.g. "open/close" for a cover */

@@ -57,7 +57,7 @@ onUnmounted(() => live.close())
 </script>
 
 <template>
-  <div class="mx-auto max-w-5xl space-y-4 p-6">
+  <div class="mx-auto max-w-[96rem] space-y-4 p-6">
     <div class="flex flex-wrap items-center justify-between gap-2">
       <h1 class="text-xl font-semibold">Plugins</h1>
       <Button :disabled="!packages.length" :title="packages.length ? undefined : 'No plugin is installed'" @click="adding = true">

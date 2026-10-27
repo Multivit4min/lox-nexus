@@ -69,6 +69,16 @@ export class CatalogFields {
     { key: "Temperature", label: "temperature" }
   ]
 
+  /** the unit the Solar API reports a field in, from its name; undefined for counts, modes and ratios */
+  static unit(key: string): string | undefined {
+    const units: Array<[RegExp, string]> = [
+      [/^rel_|^SOC$|StateOfCharge/, "%"], [/^E_|^Energy|Capacity/, "Wh"], [/^PowerApparent/, "VA"],
+      [/^PowerReactive/, "var"], [/^P(_|$)|^PowerReal/, "W"], [/^Voltage/, "V"], [/^Current/, "A"],
+      [/^Frequency/, "Hz"], [/Temperature/, "°C"]
+    ]
+    return units.find(([pattern]) => pattern.test(key))?.[1]
+  }
+
   private static phases(prefix: string, label: string): CatalogField[] {
     return [1, 2, 3].map(phase => ({ key: `${prefix}${phase}`, label: `${label}${phase}` }))
   }

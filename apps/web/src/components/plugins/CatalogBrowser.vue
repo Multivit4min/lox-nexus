@@ -11,6 +11,7 @@ import { CatalogTree, type CatalogRow } from "../../lib/CatalogTree.ts"
 import { TextFilter } from "../../lib/TextFilter.ts"
 import ListToolbar from "../data/ListToolbar.vue"
 import VirtualTable from "../data/VirtualTable.vue"
+import ValueText from "../ValueText.vue"
 
 /**
  * What a running plugin offers, flattened and searchable. "Add" configures an entry as it is;
@@ -59,13 +60,17 @@ async function addRow(row: CatalogRow) {
     <Alert v-if="failure" variant="destructive"><AlertDescription>{{ failure }}</AlertDescription></Alert>
     <ListToolbar v-model="query" :shown="visible.length" :total="rows.length" placeholder="Search the catalog" />
     <VirtualTable
-      :rows="visible" :row-key="row => row.key" columns="minmax(8rem,1.2fr) minmax(8rem,1.2fr) 5.5rem 5.5rem" max-height="55vh"
+      :rows="visible" :row-key="row => row.key" columns="minmax(8rem,1.2fr) minmax(8rem,1.2fr) minmax(7rem,0.8fr) 5.5rem 5.5rem" max-height="55vh"
       :empty="loading ? 'Loading…' : rows.length ? 'Nothing matches.' : 'The plugin offers no catalog.'"
     >
-      <template #header><span>Where</span><span>Name</span><span>Kind</span><span></span></template>
+      <template #header><span>Where</span><span>Name</span><span>Value</span><span>Kind</span><span></span></template>
       <template #row="{ row }">
         <span class="truncate text-muted-foreground" :title="row.path">{{ row.path }}</span>
         <span class="truncate font-medium" :title="`${row.entry.capability} ${JSON.stringify(row.entry.params)}`">{{ row.entry.label }}</span>
+        <span class="truncate" :title="row.entry.unit">
+          <template v-if="row.entry.value"><ValueText :value="row.entry.value" /><span v-if="row.entry.unit" class="ml-1 text-xs text-muted-foreground">{{ row.entry.unit }}</span></template>
+          <span v-else class="text-muted-foreground">–</span>
+        </span>
         <span><Badge variant="outline">{{ row.entry.kind }}</Badge></span>
         <span class="flex justify-end gap-0.5">
           <Check v-if="CatalogTree.configured(row.entry, signals)" class="m-1.5 size-4 text-emerald-600" aria-label="configured" />

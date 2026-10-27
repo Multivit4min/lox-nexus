@@ -31,8 +31,8 @@ export class ValueSensor extends Sensor<FroniusPlugin, z.infer<typeof params>> {
     if (value) this.emit(value)
   }
 
-  /** objects and arrays aren't a single value, so they give undefined like a missing path */
-  private static toValue(raw: unknown): Value | undefined {
+  /** objects and arrays aren't a single value, so they give undefined like a missing path; also used by the catalog */
+  static toValue(raw: unknown): Value | undefined {
     if (raw === null) return Value.null()
     if (typeof raw === "number") return Value.number(raw)
     if (typeof raw === "string") return Value.string(raw)

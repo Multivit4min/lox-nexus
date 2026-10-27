@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { ValueTypeSchema } from "../values/ValueSchema.ts"
+import { ValueSchema, ValueTypeSchema } from "../values/ValueSchema.ts"
 
 /** A JSON Schema document, as produced by zod's toJSONSchema. */
 export type JsonSchema = Record<string, unknown>
@@ -30,7 +30,14 @@ export const CatalogEntrySchema = z.object({
   /** validated against the capability's params schema when the entry is added */
   params: z.unknown(),
   /** suggested name for the signal */
-  label: z.string()
+  label: z.string(),
+  /**
+   * optional: what the sensor reads (or the device reports for an actuator) right now, shown while
+   * browsing. Only informative, so an invalid one is dropped instead of failing the catalog.
+   */
+  value: ValueSchema.optional().catch(undefined),
+  /** optional: the value's unit as the device names it, e.g. "W" or "°C"; dropped when longer than 32 characters */
+  unit: z.string().max(32).optional().catch(undefined)
 })
 export type CatalogEntry = z.infer<typeof CatalogEntrySchema>
 

@@ -105,12 +105,17 @@ describe("FroniusPlugin", () => {
     assert.deepEqual(site.map(entry => (entry.params as { path: string }).path.replace("powerflow.Site.", "")), [
       "P_PV", "P_Grid", "P_Load", "P_Akku", "rel_Autonomy", "rel_SelfConsumption", "E_Total", "Mode", "BackupMode", "BatteryStandby"
     ])
-    assert.deepEqual(site[0], { kind: "sensor", capability: "value", params: { path: "powerflow.Site.P_PV" }, label: "Photovoltaics power" })
+    assert.deepEqual(site[0], {
+      kind: "sensor", capability: "value", params: { path: "powerflow.Site.P_PV" }, label: "Photovoltaics power", value: Value.number(3080.4), unit: "W"
+    }, "with the current value and its unit")
     const storage = catalog[3]?.children?.[0]
     assert.equal(storage?.label, "Storage 0 (BYD Battery-Box Premium HV)")
     assert.deepEqual(storage?.entries?.[0], {
-      kind: "sensor", capability: "value", params: { path: "storage.0.Controller.StateOfCharge_Relative" }, label: "Storage 0 state of charge"
+      kind: "sensor", capability: "value", params: { path: "storage.0.Controller.StateOfCharge_Relative" }, label: "Storage 0 state of charge",
+      value: Value.number(63.2), unit: "%"
     })
+    const modeEntry = site.find(entry => entry.label === "Mode")
+    assert.deepEqual([modeEntry?.value?.type, modeEntry?.unit], ["string", undefined], "no unit for texts")
     const meter = catalog[2]?.children?.[0]
     assert.equal(meter?.entries?.length, 22)
     assert.deepEqual(catalog[1]?.children?.[0]?.entries?.map(entry => entry.label), [

@@ -1,6 +1,7 @@
 import type { ValueOf } from "@lox-nexus/plugin-sdk/values"
 import type { EntityState } from "../entities/EntityStore.ts"
 import { EntityActuator } from "./EntityActuator.ts"
+import { StateValue } from "../entities/StateValue.ts"
 
 /** the services for true and false, per domain; the rest use turn_on and turn_off */
 const SERVICES: Record<string, [on: string, off: string]> = {
@@ -28,6 +29,10 @@ export class OnOffActuator extends EntityActuator<ValueOf<"boolean">> {
   static supports(entity: EntityState, domain: string) {
     const needed = FEATURES[domain]
     return needed === undefined || EntityActuator.hasFeatures(entity, needed)
+  }
+
+  static current(entity: EntityState) {
+    return StateValue.current(entity)
   }
 
   /** what true and false do for a domain, for catalog labels */

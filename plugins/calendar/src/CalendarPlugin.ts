@@ -43,7 +43,7 @@ export class CalendarPlugin extends Plugin<CalendarConfig> {
   }
 
   override catalog() {
-    return new CalendarCatalog(this.agenda.visible, Date.now()).build()
+    return new CalendarCatalog(this.agenda.visible, Date.now(), this.zone).build()
   }
 
   override panel() {

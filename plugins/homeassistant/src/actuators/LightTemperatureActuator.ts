@@ -15,6 +15,11 @@ export class LightTemperatureActuator extends EntityActuator<ValueOf<"tunableWhi
     return new LightState(entity).modes.includes("color_temp")
   }
 
+  static current(entity: EntityState) {
+    const value = new LightState(entity).color()
+    return value && { value }
+  }
+
   async run({ value }: ValueOf<"tunableWhite">) {
     const transition = EntityActuator.transition(value.fadeTime)
     if (value.brightness === 0) await this.call("turn_off", transition)

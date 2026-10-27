@@ -131,7 +131,7 @@ const remove = (signal: PluginSignalDto) =>
       </DialogContent>
     </Dialog>
     <Dialog v-model:open="browsing">
-      <DialogContent class="sm:max-w-3xl">
+      <DialogContent class="sm:max-w-5xl">
         <DialogHeader><DialogTitle>Catalog of {{ instance.label }}</DialogTitle></DialogHeader>
         <CatalogBrowser v-if="browsing" :instance-id="instance.id" :signals="signals" :add="add" @customize="customize" />
       </DialogContent>

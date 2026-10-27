@@ -1,4 +1,5 @@
 import type { CatalogEntry, CatalogNode } from "@lox-nexus/plugin-sdk"
+import { ValueSensor } from "../sensors/ValueSensor.ts"
 import { SnapshotPath } from "../SnapshotPath.ts"
 import type { FroniusSnapshot } from "../SolarApiTypes.ts"
 import { CatalogFields, type CatalogField } from "./CatalogFields.ts"
@@ -39,12 +40,18 @@ export class FroniusCatalog {
   }
 
   private entries(base: string[], fields: readonly CatalogField[], prefix: string): CatalogEntry[] {
-    return fields.filter(field => this.offers([...base, field.key], field)).map(field => ({
-      kind: "sensor" as const,
-      capability: "value",
-      params: { path: SnapshotPath.join(...base, field.key) },
-      label: `${prefix}${field.label}`
-    }))
+    return fields.filter(field => this.offers([...base, field.key], field)).map(field => {
+      const value = ValueSensor.toValue(this.at([...base, field.key]))
+      const unit = CatalogFields.unit(field.key)
+      return {
+        kind: "sensor" as const,
+        capability: "value",
+        params: { path: SnapshotPath.join(...base, field.key) },
+        label: `${prefix}${field.label}`,
+        ...(value ? { value } : {}),
+        ...(unit ? { unit } : {})
+      }
+    })
   }
 
   private offers(segments: string[], field: CatalogField) {

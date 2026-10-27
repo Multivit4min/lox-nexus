@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { after, before, describe, test } from "node:test"
 import type { CatalogNode } from "@lox-nexus/plugin-sdk"
 import { PluginTestHost } from "@lox-nexus/plugin-sdk/testing"
+import { Value } from "@lox-nexus/plugin-sdk/values"
 import { HomeAssistantPlugin } from "../HomeAssistantPlugin.ts"
 import { FakeHomeAssistant } from "../test-support/FakeHomeAssistant.ts"
 import { waitFor } from "../test-support/waitFor.ts"
@@ -22,6 +23,7 @@ describe("HomeAssistantPlugin: catalog", { timeout: 15_000 }, () => {
     ha.set("light.ceiling", "on", { friendly_name: "Ceiling", brightness: 200, supported_color_modes: ["color_temp", "xy"], icon: "mdi:lamp" })
     ha.set("cover.blind", "open", { friendly_name: "Blind", current_position: 100, supported_features: 15 })
     ha.set("switch.pump", "off", { friendly_name: "Pump" })
+    ha.set("sensor.power", "1520.5", { friendly_name: "Power", unit_of_measurement: "W" })
     ha.set("sensor.hidden", "1")
     ha.set("climate.range", "heat_cool", { friendly_name: "Range", supported_features: 2 })
     ha.set("climate.full", "heat", { friendly_name: "Full", supported_features: 1 | 128 | 256 })
@@ -63,6 +65,10 @@ describe("HomeAssistantPlugin: catalog", { timeout: 15_000 }, () => {
       ["actuator", "lightColor", "Ceiling light colour"],
       ["actuator", "lightTemperature", "Ceiling light colour temperature"]
     ])
+    const values = at(catalog, "Kitchen", "light", "Ceiling (light.ceiling)")?.entries?.map(entry => [entry.capability, entry.value, entry.unit])
+    assert.deepEqual(values?.slice(0, 3), [
+      ["state", Value.boolean(true), undefined], ["state", Value.number(200), undefined], ["light", Value.singleChannel({ channel: 78, fadeTime: 0 }), undefined]
+    ], "current values, as the sensors would send them")
     const blind = at(catalog, "Living room", "cover", "Blind (cover.blind)")?.entries?.map(entry => [entry.capability, entry.label, entry.params])
     assert.deepEqual(blind, [
       ["state", "Blind state", { entityId: "cover.blind" }],
@@ -77,5 +83,13 @@ describe("HomeAssistantPlugin: catalog", { timeout: 15_000 }, () => {
     const actuators = (label: string) => at(catalog, "No area", "climate", label)?.entries?.filter(entry => entry.kind === "actuator").map(entry => entry.capability)
     assert.deepEqual(actuators("Range (climate.range)"), ["text"], "no on/off without TURN_ON/TURN_OFF, no temperature without TARGET_TEMPERATURE")
     assert.deepEqual(actuators("Full (climate.full)"), ["onOff", "temperature", "text"])
+  })
+
+  test("a sensor's state shows with Home Assistant's unit; a cover's position as %", async () => {
+    const catalog = await host.catalog()
+    const power = at(catalog, "No area", "sensor", "Power (sensor.power)")?.entries?.[0]
+    assert.deepEqual([power?.value, power?.unit], [Value.number(1520.5), "W"])
+    const position = at(catalog, "Living room", "cover", "Blind (cover.blind)")?.entries?.find(entry => entry.capability === "position")
+    assert.deepEqual([position?.value, position?.unit], [Value.number(100), "%"])
   })
 })

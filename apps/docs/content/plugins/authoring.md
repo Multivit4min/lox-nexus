@@ -247,6 +247,7 @@ it may query the device. A throw is shown to the user.
 
 ```ts
 import type { CatalogNode } from "@lox-nexus/plugin-sdk"
+import { Value } from "@lox-nexus/plugin-sdk/values"
 
 override catalog(): CatalogNode[] {
   return [{
@@ -254,7 +255,7 @@ override catalog(): CatalogNode[] {
     children: [{
       label: "Light",
       entries: [
-        { kind: "sensor", capability: "state", params: { entityId: "light.kitchen" }, label: "Kitchen light" },
+        { kind: "sensor", capability: "state", params: { entityId: "light.kitchen" }, label: "Kitchen light", value: Value.number(42), unit: "%" },
         { kind: "actuator", capability: "switch", params: { id: "light.kitchen" }, label: "Kitchen light switch" }
       ]
     }]
@@ -264,6 +265,11 @@ override catalog(): CatalogNode[] {
 
 An entry names a capability by its static `id` and carries `params` that are validated against
 that capability's `params` schema when it is added. `label` is the suggested signal name.
+
+`value` and `unit` are optional. They show what the entry reads right now while the user browses
+(for an actuator: the state it would change), so give them whenever the data is at hand. Send the
+value the sensor would emit. The unit is the device's own, at most 32 characters. Both are only
+informative: an invalid value or a longer unit is dropped instead of failing the catalog.
 
 ## Panel
 
