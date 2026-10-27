@@ -9,3 +9,6 @@ everything is reported through typed events or return values.
 - Malformed datagrams must never throw out of the receive path.
 - Unknown or unconfirmed bytes are preserved byte-exact and marked `@experimental`.
 - Captures from real Miniservers go to `test/fixtures/` with a note on how they were produced.
+- Reading a capture: diff consecutive packets of the same packetId to isolate the bytes that
+  changed, and state which hypothesis it confirms or refutes before changing a codec.
+- IDs are validated (ASCII, max 8 bytes) and never truncated.

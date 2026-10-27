@@ -70,6 +70,6 @@ Server settings come from environment variables:
 
 ## Working with Claude Code
 
-`CLAUDE.md` holds the project conventions. Specialised subagents live in `.claude/agents/`
-(architect, core-dev, loxone-expert, plugin-dev, frontend-dev, reviewer, doc-writer). Ask for one by name, e.g.
-"use the loxone-expert agent to implement the T5 codec". To change an agent, edit its file in `.claude/agents/` or ask Claude to update it.
+`CLAUDE.md` holds the project conventions. Subagents live in `.claude/agents/` (architect,
+plugin-dev, reviewer, doc-writer, Explore). Ask for one by name, e.g. "use plugin-dev to port the
+calendar". To change an agent, edit its file in `.claude/agents/` or ask Claude to update it.

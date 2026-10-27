@@ -78,16 +78,16 @@ Workspace packages resolve to `src/` through the `@lox-nexus/source` export cond
 
 ## Agents
 
-Project subagents live in `.claude/agents/`. Delegate when a task matches:
+Project subagents live in `.claude/agents/`. Implementation happens in the main session, which
+already has the context; package-specific guidance is in each package's `CLAUDE.md`. Delegate when
+a task matches:
 
 | Agent | Use for |
 |---|---|
-| `architect` | design questions, boundary reviews, keeping docs/ADRs current (read-only) |
-| `core-dev` | bus, forces, wires, plugin runtime, persistence, server API |
-| `loxone-expert` | `packages/ici`, the protocol lab, PROTOCOL.md, `packages/loxone`, value conversion |
-| `plugin-dev` | building or porting plugins against the public SDK |
-| `frontend-dev` | the Vue UI, schema forms, Bus Inspector |
+| `architect` | design review before a security- or design-heavy milestone (M5e installer), boundary checks, ADRs (read-only for code) |
+| `plugin-dev` | building or porting plugins against the public SDK only; where it gets stuck, the SDK lacks something |
 | `reviewer` | read-only review of a change against these conventions, plus running checks |
 | `doc-writer` | JSDoc for classes, methods and exported functions after a change; comments only |
+| `Explore` | broad read-only searches when only the conclusion is needed |
 
 Skill: `/port-integration <name>` walks through porting an old integration to a plugin.
