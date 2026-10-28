@@ -12,7 +12,7 @@ import type { WireConfig } from "./WireSchema.ts"
 export const WIRE_LOOP_TOPIC = "system/wire/loop"
 
 /** The slice of EventBus a wire needs, so wires can be tested with a fake. */
-export type WireBus = Pick<EventBus, "subscribe" | "publish" | "command" | "event">
+export type WireBus = Pick<EventBus, "subscribe" | "publish" | "command" | "event" | "current">
 
 /**
  * A running wire: listens to its source topic and delivers transformed values to its target.
@@ -27,7 +27,7 @@ export class ActiveWire extends Disposable {
   /** Subscribes to `from.topic` immediately. Signals are passed in (resolved by WireEngine) so the wire never looks them up. */
   constructor(
     readonly config: WireConfig,
-    from: Signal,
+    private readonly from: Signal,
     private readonly target: Signal,
     private readonly bus: WireBus,
     private readonly guard: LoopGuard
@@ -37,6 +37,15 @@ export class ActiveWire extends Disposable {
     const factory = new TransformFactory()
     this.pipeline = this.own(new TransformPipeline(config.transforms.map(t => factory.create(t)), (value, cause) => this.deliver(value, cause)))
     this.own(bus.subscribe(from.topic, message => this.handle(message)))
+  }
+
+  /**
+   * Delivers the value the source shows right now, as if it had just been published. The same
+   * rules apply: nothing while disabled, and a restored value only with syncOnStart.
+   */
+  sync() {
+    const current = this.bus.current(this.from.topic)
+    if (current) this.handle(current)
   }
 
   // Only state and command carry a value to forward. Shadowed publishes never reach subscribers,

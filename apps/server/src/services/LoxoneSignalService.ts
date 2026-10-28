@@ -112,9 +112,13 @@ export class LoxoneSignalService {
       packetId: packet.packetId, direction: "in", dataType: packet.dataType, label: input.label ?? packet.packetId, slug: input.slug,
       ...(lumitech ? { lumitech } : {})
     }))
-    // the signal's own topic shows the values now; the discovered one would linger until restart
-    this.cleanup.forget(miniserver.topics.discovered(packet.packetId), by)
+    this.forgetDiscovered(miniserverId, packet.packetId, by)
     return signal
+  }
+
+  /** for a new input: its own topic shows the packet's values now; the discovered one would linger until restart */
+  forgetDiscovered(miniserverId: string, packetId: string, by: string) {
+    this.cleanup.forget(this.require(miniserverId).topics.discovered(packetId), by)
   }
 
   // @throws HttpError 404

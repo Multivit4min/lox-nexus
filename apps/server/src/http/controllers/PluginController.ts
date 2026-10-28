@@ -1,6 +1,7 @@
 import { PluginInstanceInputSchema, PluginSignalInputSchema } from "@lox-nexus/api"
 import type { FastifyInstance, FastifyRequest } from "fastify"
 import { z } from "zod"
+import type { PluginBridgeService } from "../../services/PluginBridgeService.ts"
 import type { PluginLogs } from "../../services/PluginLogs.ts"
 import type { PluginService } from "../../services/PluginService.ts"
 import type { PluginSignalService } from "../../services/PluginSignalService.ts"
@@ -21,13 +22,16 @@ const SignalParams = IdParams.extend({ signalId: z.string().min(1) })
  * - POST :id/start, :id/stop: 200 with the instance.
  * - GET/POST :id/signals, PUT/DELETE :id/signals/:signalId: 200 / 201 / 200 / 204.
  * - GET :id/catalog, :id/panel: 200 with the plugin's answer.
+ * - POST :id/bridge: 200 with one result per item (signal, Loxone signal and wire, or why it failed);
+ *   404 for an unknown Miniserver as well, before anything is created.
  * - GET :id/logs: 200 with the instance's recent log lines, oldest first (kept in memory only).
  */
 export class PluginController implements Controller {
   constructor(
     private readonly plugins: PluginService,
     private readonly signals: PluginSignalService,
-    private readonly logs: Pick<PluginLogs, "recent">
+    private readonly logs: Pick<PluginLogs, "recent">,
+    private readonly bridges: Pick<PluginBridgeService, "bridge">
   ) {}
 
   register(app: FastifyInstance) {
@@ -61,6 +65,8 @@ export class PluginController implements Controller {
       const { id, signalId } = SignalParams.parse(request.params)
       return this.signals.update(id, signalId, PluginSignalInputSchema.parse(request.body), request.user!.username)
     })
+    app.post("/api/plugin-instances/:id/bridge", request =>
+      this.bridges.bridge(PluginController.id(request), request.body, request.user!.username))
     app.delete("/api/plugin-instances/:id/signals/:signalId", async (request, reply) => {
       const { id, signalId } = SignalParams.parse(request.params)
       await this.signals.remove(id, signalId, request.user!.username)

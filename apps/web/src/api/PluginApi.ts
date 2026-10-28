@@ -1,5 +1,5 @@
 import type {
-  PluginInstanceDto, PluginInstanceInput, PluginLogLineDto, PluginPackageDto, PluginSignalDto, PluginSignalInput
+  BridgeRequest, BridgeResultDto, PluginInstanceDto, PluginInstanceInput, PluginLogLineDto, PluginPackageDto, PluginSignalDto, PluginSignalInput
 } from "@lox-nexus/api"
 import type { CatalogNode, Panel } from "@lox-nexus/plugin-sdk/wire"
 import type { Http } from "./Http.ts"
@@ -56,6 +56,11 @@ export class PluginApi {
 
   removeSignal(id: string, signalId: string) {
     return this.http.delete(`${this.url(id)}/signals/${encodeURIComponent(signalId)}`)
+  }
+
+  /** plugin signals (existing or new) with a Loxone signal and a wire each; a failed item is undone, the others stay */
+  bridge(id: string, request: BridgeRequest) {
+    return this.http.post<BridgeResultDto[]>(`${this.url(id)}/bridge`, request)
   }
 
   /** only while running (409 otherwise) */

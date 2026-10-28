@@ -89,4 +89,30 @@ describe("WireEngine", () => {
     bus.publish("x/a", Value.number(1), loxone)
     assert.deepEqual(seen.map(m => m.topic), ["x/a"])
   })
+  test("sync() delivers the source's current value once, under the same rules as a publish", () => {
+    const { bus, engine, seen } = setup(
+      signal("a", "x/a", "source"), signal("b", "x/b", "target"), signal("c", "x/c", "source"), signal("d", "x/d", "target"))
+    bus.publish("x/a", Value.number(3), loxone)
+    bus.restoreSnapshot([{ topic: "x/c", value: Value.number(1), ts: 0 }])
+    engine.add({ id: "w", label: "w", sourceId: "a", targetId: "b" })
+    engine.add({ id: "restored", label: "restored", sourceId: "c", targetId: "d" })
+    assert.deepEqual(seen.map(m => m.topic), ["x/a", "x/c"], "adding a wire alone delivers nothing")
+    assert.equal(engine.sync("w"), true)
+    assert.equal(engine.sync("restored"), true)
+    assert.equal(engine.sync("nope"), false)
+    // a restored value stays put without syncOnStart, as it would at boot
+    assert.deepEqual(seen.map(m => [m.topic, m.value]), [["x/a", Value.number(3)], ["x/c", Value.number(1)], ["x/b", Value.number(3)]])
+    assert.equal(seen.at(-1)?.causedBy, seen[0]!.id)
+  })
+  test("sync() sends nothing over a disabled wire, and a forced source's forced value", () => {
+    const { bus, engine, seen } = setup(signal("a", "x/a", "source"), signal("b", "x/b", "target"), signal("c", "x/c", "target"))
+    bus.publish("x/a", Value.number(1), loxone)
+    bus.force("x/a", Value.number(9), { by: "david" })
+    engine.add({ id: "off", label: "off", sourceId: "a", targetId: "b", enabled: false })
+    engine.add({ id: "on", label: "on", sourceId: "a", targetId: "c" })
+    const before = seen.length
+    engine.sync("off")
+    engine.sync("on")
+    assert.deepEqual(seen.slice(before).map(m => [m.topic, m.value]), [["x/c", Value.number(9)]])
+  })
 })

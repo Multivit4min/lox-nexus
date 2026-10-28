@@ -71,6 +71,18 @@ export class WireEngine extends Disposable {
     return true
   }
 
+  /**
+   * Sends the source's current value through a running wire once, e.g. so a target wired to a
+   * sensor that already has a value gets it now instead of at its next change. Callers decide when
+   * that is safe: for an actuator it means acting on the device.
+   * @returns false if no wire with that id runs
+   */
+  sync(id: string) {
+    const wire = this.wires.get(id)
+    wire?.sync()
+    return wire !== undefined
+  }
+
   /** configs of the running wires, in creation order */
   list(): WireConfig[] {
     return [...this.wires.values()].map(wire => wire.config)

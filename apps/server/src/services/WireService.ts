@@ -133,6 +133,11 @@ export class WireService {
     return active
   }
 
+  /** sends the source's current value through a running wire once (see WireEngine.sync) */
+  sync(id: string) {
+    this.engine.sync(id)
+  }
+
   /** stops and deletes the wire; @throws HttpError 404 */
   delete(id: string) {
     if (!this.repo.get(id)) throw HttpError.notFound(`wire "${id}"`)

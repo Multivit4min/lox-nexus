@@ -33,6 +33,7 @@ import { LoxoneProjectService } from "./services/LoxoneProjectService.ts"
 import { LoxoneSignalService } from "./services/LoxoneSignalService.ts"
 import { MiniserverService } from "./services/MiniserverService.ts"
 import { PluginLogs } from "./services/PluginLogs.ts"
+import { PluginBridgeService } from "./services/PluginBridgeService.ts"
 import { PluginService } from "./services/PluginService.ts"
 import { PluginSignalService } from "./services/PluginSignalService.ts"
 import { SnapshotWriter } from "./services/SnapshotWriter.ts"
@@ -183,7 +184,7 @@ export class NexusApp extends Disposable {
         new SignalController(this.signals, this.bus, wires),
         new BusController(this.bus, this.recorder),
         new ConfigController(new ConfigTransfer({ miniservers, signals: loxoneSignals, wires }, log)),
-        new PluginController(plugins, pluginSignals, this.pluginLogs),
+        new PluginController(plugins, pluginSignals, this.pluginLogs, new PluginBridgeService(pluginSignals, loxoneSignals, wires, log)),
         new PluginPackageController(this.pluginAssembly.packages(plugins)),
         stream
       ],
