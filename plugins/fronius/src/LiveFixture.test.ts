@@ -12,7 +12,7 @@ after(() => server.close())
 /** a started plugin whose first poll has finished */
 const started = async () => {
   const host = await PluginTestHost.start(FroniusPlugin, { config: { host: server.url } })
-  await (host as unknown as { runtime: { plugin: FroniusPlugin } }).runtime.plugin.poller.idle()
+  await host.plugin.poller.idle()
   return host
 }
 

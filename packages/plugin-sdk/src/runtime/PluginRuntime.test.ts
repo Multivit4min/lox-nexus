@@ -46,16 +46,16 @@ describe("PluginRuntime through PluginTestHost", () => {
   test("a latest actuator skips the values that were overtaken", async () => {
     const host = await PluginTestHost.start(EchoPlugin)
     const slow = await host.addActuator("slow")
-    const plugin = host as unknown as { runtime: { plugin: EchoPlugin } }
+    const plugin = host.plugin
     let open = () => {}
-    plugin.runtime.plugin.gate = new Promise(resolve => (open = resolve))
+    plugin.gate = new Promise(resolve => (open = resolve))
     const first = host.actuate(slow, Value.number(1))
     const second = host.actuate(slow, Value.number(2))
     const third = host.actuate(slow, Value.number(3))
     await assert.rejects(second, /a newer value arrived/)
     open()
     await Promise.all([first, third])
-    assert.deepEqual(plugin.runtime.plugin.received, [1, 3])
+    assert.deepEqual(plugin.received, [1, 3])
     await host.stop()
   })
 
@@ -74,7 +74,7 @@ describe("PluginRuntime through PluginTestHost", () => {
 
 test("store values must survive JSON; actuators reject what is still waiting when removed", async () => {
   const host = await PluginTestHost.start(EchoPlugin)
-  const plugin = (host as unknown as { runtime: { plugin: EchoPlugin } }).runtime.plugin
+  const plugin = host.plugin
   assert.throws(() => plugin.store.set("big", 10n), /BigInt/)
   const circular: { self?: unknown } = {}
   circular.self = circular
@@ -157,7 +157,7 @@ test("recover() clears a failure once, and only after a fail()", async () => {
   }
   const host = await PluginTestHost.start(FlakyPlugin)
   await host.addSensor("flaky")
-  const plugin = (host as unknown as { runtime: { plugin: FlakyPlugin } }).runtime.plugin
+  const plugin = host.plugin
   for (const step of ["recover", "fail", "recover", "recover", "fail", "emit", "recover"] as const) plugin.next(step)
   await host.stop()
   const kinds = host.sent.filter(message => ["signal.error", "signal.recovered", "emit"].includes(message.type)).map(message => message.type)

@@ -233,10 +233,11 @@ Value.types: readonly ValueType[]
 ### PluginTestHost ([reference](../reference/sdk/@lox-nexus/plugin-sdk/testing.md#plugintesthost))
 
 ```ts
-class PluginTestHost {
+class PluginTestHost<T extends PluginClass = PluginClass> {
   readonly sent: WorkerMessage[]
   readonly store: Record<string, unknown>
-  static start(type: PluginClass, options?: TestHostOptions): Promise<PluginTestHost>
+  get plugin(): InstanceType<T>
+  static start<T extends PluginClass>(type: T, options?: TestHostOptions): Promise<PluginTestHost<T>>
   static describe(type: PluginClass): Promise<PluginDescription>
   addSensor(capability: string, params?: unknown, label?: string): Promise<string>
   addActuator(capability: string, params?: unknown, label?: string): Promise<string>
@@ -258,7 +259,8 @@ interface TestHostOptions { config?: unknown; store?: Record<string, unknown>; i
 | `start` | Defaults: `config` `{}`, `store` `{}`, `instanceId` `"test"`. Throws `Error` with the plugin's message when init fails (invalid config, `start()` threw). |
 | `addSensor` / `addActuator` | Return the new signal's id. Throw for unknown capabilities, invalid params or a failing `start()`. |
 | `values(id)` | Every value emitted so far. |
-| `next(id, timeoutMs = 2000)` | Waits for the next value emitted after the call; throws on timeout. |
+| `next(id, timeoutMs = 2000)` | Waits for the next value emitted after the call; throws on timeout. Waits use the real timers, also while a test mocks them (`mock.timers`), so a missing value fails instead of hanging. |
+| `plugin` | The plugin instance, typed as its class, for reaching into it from a test (e.g. waiting for a poller). |
 | `actuate` | Throws `Error` with the message `run()` threw. `causeId` is the bus message it answers. |
 | `http` | Method defaults to `POST`; unknown route answers 404; a throwing handler rejects. |
 | `status` | Last reported status, `running` if none. |

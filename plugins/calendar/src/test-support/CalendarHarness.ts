@@ -29,7 +29,7 @@ export class CalendarHarness {
 
   /** the plugin instance inside the host */
   static plugin(host: PluginTestHost) {
-    return (host as unknown as { runtime: { plugin: CalendarPlugin } }).runtime.plugin
+    return host.plugin as CalendarPlugin
   }
 
   /** starts the clock at `now` unless it runs already */

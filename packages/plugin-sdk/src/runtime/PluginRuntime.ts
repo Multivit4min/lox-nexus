@@ -22,6 +22,11 @@ export class PluginRuntime {
   /** the longest text a message may carry (the `text` bound in WorkerMessages); longer log, status and error texts are clipped to it */
   static readonly MAX_TEXT = 10_000
   private plugin: Plugin | undefined
+
+  /** the plugin instance after init, for PluginTestHost; undefined before init and after a failed one */
+  get current() {
+    return this.plugin
+  }
   private signals: SignalHost | undefined
   private readonly routes = new RouteTable()
 

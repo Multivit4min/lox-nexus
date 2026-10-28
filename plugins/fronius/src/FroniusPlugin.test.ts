@@ -7,7 +7,7 @@ import { FixtureServer } from "./test-support/FixtureServer.ts"
 import { newResources, waitFor } from "./test-support/waitFor.ts"
 
 /** the plugin instance inside the host, to wait for its poller */
-const pluginOf = (host: PluginTestHost) => (host as unknown as { runtime: { plugin: FroniusPlugin } }).runtime.plugin
+const pluginOf = (host: PluginTestHost) => host.plugin as FroniusPlugin
 
 /** the key-value panel as label → value */
 const panelItems = async (host: PluginTestHost) => {

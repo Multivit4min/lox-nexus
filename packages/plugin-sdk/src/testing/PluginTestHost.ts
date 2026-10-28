@@ -5,6 +5,11 @@ import type { HostMessage, HttpRequest } from "../wire/HostMessages.ts"
 import type { CatalogNode, HttpResponse, Panel, PluginDescription } from "../wire/Shapes.ts"
 import type { WorkerMessage } from "../wire/WorkerMessages.ts"
 
+// taken when this module loads, before a test can mock timers (mock.timers): waits for the plugin
+// must time out for real, and a mocked tick must not end them early
+const realSetTimeout = globalThis.setTimeout
+const realClearTimeout = globalThis.clearTimeout
+
 /** Options for PluginTestHost.start(). */
 export interface TestHostOptions {
   /** validated against the plugin's config schema like in production; default `{}` */
@@ -30,7 +35,7 @@ type Waiter = { match: (message: WorkerMessage) => boolean; resolve: (message: W
  * await host.stop()
  * ```
  */
-export class PluginTestHost {
+export class PluginTestHost<T extends PluginClass = PluginClass> {
   /** every message the plugin sent, in order */
   readonly sent: WorkerMessage[] = []
   /** the store as the host would have persisted it */
@@ -40,7 +45,7 @@ export class PluginTestHost {
   private nextRequest = 1
   private nextSignal = 1
 
-  private constructor(type: PluginClass, store: Record<string, unknown>) {
+  private constructor(type: T, store: Record<string, unknown>) {
     this.store = { ...store }
     this.runtime = new PluginRuntime(type, message => this.receive(message))
   }
@@ -49,7 +54,7 @@ export class PluginTestHost {
    * Starts the plugin and waits for `ready`.
    * @throws Error with the plugin's message when init fails (invalid config, start threw)
    */
-  static async start(type: PluginClass, options: TestHostOptions = {}) {
+  static async start<T extends PluginClass>(type: T, options: TestHostOptions = {}): Promise<PluginTestHost<T>> {
     const host = new PluginTestHost(type, options.store ?? {})
     const done = host.waitFor(message => message.type === "ready" || message.type === "failed")
     await host.runtime.handle({ type: "init", instanceId: options.instanceId ?? "test", slug: options.slug ?? "test", config: options.config ?? {}, store: host.store })
@@ -79,6 +84,13 @@ export class PluginTestHost {
   /** removes the signal; unknown ids are ignored */
   async remove(id: string) {
     await this.request({ type: "signal.remove", requestId: this.nextRequest++, id })
+  }
+
+  /** the plugin instance, typed as its class, for reaching into it from a test */
+  get plugin(): InstanceType<T> {
+    const plugin = this.runtime.current
+    if (!plugin) throw new Error("the plugin is not initialized")
+    return plugin as InstanceType<T>
   }
 
   /** every value the signal emitted so far */
@@ -166,11 +178,11 @@ export class PluginTestHost {
 
   private waitFor(match: (message: WorkerMessage) => boolean, timeoutMs = 2000) {
     return new Promise<WorkerMessage>((resolve, reject) => {
-      const timer = setTimeout(() => {
+      const timer = realSetTimeout(() => {
         this.waiters.delete(waiter)
         reject(new Error(`no matching message from the plugin within ${timeoutMs} ms`))
       }, timeoutMs)
-      const waiter: Waiter = { match, resolve: message => (clearTimeout(timer), resolve(message)) }
+      const waiter: Waiter = { match, resolve: message => (realClearTimeout(timer), resolve(message)) }
       this.waiters.add(waiter)
     })
   }

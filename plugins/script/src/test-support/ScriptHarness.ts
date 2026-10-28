@@ -61,8 +61,8 @@ export class ScriptHarness {
     }
   }
 
-  /** the plugin instance inside the host (no SDK accessor yet, see the testing guide) */
+  /** the plugin instance inside the host */
   static plugin(host: PluginTestHost) {
-    return (host as unknown as { runtime: { plugin: ScriptPlugin } }).runtime.plugin
+    return host.plugin as ScriptPlugin
   }
 }
