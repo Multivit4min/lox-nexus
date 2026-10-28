@@ -120,7 +120,7 @@ abstract class Disposable implements DisposableLike {
 | `onDispose(teardown)` | Throws `Error` if already disposed. |
 | `own(resource)` | Disposes `resource` with this object; returns it. |
 | `every(ms, fn)` | Returns a cancel function. Throws `RangeError` unless `0 < ms <= MAX_TIMER_MS`. |
-| `after(ms, fn)` | Returns a cancel function. Throws `RangeError` for negative or non-finite `ms`; long delays are stepped. |
+| `after(ms, fn)` | Returns a cancel function. Throws `RangeError` for negative or non-finite `ms`; long delays are stepped. Firing or cancelling releases its teardown, so calling it again and again (a restarted pulse) doesn't pile anything up. |
 | `listen(emitter, event, listener)` | Subscribes until disposed. |
 
 Related types: `Teardown = () => void | Promise<void>`, `DisposableLike { dispose(): void | Promise<void> }`, `Listenable { on(event, listener): unknown; off(event, listener): unknown }` (an `EventEmitter` fits), `Listener = (...args: any[]) => void`.
@@ -223,7 +223,7 @@ Value.types: readonly ValueType[]
 | [`ValueDefaults`](../reference/sdk/@lox-nexus/plugin-sdk/values.md#valuedefaults) | `static for<T extends ValueType>(type: T): ValueOf<T>`; `FADE_TIME = 0.2` (s); `TEMPERATURE = 4000` (K) | A fresh default value per call. |
 | [`ValueSchema`](../reference/sdk/@lox-nexus/plugin-sdk/values.md#valueschema) | `z.ZodType<Value>` | Validates untrusted values; accepts only what a Miniserver can carry. |
 | `ValueTypeSchema` | `z.enum([...ValueType])` | |
-| [`ValueFormatter`](../reference/sdk/@lox-nexus/plugin-sdk/values.md#valueformatter) | `new ValueFormatter().format(value: Value \| undefined): string` | Display only, lossy; never parse it. |
+| [`ValueFormatter`](../reference/sdk/@lox-nexus/plugin-sdk/values.md#valueformatter) | `new ValueFormatter().format(value: Value \| undefined): string` | Display only, lossy; never parse it. Strings come out quoted (`"eco"`). |
 | [`StringToNumber`](../reference/sdk/@lox-nexus/plugin-sdk/values.md#stringtonumber) | `new StringToNumber().parse(input: string): number` | Lenient: `"20%"` gives 0.2, `"1.234,5"` gives 1234.5, unparseable gives 0. |
 | [`T5Buttons`](../reference/sdk/@lox-nexus/plugin-sdk/values.md#t5buttons) | `new T5Buttons(mask)`; `isPressed(button): boolean`; `names(): string[]`; `toString(): string`; constants `LEFT_UPPER=1 RIGHT_UPPER=2 MIDDLE=4 LEFT_LOWER=8 RIGHT_LOWER=16` | Experimental. |
 | [`Numbers`](../reference/sdk/@lox-nexus/plugin-sdk/values.md#numbers) | `clamp(value, min, max, fallback = min)`, `percent(value, fallback = 0)`, `fade(seconds)`, `scale(value, min, max, toMin, toMax)`, `percentToHex(value)` (all static) | `percent` rounds and clamps to 0-100; `fade` limits to 0-6553.5 s in 0.1 s steps; `scale` with an empty source range gives `toMin`. |
@@ -264,7 +264,7 @@ interface TestHostOptions { config?: unknown; store?: Record<string, unknown>; i
 | `actuate` | Throws `Error` with the message `run()` threw. `causeId` is the bus message it answers. |
 | `http` | Method defaults to `POST`; unknown route answers 404; a throwing handler rejects. |
 | `status` | Last reported status, `running` if none. |
-| `sent` | Everything the plugin sent, structured-cloned like the worker boundary. |
+| `sent` | Everything the plugin sent, structured-cloned like the worker boundary. A log line is `{ type: "log", level, message, data?, causeId? }`; the other types are `WorkerMessage` in `./wire`. |
 
 `PluginRuntimeForTests` is internal (its constructor may change); don't use it.
 

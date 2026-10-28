@@ -78,9 +78,8 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
 - **Shared params with `.refine()`.** zod can't infer fields through a generic
   `z.object({...shared, ...extra}).refine(...)`, so Calendar's `FilterParams` needs a cast.
   Refinements also don't reach the JSON Schema (known limit of the supported subset).
-- **Docs gaps the plugin agents reported.** The SDK-at-a-glance page doesn't say that cancelling or
-  firing `after()` releases its teardown, that `ValueFormatter` quotes strings, or the shape of log
-  messages in `PluginTestHost.sent`; the generated wire reference cuts the message unions short.
+- **Wire reference.** The generated TypeDoc page cuts the message unions (`HostMessage`,
+  `WorkerMessage`) short; list their members on the SDK-at-a-glance page or configure TypeDoc.
 
 ## Plugin installer and UI (M5e leftovers)
 
