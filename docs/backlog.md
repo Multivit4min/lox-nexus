@@ -66,8 +66,6 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
   selection; add the others once plugin instances are part of the export.
 - **Chart live tail.** The history panel loads on open and on refresh; appending values from the
   live stream would keep a 1-hour chart current.
-- **InfluxDB partial writes** (1.x and 3 accept the valid lines of a batch) count the whole batch as
-  rejected.
 - **More exporters** on the same watching capability: MQTT, Prometheus, CSV.
 
 ## First-party plugins

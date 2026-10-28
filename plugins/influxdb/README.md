@@ -137,9 +137,11 @@ On **stop** the plugin waits for a running request, then sends what is left batc
 write fails, all within 1.5 seconds. Failures during the stop don't change the status. What is
 still unwritten then is lost, and the log says how many points.
 
-**Partial writes.** InfluxDB 2 writes the valid lines of a batch it answers `400` to and refuses the
-rest. The plugin can't tell which, so it counts the whole batch as rejected. The fixed field types
-per value type make such answers rare.
+**Partial writes.** InfluxDB may store the valid lines of a batch it answers `400` to. When the
+answer says how many points were dropped (`partial write: … dropped=N`, or InfluxDB 3's JSON list
+of failed lines), only those count as rejected and the rest as written. An answer that doesn't say
+(or is longer than the 500 characters kept) counts the whole batch as rejected. The fixed field
+types per value type make such answers rare.
 
 ## Limits
 

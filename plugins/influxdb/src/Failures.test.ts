@@ -88,6 +88,14 @@ test("413 for a single point rejects it", options, async () => {
   assert.equal(host.plugin.stats.rejected, 1)
 })
 
+test("a partial write counts the stored points as written and only the dropped ones as rejected", options, async () => {
+  harness.influx.answer({ status: 400, body: "{\"error\":\"partial write: field type conflict dropped=1\"}" })
+  const host = await harness.start({ batchSize: 3 })
+  await numbers(host, [1, 2, 3])
+  await harness.written(host, 1)
+  assert.deepEqual([host.plugin.stats.written, host.plugin.stats.rejected], [2, 1])
+})
+
 test("a rejection while degraded clears it; rejection warnings come at most once a minute", options, async () => {
   harness.clock()
   harness.influx.answer({ status: 401 }, { status: 400, body: "bad" }, { status: 400 }, { status: 400 })

@@ -1,10 +1,11 @@
+import { PartialWrite } from "./PartialWrite.ts"
 import type { WriteResult } from "./WriteEndpoint.ts"
 
 /** What to do with a batch after a write attempt. */
 export type Outcome =
   | { kind: "ok" }
   /** InfluxDB refused the data itself: retrying can't help, the batch is dropped */
-  | { kind: "reject"; reason: string }
+  | { kind: "reject"; reason: string; dropped?: number }
   /** keep the batch and try again after `delayMs`; `degraded` is the status message, if any */
   | { kind: "retry"; delayMs: number; reason: string; degraded?: string }
   /** the batch was too large (413): send its first half right away, the rest after it */
@@ -20,7 +21,7 @@ export type Outcome =
  * | 401, 403, 404, 3xx | degraded; retry every minute, as this needs the user to act |
  * | 408, other 429 and 5xx, network error, timeout | degraded unless 429; exponential backoff 1 s to 60 s |
  * | 413 | degraded; the batch is split in half and sent again right away (rejected once it is one point) |
- * | 400 and other 4xx | reject: the data is wrong (bad line, field type conflict, beyond retention) |
+ * | 400 and other 4xx | reject: the data is wrong (bad line, field type conflict, beyond retention); a partial write (1.x, 3) counts only the dropped points as rejected |
  *
  * Reasons never quote a request: a fetch that fails before sending says so in fixed words.
  */
@@ -63,7 +64,9 @@ export class RetryPolicy {
     if (waitMs !== undefined) return this.retry(waitMs, `HTTP ${status}, retrying when the server asked`, status === 503)
     if (status === 408 || status === 429 || status >= 500) return this.retry(this.backoff(), `HTTP ${status}${said}`, status !== 429)
     this.failures = 0
-    return { kind: "reject", reason: `HTTP ${status}${said}` }
+    // a partial write (1.x, 3) stored the rest of the batch
+    const dropped = status === 400 ? PartialWrite.dropped(result.body, points) : undefined
+    return { kind: "reject", reason: `HTTP ${status}${said}`, ...(dropped === undefined ? {} : { dropped }) }
   }
 
   /** a request that failed without an answer: unreachable, reset, timed out */

@@ -149,8 +149,9 @@ export class InfluxWriter extends Disposable {
     }
     this.batch = undefined
     this.parts.buffer.release()
-    if (outcome.kind === "ok") this.parts.health.succeeded(batch.length, latencyMs)
-    else this.parts.health.rejected(batch.length, outcome.reason)
+    if (outcome.kind === "ok") return this.parts.health.succeeded(batch.length, latencyMs)
+    if (outcome.dropped !== undefined) this.parts.health.succeeded(batch.length - outcome.dropped, latencyMs)
+    this.parts.health.rejected(outcome.dropped ?? batch.length, outcome.reason)
   }
 
   private retryLater(outcome: Extract<Outcome, { kind: "retry" }>) {
