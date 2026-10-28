@@ -91,11 +91,30 @@ export class HassSocket extends Disposable {
     return this.send(this.nextId++, message, timeoutMs)
   }
 
-  /** subscribes (e.g. `subscribe_entities`); `onEvent` gets every event until the socket closes */
+  /**
+   * Subscribes (e.g. `subscribe_entities`); `onEvent` gets every event until unsubscribe() or the
+   * socket closes. Resolves with the subscription's id, which unsubscribe() takes.
+   * @throws HassError when Home Assistant refuses; Error when closed or not answered in time
+   */
   async subscribe(message: { type: string } & Record<string, unknown>, onEvent: (event: unknown) => void) {
     const id = this.nextId++
     this.subscriptions.set(id, onEvent)
-    await this.send(id, message, this.timeoutMs)
+    try {
+      await this.send(id, message, this.timeoutMs)
+    } catch (error) {
+      this.subscriptions.delete(id)
+      throw error
+    }
+    return id
+  }
+
+  /**
+   * Ends a subscription. Its events stop at once, before Home Assistant confirms.
+   * @throws HassError when Home Assistant doesn't know it; Error when closed or not answered in time
+   */
+  async unsubscribe(subscription: number) {
+    this.subscriptions.delete(subscription)
+    await this.request({ type: "unsubscribe_events", subscription })
   }
 
   /** fails pending requests and closes the WebSocket; only the first call has an effect */

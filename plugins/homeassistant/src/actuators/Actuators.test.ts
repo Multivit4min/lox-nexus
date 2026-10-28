@@ -16,6 +16,8 @@ describe("HomeAssistantPlugin: actuators", { timeout: 15_000 }, () => {
     ha = await FakeHomeAssistant.start()
     ha.set("light.rgb", "on", { supported_color_modes: ["xy", "color_temp"] })
     ha.set("light.rgbw", "on", { supported_color_modes: ["rgbw"] })
+    ha.set("input_datetime.alarm", "06:30:00", { has_date: false, has_time: true })
+    ha.set("input_datetime.holiday", "2026-12-24", { has_date: true, has_time: false })
     host = await PluginTestHost.start(HomeAssistantPlugin, { config: { url: ha.url, token: FakeHomeAssistant.TOKEN } })
     await waitFor(() => ha.clients === 1)
   })
@@ -69,6 +71,36 @@ describe("HomeAssistantPlugin: actuators", { timeout: 15_000 }, () => {
     assert.deepEqual(await run("number", { entityId: "input_number.level" }, Value.number(3)), [["input_number.set_value", { value: 3 }, "input_number.level"]])
     assert.deepEqual(await run("text", { entityId: "select.mode" }, Value.string("eco")), [["select.select_option", { option: "eco" }, "select.mode"]])
     assert.deepEqual(await run("text", { entityId: "climate.living" }, Value.string("off")), [["climate.set_hvac_mode", { hvac_mode: "off" }, "climate.living"]])
+  })
+
+  test("date and time: text or seconds since midnight, as each domain's service takes them", async () => {
+    const helper = await run("dateTime", { entityId: "input_datetime.party" },
+      Value.string("2026-10-28 19:30:00"), Value.string("2026-10-31"), Value.number(23_400), Value.string(""))
+    assert.deepEqual(helper, [
+      ["input_datetime.set_datetime", { datetime: "2026-10-28 19:30:00" }, "input_datetime.party"],
+      ["input_datetime.set_datetime", { date: "2026-10-31" }, "input_datetime.party"],
+      ["input_datetime.set_datetime", { time: "06:30:00" }, "input_datetime.party"]
+    ], "empty text sets nothing")
+    assert.deepEqual(await run("dateTime", { entityId: "input_datetime.alarm" }, Value.string("2026-10-28 07:15")), [
+      ["input_datetime.set_datetime", { time: "07:15:00" }, "input_datetime.alarm"]
+    ], "a time-only helper gets only the time")
+    assert.deepEqual(await run("dateTime", { entityId: "time.wake_up" }, Value.number(25_200)), [["time.set_value", { time: "07:00:00" }, "time.wake_up"]])
+    assert.deepEqual(await run("dateTime", { entityId: "datetime.next_run" }, Value.string("2026-11-01T08:00:00")), [
+      ["datetime.set_value", { datetime: "2026-11-01 08:00:00" }, "datetime.next_run"]
+    ])
+    const holiday = await host.addActuator("dateTime", { entityId: "input_datetime.holiday" })
+    await assert.rejects(host.actuate(holiday, Value.number(3600)), /holds only a date; the value has none/)
+    const date = await host.addActuator("dateTime", { entityId: "date.birthday" })
+    await assert.rejects(host.actuate(date, Value.string("07:00")), /date\.birthday needs a date/)
+    await assert.rejects(host.actuate(date, Value.string("someday")), /is not a date or time/)
+    await Promise.all([host.remove(holiday), host.remove(date)])
+    assert.deepEqual(ha.calls, [])
+  })
+
+  test("a to-do item is added from text; empty text adds nothing", async () => {
+    assert.deepEqual(await run("todoItem", { entityId: "todo.shopping_list" }, Value.string(" Milk "), Value.string("")), [
+      ["todo.add_item", { item: "Milk" }, "todo.shopping_list"]
+    ])
   })
 
   test("a service call puts the value in its field, or triggers without one", async () => {

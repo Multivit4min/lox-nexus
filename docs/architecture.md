@@ -1084,7 +1084,9 @@ every sensor, actuator and service.
 
 - **Connection.**
   - `HassSocket` is one authenticated session: the auth handshake, numbered requests with a 10 s
-    timeout, and subscriptions. It uses Node's built-in `WebSocket`, so the plugin has no runtime
+    timeout, and subscriptions. `subscribe()` resolves with the subscription's id, which
+    `unsubscribe(id)` takes (`unsubscribe_events`); the handler goes at once, before Home Assistant
+    confirms. It uses Node's built-in `WebSocket`, so the plugin has no runtime
     dependency besides the SDK.
   - `HassConnection` keeps one session open. It reconnects with a delay that doubles from 1 s to
     60 s, and pings every 30 s. Disposing it aborts a handshake in progress. A long outage is
@@ -1094,6 +1096,17 @@ every sensor, actuator and service.
     start the rejection fails `start()`, so the instance goes to `error` and isn't restarted.
     Later it leaves the instance degraded until the config is fixed.
   - An unreachable Home Assistant only makes the instance degraded.
+  - `EventSubscriptions` (`HassConnection.busEvents`) holds one `subscribe_events` per event type
+    in use, shared by its listeners. The first listener subscribes, the last one leaving
+    unsubscribes (also when it leaves while the subscribe is pending: the late confirmation is
+    unsubscribed), and every new socket subscribes again to all types in use. A refusal
+    (`HassError`, e.g. a non-admin token) fails the listeners and is kept for later ones until a
+    subscribe succeeds. A subscribe not answered on a live connection closes the socket, because
+    a late confirmation would leave a subscription nobody reads; the reconnect starts over.
+- **Events.** `EventSensor` (`event`) filters an event type's `data` by dot paths (`EventData`,
+  numbers and text compare as text) and sends a data field as text (cut to 1000 characters) or a
+  pulse. The value returns to false or empty text after `pulseMs`, because the bus drops a value
+  equal to the one before and a button pressed twice must reach Loxone twice.
 - **States.**
   - `EntityStore` applies the compressed `subscribe_entities` events: `a`, `c` with `+`/`-`, and
     `r`. Every subscription starts with a full list, so after a reconnect entities that disappeared
@@ -1103,7 +1116,11 @@ every sensor, actuator and service.
     `unknown` send nothing, so a Miniserver doesn't drop to 0.
 - **Actuators.**
   - There is one class per kind of command (on/off, trigger, light brightness, colour and colour
-    temperature, position, tilt, temperature, number, text) plus a generic `service`. Each entity
+    temperature, position, tilt, temperature, number, text, date and time, to-do item) plus a
+    generic `service`. `dateTime` takes text `YYYY-MM-DD HH:MM:SS` (or either part) or seconds
+    since midnight, for `input_datetime.set_datetime` and the `date`/`time`/`datetime` entities'
+    `set_value`; `todoItem` calls `todo.add_item`. `calendar.create_event` is left to `service`:
+    it needs a summary, a start and an end, more than one value carries. Each entity
     actuator declares its `domains` and an optional `supports(entity)`. The catalog uses these to
     offer only actuators that fit, and `start()` refuses other domains.
   - Fixed on the way: `trigger` ignores false (the old integration activated scenes on false),
@@ -1111,7 +1128,10 @@ every sensor, actuator and service.
 - **Catalog.** Area ▸ domain ▸ entity, built from the area, device and entity registries on
   demand. An entity's area is its own or its device's. Hidden and disabled entities are left out.
   A real installation with 687 entities gives about 1,800 entries (330 KB), which the catalog
-  browser's virtual list handles.
+  browser's virtual list handles. An **Events** node follows (`EventCatalog`): ZHA, deCONZ, Hue
+  and Lutron Caséta event types when the device registry has devices of that integration (by
+  `identifiers`), each with an entry for all events and one per device (`device_id` filter),
+  plus notification actions and tags.
 - **Core change.** A sensor's reported failure (`signal.error`) is now cleared by its next value
   (`PluginSignals.publish`). Before, a failure stayed until the signal was re-added, so an entity
   that came back still showed as failed. `PluginCalls` also clears a signal's error before
@@ -1121,7 +1141,11 @@ every sensor, actuator and service.
     unavailable and removed entities, light conversions, a rejected token at start and after a
     reconnect (no further attempts), an unreachable server, a dropped connection with catch-up,
     a missed ping, dispose during the handshake and during the backoff, unreadable entity events,
-    every actuator's service call, a refused call, and the catalog's feature gating.
+    every actuator's service call, a refused call, and the catalog's feature gating. For events:
+    `subscribe_events` and `unsubscribe_events`, fired events, refusals and unanswered
+    subscribes. The event sensor's pulses run on a `TestClock`; tests cover a shared
+    subscription, unsubscribing after the last sensor, resubscribing after a reconnect (also
+    after a refusal), a drop while a subscribe is pending, and the unanswered subscribe.
   - `HassConnection` tests use millisecond timings. The plugin-level reconnect test waits the
     real 1 s backoff once.
   - A read-only live test runs against a real instance when `HA_TEST_URL` and `HA_TEST_TOKEN` are

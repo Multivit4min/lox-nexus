@@ -43,4 +43,13 @@ describe("HomeAssistantPlugin: form labels", () => {
       domain: "Service domain", service: "Service", entityId: "Target entity", field: "Value goes into field", data: "Extra service data"
     })
   })
+
+  test("the event sensor's fields have titles and name the choices", async () => {
+    const { sensors } = await PluginTestHost.describe(HomeAssistantPlugin)
+    const params = fields(sensors.find(sensor => sensor.id === "event")?.params)
+    assert.deepEqual(Object.fromEntries(Object.entries(params).map(([key, field]) => [key, field.title])), {
+      eventType: "Event type", filter: "Only events with", send: "What to send", field: "Data field", pulseMs: "Pulse length (ms)"
+    })
+    assert.deepEqual(Object.keys(params.send?.enumLabels ?? {}), ["field", "pulse"])
+  })
 })

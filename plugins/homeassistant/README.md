@@ -1,15 +1,19 @@
 # Home Assistant plugin
 
-Connects to Home Assistant over its **WebSocket API**. Entity states and attributes become
-sensors. Service calls become actuators: lights, switches, covers, valves, locks, climate,
-scenes, scripts, buttons, numbers, selects and texts, plus a generic service call. A catalog lists
-every entity by area.
+Connects to Home Assistant over its **WebSocket API**. Entity states, attributes and events (e.g.
+`zha_event` button presses) become sensors. Service calls become actuators: lights, switches,
+covers, valves, locks, climate, scenes, scripts, buttons, numbers, selects, texts, date/time
+helpers and to-do lists, plus a generic service call. A catalog lists every entity by area, and
+the events of common integrations.
 
 The plugin keeps one connection open. It subscribes to all entity states (`subscribe_entities`), so
-sensors update without polling. It pings every 30 s to notice a dead connection, and reconnects
-with a delay that doubles from 1 s up to 60 s. A long outage is reported once, not on every
-retry. After a reconnect, the full state list catches the sensors up on what changed in between.
-If that list arrives unreadable, the plugin logs it and reconnects for a fresh one.
+sensors update without polling. For events it subscribes once per event type in use
+(`subscribe_events`), shared by all sensors of that type, and unsubscribes when the last of them is
+removed. After a reconnect it subscribes again to every type in use. It pings every 30 s to notice a
+dead connection, and reconnects with a delay that doubles from 1 s up to 60 s. A long outage is
+reported once, not on every retry. After a reconnect, the full state list catches the sensors up on
+what changed in between. If that list arrives unreadable, the plugin logs it and reconnects for a
+fresh one.
 
 ## Config
 
@@ -53,6 +57,44 @@ Params: `{ entityId, part }`, where the entity is a `light.*`. The form shows `p
   `color_temp` mode. Otherwise it sends RGBW with the brightness folded into the channels. Off
   sends brightness 0 in the shape last sent.
 
+### `event`: Home Assistant events of one type (value type `any`)
+
+For buttons and remotes that report presses as events rather than as entity states: ZHA
+(`zha_event`), deCONZ (`deconz_event`), Philips Hue (`hue_event`), Shelly (`shelly.click`),
+Lutron Caséta, tags (`tag_scanned`), actionable notifications (`mobile_app_notification_action`),
+or an event your own automation fires.
+
+| Param | Shown as | Default | |
+|---|---|---|---|
+| `eventType` | Event type | required | e.g. `zha_event`; up to 64 characters, no spaces |
+| `filter` | Only events with | `{}` (every event) | Event data that must match, all of it, e.g. `{ "device_ieee": "00:15:8d:…", "command": "on" }`. A key may be a dot path (`args.0`, `params.button`). Numbers and text compare as text, so `"1"` matches `1`; lists and objects compare as JSON. |
+| `send` | What to send | `field` | `field`: the data field below as text. `pulse`: `true` for each matching event. |
+| `field` | Data field | `command` | With `send: "field"`: the field to send, also a dot path. Numbers and booleans are written out, lists and objects as JSON, cut to 1000 characters. An event without the field (or with null or empty text) sends nothing. |
+| `pulseMs` | Pulse length (ms) | `1000` | How long the value stays before it returns to `false` (or empty text), 50 to 3 600 000 ms. |
+
+The sensor starts at `false` (pulse) or empty text (field). After each matching event the value
+**returns to `false` or empty text** after `pulseMs`. Nexus drops a value equal to the one before,
+so without the reset a button pressed twice would reach Loxone once. An event during the pulse
+restarts its timer: the same command twice within `pulseMs` is one pulse, a different command is
+sent at once. In Loxone, a virtual text input takes the text; for a pulse per command, use
+`send: "pulse"` with the command in the filter.
+
+Which fields an event has depends on the integration: the button's action is `command` for ZHA,
+`event` for deCONZ (e.g. `1002`), `click_type` for Shelly, and `action` for notifications. Hue names
+the button in `subtype` (a number) and the kind of press in `type` (e.g. `short_release`), Lutron
+the button in `button_number` and `press`/`release` in `action`. Tags send `tag_id`. Home
+Assistant's **Developer tools ▸ Events** shows them: listen to the type and press the button. Most
+carry the `device_id` of their device, which makes a good filter.
+
+Home Assistant only lets **admin** users subscribe to most event types. With a token of another
+user the subscription is refused, and the signal fails with Home Assistant's message. A refused
+type is tried again only after a reconnect, or when it is added again after its last sensor was
+removed. A subscription Home Assistant doesn't confirm within 10 s drops the connection, which
+reconnects and subscribes anew. Events that
+happen while disconnected are lost; nothing is sent for them after the reconnect. Newer
+integrations (Matter, Z-Wave JS, …) report presses as `event.*` entities instead: those are entity
+states, see `state` (the `event_type` attribute), not this sensor.
+
 ## Actuators
 
 Each actuator follows one entity (`{ entityId }`). Adding one for an entity of another domain
@@ -78,10 +120,34 @@ started.
 | `temperature` | number | climate, water_heater | `set_temperature`. Not offered for thermostats with only a low/high range (`heat_cool`). |
 | `number` | number | number, input_number | `set_value` |
 | `text` | string | text, input_text, select, input_select, climate | `set_value`, `select_option`, or `set_hvac_mode` for climate |
+| `dateTime` | string or number | input_datetime, date, time, datetime | See below. |
+| `todoItem` | string | todo | `add_item` with the text as the item, trimmed. Empty text adds nothing. Offered for lists that can add items. |
 | `service` | any | any | See below. |
 
-The light, position, tilt and value actuators run only the newest command when several queue up
-(`concurrency: "latest"`), so a dragged slider doesn't replay every step.
+The light, position, tilt, value and date/time actuators run only the newest command when several
+queue up (`concurrency: "latest"`), so a dragged slider doesn't replay every step.
+
+### `dateTime`: date and time helpers
+
+Accepts text or a number:
+
+| Value | Means | Example |
+|---|---|---|
+| text `YYYY-MM-DD HH:MM:SS` | date and time (a `T` instead of the space works, seconds may be left out) | `2026-10-28 06:30:00` |
+| text `YYYY-MM-DD` | a date | `2026-12-24` |
+| text `HH:MM` or `HH:MM:SS` | a time of day | `6:30` |
+| a number | a time of day in **seconds since midnight**, 0 to 86 399 | `23400` (06:30) |
+
+Loxone calculates in numbers, so a time of day computed in a formula block (hours × 3600 + minutes
+× 60) can go straight in. Text comes from a virtual output's text command. Empty text does
+nothing; other text, and numbers outside a day, fail the command.
+
+- `input_datetime` (helpers) gets `set_datetime` with whatever the value has: `datetime`, `date` or
+  `time`. A helper with only a time takes the time part of a full date and time, one with only a
+  date the date part. Setting only the time of a helper with a date keeps its date. A value with
+  nothing the helper holds (a time for a date-only helper) fails.
+- `date`, `time` and `datetime` entities get `set_value`, and need what they hold: a date, a time,
+  or both. Home Assistant reads the time in its own time zone.
 
 ### `service`: any service call
 
@@ -103,30 +169,45 @@ Each entity offers:
 - every attribute with a single value, except descriptive ones like `friendly_name` or
   `supported_features`
 - the `light` sensors, for lights
-- the actuators that fit its domain and features. On/off (for some domains), position, tilt and
-  temperature need the matching `supported_features` bits. Brightness, colour and colour
-  temperature need the matching `supported_color_modes`.
+- the actuators that fit its domain and features. On/off (for some domains), position, tilt,
+  temperature and to-do items need the matching `supported_features` bits. Brightness, colour and
+  colour temperature need the matching `supported_color_modes`.
+
+**Events** comes last. It lists common event types: ZHA, deCONZ, Philips Hue and Lutron Caséta when
+Home Assistant has devices of that integration, actionable notifications when it has mobile app
+devices, and tags always. Each offers one `event` sensor for all its events, and the ZHA, deCONZ,
+Hue and Lutron types one per enabled device (filtered by `device_id`). They send the field that
+tells the buttons apart (`command`, `event`, `subtype`, `button_number`, `action`, `tag_id`). For a
+filter on it (e.g. only Hue's `short_release`), or a pulse, add an `event` sensor by hand with those
+params. A device's `device_id` is the last part of its page's address in Home Assistant
+(`/config/devices/device/<device_id>`).
 
 The catalog reads the area, device and entity registries on demand.
 
 ## Panel
 
-Shows the connection (and since when), the Home Assistant version, the entity count, reconnect
+Shows the connection (and since when), the Home Assistant version, the entity count, the event
+types followed (marked `(pending)` until Home Assistant confirms them, or `(refused)`), reconnect
 attempts and the last problem.
 
 ## Tests
 
 - `FakeHomeAssistant` (in `src/test-support`) simulates the WebSocket API on 127.0.0.1: the auth
-  handshake, `subscribe_entities` with change and remove events, recorded `call_service`, ping and
-  the registry lists.
+  handshake, `subscribe_entities` with change and remove events, `subscribe_events` and
+  `unsubscribe_events` with fired events (and refusals), recorded `call_service`, ping and the
+  registry lists.
+- The event sensor's pulses are tested on the SDK's `TestClock`.
 - `HomeAssistant.live.test.ts` runs read-only against a real instance when `HA_TEST_URL` and
-  `HA_TEST_TOKEN` are set. It calls no service and never tries a wrong token.
+  `HA_TEST_TOKEN` are set. It follows `state_changed` events, calls no service and never tries a
+  wrong token.
 
 ## Known limitations
 
 - `unavailable` and `unknown` aren't sent, so the last value stays, and a "was removed" failure
   stays until the entity has a reading again.
-- No events (`subscribe_events`, e.g. `zha_event`), no `input_datetime`, and no calendar or todo
-  services yet. The generic `service` actuator covers most of the rest.
+- No calendar services: `calendar.create_event` needs a summary, a start and an end, more than one
+  Loxone value can carry. The generic `service` actuator covers it with fixed data, and most of
+  the rest.
+- Events that happen while disconnected are not sent after the reconnect.
 - Colours read from `hs` or `xy` lights come from Home Assistant's `rgb_color`, which it reports at
   full brightness.

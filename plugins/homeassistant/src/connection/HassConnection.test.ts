@@ -16,12 +16,12 @@ describe("HassConnection", { timeout: 10_000 }, () => {
     for (const step of cleanup.splice(0).reverse()) await step()
   })
 
-  const setup = async () => {
+  const setup = async (adjusted: Partial<ReturnType<typeof timings>> = {}) => {
     const ha = await FakeHomeAssistant.start()
     cleanup.push(() => ha.close())
     const warnings: string[] = []
     const entities = new EntityStore()
-    const connection = new HassConnection(websocketUrl(ha.url), FakeHomeAssistant.TOKEN, entities, { warn: message => void warnings.push(message) }, timings())
+    const connection = new HassConnection(websocketUrl(ha.url), FakeHomeAssistant.TOKEN, entities, { warn: message => void warnings.push(message) }, { ...timings(), ...adjusted })
     cleanup.push(() => connection.dispose())
     const events: string[] = []
     connection.events.on("connected", () => events.push("connected"))
@@ -94,6 +94,61 @@ describe("HassConnection", { timeout: 10_000 }, () => {
     ha.set("switch.a", "off")
     await waitFor(() => entities.get("switch.a")?.state === "off")
     assert.equal(warnings.length, 2)
+  })
+
+  test("an event type dropped while its subscription is pending is unsubscribed once confirmed", async () => {
+    const { ha, connection } = await setup()
+    await connection.start()
+    const listener = { event: () => undefined, subscribed: () => undefined, refused: () => undefined }
+    const stop = connection.busEvents.add("zha_event", listener)
+    stop()
+    assert.deepEqual(connection.busEvents.eventTypes, [])
+    await waitFor(() => ha.unsubscribed.length === 1)
+    assert.equal(ha.subscriptions("zha_event"), 0)
+    const received: unknown[] = []
+    connection.busEvents.add("zha_event", { ...listener, event: data => void received.push(data) })
+    await waitFor(() => ha.subscriptions("zha_event") === 1)
+    ha.fire("zha_event", { command: "on" })
+    await waitFor(() => received.length === 1)
+  })
+
+  /** a listener that collects the events' data */
+  const collector = () => {
+    const received: unknown[] = []
+    return { received, listener: { event: (data: unknown) => void received.push(data), subscribed: () => undefined, refused: () => undefined } }
+  }
+
+  test("a subscribe_events Home Assistant doesn't answer drops the connection, and the next one subscribes", async () => {
+    const { ha, connection, events } = await setup()
+    await connection.start()
+    ha.unanswered.add("zha_event")
+    const { received, listener } = collector()
+    connection.busEvents.add("zha_event", listener)
+    await waitFor(() => events.includes("disconnected: didn't confirm subscribe_events for zha_event"))
+    await waitFor(() => ha.subscriptions("zha_event") === 1, "subscribed on the new connection")
+    assert.equal(connection.busEvents.status("zha_event"), "subscribed")
+    ha.fire("zha_event", { command: "on" })
+    await waitFor(() => received.length === 1)
+  })
+
+  test("a connection lost while subscribe_events is pending ends with exactly one subscription", async () => {
+    // a long request timeout, so only the drop ends the pending subscribe
+    const { ha, connection, events } = await setup({ timeoutMs: 5000 })
+    await connection.start()
+    ha.unanswered.add("zha_event")
+    const { received, listener } = collector()
+    connection.busEvents.add("zha_event", listener)
+    await waitFor(() => ha.subscribeRequests.length === 1)
+    assert.equal(connection.busEvents.status("zha_event"), "pending")
+    ha.dropConnections()
+    await waitFor(() => events.filter(event => event === "connected").length === 2)
+    await waitFor(() => connection.busEvents.status("zha_event") === "subscribed")
+    assert.deepEqual([ha.subscribeRequests, ha.subscriptions("zha_event")], [["zha_event", "zha_event"], 1])
+    ha.fire("zha_event", { command: "on" })
+    ha.fire("zha_event", { command: "off" })
+    await waitFor(() => received.length === 2)
+    await new Promise(resolve => setTimeout(resolve, 20))
+    assert.equal(received.length, 2, "each event once")
   })
 
   test("a call while disconnected says why", async () => {

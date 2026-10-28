@@ -34,3 +34,9 @@ export const EntitiesEventSchema = z.object({
   r: z.array(z.string()).optional()
 })
 export type EntitiesEvent = z.infer<typeof EntitiesEventSchema>
+
+/** An event of `subscribe_events`, e.g. a `zha_event` with the button's command in its data. */
+export const BusEventSchema = z.object({
+  event_type: z.string(),
+  data: z.record(z.string(), z.unknown()).default({})
+})

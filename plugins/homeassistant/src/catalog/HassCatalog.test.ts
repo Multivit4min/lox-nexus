@@ -30,7 +30,12 @@ describe("HomeAssistantPlugin: catalog", { timeout: 15_000 }, () => {
     ha.set("climate.full", "heat", { friendly_name: "Full", supported_features: 1 | 128 | 256 })
     ha.registries = {
       areas: [{ area_id: "kitchen", name: "Kitchen" }, { area_id: "living", name: "Living room" }],
-      devices: [{ id: "d1", area_id: "living" }],
+      devices: [
+        { id: "d1", area_id: "living" },
+        { id: "z2", name: "TRADFRI remote", name_by_user: "Hallway remote", identifiers: [["zha", "00:0d:6f:ff:fe:aa:bb:cc"]] },
+        { id: "z1", name: "Aqara switch", identifiers: [["zha", "00:15:8d:00:01:02:03:04"]] },
+        { id: "z3", name: "Old switch", identifiers: [["zha", "00:15:8d:00:09:09:09:09"]], disabled_by: "user" }
+      ],
       entities: [
         { entity_id: "light.ceiling", area_id: "kitchen", device_id: "d1" },
         { entity_id: "cover.blind", area_id: null, device_id: "d1" },
@@ -47,7 +52,7 @@ describe("HomeAssistantPlugin: catalog", { timeout: 15_000 }, () => {
 
   test("groups entities by area (their own or their device's) and domain, without hidden ones", async () => {
     const catalog = await host.catalog()
-    assert.deepEqual(catalog.map(node => node.label), ["Kitchen", "Living room", "No area"])
+    assert.deepEqual(catalog.map(node => node.label), ["Kitchen", "Living room", "No area", "Events"])
     assert.ok(at(catalog, "Living room", "Cover", "Blind (cover.blind)"), "the device's area")
     assert.ok(at(catalog, "No area", "Switch", "Pump (switch.pump)"))
     assert.deepEqual(at(catalog, "No area")?.children?.map(node => node.label), ["Binary sensor", "Climate", "Sensor", "Switch"], "readable domain names")
@@ -93,5 +98,16 @@ describe("HomeAssistantPlugin: catalog", { timeout: 15_000 }, () => {
     assert.deepEqual([power?.value, power?.unit], [Value.number(1520.5), "W"])
     const position = at(catalog, "Living room", "Cover", "Blind (cover.blind)")?.entries?.find(entry => entry.capability === "position")
     assert.deepEqual([position?.value, position?.unit], [Value.number(100), "%"])
+  })
+
+  test("offers events of the integrations it has, for all devices and for each enabled one", async () => {
+    const events = at(await host.catalog(), "Events")?.children
+    assert.deepEqual(events?.map(node => node.label), ["ZHA (zha_event)", "Tags (tag_scanned)"], "no deCONZ, Hue or mobile app devices")
+    const zha = events?.[0]?.entries?.map(entry => [entry.capability, entry.label, entry.params])
+    assert.deepEqual(zha, [
+      ["event", "ZHA command", { eventType: "zha_event", field: "command" }],
+      ["event", "Aqara switch command", { eventType: "zha_event", field: "command", filter: { device_id: "z1" } }],
+      ["event", "Hallway remote command", { eventType: "zha_event", field: "command", filter: { device_id: "z2" } }]
+    ], "the user's name for a device wins; disabled devices are left out")
   })
 })

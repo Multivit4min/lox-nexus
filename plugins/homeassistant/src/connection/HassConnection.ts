@@ -2,6 +2,7 @@ import { EventEmitter } from "node:events"
 import { Disposable, type PluginLogger } from "@lox-nexus/plugin-sdk"
 import type { EntityStore } from "../entities/EntityStore.ts"
 import { Backoff } from "./Backoff.ts"
+import { EventSubscriptions } from "./EventSubscriptions.ts"
 import { EntitiesEventSchema } from "./HassMessages.ts"
 import { HassAuthError, HassSocket } from "./HassSocket.ts"
 
@@ -19,9 +20,10 @@ export interface ConnectionTimings {
 
 /**
  * Keeps one session with Home Assistant open: logs in, subscribes to every entity's state (into
- * the EntityStore), pings to notice a dead connection, and reconnects with backoff. A rejected
- * token stops it for good: retrying with a bad token gets Nexus's address banned by Home
- * Assistant's ip_ban, so the user has to fix the config first.
+ * the EntityStore) and to the event types in use (`busEvents`), pings to notice a dead
+ * connection, and reconnects with backoff. A rejected token stops it for good: retrying with a
+ * bad token gets Nexus's address banned by Home Assistant's ip_ban, so the user has to fix the
+ * config first.
  */
 export class HassConnection extends Disposable {
   static readonly TIMINGS = (): ConnectionTimings =>
@@ -31,6 +33,8 @@ export class HassConnection extends Disposable {
   connectedSince: Date | undefined
   lastProblem: string | undefined
   reconnects = 0
+  /** `subscribe_events` per event type the sensors use, renewed on every connection */
+  readonly busEvents: EventSubscriptions
   private socket: HassSocket | undefined
   private stopPing: (() => void) | undefined
   /** cancels the connect in progress when disposed */
@@ -44,6 +48,7 @@ export class HassConnection extends Disposable {
     private readonly timings = HassConnection.TIMINGS()
   ) {
     super()
+    this.busEvents = new EventSubscriptions(log)
     this.onDispose(() => {
       this.attempts.abort()
       return this.socket?.dispose()
@@ -122,6 +127,7 @@ export class HassConnection extends Disposable {
     this.connectedSince = new Date()
     this.lastProblem = undefined
     this.timings.backoff.reset()
+    this.busEvents.attach(socket)
     this.stopPing = this.every(this.timings.pingMs, () => void socket.request({ type: "ping" }).catch(() => socket.close("didn't answer a ping")))
     this.events.emit("connected")
   }
@@ -131,6 +137,7 @@ export class HassConnection extends Disposable {
     this.socket = undefined
     this.stopPing?.()
     this.connectedSince = undefined
+    this.busEvents.detach()
     void socket.dispose()
     this.retry(reason)
   }

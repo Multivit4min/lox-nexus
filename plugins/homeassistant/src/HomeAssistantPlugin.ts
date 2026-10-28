@@ -1,22 +1,24 @@
 import { Plugin } from "@lox-nexus/plugin-sdk"
 import { Actuators } from "./actuators/Actuators.ts"
+import { EventCatalog } from "./catalog/EventCatalog.ts"
 import { HassCatalog } from "./catalog/HassCatalog.ts"
 import { Registries } from "./catalog/Registries.ts"
 import { HassConnection } from "./connection/HassConnection.ts"
 import { EntityStore } from "./entities/EntityStore.ts"
 import { homeAssistantConfigSchema, websocketUrl, type HomeAssistantConfig } from "./HomeAssistantConfig.ts"
 import { HomeAssistantPanel } from "./HomeAssistantPanel.ts"
+import { EventSensor } from "./sensors/EventSensor.ts"
 import { LightSensor } from "./sensors/LightSensor.ts"
 import { StateSensor } from "./sensors/StateSensor.ts"
 
 /**
- * Connects to Home Assistant over its WebSocket API: entity states and attributes as sensors,
- * service calls (lights, switches, covers, climate, scenes, …) as actuators, and a catalog of
- * every entity by area.
+ * Connects to Home Assistant over its WebSocket API: entity states, attributes and events as
+ * sensors, service calls (lights, switches, covers, climate, scenes, helpers, to-do lists, …) as
+ * actuators, and a catalog of every entity by area plus common event types.
  */
 export class HomeAssistantPlugin extends Plugin<HomeAssistantConfig> {
   static readonly config = homeAssistantConfigSchema
-  static readonly sensors = [StateSensor, LightSensor]
+  static readonly sensors = [StateSensor, LightSensor, EventSensor]
   static readonly actuators = Actuators.all
 
   readonly entities = new EntityStore()
@@ -37,8 +39,10 @@ export class HomeAssistantPlugin extends Plugin<HomeAssistantConfig> {
     await this.connection.start()
   }
 
+  /** every entity by area, then the events of common integrations */
   override async catalog() {
-    return new HassCatalog(this.entities, await Registries.load(this.connection)).build()
+    const registries = await Registries.load(this.connection)
+    return [...new HassCatalog(this.entities, registries).build(), ...new EventCatalog(registries).build()]
   }
 
   override panel() {

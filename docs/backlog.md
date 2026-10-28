@@ -57,5 +57,3 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
   in `legacy-nexus.md`. Build them with the plugin-dev agent.
 - **Home Assistant: live actuator test.** Service calls are only tested against the simulated
   server; run them against the real instance once the user names entities that may be switched.
-- **Home Assistant: events.** No `subscribe_events` (e.g. `zha_event` buttons), `input_datetime`,
-  calendar or todo services yet.
