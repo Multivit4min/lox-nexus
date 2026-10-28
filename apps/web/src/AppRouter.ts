@@ -23,6 +23,7 @@ export class AppRouter {
         { path: "/wires", name: "wires", component: () => import("./views/WiresView.vue") },
         { path: "/inspector", name: "inspector", component: () => import("./views/InspectorView.vue") },
         { path: "/history", name: "history", component: () => import("./views/HistoryView.vue") },
+        { path: "/backup", name: "backup", component: () => import("./views/BackupView.vue") },
         { path: "/:rest(.*)*", redirect: "/" }
       ]
     })

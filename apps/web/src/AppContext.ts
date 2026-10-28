@@ -1,5 +1,6 @@
 import { inject, type InjectionKey } from "vue"
 import { AuthApi } from "./api/AuthApi.ts"
+import { BackupApi } from "./api/BackupApi.ts"
 import { BusApi } from "./api/BusApi.ts"
 import { ConfigApi } from "./api/ConfigApi.ts"
 import { HistoryApi } from "./api/HistoryApi.ts"
@@ -25,6 +26,7 @@ export class AppContext {
   readonly wires = new WireApi(this.http)
   readonly history = new HistoryApi(this.http)
   readonly selections = new SelectionApi(this.http)
+  readonly backup = new BackupApi(this.http)
   /** which signals the history records, shared by the signal lists */
   readonly recorded = new RecordedSignals(this.history)
   readonly session = new SessionStore(this.auth)

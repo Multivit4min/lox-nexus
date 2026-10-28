@@ -30,9 +30,9 @@ export class Http {
     return this.request<void>("DELETE", url)
   }
 
-  /** POST of a file's raw bytes; the answer is JSON as usual */
-  upload<T>(url: string, file: Blob) {
-    return this.send<T>(url, { method: "POST", headers: { "content-type": "application/octet-stream" }, body: file })
+  /** POST of a file's raw bytes (streamed by the browser); the answer is JSON as usual */
+  upload<T>(url: string, file: Blob, headers: Record<string, string> = {}) {
+    return this.send<T>(url, { method: "POST", headers: { ...headers, "content-type": "application/octet-stream" }, body: file })
   }
 
   private request<T>(method: string, url: string, body?: unknown): Promise<T> {

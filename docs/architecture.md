@@ -1821,6 +1821,28 @@ Plan and reasons: ADR 0013.
   `OwnerRuleList`, and a searchable signal list whose ticks set or remove a signal's rule).
   `SelectionRules` mirrors the server's rule order to show what is chosen.
 
+## Implementation notes: backup (M6)
+
+Plan and reasons: ADR 0014; the user guide is `apps/docs/content/guide/backup.md`.
+
+- `backup/BackupCipher` (AES-256-GCM, scrypt with its cost in the header, the header as AAD, the
+  tag held back until the end), `BackupArchive` (entries of a JSON header line and bytes; extract
+  checks paths against an allowlist, caps the total size, and never lets a write error escape),
+  `BackupManifest`.
+- `BackupService` makes the file: `Database.copyTo` (node:sqlite `backup()`) for nexus.db and
+  history.db, plugin files hard-linked, into `<dataDir>/.backup-*` (swept at start), streamed
+  through archive, gzip and cipher into the response.
+- `RestoreService` stages an upload into `restore-pending/` (marker `checked.json`), and
+  `markForApply` renames it to `apply.json`. `RestoreApplier.apply` runs in the NexusApp
+  constructor right after the database lock; it is idempotent.
+- `BackupController` (`/api/backup`, `/api/backup/restore`, `/apply`): the download accepts a
+  plain form (scoped urlencoded parser) so the browser streams it to disk; the upload is a raw
+  stream with the passphrase URI-encoded in a header. `NexusAppOptions.restart` comes from
+  main.ts, which rebuilds the app once at a time and lets a shutdown wait for a running restart.
+- Web: `BackupView` with `BackupCreateCard` (form into a hidden frame; an error answer loads the
+  frame and is shown) and `BackupRestoreCard` (check, then restore and restart, or at the next
+  start when Nexus can't restart itself).
+
 ## Dependencies (installed in the milestone that first needs them)
 
 | Where | Packages |

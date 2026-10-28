@@ -203,7 +203,7 @@ first-party plugins load from the workspace until then.
 - Importer for the old v1 export (on top of the config import added after M3); the format and its
   mapping are in `docs/legacy-nexus.md`, since the old code is no longer in this repository.
 - Backup of the whole data directory, including plugins, users and values (the config export
-  covers only Miniservers, signals and wires).
+  covers only Miniservers, signals and wires) (done, ADR 0014).
 - A Dockerfile for amd64 and arm64.
 - A publish pipeline for the SDK, and a plugin template repo.
 - **Debug MCP server.** An MCP endpoint on a running Nexus, so Claude can debug a live

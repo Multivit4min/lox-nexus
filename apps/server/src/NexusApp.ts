@@ -33,6 +33,9 @@ import { LoxoneProjectService } from "./services/LoxoneProjectService.ts"
 import { LoxoneSignalService } from "./services/LoxoneSignalService.ts"
 import { MiniserverService } from "./services/MiniserverService.ts"
 import { PluginLogs } from "./services/PluginLogs.ts"
+import { BackupAssembly } from "./backup/BackupAssembly.ts"
+import { BackupService } from "./backup/BackupService.ts"
+import { RestoreApplier } from "./backup/RestoreApplier.ts"
 import { HistoryAssembly } from "./history/HistoryAssembly.ts"
 import { PluginBridgeService } from "./services/PluginBridgeService.ts"
 import { PluginService } from "./services/PluginService.ts"
@@ -57,6 +60,8 @@ export interface NexusAppOptions {
   /** reads Loxone Config projects from Miniservers; tests pass a fake instead of FTP */
   projectReader?: Pick<ProjectReader, "read" | "file">
   install?: InstallOptions
+  /** restarts the app in-process (main.ts), e.g. to apply a restored backup; tests leave it out */
+  restart?: () => void
 }
 
 /** The services the HTTP layer needs, built in start(). */
@@ -108,6 +113,10 @@ export class NexusApp extends Disposable {
       const lock = DatabaseLock.acquire(databaseFile)
       // registered first, so it is released last, after the database is closed
       this.onDispose(() => lock.release())
+      // under the lock, before anything opens the files: a second process must not swap them under a running one
+      BackupService.sweep(config.dataDir)
+      const before = RestoreApplier.apply(config.dataDir)
+      if (before) log.warn({ before }, "restored a backup; the previous files are in this folder")
     }
     this.persistence = new Persistence(databaseFile, message => log.warn(message))
     this.onDispose(() => this.persistence.close())
@@ -202,6 +211,7 @@ export class NexusApp extends Disposable {
         new PluginController(plugins, pluginSignals, this.pluginLogs, new PluginBridgeService(pluginSignals, loxoneSignals, wires, log)),
         new PluginPackageController(this.pluginAssembly.packages(plugins)),
         ...this.history.controllers(id => plugins.watches(id)),
+        BackupAssembly.controller(config, { main: db.db, history: this.history.database.db }, this.options.restart, log),
         stream
       ],
       publicControllers: [new HookController(this.plugins)]

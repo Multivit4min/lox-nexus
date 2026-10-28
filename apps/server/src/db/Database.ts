@@ -1,6 +1,6 @@
 import fs from "node:fs"
 import path from "node:path"
-import { DatabaseSync, type SQLInputValue, type StatementSync } from "node:sqlite"
+import { backup, DatabaseSync, type SQLInputValue, type StatementSync } from "node:sqlite"
 
 /** Values a statement accepts as parameters. */
 export type SqlParams = Record<string, SQLInputValue>
@@ -73,6 +73,14 @@ export class Database {
   private rollback(savepoint: string | undefined) {
     if (!this.db.isTransaction) return
     this.db.exec(savepoint ? `ROLLBACK TO ${savepoint}; RELEASE ${savepoint}` : "ROLLBACK")
+  }
+
+  /**
+   * Copies the database into `file` while it stays in use (SQLite's online backup, a few hundred
+   * pages per step, so a large file doesn't block the event loop). The copy is consistent.
+   */
+  async copyTo(file: string) {
+    await backup(this.db, file, { rate: 500 })
   }
 
   /** closes the file; later calls are ignored. Pending WAL data is checkpointed by SQLite. */

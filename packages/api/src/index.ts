@@ -1,6 +1,7 @@
 // The private contract between server and web: request schemas (validated on the server) and response types.
 export * from "./auth.ts"
 export * from "./bridges.ts"
+export * from "./backup.ts"
 export * from "./bus.ts"
 export * from "./config.ts"
 export * from "./history.ts"
