@@ -204,7 +204,8 @@ first-party plugins load from the workspace until then.
   mapping are in `docs/legacy-nexus.md`, since the old code is no longer in this repository.
 - Backup of the whole data directory, including plugins, users and values (the config export
   covers only Miniservers, signals and wires) (done, ADR 0014).
-- A Dockerfile for amd64 and arm64.
+- A Dockerfile for amd64 and arm64 (written; `Dockerfile` and `compose.yaml` at the root, the
+  build steps checked outside Docker, the image itself still to be tested on a Docker host).
 - A publish pipeline for the SDK, and a plugin template repo.
 
 **Verify:**

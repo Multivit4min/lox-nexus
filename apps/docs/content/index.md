@@ -31,5 +31,5 @@ Miniserver needs no extra hardware, no cloud and no HTTP polling.
 
 ## Status
 
-Nexus is under active development. Pages mark what is not available yet, for example installing
-plugins from a ZIP file or a git URL, the Docker image and the published SDK package.
+Nexus is under active development. Pages mark what is not available yet, for example a published
+Docker image (you build it yourself for now) and the published SDK package.

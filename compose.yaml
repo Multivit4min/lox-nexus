@@ -1,0 +1,20 @@
+# Lox Nexus with docker compose: `docker compose up -d`, then open http://<host>:8080
+services:
+  nexus:
+    image: lox-nexus
+    build: .
+    restart: unless-stopped
+    # host networking: Miniservers send their intercommunication (UDP) to the host's ports, each
+    # Miniserver may use its own port, and Nexus sees the real sender addresses
+    network_mode: host
+    # forwards signals to Nexus so a stop is clean (plugin workers, the last values)
+    init: true
+    volumes:
+      - nexus-data:/data
+    environment:
+      # behind an HTTPS reverse proxy:
+      # NEXUS_SECURE_COOKIES: "true"
+      # NEXUS_PUBLIC_ORIGINS: https://nexus.example
+      NEXUS_LOG_LEVEL: info
+volumes:
+  nexus-data:

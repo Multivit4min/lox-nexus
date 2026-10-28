@@ -1,7 +1,9 @@
 # Installation
 
-Today Nexus runs from a source checkout. A Docker image is **not available yet** (milestone M6).
-Plugins are installed, updated and rolled back in the web UI, see [Plugins](#plugins).
+Nexus runs in Docker or from a source checkout. Plugins are installed, updated and rolled back in
+the web UI, see [Plugins](#plugins).
+
+There is no published image yet: you build it from the repository, as described below.
 
 ## Requirements
 
@@ -9,6 +11,67 @@ Plugins are installed, updated and rolled back in the web UI, see [Plugins](#plu
 - A Loxone Miniserver on the same network. Nexus and the Miniserver exchange UDP packets, so no
   firewall may block the intercommunication port (61263 by default) in either direction.
 - `git` and `npm`.
+
+## Run with Docker
+
+The `Dockerfile` at the repository root builds one image for amd64 and arm64 (a Raspberry Pi 4 or 5
+with a 64-bit OS). It contains the server, the web UI, this documentation and the first-party
+plugins, ready to install. Build and start it with compose:
+
+```sh
+git clone <repository-url> lox-nexus
+cd lox-nexus
+docker compose up -d --build
+```
+
+Then open `http://<host>:8080/`. Without compose:
+
+```sh
+docker build -t lox-nexus .
+docker run -d --name nexus --restart unless-stopped --network host --init \
+  -v nexus-data:/data lox-nexus
+```
+
+To build for both architectures at once, for example to push to your own registry:
+
+```sh
+docker buildx build --platform linux/amd64,linux/arm64 -t <registry>/lox-nexus --push .
+```
+
+The web UI, the documentation and the plugin bundles are built once on the build machine. Only the
+server's dependencies are installed per architecture, so a cross build needs little emulation.
+
+**Host networking.** Run the container with `--network host` (`network_mode: host` in compose).
+Each Miniserver sends its UDP packets to a port of the host, and each Miniserver can have its own
+port, set in the UI. With host networking these ports work without publishing each one, and Nexus
+sees the Miniservers' real addresses. Host networking needs Docker on Linux. With a bridged network
+you have to publish the web port and every intercommunication port yourself
+(`-p 8080:8080 -p 61263:61263/udp`).
+
+**Data.** Everything persistent is in the volume mounted at `/data`. The container runs as the user
+`node` (uid 1000). If you mount a host directory instead of a named volume, that user must be able
+to write to it (`chown 1000:1000 <dir>`). Use the [backup](backup.md) page to back it up or to move
+an installation.
+
+**Settings.** Set the [variables](#configuration) with `-e` or under `environment:` in
+`compose.yaml`. The image presets `NEXUS_DATA_DIR=/data`, `NEXUS_HTTP_PORT=8080` and the paths of
+the UI, the documentation and the plugin repository.
+
+**Plugins.** The image's [local plugin repository](#the-local-plugin-repository) holds the
+first-party plugins, so they can be installed from the **Plugins** page right away. Installed
+plugins live in `/data`, so they survive a new image.
+
+**Updating.** Pull the repository, rebuild and restart the container
+(`docker compose up -d --build`). The data volume stays; the database is migrated at startup. A
+new image may bring new versions of the first-party plugins: the **Installed** tab then offers
+**Update** for them.
+
+**Forgot your password?** Run the command [below](#forgot-your-password) inside the container:
+
+```sh
+docker exec -it nexus npm run reset-password                 # docker run
+docker compose exec nexus npm run reset-password             # compose
+```
 
 ## Run from source
 
@@ -75,8 +138,9 @@ login page.
 - The command runs inside `apps/server`, like `npm start -w`, so a relative `NEXUS_DATA_DIR`
   resolves there. The default (`./data`) is the directory `npm run dev` uses.
 - Like `npm run dev`, it reads a `.env` file at the repository root. If your server gets its
-  variables elsewhere (a systemd unit, a container), set `NEXUS_DATA_DIR` for the command too. It
-  prints the database it opens, so check that line.
+  variables elsewhere (a systemd unit), set `NEXUS_DATA_DIR` for the command too. It prints the
+  database it opens, so check that line. In the Docker image, `docker exec` already has the right
+  `NEXUS_DATA_DIR`.
 - It never changes the database's schema. If the server of this version hasn't run on that data
   directory yet (for example right after a `git pull`), it refuses and asks you to start the
   server once first.
@@ -248,7 +312,3 @@ that folder that are not installed or are installed in another version, each wit
 - `npm run plugins:build` builds the bundles of the first-party plugins, so they can be installed.
 - Installing copies the files, so rebuilding a plugin in the repository never changes the
   installed version.
-
-## Not available yet
-
-- A Docker image (amd64 and arm64) and backups of the whole data directory: milestone M6.
