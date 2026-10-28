@@ -206,29 +206,9 @@ first-party plugins load from the workspace until then.
   covers only Miniservers, signals and wires) (done, ADR 0014).
 - A Dockerfile for amd64 and arm64.
 - A publish pipeline for the SDK, and a plugin template repo.
-- **Debug MCP server.** An MCP endpoint on a running Nexus, so Claude can debug a live
-  installation directly instead of through pasted logs and screenshots.
-  - **Read-only tools first:**
-    - current signal values;
-    - the recorder's recent messages and the trace tree of one message;
-    - active forces;
-    - Miniserver health, load and discovered packets;
-    - plugin instance states, health messages and recent log lines;
-    - wire health (why a wire is inactive).
-  - **Changing tools** (force, release, inject a value, restart a plugin instance) only when
-    switched on separately. Each call shows in the bus inspector with the MCP client as its
-    source, like a user's force.
-  - **Off by default.** Enabled per installation with its own token (not the admin session),
-    revocable, and only on the configured address. Secrets never appear in answers, the same
-    rule as the DTOs.
-  - It reuses the existing services and the recorder, so it adds no second view of the state that
-    could drift.
 
 **Verify:**
 - A real old export imports.
-- A Claude session connected to a running instance traces a value from a Loxone input through a
-  wire to a plugin actuator using only the MCP tools. With the changing tools switched off, every
-  write is refused.
 - A 24 h soak run keeps the heap flat.
 - An out-of-repo plugin built against the published SDK installs from git.
 
