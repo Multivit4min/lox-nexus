@@ -1,0 +1,23 @@
+{
+  "name": "@lox-nexus/plugin-script",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Script plugin for Lox Nexus: JavaScript that exchanges values with Nexus through named variables",
+  "type": "module",
+  "loxNexus": {
+    "apiVersion": 1,
+    "id": "script",
+    "entry": "dist/plugin.js",
+    "name": "Script",
+    "icon": "code"
+  },
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --target=node24 --conditions=@lox-nexus/source --outfile=dist/plugin.js"
+  },
+  "dependencies": {
+    "@lox-nexus/plugin-sdk": "*"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}
