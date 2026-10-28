@@ -207,6 +207,8 @@ first-party plugins load from the workspace until then.
 - A Dockerfile for amd64 and arm64 (written; `Dockerfile` and `compose.yaml` at the root, the
   build steps checked outside Docker, the image itself still to be tested on a Docker host).
 - A publish pipeline for the SDK, and a plugin template repo.
+- Licensing: the app GPL-3.0-or-later; the SDK, the ICI library and the first-party plugins MIT
+  (done, ADR 0015).
 
 **Verify:**
 - A 24 h soak run keeps the heap flat (the user sets it up once everything else is done).
