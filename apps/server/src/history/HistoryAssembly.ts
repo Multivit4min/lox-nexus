@@ -14,12 +14,12 @@ import { HistorySettingsStore } from "./HistorySettingsStore.ts"
 
 /** What the history needs from the app. */
 export interface HistoryDeps {
-  bus: Pick<EventBus, "subscribe">
+  bus: Pick<EventBus, "subscribe" | "current">
   signals: Pick<SignalRegistry, "atTopic" | "get" | "list" | "on" | "off">
   settings: SettingsRepository
   /** whether a signal is in the configuration; history of one that isn't goes after a grace period */
   signalExists: (signalId: string) => boolean
-  selections: Pick<SelectionService, "of" | "setMode" | "setRules">
+  selections: Pick<SelectionService, "of" | "setMode" | "setRules" | "on" | "off">
   clock: Clock
   log: Logger
 }
@@ -54,12 +54,39 @@ export class HistoryAssembly extends Disposable {
     const selection = () => (this.settings.current.enabled ? deps.selections.of(HistoryAssembly.CONSUMER) : SignalSelection.NONE)
     this.own(new SelectedValues(deps.bus, deps.signals, selection, (signal, message) => recorder.record(signal, message), signal => recorder.release(signal.id)))
     this.listen(deps.signals, "unregistered", (signal: Signal) => recorder.forget(signal.id))
+    this.listen(deps.selections, "changed", (consumer: string) => consumer === HistoryAssembly.CONSUMER && this.reconcile(deps, selection))
+    this.listen(this.settings, "changed", () => this.reconcile(deps, selection))
     this.retention = this.own(new HistoryRetention(this.store, deps.clock, () => this.settings.current, deps.signalExists, report))
     this.service = new HistoryService({
       reader: new HistoryReadRepository(database.db), store: this.store, settings: this.settings, signals: deps.signals,
       selection: () => deps.selections.of(HistoryAssembly.CONSUMER), forget: id => recorder.forget(id), dropped: () => recorder.dropped, clock: deps.clock, file
     })
     this.selections = deps.selections
+  }
+
+  /**
+   * Applies a changed selection at once: a signal that left it pauses now, not at its next value,
+   * and a paused one that is back records again from its current value. Without this a signal
+   * that changes rarely would be drawn holding its value across the time it wasn't recorded.
+   */
+  private reconcile(deps: HistoryDeps, selection: () => SignalSelection) {
+    const included = selection()
+    for (const signal of deps.signals.list()) {
+      if (!included.includes(signal)) {
+        if (this.recorder.isRecording(signal.id)) this.recorder.release(signal.id)
+        continue
+      }
+      if (!this.recorder.isPaused(signal.id)) continue
+      const current = deps.bus.current(signal.topic)
+      if (current?.value && (current.kind === "state" || current.kind === "command")) {
+        // recorded as of now, without the restored flag a boot snapshot may still carry
+        const flags = { ...current.flags }
+        delete flags.restored
+        this.recorder.record(signal, { ...current, value: current.value, ts: deps.clock.now(), flags })
+      } else {
+        this.recorder.resume(signal.id)
+      }
+    }
   }
 
   /**

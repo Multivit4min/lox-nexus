@@ -9,7 +9,8 @@ const DAY = 24 * 60 * 60_000
  * A signal's history over a range, at the finest resolution that fits: every change while the raw
  * tier still holds the range and it has at most RAW_FACTOR x points changes, else 5-minute buckets
  * while there are at most `points` of them in the range and they are still kept, else 1-hour
- * buckets. Text is only stored raw. Gaps are the times no run of Nexus covers, once history began.
+ * buckets. Text is only stored raw. Gaps are the times no run of Nexus covers, once history began,
+ * and the times the signal wasn't recorded because it had left the selection.
  */
 export class HistoryQuery {
   static readonly RAW_FACTOR = 4
@@ -22,7 +23,7 @@ export class HistoryQuery {
   run(signalId: string, valueType: string, query: { from: number; to: number; points: number }): HistorySeriesDto {
     const { from, to, points } = query
     const series = this.reader.series(signalId)
-    const gaps = series ? this.gaps(from, Math.min(to, this.clock.now())) : []
+    const gaps = series ? this.gaps(signalId, from, Math.min(to, this.clock.now())) : []
     const base = { signalId, valueType: series?.valueType ?? valueType, from, to, gaps }
     if (!series) return { ...base, resolution: "raw", points: [] }
     const resolution = this.resolution(series, from, to, points)
@@ -66,9 +67,26 @@ export class HistoryQuery {
     return fineKept && (to - from) / SeriesAggregator.FIVE_MINUTES <= points ? "5m" : "1h"
   }
 
+  private gaps(signalId: string, from: number, to: number): HistoryGapDto[] {
+    const pauses = this.reader.pauses(signalId, from, to)
+      .map(pause => ({ from: Math.max(from, pause.stopped), to: Math.min(to, pause.resumed ?? to) }))
+    return HistoryQuery.merged([...this.downtime(from, to), ...pauses])
+  }
+
+  // overlapping or touching gaps become one, oldest first
+  private static merged(gaps: HistoryGapDto[]): HistoryGapDto[] {
+    const result: HistoryGapDto[] = []
+    for (const gap of gaps.filter(g => g.to > g.from).sort((a, b) => a.from - b.from)) {
+      const last = result.at(-1)
+      if (last && gap.from <= last.to) last.to = Math.max(last.to, gap.to)
+      else result.push({ ...gap })
+    }
+    return result
+  }
+
   // what no run of Nexus covers after recording began; the time before the first run isn't
   // downtime, there just is no history yet
-  private gaps(from: number, to: number): HistoryGapDto[] {
+  private downtime(from: number, to: number): HistoryGapDto[] {
     const gaps: HistoryGapDto[] = []
     const runs = this.reader.runs(from, to)
     let covered = this.reader.ranBefore(from) ? from : Math.max(from, runs[0]?.started ?? to)

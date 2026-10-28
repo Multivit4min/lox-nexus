@@ -42,5 +42,18 @@ export const HISTORY_MIGRATIONS: readonly Migration[] = [
         seen INTEGER NOT NULL
       );
     `
+  },
+  {
+    version: 2,
+    name: "pauses",
+    sql: `
+      -- times a signal wasn't recorded (it left the selection); resumed is NULL while it still isn't
+      CREATE TABLE pauses (
+        signal_id TEXT NOT NULL,
+        stopped INTEGER NOT NULL,
+        resumed INTEGER,
+        PRIMARY KEY (signal_id, stopped)
+      ) WITHOUT ROWID;
+    `
   }
 ]

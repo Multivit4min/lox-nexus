@@ -44,11 +44,9 @@ averages still see every change.
 The chart button opens a signal's history for the last hour, day, week, month or year. Nexus picks
 the detail that fits: every change for short ranges, 5-minute or hourly averages (as a line with a
 band from lowest to highest) for long ones. A value holds until it changes, so the line is a
-staircase. Grey areas are times Nexus wasn't running: nothing is known about the value then. Text
-values are shown as a list of changes. *Delete history* removes what is stored for the signal.
-
-A signal that wasn't recorded for a while (switched off, then on again) shows its last value
-across that time; only the times Nexus wasn't running are marked.
+staircase. Grey areas are times nothing was recorded: Nexus wasn't running, or the signal's
+recording was switched off. Nothing is known about the value then. Text values are shown as a list
+of changes. *Delete history* removes what is stored for the signal.
 
 ## Where it is stored
 

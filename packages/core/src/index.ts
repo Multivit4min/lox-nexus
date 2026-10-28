@@ -37,7 +37,7 @@ export { PackageDescriber } from "./plugins/PackageDescriber.ts"
 
 export { SignalSelection, type SelectionMode, type SelectionRule, type SelectionTarget } from "./selection/SignalSelection.ts"
 export { SelectedValues, type SelectedHandler } from "./selection/SelectedValues.ts"
-export { HistoryFlags, type BucketDelta, type BucketPart, type HistorySample, type HistoryStore, type HistoryTier } from "./history/HistoryTypes.ts"
+export { HistoryFlags, type BucketDelta, type BucketPart, type HistorySample, type HistoryStore, type HistoryTier, type PauseChange } from "./history/HistoryTypes.ts"
 export { HistoryRecorder, type RecorderSettings } from "./history/HistoryRecorder.ts"
 export { HistoryRetention, type RetentionSettings } from "./history/HistoryRetention.ts"
 export { SeriesAggregator } from "./history/SeriesAggregator.ts"

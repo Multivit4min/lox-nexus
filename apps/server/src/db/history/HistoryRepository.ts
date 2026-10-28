@@ -1,4 +1,4 @@
-import type { BucketDelta, HistorySample, HistoryStore, HistoryTier } from "@lox-nexus/core"
+import type { BucketDelta, HistorySample, HistoryStore, HistoryTier, PauseChange } from "@lox-nexus/core"
 import type { Database } from "../Database.ts"
 
 /**
@@ -16,6 +16,7 @@ export class HistoryRepository implements HistoryStore {
       this.db.transaction(() => {
         for (const sample of batch.samples) this.insertSample(sample)
         for (const bucket of batch.buckets) this.mergeBucket(bucket)
+        for (const change of batch.pauses ?? []) this.pauseChange(change)
         this.db.run("INSERT INTO runs (started, seen) VALUES (:started, :seen) ON CONFLICT (started) DO UPDATE SET seen = max(seen, excluded.seen)", batch.run)
       })
     } catch (error) {
@@ -38,18 +39,23 @@ export class HistoryRepository implements HistoryStore {
     })
   }
 
+  pausedSignals() {
+    return this.db.all<{ signal_id: string }>("SELECT DISTINCT signal_id FROM pauses WHERE resumed IS NULL").map(row => row.signal_id)
+  }
+
   seriesIds() {
     return this.db.all<{ signal_id: string }>("SELECT signal_id FROM series").map(row => row.signal_id)
   }
 
   purge(signalId: string, limit: number) {
     const id = this.db.get<{ id: number }>("SELECT id FROM series WHERE signal_id = :signalId", { signalId })?.id
-    if (id === undefined) return 0
+    if (id === undefined) return Number(this.db.run("DELETE FROM pauses WHERE signal_id = :signalId", { signalId }).changes)
     const deleted = this.deleteRows(id, "raw", Number.MAX_SAFE_INTEGER, limit)
     const buckets = this.db.run("DELETE FROM buckets WHERE (series, width, start) IN (SELECT series, width, start FROM buckets WHERE series = :id LIMIT :limit)", { id, limit: limit - deleted })
     const total = deleted + Number(buckets.changes)
     if (total < limit) {
       this.db.run("DELETE FROM series WHERE id = :id", { id })
+      this.db.run("DELETE FROM pauses WHERE signal_id = :signalId", { signalId })
       this.ids.delete(signalId)
     }
     return total
@@ -66,6 +72,12 @@ export class HistoryRepository implements HistoryStore {
   }
 
   // two values within one millisecond: the later one stays
+  // a pause opens a row; a resume closes the open one (there is at most one)
+  private pauseChange({ signalId, at, kind }: PauseChange) {
+    if (kind === "pause") this.db.run("INSERT INTO pauses (signal_id, stopped) VALUES (:signalId, :at) ON CONFLICT DO NOTHING", { signalId, at })
+    else this.db.run("UPDATE pauses SET resumed = :at WHERE signal_id = :signalId AND resumed IS NULL", { signalId, at })
+  }
+
   private insertSample(sample: HistorySample) {
     this.db.run(
       `INSERT INTO samples (series, ts, num, text, flags) VALUES (:series, :ts, :num, :text, :flags)

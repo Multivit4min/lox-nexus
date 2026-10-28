@@ -1742,8 +1742,11 @@ Plan and reasons: ADR 0012. Charts, API and the InfluxDB export follow in later 
     failed write keeps everything for the next try (bounded); a batch that fails 12 times in a row
     is dropped and counted, so one bad value can't stop the history. Restored values (boot replay,
     topic moves) are skipped; forced values and commands are marked in `flags`. A signal that
-    leaves the selection gets its open buckets closed (`release`), so its last value isn't carried
-    across a gap; a deleted one (`unregistered`) is forgotten, so its open buckets don't bring its
+    leaves the selection gets its open buckets closed (`release`) and pauses (`RecordingPauses`,
+    written to `pauses`) until it records again, so the time between is a gap. `HistoryAssembly`
+    reconciles on every change of the history's selection or settings: it releases signals that
+    left at once and resumes returning ones with their current value, instead of waiting for
+    their next change. A deleted one (`unregistered`) is forgotten, so its open buckets don't bring its
     history back. A clock jump (more than 2 minutes, or back) closes the buckets where time was
     and starts a new run, so it shows as a gap.
   - `HistoryRetention` prunes each tier past its retention and purges signals missing from the
@@ -1754,7 +1757,8 @@ Plan and reasons: ADR 0012. Charts, API and the InfluxDB export follow in later 
   (`history.db.broken-<time>`) and a new one started, since history must never keep Nexus from
   starting. Tables `series` (a small integer key per signal),
   `samples` (raw, `WITHOUT ROWID`, key series + ts), `buckets` (key series + width + start; parts
-  merge in an upsert) and `runs` (when Nexus ran, for gaps). `HistoryRepository` deletes along the
+  merge in an upsert), `runs` (when Nexus ran, for gaps) and `pauses` (per signal, when it wasn't
+  recorded; `resumed` NULL while it still isn't; deleted with the signal's history). `HistoryRepository` deletes along the
   primary key, one series at a time, so pruning never scans a whole table.
 - **Settings**: `HistorySettingsSchema` in `packages/api` (enabled, retention per tier,
   `rawMinIntervalMs`), stored under the key `history` in the new `settings` table;
@@ -1775,8 +1779,8 @@ Plan and reasons: ADR 0012. Charts, API and the InfluxDB export follow in later 
   than points; the series says each point's `width`. `before` is the value just before the range
   (the last raw value, or, once the raw tier no longer has one, the last bucket's `last`), so a
   line starts at the left edge. Gaps are the times no run covers, with two minutes of slack
-  for the lag of a run's `seen`; the time before the first run is no gap unless Nexus ran before
-  the range.
+  for the lag of a run's `seen` (the time before the first run is no gap unless Nexus ran before
+  the range), merged with the signal's pauses.
 - **API**: `HistoryController` (`/api/history/signals/:id`, `/recorded`, `/stats`, `/settings`)
   and `SelectionController` (`/api/selections/:consumer`, mode and bulk rules, all or none; a rule
   on a target that doesn't exist is a 400). Both come from `HistoryAssembly.controllers`, so

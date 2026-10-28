@@ -48,6 +48,13 @@ export interface BucketDelta extends BucketPart {
   valueType: string
 }
 
+/** A signal stopped being recorded (it left the selection) or started again; readers show the pause as a gap. */
+export interface PauseChange {
+  signalId: string
+  at: number
+  kind: "pause" | "resume"
+}
+
 /** Which data a prune or read is about: the raw changes, or the buckets of one width. */
 export type HistoryTier = "raw" | number
 
@@ -58,11 +65,13 @@ export interface HistoryStore {
    * until `run.seen`, so readers can tell "unchanged" from "Nexus was down".
    * @throws when the write failed; nothing of it was stored then
    */
-  write(batch: { samples: readonly HistorySample[]; buckets: readonly BucketDelta[]; run: { started: number; seen: number } }): void
+  write(batch: { samples: readonly HistorySample[]; buckets: readonly BucketDelta[]; pauses?: readonly PauseChange[]; run: { started: number; seen: number } }): void
+  /** the signals whose recording is paused (left the selection and not back yet) */
+  pausedSignals(): string[]
   /** deletes up to `limit` rows of the tier older than `before`; @returns how many */
   prune(tier: HistoryTier, before: number, limit: number): number
   /** the signal ids that have history */
   seriesIds(): string[]
-  /** deletes up to `limit` rows of a signal's history, and the signal itself once none are left; @returns how many */
+  /** deletes up to `limit` rows of a signal's history, and the signal itself and its pauses once none are left; @returns how many */
   purge(signalId: string, limit: number): number
 }

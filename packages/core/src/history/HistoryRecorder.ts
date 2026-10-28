@@ -3,6 +3,7 @@ import type { BusMessage } from "../bus/BusMessage.ts"
 import type { Clock } from "../bus/Clock.ts"
 import type { Signal } from "../wires/Signal.ts"
 import { HistoryFlags, type BucketDelta, type HistorySample, type HistoryStore } from "./HistoryTypes.ts"
+import { RecordingPauses } from "./RecordingPauses.ts"
 import { SeriesAggregator } from "./SeriesAggregator.ts"
 import { ValueProjection } from "./ValueProjection.ts"
 
@@ -19,6 +20,8 @@ export interface RecorderSettings {
  * raw values and bucket parts wait, and a batch that fails MAX_ATTEMPTS times in a row is dropped,
  * so one bad value can't stop the history for good. Drops are counted in `dropped`.
  * Values replayed at boot or after a rename (`restored`) were recorded already and are skipped.
+ * A signal that leaves the selection pauses until it records again (RecordingPauses), so readers
+ * show the time in between as a gap.
  * A jump of the clock (a device without a real-time clock syncing its time) starts a new run, so
  * it shows as a gap instead of a value drawn across it.
  */
@@ -43,6 +46,7 @@ export class HistoryRecorder extends Disposable {
   private failing = false
   /** raw values and bucket parts dropped because the store kept failing */
   dropped = 0
+  private readonly pauses: RecordingPauses
 
   constructor(
     private readonly store: HistoryStore,
@@ -52,6 +56,7 @@ export class HistoryRecorder extends Disposable {
   ) {
     super()
     this.started = this.lastTime = this.lastPartial = clock.now()
+    this.pauses = new RecordingPauses(this.pausedInStore())
     this.every(HistoryRecorder.FLUSH_MS, () => this.flush())
     this.onDispose(() => {
       this.flush(true)
@@ -60,6 +65,8 @@ export class HistoryRecorder extends Disposable {
 
   /** a value of a selected signal, as SelectedValues hands it on */
   record(signal: Signal, message: BusMessage & { value: NonNullable<BusMessage["value"]> }) {
+    // a replayed value isn't recorded again, but the signal is recording from now on
+    this.pauses.started(signal.id, message.flags?.restored ? this.clock.now() : message.ts)
     if (message.flags?.restored) return
     this.notice(message.ts)
     const valueType = signal.valueType === "any" ? message.value.type : signal.valueType
@@ -69,14 +76,29 @@ export class HistoryRecorder extends Disposable {
     this.keep({ signalId: signal.id, valueType, ts: message.ts, num: projected.num, text: projected.text, flags })
   }
 
-  /** a signal that is not recorded (any more): its open buckets are closed now */
+  /** a signal that is not recorded (any more): its open buckets are closed now, and it pauses */
   release(signalId: string) {
+    this.pauses.stopped(signalId, this.clock.now())
     if (this.aggregator.has(signalId)) this.aggregator.release(signalId, this.clock.now())
+  }
+
+  /** a paused signal that is selected again but has no value to record: it records from now */
+  resume(signalId: string) {
+    this.pauses.started(signalId, this.clock.now())
+  }
+
+  isRecording(signalId: string) {
+    return this.pauses.isRecording(signalId)
+  }
+
+  isPaused(signalId: string) {
+    return this.pauses.isPaused(signalId)
   }
 
   /** a signal that was deleted: nothing more of it is written, also not its open buckets */
   forget(signalId: string) {
     this.aggregator.forget(signalId)
+    this.pauses.forget(signalId)
     this.samples = this.samples.filter(sample => sample.signalId !== signalId)
     this.buckets = this.buckets.filter(bucket => bucket.signalId !== signalId)
     this.latest.clear()
@@ -93,9 +115,10 @@ export class HistoryRecorder extends Disposable {
     const withPartial = partial || now - this.lastPartial >= HistoryRecorder.PARTIAL_MS
     if (withPartial) this.lastPartial = now
     this.pend(this.aggregator.drain(now, withPartial))
-    if (this.samples.length === 0 && this.buckets.length === 0 && !withPartial) return true
+    const pauses = this.pauses.changes
+    if (this.samples.length === 0 && this.buckets.length === 0 && pauses.length === 0 && !withPartial) return true
     try {
-      this.store.write({ samples: this.samples, buckets: this.buckets, run: { started: this.started, seen: now } })
+      this.store.write({ samples: this.samples, buckets: this.buckets, pauses, run: { started: this.started, seen: now } })
     } catch (error) {
       this.failed(error)
       return false
@@ -103,6 +126,7 @@ export class HistoryRecorder extends Disposable {
     if (this.failing) this.log(`writing the history works again${this.dropped ? `; ${this.dropped} values were dropped meanwhile` : ""}`)
     this.failing = false
     this.failures = 0
+    this.pauses.done(pauses.length)
     this.clear()
     return true
   }
@@ -118,6 +142,16 @@ export class HistoryRecorder extends Disposable {
     this.started = this.lastTime = this.lastPartial = now
   }
 
+  // a store that can't say leaves every signal unpaused: at worst a pause isn't drawn
+  private pausedInStore() {
+    try {
+      return this.store.pausedSignals()
+    } catch (error) {
+      this.log("reading the paused signals failed", error)
+      return []
+    }
+  }
+
   private failed(error: unknown) {
     this.failures++
     if (!this.failing) this.log("writing the history failed; keeping the values for the next try", error)
@@ -126,6 +160,7 @@ export class HistoryRecorder extends Disposable {
     this.dropped += this.samples.length + this.buckets.length
     this.log(`dropped a batch of history that failed ${this.failures} times`, error)
     this.failures = 0
+    this.pauses.done(this.pauses.changes.length)
     this.clear()
   }
 

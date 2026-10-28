@@ -64,6 +64,14 @@ export class HistoryReadRepository {
     return this.db.get("SELECT 1 FROM runs WHERE seen < :before LIMIT 1", { before }) !== undefined
   }
 
+  /** the times the signal wasn't recorded that overlap the range, oldest first; `resumed` null while it still isn't */
+  pauses(signalId: string, from: number, to: number) {
+    return this.db.all<{ stopped: number; resumed: number | null }>(
+      "SELECT stopped, resumed FROM pauses WHERE signal_id = :signalId AND stopped < :to AND (resumed IS NULL OR resumed > :from) ORDER BY stopped",
+      { signalId, from, to }
+    )
+  }
+
   /** the runs of Nexus that overlap the range, oldest first */
   runs(from: number, to: number) {
     return this.db.all<{ started: number; seen: number }>("SELECT started, seen FROM runs WHERE started < :to AND seen >= :from ORDER BY started", { from, to })

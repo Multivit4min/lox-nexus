@@ -62,9 +62,6 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
 
 ## Statistics (history and exports)
 
-- **Unrecorded periods are drawn as the held value.** A signal switched off and on again shows its
-  last value across the time it wasn't recorded; only the times Nexus wasn't running are gaps. A
-  "no value" sample when recording stops (or tracking selection changes) would show it.
 - **Watching instances' choices aren't exported.** The config export carries only the history's
   selection; add the others once plugin instances are part of the export.
 - **Chart live tail.** The history panel loads on open and on refresh; appending values from the
