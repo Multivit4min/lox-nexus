@@ -25,10 +25,6 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
 
 ## Server
 
-- **One transform schema.** `WireBodySchema` lives in the server because the transform schemas live
-  in core; the browser uses `TransformDto` in `packages/api`, a mirror kept in step by a test that
-  fails to compile when they differ. Moving the schemas to a dependency-free module would leave
-  one source.
 - **`Miniserver.ts` is near the size limit** (about 170 of 200 counted lines). Split signal
   management into its own class with the next feature there.
 

@@ -1,4 +1,5 @@
-import { ValueSchema, type Value, type ValueType } from "@lox-nexus/plugin-sdk/values"
+import type { TransformConfig } from "@lox-nexus/core"
+import { ValueSchema, type Value } from "@lox-nexus/plugin-sdk/values"
 import { z } from "zod"
 import type { BusMessageDto } from "./bus.ts"
 
@@ -23,14 +24,11 @@ export interface SignalDto {
   owner?: SignalOwnerDto
 }
 
-/** One step of a wire; mirrors core's TransformSchema (a server test fails to compile when they differ). */
-export type SupportedTransformDto =
-  | { op: "invert" }
-  | { op: "scale"; from: [number, number]; to: [number, number]; clamp?: boolean }
-  | { op: "map"; cases: Array<{ when: Value; then: Value }>; else?: Value }
-  | { op: "debounce"; ms: number }
-  | { op: "throttle"; ms: number }
-  | { op: "convert"; to: ValueType }
+/**
+ * One step of a wire: core's TransformSchema, the one source of the shapes. A type-only import,
+ * so nothing of core reaches the browser bundle.
+ */
+export type SupportedTransformDto = TransformConfig
 
 /**
  * A stored step as the UI gets it. One this version can't run (written by hand, or imported from

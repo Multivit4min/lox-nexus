@@ -973,9 +973,8 @@ above:
   while a load is still running.
 - **Keyboard.** The pickers are one Tab stop: arrows move through the matches, Enter in the
   search picks the first one, and the button's name says what is picked.
-- **Types.** `SupportedTransformDto` in `@lox-nexus/api` mirrors core's `TransformSchema`.
-  `WireService` and a server test assign one to the other, so they fail to compile when they
-  drift apart. Stored steps are checked before they reach the UI: one that doesn't fit the schema
+- **Types.** `SupportedTransformDto` in `@lox-nexus/api` is core's `TransformConfig`, imported as a
+  type only, so the shapes have one source and no core code reaches the browser. Stored steps are checked before they reach the UI: one that doesn't fit the schema
   (written by hand, or imported from a newer version) comes as `{ op: "unsupported", raw }`. The
   list shows it as "unsupported step", the form says it will be removed on saving, switching
   such a wire on or off asks to fix it first, and the export writes it as stored. Wire labels

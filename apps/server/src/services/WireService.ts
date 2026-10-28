@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto"
 import { WirePreviewRequestSchema, type TransformDto, type WireDto, type WirePreviewDto } from "@lox-nexus/api"
 import {
-  TransformSchema, WirePreview, WireSchema, type SignalRegistry, type TransformConfig, type WireConfig, type WireEngine, type WireInput
+  TransformSchema, WirePreview, WireSchema, type SignalRegistry, type WireConfig, type WireEngine, type WireInput
 } from "@lox-nexus/core"
 import type { Logger } from "pino"
 import type { WireRepository } from "../db/repositories/WireRepository.ts"
@@ -167,12 +167,8 @@ export class WireService {
     if (!Array.isArray(stored)) return [{ op: "unsupported", raw: stored }]
     return stored.map((step: unknown) => {
       const parsed = TransformSchema.safeParse(step)
-      return parsed.success ? WireService.mirror(parsed.data) : { op: "unsupported", raw: step }
+      return parsed.success ? parsed.data : { op: "unsupported", raw: step }
     })
   }
 
-  // fails to compile when TransformDto stops covering what TransformSchema accepts
-  private static mirror(step: TransformConfig): TransformDto {
-    return step
-  }
 }
