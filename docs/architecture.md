@@ -1714,6 +1714,52 @@ admin-only). DTOs and input schemas go into `packages/api/src/pluginPackages.ts`
 6. Git in the runtime image? Recommended: yes, the M6 Dockerfile installs git. Without it,
    `GitSource` answers "git is not installed" and ZIP still works.
 
+## Implementation notes: value history (statistics S1)
+
+Plan and reasons: ADR 0012. Charts, API and the InfluxDB export follow in later milestones.
+
+- **Selection** (`packages/core/src/selection/`): `SignalSelection` decides per signal whether a
+  consumer takes it: a rule on the signal first, then a rule on its owner (Miniserver or plugin
+  instance), then the mode (`all` or `selected`). `SelectedValues` subscribes to `#`, finds the
+  signal of a topic (`SignalRegistry.atTopic`, the source when a topic has both) and passes on
+  states and commands of selected signals, as subscribers see them (forced values, never shadowed
+  ones). Consumers are `history` and, later, plugin instances that watch signals. The server keeps
+  modes and rules in the main database (`selection_modes`, `selection_rules`, migration 6) and
+  caches one `SignalSelection` per consumer (`SelectionService`), dropped when a signal is
+  unregistered, since its rules went with it. Without a stored mode a consumer takes nothing.
+- **Recording** (`packages/core/src/history/`):
+  - `ValueProjection` turns a value into a number for charts and text for the rest: on/off as
+    0/1, a T5 as its bitmask, lights as their brightness with colour and fade time as JSON text,
+    text (cut at 1000 characters) as text only.
+  - `BucketAccumulator` integrates one signal's value over time in buckets of one width (5 min,
+    1 h); `SeriesAggregator` holds them for all recorded signals.
+  - `HistoryRecorder` buffers raw changes (coalescing those closer than `rawMinIntervalMs`) and
+    writes them with the closed buckets every 5 s, the open buckets every 60 s and on dispose. A
+    failed write keeps everything for the next try (bounded); a batch that fails 12 times in a row
+    is dropped and counted, so one bad value can't stop the history. Restored values (boot replay,
+    topic moves) are skipped; forced values and commands are marked in `flags`. A signal that
+    leaves the selection gets its open buckets closed (`release`), so its last value isn't carried
+    across a gap; a deleted one (`unregistered`) is forgotten, so its open buckets don't bring its
+    history back. A clock jump (more than 2 minutes, or back) closes the buckets where time was
+    and starts a new run, so it shows as a gap.
+  - `HistoryRetention` prunes each tier past its retention and purges signals missing from the
+    configuration for over an hour (a config import removes and re-adds signals), every minute,
+    at most 10 000 rows per tick in total.
+- **Storage** (`apps/server/src/db/history/`): `HistoryDatabase` opens `history.db` (or `:memory:`
+  when the main database is in memory); a file that can't be opened or migrated is moved aside
+  (`history.db.broken-<time>`) and a new one started, since history must never keep Nexus from
+  starting. Tables `series` (a small integer key per signal),
+  `samples` (raw, `WITHOUT ROWID`, key series + ts), `buckets` (key series + width + start; parts
+  merge in an upsert) and `runs` (when Nexus ran, for gaps). `HistoryRepository` deletes along the
+  primary key, one series at a time, so pruning never scans a whole table.
+- **Settings**: `HistorySettingsSchema` in `packages/api` (enabled, retention per tier,
+  `rawMinIntervalMs`), stored under the key `history` in the new `settings` table;
+  `HistorySettingsStore` keeps them and falls back to the defaults for stored values a newer
+  version wrote.
+- **Wiring**: `HistoryAssembly` builds it all. NexusApp owns it right after the SnapshotWriter, so
+  it records the first live values and, on shutdown, is disposed after the Miniservers and
+  plugins and writes their last values before the file closes.
+
 ## Dependencies (installed in the milestone that first needs them)
 
 | Where | Packages |

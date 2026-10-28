@@ -5,6 +5,8 @@ import type { Signal } from "./Signal.ts"
 
 /** Events of SignalRegistry. */
 export interface SignalRegistryEvents {
+  /** emitted after a signal was added */
+  registered: [signal: Signal]
   /** emitted after removal; WireEngine reacts by dropping the wires that used the signal */
   unregistered: [signal: Signal]
   /** emitted after update(); WireEngine rebuilds the wires that use the signal */
@@ -28,6 +30,7 @@ export class SignalRegistry extends EventEmitter<SignalRegistryEvents> implement
     const copy = { ...signal }
     this.byId.set(copy.id, copy)
     this.byTopic.set(SignalRegistry.key(copy.direction, copy.topic), copy)
+    this.emit("registered", copy)
   }
 
   /** @returns false if the id is unknown */
@@ -69,6 +72,11 @@ export class SignalRegistry extends EventEmitter<SignalRegistryEvents> implement
     const signal = this.byId.get(id)
     if (!signal) throw new Error(`unknown signal "${id}"`)
     return signal
+  }
+
+  /** the signal whose values appear on this topic; the source when a topic has both directions */
+  atTopic(topic: string): Signal | undefined {
+    return this.byTopic.get(SignalRegistry.key("source", topic)) ?? this.byTopic.get(SignalRegistry.key("target", topic))
   }
 
   /** snapshot of all signals in registration order */

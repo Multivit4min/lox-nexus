@@ -1,4 +1,5 @@
 import type { Migration } from "./Migrator.ts"
+import { SELECTIONS_MIGRATION } from "./SelectionsMigration.ts"
 
 /** The schema history. Append only: a released migration must never change. */
 export const MIGRATIONS: readonly Migration[] = [
@@ -158,5 +159,6 @@ export const MIGRATIONS: readonly Migration[] = [
         FOREIGN KEY (id, previous_version) REFERENCES plugin_versions(plugin_id, version)
       );
     `
-  }
+  },
+  SELECTIONS_MIGRATION
 ]

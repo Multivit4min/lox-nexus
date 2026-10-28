@@ -232,6 +232,22 @@ first-party plugins load from the workspace until then.
 - A 24 h soak run keeps the heap flat.
 - An out-of-repo plugin built against the published SDK installs from git.
 
+### Statistics (S1–S4)
+
+Plan: value history in Nexus, then an export to InfluxDB as a plugin (ADR 0012). The user chooses
+whether every signal is recorded or exported, or only selected ones.
+
+- **S1: history core and storage** (done). Selection model (all / selected, rules per signal,
+  Miniserver or plugin instance), recorder with time-weighted 5-minute and 1-hour buckets, a
+  separate `history.db`, retention.
+- **S2: API and UI.** Range queries that pick the resolution, a chart per signal, bulk "record",
+  a settings page with retention and the growth estimate, selections in the config export.
+- **S3: plugins can watch signals.** A read-only SDK capability: a plugin declares `watches`, the
+  user picks per instance what it sees, the host delivers values in acknowledged batches with a
+  bounded queue. Additions within wire version 1.
+- **S4: the `influxdb` plugin.** Line protocol to InfluxDB v2/v3 or v1, batched with retries and a
+  bounded buffer, a status panel, a Grafana example in the docs.
+
 ## Top risks
 
 1. **Plugins are trusted code.** Worker threads are not a sandbox. Say so explicitly in the docs and

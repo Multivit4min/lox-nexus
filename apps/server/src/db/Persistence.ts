@@ -9,7 +9,10 @@ import { PluginInstanceRepository } from "./repositories/PluginInstanceRepositor
 import { PluginPackageRepository } from "./repositories/PluginPackageRepository.ts"
 import { PluginSignalRepository } from "./repositories/PluginSignalRepository.ts"
 import { PluginStoreRepository } from "./repositories/PluginStoreRepository.ts"
+import { SelectionRepository } from "./repositories/SelectionRepository.ts"
 import { SessionRepository } from "./repositories/SessionRepository.ts"
+import { SettingsRepository } from "./repositories/SettingsRepository.ts"
+import { SignalIndexRepository } from "./repositories/SignalIndexRepository.ts"
 import { SnapshotRepository } from "./repositories/SnapshotRepository.ts"
 import { UserRepository } from "./repositories/UserRepository.ts"
 import { WireRepository } from "./repositories/WireRepository.ts"
@@ -34,6 +37,9 @@ export class Persistence {
   readonly pluginSignals: PluginSignalRepository
   readonly pluginStore: PluginStoreRepository
   readonly pluginPackages: PluginPackageRepository
+  readonly settings: SettingsRepository
+  readonly selections: SelectionRepository
+  readonly signalIndex: SignalIndexRepository
 
   /**
    * Opens the file and migrates it before any repository exists.
@@ -59,6 +65,9 @@ export class Persistence {
     this.pluginSignals = new PluginSignalRepository(this.db)
     this.pluginStore = new PluginStoreRepository(this.db, warn)
     this.pluginPackages = new PluginPackageRepository(this.db)
+    this.settings = new SettingsRepository(this.db)
+    this.selections = new SelectionRepository(this.db)
+    this.signalIndex = new SignalIndexRepository(this.db)
   }
 
   /** closes the database; repositories must not be used afterwards */

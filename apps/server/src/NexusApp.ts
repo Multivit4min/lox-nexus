@@ -33,8 +33,10 @@ import { LoxoneProjectService } from "./services/LoxoneProjectService.ts"
 import { LoxoneSignalService } from "./services/LoxoneSignalService.ts"
 import { MiniserverService } from "./services/MiniserverService.ts"
 import { PluginLogs } from "./services/PluginLogs.ts"
+import { HistoryAssembly } from "./history/HistoryAssembly.ts"
 import { PluginBridgeService } from "./services/PluginBridgeService.ts"
 import { PluginService } from "./services/PluginService.ts"
+import { SelectionService } from "./services/SelectionService.ts"
 import { PluginSignalService } from "./services/PluginSignalService.ts"
 import { SnapshotWriter } from "./services/SnapshotWriter.ts"
 import { SystemEventLogger } from "./services/SystemEventLogger.ts"
@@ -90,6 +92,9 @@ export class NexusApp extends Disposable {
   readonly pluginLogs: PluginLogs
   private readonly clock: Clock
   private readonly snapshot: SnapshotWriter
+  /** which signals the history and watching plugins take */
+  readonly selections: SelectionService
+  readonly history: HistoryAssembly
   private http: HttpServer | undefined
   private stream: BusStream | undefined
 
@@ -111,6 +116,15 @@ export class NexusApp extends Disposable {
     this.wires = this.own(new WireEngine(this.bus, this.signals))
     // owned before the Miniservers, so it is disposed after them and saves their last values
     this.snapshot = this.own(new SnapshotWriter(this.bus, this.signals, this.persistence.snapshot, log))
+    this.selections = new SelectionService(this.persistence.selections)
+    // owned before the Miniservers and plugins too: their first values are recorded, and the last ones written on shutdown
+    const historyFile = databaseFile === ":memory:" ? ":memory:" : path.join(path.dirname(databaseFile), "history.db")
+    this.history = this.own(new HistoryAssembly(historyFile, {
+      bus: this.bus, signals: this.signals, settings: this.persistence.settings, signalExists: id => this.persistence.signalIndex.exists(id),
+      selections: this.selections, clock: this.clock, log
+    }))
+    // rules go with their signal in the database; the cached selections must follow
+    this.listen(this.signals, "unregistered", () => this.selections.invalidate())
     this.miniservers = this.own(new MiniserverManager({ bus: this.bus, signals: this.signals, clock: this.clock, loadHistory: this.persistence.loadSamples }))
     const transport = options.pluginTransport ?? new WorkerTransport()
     this.pluginLogs = new PluginLogs(log.child({ component: "plugin" }), this.clock)
