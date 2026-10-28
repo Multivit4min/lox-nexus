@@ -8,6 +8,8 @@ export interface PluginPackage {
   name: string
   /** absolute path or file URL of the module that calls PluginEntry.define() */
   entry: string
+  /** the installed version, for messages; development copies have none */
+  version?: string
   description: PluginDescription
 }
 

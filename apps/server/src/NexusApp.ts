@@ -106,7 +106,7 @@ export class NexusApp extends Disposable {
       bus: this.bus, registry: this.signals, transport, store: this.persistence.pluginStore,
       logs: this.pluginLogs, ...(options.pluginTimings ? { timings: options.pluginTimings } : {})
     }))
-    this.pluginAssembly = this.own(new PluginAssembly(config, transport, this.persistence.pluginPackages, log, options.install))
+    this.pluginAssembly = this.own(new PluginAssembly(config, transport, this.persistence.pluginPackages, this.persistence.pluginSignals, log, options.install))
     this.pluginCatalog = this.pluginAssembly.catalog
   }
 

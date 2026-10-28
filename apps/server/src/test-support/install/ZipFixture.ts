@@ -13,8 +13,8 @@ export class ZipFixture {
   }
 
   /** the fixture plugin as a release ZIP, optionally inside a top-level folder */
-  static async plugin(prefix = "", manifest = FixtureBundle.manifest()) {
-    return ZipFixture.zip({ [`${prefix}package.json`]: manifest, [`${prefix}dist/plugin.js`]: await FixtureBundle.bundle() })
+  static async plugin(prefix = "", manifest = FixtureBundle.manifest(), bundle: 1 | 2 = 1) {
+    return ZipFixture.zip({ [`${prefix}package.json`]: manifest, [`${prefix}dist/plugin.js`]: await FixtureBundle.bundle(bundle) })
   }
 
   /**

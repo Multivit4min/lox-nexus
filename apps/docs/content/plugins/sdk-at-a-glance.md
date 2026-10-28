@@ -19,6 +19,7 @@ abstract class Plugin<Config = unknown> extends Disposable {
   start(): void | Promise<void>
   catalog(): CatalogNode[] | Promise<CatalogNode[]>
   panel(): Panel | undefined | Promise<Panel | undefined>
+  unhandledRejection(reason: unknown): void
 }
 ```
 
@@ -27,6 +28,7 @@ abstract class Plugin<Config = unknown> extends Disposable {
 | `start()` | Reject only for what a restart can't fix (bad credentials): the instance goes to the error state and is not restarted. For an unreachable device resolve and call `status.set("degraded", ...)`. |
 | `catalog()` | Asked on demand by the UI; may query the device; a throw is shown to the user. Default `[]`. |
 | `panel()` | Asked on demand; `undefined` shows nothing. Never put secrets in it. |
+| `unhandledRejection(reason)` | Called for a promise in the worker that was rejected without a handler (a forgotten `.catch`). The worker keeps running; the default logs an error with the stack. Override to say more or to set a degraded status; it must not throw. `PluginTestHost.unhandledRejection(reason)` calls it in tests. |
 | `config` | Already validated against the static `config` schema, defaults applied. Available in field initializers of subclasses. |
 
 Static declarations on the subclass ([`PluginClass`](../reference/sdk/@lox-nexus/plugin-sdk.md#pluginclass)); all optional:

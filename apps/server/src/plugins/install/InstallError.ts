@@ -3,7 +3,7 @@ import { HttpError } from "../../http/HttpError.ts"
 /** Why an install step failed; each reason has one HTTP status. */
 export type InstallErrorReason =
   | "invalid-source" | "invalid-package" | "describe-failed" | "not-found" | "busy" | "exists" | "conflict"
-  | "in-use" | "unsupported" | "git-failed" | "timeout" | "no-space"
+  | "in-use" | "git-failed" | "timeout" | "no-space"
 
 const STATUS: Record<InstallErrorReason, number> = {
   "invalid-source": 400,
@@ -14,7 +14,6 @@ const STATUS: Record<InstallErrorReason, number> = {
   exists: 409,
   conflict: 409,
   "in-use": 409,
-  unsupported: 409,
   "git-failed": 502,
   timeout: 504,
   "no-space": 507

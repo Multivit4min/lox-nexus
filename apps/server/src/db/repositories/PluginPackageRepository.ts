@@ -79,6 +79,30 @@ export class PluginPackageRepository {
     })
   }
 
+  /** any stored version, active or not; undefined when there is none */
+  version(pluginId: string, version: string) {
+    const row = this.db.get<VersionRow>("SELECT * FROM plugin_versions WHERE plugin_id = :pluginId AND version = :version", { pluginId, version })
+    return row && PluginPackageRepository.toVersion(row)
+  }
+
+  /** makes a stored version active; the one active before becomes previous (rollback and roll-forward alike) */
+  activate(pluginId: string, version: string) {
+    this.db.run(
+      "UPDATE plugin_packages SET previous_version = active_version, active_version = :version WHERE id = :pluginId AND active_version <> :version",
+      { pluginId, version }
+    )
+  }
+
+  /** puts both pointers back exactly, e.g. after a switch that couldn't be applied */
+  restore(pluginId: string, active: string, previous: string | undefined) {
+    this.db.run("UPDATE plugin_packages SET active_version = :active, previous_version = :previous WHERE id = :pluginId", { pluginId, active, previous: previous ?? null })
+  }
+
+  /** a version that is neither active nor previous; the foreign keys refuse anything else */
+  deleteVersion(pluginId: string, version: string) {
+    this.db.run("DELETE FROM plugin_versions WHERE plugin_id = :pluginId AND version = :version", { pluginId, version })
+  }
+
   /** after a stored description had to be described again */
   setDescription(pluginId: string, version: string, description: string) {
     this.db.run("UPDATE plugin_versions SET description = :description WHERE plugin_id = :pluginId AND version = :version", { pluginId, version, description })
@@ -90,11 +114,6 @@ export class PluginPackageRepository {
       this.db.run("DELETE FROM plugin_packages WHERE id = :id", { id })
       this.db.run("DELETE FROM plugin_versions WHERE plugin_id = :id", { id })
     })
-  }
-
-  private version(pluginId: string, version: string) {
-    const row = this.db.get<VersionRow>("SELECT * FROM plugin_versions WHERE plugin_id = :pluginId AND version = :version", { pluginId, version })
-    return row && PluginPackageRepository.toVersion(row)
   }
 
   private static params(version: StoredVersion) {

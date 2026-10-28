@@ -73,6 +73,17 @@ export abstract class Plugin<Config = unknown> extends Disposable {
   panel(): Panel | undefined | Promise<Panel | undefined> {
     return undefined
   }
+
+  /**
+   * A promise in this worker was rejected and nobody handled it (a forgotten `.catch`). The worker
+   * keeps running; by default the reason is logged as an error with its stack. Override it to say
+   * more, e.g. which line of user code it came from, or to report a degraded status. It must not
+   * throw.
+   */
+  unhandledRejection(reason: unknown) {
+    const error = reason instanceof Error ? reason : undefined
+    this.log.error(`unhandled promise rejection: ${error ? error.message : String(reason)}`, error?.stack ? { stack: error.stack } : undefined)
+  }
 }
 
 /**

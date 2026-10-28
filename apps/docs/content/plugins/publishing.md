@@ -1,7 +1,7 @@
 # Publishing a plugin
 
-> Installing works through the REST API today; the UI for it is **not available yet** (milestone
-> M5e-3), and neither is updating an installed plugin (M5e-2). Publishing the SDK to npm and a
+> Installing, updating and rolling back work through the REST API today; the UI for them is **not
+> available yet** (milestone M5e-3). Publishing the SDK to npm and a
 > plugin template repository are milestone **M6**. How to install is described in
 > [Installation](../guide/installation.md#installing-a-plugin).
 
@@ -93,8 +93,14 @@ package instead.
 
 The same version with the same bundle counts as already installed, and confirming it changes
 nothing. The same version with a **different** bundle is refused, so raise the version whenever
-the bundle changes. Installing a different version of an installed plugin is not supported yet
-(M5e-2); the admin has to uninstall the old one first.
+the bundle changes. A different version is an update: running instances restart on it, and the
+version before stays for a rollback.
+
+**Keep stored data compatible.** Updates and rollbacks don't migrate an instance's config or
+store. Read the formats older versions of your plugin wrote, and tolerate fields a newer version
+added, so a rollback keeps working. A required setting that is new or was optional before stops
+existing instances with an error until the user fills it in; give new settings a default where
+you can.
 
 ## Trust
 

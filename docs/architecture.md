@@ -1395,8 +1395,8 @@ Activation is the same for an update (confirm) and a rollback or roll-forward
   supervisor and start if enabled, as today.
 - **Signals:** an orphaned signal keeps its row, topic, wires and last value, shows its error,
   and receives nothing. After a rollback, `refresh()` clears the mark and `addAll` creates it
-  again. A changed value type rebuilds its wires or drops them as inactive (they come back once
-  the type fits again). Nothing is deleted automatically.
+  again. A changed value type rebuilds its wires (WireEngine checks direction, not value types, so
+  they stay active and values convert). Nothing is deleted automatically.
 - **Stored config:** never migrated. The plugin validates it in `init`. An instance whose config
   the new schema refuses ends in `error` with the plugin's message. The user then fixes it in the
   form, which now renders the new schema, or rolls back. Secret fields follow the effective
@@ -1605,10 +1605,7 @@ admin-only). DTOs and input schemas go into `packages/api/src/pluginPackages.ts`
     507.
 - **The operation lock lives in `PluginPackageService`** (`OperationLock`). It covers the commit,
   the catalog update and `packageChanged`, not just the installer's own steps.
-- **Updates wait for M5e-2.** Staging an installed id with another version answers 409
-  `unsupported` ("uninstall it first"). The same version and bundle is `sameAsInstalled`, and the
-  same version with another bundle is 409 `exists`. `StagedInstallDto` has no `impact` yet, and
-  there is no `activate` or `prune`.
+- **Updates came with M5e-2** (see its notes below). In M5e-1 another version answered 409.
 - **Uninstall** removes the catalog entry before any file is touched, so no instance can be created
   meanwhile. Folders that can't be removed are logged and become orphans for the next boot. A
   commit removes a leftover folder that has no row before moving in.
@@ -1620,6 +1617,46 @@ admin-only). DTOs and input schemas go into `packages/api/src/pluginPackages.ts`
   - Git URLs with a query or fragment are refused.
   - `DevPluginLoader` ignores changes under `dist/` and `node_modules/`, so building the plugins
     doesn't restart every development instance.
+
+### Implementation notes: M5e-2
+
+- **Versions.** A version number names one bundle for good: staging a stored version (active or
+  previous) with another bundle is 409 `exists`. Staging a stored version with the same bundle
+  activates it on confirm, and when its files are missing or changed, the staged copy repairs them
+  first (`PluginVersions.repair`), so re-installing is also the way to fix a broken version. After
+  every confirm, versions other than active and previous are pruned; a prune failure is logged,
+  never fails the confirm.
+- **Switching** goes through `PluginSwitch`: load the version (sha256, description), point the
+  catalog at it, then `PluginService.packageChanged` unless a development copy hides it.
+  - `activate` loads the previous version *before* switching the rows, so missing files answer
+    400 and nothing changes.
+  - `confirm` can only find out after the rows are written. If the switch then fails, the rows are
+    put back exactly (`PluginPackageRepository.restore`), or a new plugin is uninstalled again,
+    and the error is answered.
+- **`packageChanged`** notes the enabled instances in `error` or `crashed` before restarting, and
+  afterwards starts those that are still the same supervisor, still enabled and stopped, so one
+  stopped or disabled meanwhile stays down. Waiting instances are attached synchronously, so a
+  development reload at the same time can't attach one twice. Starts run in parallel.
+- **Orphaned signals** (`PluginSignals.refresh/restore`):
+  - an update marks signals whose capability is gone as orphaned; they stay registered with
+    their topic and wires, are left out of `signal.add`, and an orphaned actuator answers commands
+    with its reason, running or not
+  - at boot, and when a waiting instance is attached, stored rows go through `restore()`, so an
+    orphan survives a restart, typed `any` until a version offers its capability again
+  - a slug change moves orphans' topics too; editing one answers 409 ("roll the plugin back or
+    delete the signal"); deleting one works as usual
+- **Secrets across versions:** instance DTOs show only fields the effective schema declares, not
+  as secret. A field a newer version renamed or dropped is hidden too, and kept on save, so a
+  rollback finds it again.
+- **Impact** (`UpdateImpact`): capabilities removed (used by signals or offered before, and not
+  offered next, also when the active description is unknown), retyped, and required settings that
+  are new or were optional before; the config schema is read with `safeParse`. Shown on staging
+  (`StagedInstallDto.impact`) and for a rollback (`GET …/:id/versions/:version/impact`).
+- **API:** `POST /api/plugin-packages/:id/activate { version, expectedActive }` switches to the
+  previous version (409 when the active one changed meanwhile or another version is named).
+- **Every unhandled promise rejection in a plugin worker** now goes to `Plugin.unhandledRejection`
+  (default: log an error with the stack) instead of ending the worker; found with the script
+  plugin, whose users forget `.catch`.
 
 ### Left out on purpose
 

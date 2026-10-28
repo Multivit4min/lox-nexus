@@ -86,6 +86,22 @@ describe("plugins in real worker threads (chaos fixtures)", { timeout: 60_000 },
     await chattyManager.dispose()
   })
 
+  test("an unhandled promise rejection is logged and the worker keeps running", async () => {
+    const lines: string[] = []
+    const logged = new PluginManager({
+      bus, registry: new SignalRegistry(), transport: new WorkerTransport(),
+      store: { load: () => ({}), set: () => {}, delete: () => {} },
+      logs: { log: (_instance, level, message) => void lines.push(`${level} ${message}`) }
+    })
+    const supervisor = logged.add(instance("forgetful", "forgetful"), { id: "forgetful", name: "Forgetful", entry: entry("forgetful"), description: oneActuator("x") })
+    await supervisor.start()
+    await new Promise(resolve => setTimeout(resolve, 200))
+    assert.deepEqual([supervisor.state, supervisor.restarts], ["running", 0])
+    assert.ok(lines.includes("error unhandled promise rejection: forgot to catch"), lines.join("\n"))
+    assert.ok(lines.includes("error unhandled promise rejection: forgot again"), lines.join("\n"))
+    await logged.dispose()
+  })
+
   test("a stop and start cycle leaves no active handles behind", async () => {
     const counter = { id: "counter", name: "Counter", entry: entry("counter"), description: await PluginTestHost.describe(CounterPlugin) }
     const before = process.getActiveResourcesInfo().sort()

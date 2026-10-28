@@ -89,4 +89,9 @@ export interface PluginSignalDto {
   topic: string
   valueType: ValueType | "any"
   error?: string
+  /**
+   * the plugin's active version no longer offers this capability: the signal keeps its topic, wires
+   * and last value, `error` says why, and it works again after a rollback
+   */
+  orphaned?: boolean
 }

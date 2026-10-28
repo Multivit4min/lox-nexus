@@ -1,4 +1,4 @@
-import { ConfirmInstallInputSchema, GitInstallInputSchema, LocalInstallInputSchema } from "@lox-nexus/api"
+import { ActivateInputSchema, ConfirmInstallInputSchema, GitInstallInputSchema, LocalInstallInputSchema } from "@lox-nexus/api"
 import type { FastifyInstance } from "fastify"
 import { z } from "zod"
 import type { PluginPackageService } from "../../services/PluginPackageService.ts"
@@ -7,6 +7,7 @@ import { HttpError } from "../HttpError.ts"
 
 const IdParams = z.object({ id: z.string().min(1).max(64) })
 const StagingParams = z.object({ stagingId: z.uuid() })
+const VersionParams = IdParams.extend({ version: z.string().min(1).max(64) })
 const ZipQuery = z.object({ name: z.string().min(1).max(255).regex(/^[^\p{Cc}]+$/u, "must not contain control characters").default("plugin.zip") })
 
 /**
@@ -20,6 +21,9 @@ const ZipQuery = z.object({ name: z.string().min(1).max(255).regex(/^[^\p{Cc}]+$
  *   application/zip, x-zip-compressed or octet-stream, up to 50 MiB): 201 with the staged install.
  * - POST …/stage/:stagingId/confirm `{ expectedActive }`: 200 with the plugin and its instances.
  * - DELETE …/stage/:stagingId: 204.
+ * - POST …/:id/activate `{ version, expectedActive }`: 200 with the plugin and its instances; switches
+ *   to the stored previous version (rollback) or back.
+ * - GET …/:id/versions/:version/impact: 200 with what switching to that stored version would do.
  * - DELETE …/:id: 204, or 409 while instances of the plugin exist.
  *
  * Errors: 400 unusable source or package, or the plugin failed to load; 404 unknown or expired;
@@ -46,6 +50,12 @@ export class PluginPackageController implements Controller {
     app.delete("/api/plugin-packages/stage/:stagingId", async (request, reply) => {
       await this.packages.discard(StagingParams.parse(request.params).stagingId, request.user!.username)
       return reply.code(204).send()
+    })
+    app.post("/api/plugin-packages/:id/activate", request =>
+      this.packages.activate(IdParams.parse(request.params).id, ActivateInputSchema.parse(request.body), request.user!.username))
+    app.get("/api/plugin-packages/:id/versions/:version/impact", request => {
+      const { id, version } = VersionParams.parse(request.params)
+      return this.packages.impact(id, version)
     })
     app.delete("/api/plugin-packages/:id", async (request, reply) => {
       await this.packages.uninstall(IdParams.parse(request.params).id, request.user!.username)

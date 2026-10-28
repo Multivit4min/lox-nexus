@@ -18,6 +18,11 @@ export interface PluginSignalEntry {
   topic: string
   valueType: SignalValueType
   error?: string
+  /**
+   * the plugin's current version no longer offers its capability: the signal keeps its topic, wires
+   * and last value but isn't created in the plugin, until a version that offers it again
+   */
+  orphaned?: boolean
 }
 
 /**
@@ -57,6 +62,20 @@ export class PluginSignals extends Disposable {
     return entry
   }
 
+  /**
+   * Registers a stored signal, also one whose capability the current version doesn't offer (after
+   * an update and a restart): that one is orphaned, typed "any" until a version offers it again,
+   * so its row, topic and wires survive. @throws Error for a duplicate id or a taken topic
+   */
+  restore(config: PluginSignalConfig) {
+    if (this.capability(config)) return this.add(config)
+    if (this.entries.has(config.id)) throw new Error(`signal "${config.id}" already exists`)
+    const entry: PluginSignalEntry = { config, topic: this.topics.forSignal(config), valueType: "any", orphaned: true, error: this.orphanReason(config) }
+    this.registry.register(this.signalOf(entry))
+    this.entries.set(config.id, { ...entry, ...this.subscribe(entry) })
+    return entry
+  }
+
   /** Replaces a signal's config (same id); its wires stay. @throws like add() */
   update(config: PluginSignalConfig) {
     const previous = this.entries.get(config.id)
@@ -78,11 +97,20 @@ export class PluginSignals extends Disposable {
     return true
   }
 
-  /** a new instance slug moves every topic; wires survive because they refer to ids */
+  /** a new instance slug moves every topic; wires survive because they refer to ids. Orphans move too and stay orphaned. */
   rename(instance: PluginInstanceConfig) {
     this.instance = instance
     this.topics = new PluginTopics(instance)
-    for (const entry of [...this.entries.values()]) this.update(entry.config)
+    for (const entry of [...this.entries.values()]) {
+      if (!entry.orphaned) {
+        this.update(entry.config)
+        continue
+      }
+      const moved = { ...entry, topic: this.topics.forSignal(entry.config) }
+      this.registry.update(this.signalOf(moved))
+      void entry.subscription?.dispose()
+      this.entries.set(entry.config.id, { ...moved, ...this.subscribe(moved) })
+    }
   }
 
   /** undefined for unknown ids */
@@ -92,12 +120,37 @@ export class PluginSignals extends Disposable {
 
   /** a snapshot; the entries are copies */
   list(): PluginSignalEntry[] {
-    return [...this.entries.values()].map(({ config, topic, valueType, error }) => ({ config, topic, valueType, ...(error ? { error } : {}) }))
+    return [...this.entries.values()].map(({ config, topic, valueType, error, orphaned }) => ({ config, topic, valueType, ...(error ? { error } : {}), ...(orphaned ? { orphaned } : {}) }))
   }
 
-  /** what the worker needs to recreate every signal after a (re)start */
+  /** what the worker needs to recreate every signal after a (re)start; orphaned ones are left out, the plugin wouldn't know them */
   specs(): Array<SignalSpec & { id: string }> {
-    return [...this.entries.values()].map(({ config }) => ({ id: config.id, kind: config.kind, capability: config.capability, params: config.params }))
+    return [...this.entries.values()].filter(entry => !entry.orphaned)
+      .map(({ config }) => ({ id: config.id, kind: config.kind, capability: config.capability, params: config.params }))
+  }
+
+  /**
+   * Resolves every signal against the current package again, after an update or a rollback.
+   * Nothing is deleted: a signal whose capability is gone stays registered (topic, wires, last
+   * value) and is marked orphaned with the reason; one whose capability is back is cleared; a
+   * changed value type goes through the registry, so the wire engine rebuilds or drops its wires.
+   */
+  refresh() {
+    for (const entry of this.entries.values()) {
+      const capability = this.capability(entry.config)
+      if (!capability) {
+        entry.orphaned = true
+        entry.error = this.orphanReason(entry.config)
+        continue
+      }
+      if (entry.orphaned) {
+        delete entry.orphaned
+        delete entry.error
+      }
+      if (capability.valueType === entry.valueType) continue
+      entry.valueType = capability.valueType
+      this.registry.update(this.signalOf(entry))
+    }
   }
 
   /** remembers why the plugin was told to act, so what it emits meanwhile continues that trace */
@@ -134,11 +187,20 @@ export class PluginSignals extends Disposable {
   }
 
   private entryFor(config: PluginSignalConfig): PluginSignalEntry {
-    const { description, name } = this.pkg()
-    const offered = config.kind === "sensor" ? description.sensors : description.actuators
-    const capability = offered.find(candidate => candidate.id === config.capability)
-    if (!capability) throw new Error(`${name} has no ${config.kind} "${config.capability}"`)
+    const capability = this.capability(config)
+    if (!capability) throw new Error(`${this.pkg().name} has no ${config.kind} "${config.capability}"`)
     return { config, topic: this.topics.forSignal(config), valueType: capability.valueType }
+  }
+
+  private orphanReason(config: PluginSignalConfig) {
+    const { name, version } = this.pkg()
+    return `${name}${version ? ` ${version}` : ""} no longer offers ${config.kind} "${config.capability}"`
+  }
+
+  private capability(config: PluginSignalConfig) {
+    const { description } = this.pkg()
+    const offered = config.kind === "sensor" ? description.sensors : description.actuators
+    return offered.find(candidate => candidate.id === config.capability)
   }
 
   private signalOf(entry: PluginSignalEntry): Signal {

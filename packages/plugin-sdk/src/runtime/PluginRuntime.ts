@@ -102,6 +102,19 @@ export class PluginRuntime {
     }
   }
 
+  /**
+   * An unhandled promise rejection in this worker: handed to the plugin, or logged while there is
+   * none (before init, after shutdown). Never throws, so the worker survives a forgotten `.catch`.
+   */
+  rejected(reason: unknown) {
+    try {
+      if (this.plugin && !this.plugin.isDisposed) return this.plugin.unhandledRejection(reason)
+    } catch (error) {
+      reason = error
+    }
+    this.log("error", `unhandled promise rejection: ${PluginRuntime.text(reason)}`, reason instanceof Error && reason.stack ? { stack: reason.stack } : undefined)
+  }
+
   private log(level: LogLevel, message: string, data?: unknown) {
     const causeId = CauseScope.current()
     this.send({ type: "log", level, message: PluginRuntime.clip(String(message)), ...PluginRuntime.cloneable(data), ...(causeId ? { causeId } : {}) })

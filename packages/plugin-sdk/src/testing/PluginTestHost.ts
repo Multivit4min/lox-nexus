@@ -117,6 +117,14 @@ export class PluginTestHost {
     return last?.type === "status" ? { status: last.status, message: last.message } : { status: "running" as const }
   }
 
+  /**
+   * Hands `reason` to the plugin as the worker would for an unhandled promise rejection (the test
+   * process keeps its own handler, so real ones don't reach the plugin here).
+   */
+  unhandledRejection(reason: unknown) {
+    this.runtime.rejected(reason)
+  }
+
   /** stops the plugin like the host would; resolves when it reported `stopped` */
   async stop() {
     const stopped = this.waitFor(message => message.type === "stopped")

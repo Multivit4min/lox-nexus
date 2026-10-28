@@ -190,11 +190,26 @@ exist: delete those first, which also deletes their signals and wires.
 curl -b jar -X DELETE http://localhost:8080/api/plugin-packages/<plugin id>
 ```
 
-**Updating** an installed plugin to another version is **not supported yet** (milestone M5e-2).
-Uninstall it first, then install the new version. Installing the same version again with the same
-bundle changes nothing; the same version with a different bundle is refused, so raise the version
-when you change a plugin. See [Publishing a plugin](../plugins/publishing.md) for what a package
-must contain.
+**Updating** works like installing: stage the new version, look at the `impact` in the answer
+(instances that restart, sensors or actuators the new version no longer offers, settings it newly
+requires), and confirm with the active version as `expectedActive`. Running instances restart on
+the new version without a server restart, and instances that had failed start on it. Signals whose
+sensor or actuator is gone stay with their wires and are marked orphaned until a version offers it
+again.
+
+**Rolling back** switches to the version that was active before; the two versions swap, so the
+same call goes forward again:
+
+```sh
+curl -b jar http://localhost:8080/api/plugin-packages/<plugin id>/versions/<version>/impact
+curl -b jar -H 'content-type: application/json' -d '{"version":"1.0.0","expectedActive":"1.1.0"}' \
+  http://localhost:8080/api/plugin-packages/<plugin id>/activate
+```
+
+Only the active and the previous version are kept. Installing the same version again with the same
+bundle changes nothing (or repairs its files when they went missing); the same version with a
+different bundle is refused, so raise the version when you change a plugin. See
+[Publishing a plugin](../plugins/publishing.md) for what a package must contain.
 
 ### The local plugin repository
 
@@ -212,4 +227,4 @@ built yet is listed with the reason.
 ## Not available yet
 
 - A Docker image (amd64 and arm64) and backups of the whole data directory: milestone M6.
-- The installer's web UI (M5e-3), updating an installed plugin and rollback (M5e-2).
+- The installer's web UI (M5e-3).

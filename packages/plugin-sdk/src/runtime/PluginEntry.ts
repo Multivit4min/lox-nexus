@@ -14,8 +14,9 @@ export interface PluginWorkerData {
  * export default PluginEntry.define(FroniusPlugin)
  * ```
  *
- * Loaded by Nexus as a plugin worker, it starts the runtime for the class. Imported anywhere else
- * (tests, tools) it only returns the class.
+ * Loaded by Nexus as a plugin worker, it starts the runtime for the class and routes unhandled
+ * promise rejections to `Plugin.unhandledRejection` instead of letting them end the worker.
+ * Imported anywhere else (tests, tools) it only returns the class.
  */
 export class PluginEntry {
   /** @returns `type` itself, so it can be the module's default export */
@@ -25,6 +26,8 @@ export class PluginEntry {
     const port = parentPort
     const runtime = new PluginRuntime(type, message => port.postMessage(message))
     port.on("message", (message: unknown) => void runtime.handle(message))
+    // Node ends a thread on an unhandled rejection; one forgotten .catch would crash-loop the plugin
+    process.on("unhandledRejection", reason => runtime.rejected(reason))
     runtime.hello()
     return type
   }

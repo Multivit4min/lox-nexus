@@ -74,13 +74,16 @@ export class PluginCalls {
    * Returns at once: the outcome arrives later, and a plugin that isn't running reports failure.
    */
   actuate(signalId: string, value: Value, cause: BusMessage) {
-    const topic = this.signals().get(signalId)?.topic
-    if (!topic) return
+    const signal = this.signals().get(signalId)
+    if (!signal) return
+    const { topic } = signal
     this.signals().rememberCause(cause)
     const session = this.session()
     const started = performance.now()
     const report = (ok: boolean, error?: string) =>
       this.bus.result(topic, { ok, ...(error ? { error } : {}), durationMs: Math.round(performance.now() - started) }, { source: this.signals().source, cause })
+    // the plugin doesn't know an orphaned actuator, running or not; say why
+    if (signal.orphaned) return report(false, signal.error)
     if (!session) return report(false, new PluginNotRunningError().message)
     session.request({ type: "actuate", signalId, value, causeId: cause.id })
       .then(() => report(true), (error: unknown) => report(false, error instanceof Error ? error.message : String(error)))

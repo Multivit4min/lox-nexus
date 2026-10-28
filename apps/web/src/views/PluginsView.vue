@@ -97,7 +97,7 @@ onUnmounted(() => live.close())
       </TableBody>
     </Table>
     <Dialog v-model:open="adding">
-      <DialogContent class="sm:max-w-2xl">
+      <DialogContent class="sm:max-w-4xl">
         <DialogHeader><DialogTitle>Add plugin instance</DialogTitle></DialogHeader>
         <InstanceForm :packages="packages" :submit="create" />
       </DialogContent>

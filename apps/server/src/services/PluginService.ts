@@ -38,16 +38,25 @@ export class PluginService {
   }
 
   /**
-   * A plugin was (re)loaded, e.g. after an edit in development: running instances restart with
-   * it, and instances that were unavailable get a supervisor and start if enabled.
+   * A plugin was (re)loaded, after an edit in development or an install, update or rollback:
+   * running instances restart with it, enabled instances in error or crashed start on it, and
+   * instances that were unavailable get a supervisor and start if enabled. Instances stopped by
+   * hand stay stopped.
    */
   async packageChanged(pkg: PluginPackage) {
+    // an update may be the fix: enabled instances that failed start on it rather than staying down
+    const failed = this.manager.list()
+      .filter(supervisor => supervisor.config.plugin === pkg.id && supervisor.config.enabled && (supervisor.state === "error" || supervisor.state === "crashed"))
     await this.manager.replacePackage(pkg)
+    // checked again: the update took a while, and the user may have stopped, disabled or deleted one meanwhile
+    const restart = failed.filter(supervisor => this.manager.get(supervisor.config.id) === supervisor && supervisor.config.enabled && supervisor.state === "stopped")
     const waiting = this.repo.list().filter(instance => instance.plugin === pkg.id && !this.manager.get(instance.id))
-    for (const instance of waiting) {
-      const supervisor = this.attach(instance, pkg)
-      if (instance.enabled) await supervisor.start()
-    }
+    // attached synchronously, so a concurrent call (a development reload) can't attach one twice
+    const attached = waiting.map(instance => ({ instance, supervisor: this.attach(instance, pkg) }))
+    await Promise.all([
+      ...restart.map(supervisor => supervisor.start()),
+      ...attached.filter(({ instance }) => instance.enabled).map(({ supervisor }) => supervisor.start())
+    ])
   }
 
   /** the plugins that can be instantiated; secret handling is per instance, see secrets() */
@@ -175,7 +184,8 @@ export class PluginService {
     const supervisor = this.manager.add(instance, pkg)
     for (const signal of this.signalRepo.listFor(instance.id)) {
       try {
-        supervisor.signals.add(signal)
+        // a signal whose capability this version doesn't offer stays registered as an orphan
+        supervisor.signals.restore(signal)
       } catch (error) {
         this.log.error({ err: error, signal: signal.id }, "skipping plugin signal that can't be loaded")
       }

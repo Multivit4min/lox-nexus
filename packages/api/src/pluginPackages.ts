@@ -69,6 +69,31 @@ export interface StagedInstallDto {
   installedVersion?: string
   /** the same version with the same bundle is installed already; confirming changes nothing */
   sameAsInstalled: boolean
+  /** what confirming does to the existing instances; absent for a new plugin */
+  impact?: UpdateImpactDto
+}
+
+/** A capability that a version switch removes or retypes, with how many signals use it. */
+export interface CapabilityChangeDto {
+  kind: "sensor" | "actuator"
+  capability: string
+  /** configured signals of this capability, across all instances */
+  signals: number
+  /** retyped only: the value type before and after */
+  from?: string
+  to?: string
+}
+
+/** What switching an installed plugin to another version does to its instances. */
+export interface UpdateImpactDto {
+  /** every instance of the plugin; the running ones restart */
+  instances: InstalledInstanceDto[]
+  /** capabilities the new version no longer offers: their signals become orphaned, wires stay */
+  removed: CapabilityChangeDto[]
+  /** capabilities whose value type changes: their wires are rebuilt, and values convert to the new type */
+  retyped: CapabilityChangeDto[]
+  /** top-level settings the new version requires without a default; instances lacking them stop with an error */
+  newRequiredConfig: string[]
 }
 
 /** An instance of the plugin and its state after an install. */
@@ -97,6 +122,14 @@ export const LocalInstallInputSchema = z.object({
   folder: z.string().min(1).max(255)
 })
 export type LocalInstallInput = z.infer<typeof LocalInstallInputSchema>
+
+/** POST /api/plugin-packages/:id/activate: switch to the stored previous version (rollback) or back. */
+export const ActivateInputSchema = z.object({
+  version: z.string().min(1).max(64),
+  /** the active version the user's review was based on */
+  expectedActive: z.string().max(64)
+})
+export type ActivateInput = z.infer<typeof ActivateInputSchema>
 
 /** POST …/stage/:stagingId/confirm: the active version the review was based on, null for a new plugin. */
 export const ConfirmInstallInputSchema = z.object({

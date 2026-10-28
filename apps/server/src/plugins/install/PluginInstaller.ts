@@ -37,7 +37,7 @@ export class PluginInstaller {
   /**
    * Fetches, checks and describes the plugin (which runs its code once) and parks it for review,
    * replacing any earlier pending install.
-   * @throws InstallError exists/unsupported for an installed id, plus whatever the source throws; the staging folder is gone afterwards
+   * @throws InstallError exists for a stored version with another bundle, plus whatever the source throws; the staging folder is gone afterwards
    */
   async stage(source: PluginSource, by: string): Promise<StageResult> {
     const { staging, pending, inspector, log } = this.deps
@@ -59,11 +59,12 @@ export class PluginInstaller {
   }
 
   /**
-   * Installs a staged plugin after re-checking that nothing changed since the review. An identical
-   * re-install succeeds without changing anything.
+   * Installs a staged plugin after re-checking that nothing changed since the review: a new
+   * version is moved into place and becomes active, the stored previous version (same bundle) is
+   * activated again, and an identical re-install of the active version changes nothing.
    * @param expectedActive the active version the user's review was based on, null for a new plugin
    * @returns the active version afterwards and whether it changed
-   * @throws InstallError not-found (expired), conflict (installed meanwhile), exists, unsupported, no-space
+   * @throws InstallError not-found (expired), conflict (changed meanwhile), exists, no-space
    */
   async confirm(stagingId: string, expectedActive: string | null, by: string): Promise<{ stored: StoredVersion; changed: boolean }> {
     const { pending, staging, versions, repo, log } = this.deps
@@ -78,8 +79,14 @@ export class PluginInstaller {
     try {
       const entry = PluginDirectory.inside(staged.packageDir, staged.manifest.entry)
       if (await PluginDirectory.sha256(entry) !== staged.bundleSha256) throw new InstallError("conflict", "the staged bundle changed; check it again")
-      if (this.compare(staged).sameAsInstalled) return { stored: repo.get(staged.manifest.id)!.active, changed: false }
-      const stored = await versions.commit(staged, by)
+      const { id, version } = staged.manifest
+      const kept = repo.version(id, version)
+      // installing a stored version again is also how its broken files get repaired: same bundle, known good
+      const repaired = kept !== undefined && !await versions.load(kept)
+      if (repaired) await versions.repair(staged)
+      if (this.compare(staged).sameAsInstalled) return { stored: kept!, changed: repaired }
+      if (kept) versions.activate(id, version)
+      const stored = kept ?? await versions.commit(staged, by)
       log.info({ by, source: staged.origin, plugin: stored.pluginId, version: stored.version, bundleSha256: stored.bundleSha256 }, "plugin installed")
       return { stored, changed: true }
     } catch (error) {
@@ -89,20 +96,24 @@ export class PluginInstaller {
     }
   }
 
+  /** the staged package waiting under `stagingId`, if any */
+  staged(stagingId: string) {
+    return this.deps.pending.get(stagingId)?.staged
+  }
+
   /** drops a staged install the user cancelled; false when it is gone already */
   discard(stagingId: string) {
     return this.deps.pending.discard(stagingId)
   }
 
-  // updating an installed plugin (hot update, rollback) is M5e-2; until then only new plugins and identical re-installs
+  // a version number names one bundle forever, so a stored version can only come back unchanged
   private compare(staged: StagedPackage): Omit<StageResult, "pending"> {
     const { id, name, version } = staged.manifest
     const active = this.deps.repo.get(id)?.active
-    if (!active) return { sameAsInstalled: false }
-    if (active.version === version) {
-      if (active.bundleSha256 === staged.bundleSha256) return { installedVersion: version, sameAsInstalled: true }
+    const stored = this.deps.repo.version(id, version)
+    if (stored && stored.bundleSha256 !== staged.bundleSha256) {
       throw new InstallError("exists", `${name} ${version} is installed with a different bundle; raise the version to install this one`)
     }
-    throw new InstallError("unsupported", `${name} ${active.version} is installed; updating an installed plugin isn't supported yet, uninstall it first`)
+    return { ...(active ? { installedVersion: active.version } : {}), sameAsInstalled: active?.version === version }
   }
 }

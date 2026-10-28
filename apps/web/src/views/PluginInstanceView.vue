@@ -157,7 +157,7 @@ onUnmounted(() => {
     <WiresCard ref="wiresCard" :owner-id="instance.id" />
     <PluginLogsCard :lines="logs" />
     <Dialog v-model:open="editing">
-      <DialogContent class="sm:max-w-2xl">
+      <DialogContent class="sm:max-w-4xl">
         <DialogHeader><DialogTitle>Edit {{ instance.label }}</DialogTitle></DialogHeader>
         <InstanceForm v-if="editing" :packages="packages" :initial="instance" :submit="save" />
       </DialogContent>

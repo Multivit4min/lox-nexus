@@ -72,7 +72,7 @@ test("installs survive a restart, and the instance starts again", async t => {
   await second.until(() => second.app.plugins.get(instance.id)?.state === "running")
 })
 
-test("a plugin that doesn't load, a bundle that isn't a plugin, and a changed bundle with the same version", async t => {
+test("a plugin that doesn't load, and a changed bundle with the same version", async t => {
   const nexus = await InstallTest.start()
   t.after(() => nexus.dispose())
   const admin = await nexus.test.admin()
@@ -87,9 +87,6 @@ test("a plugin that doesn't load, a bundle that isn't a plugin, and a changed bu
   const exists = await nexus.stageZip(admin, changed)
   assert.equal(exists.statusCode, 409)
   assert.match(exists.json<{ error: string }>().error, /raise the version/)
-  const newer = await nexus.stageZip(admin, await ZipFixture.plugin("", FixtureBundle.manifest({ version: "1.1.0" })))
-  assert.equal(newer.statusCode, 409)
-  assert.match(newer.json<{ error: string }>().error, /isn't supported yet/)
   assert.deepEqual(nexus.staged(), [])
 })
 

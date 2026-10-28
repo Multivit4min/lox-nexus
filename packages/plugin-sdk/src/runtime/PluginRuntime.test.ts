@@ -3,6 +3,7 @@ import { describe, test } from "node:test"
 import { PluginTestHost } from "../testing/PluginTestHost.ts"
 import { EchoPlugin } from "../testing/fixtures/EchoPlugin.ts"
 import { Value } from "../values/Value.ts"
+import { Plugin, type PluginClass } from "../plugin/Plugin.ts"
 
 describe("PluginRuntime through PluginTestHost", () => {
   test("init validates the config and applies its defaults; failures are reported", async () => {
@@ -88,4 +89,27 @@ test("store values must survive JSON; actuators reject what is still waiting whe
   await running
   assert.deepEqual(plugin.received, [1], "the waiting command never ran")
   await host.stop()
+})
+
+test("unhandled rejections go to the plugin, which logs them by default; a throwing override is logged too", async () => {
+  class Quiet extends Plugin {}
+  class Loud extends Plugin {
+    override unhandledRejection(reason: unknown) {
+      this.log.warn(`script failed: ${String(reason)}`)
+    }
+  }
+  class Broken extends Plugin {
+    override unhandledRejection(): void {
+      throw new Error("override broke")
+    }
+  }
+  const logs = async (type: PluginClass, reason: unknown) => {
+    const host = await PluginTestHost.start(type)
+    host.unhandledRejection(reason)
+    await host.stop()
+    return host.sent.flatMap(message => (message.type === "log" ? [`${message.level} ${message.message}`] : []))
+  }
+  assert.deepEqual(await logs(Quiet, new Error("boom")), ["error unhandled promise rejection: boom"])
+  assert.deepEqual(await logs(Loud, "plain"), ["warn script failed: plain"])
+  assert.deepEqual(await logs(Broken, "x"), ["error unhandled promise rejection: override broke"])
 })

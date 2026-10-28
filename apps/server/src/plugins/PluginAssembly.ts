@@ -3,6 +3,7 @@ import { Disposable } from "@lox-nexus/plugin-sdk"
 import type { Logger } from "pino"
 import type { Config } from "../config/Config.ts"
 import type { PluginPackageRepository } from "../db/repositories/PluginPackageRepository.ts"
+import type { PluginSignalRepository } from "../db/repositories/PluginSignalRepository.ts"
 import { PluginPackageService } from "../services/PluginPackageService.ts"
 import type { PluginService } from "../services/PluginService.ts"
 import { DevPluginLoader } from "./DevPluginLoader.ts"
@@ -15,6 +16,7 @@ import { PendingInstalls } from "./install/PendingInstalls.ts"
 import { PluginDirectory } from "./install/PluginDirectory.ts"
 import { PluginInstaller } from "./install/PluginInstaller.ts"
 import { PluginSources } from "./install/PluginSources.ts"
+import { PluginSwitch } from "./install/PluginSwitch.ts"
 import { PluginVersions } from "./install/PluginVersions.ts"
 import { StagingArea } from "./install/StagingArea.ts"
 import { PluginCatalog } from "./PluginCatalog.ts"
@@ -48,6 +50,7 @@ export class PluginAssembly extends Disposable {
     private readonly config: Config,
     private readonly transport: PluginTransport,
     private readonly repo: PluginPackageRepository,
+    private readonly signalRepo: Pick<PluginSignalRepository, "listFor">,
     log: Logger,
     private readonly options: InstallOptions = {}
   ) {
@@ -87,6 +90,9 @@ export class PluginAssembly extends Disposable {
     this.onDispose(() => runner.stopAll())
     const sources = new PluginSources(this.limits, runner, new LocalRepository(this.config.pluginRepositoryDir, this.limits), this.options.gitSchemes)
     const installer = new PluginInstaller({ staging: this.staging, pending, inspector: new PackageInspector(this.describer, this.limits), versions: this.versions, repo: this.repo, log: installLog })
-    return new PluginPackageService({ installer, versions: this.versions, repo: this.repo, catalog: this.catalog, sources, plugins, uploadBytes: this.limits.uploadBytes, log: installLog })
+    const switcher = new PluginSwitch({ versions: this.versions, repo: this.repo, catalog: this.catalog, plugins, signals: this.signalRepo })
+    return new PluginPackageService({
+      installer, versions: this.versions, repo: this.repo, catalog: this.catalog, sources, switcher, plugins, uploadBytes: this.limits.uploadBytes, log: installLog
+    })
   }
 }

@@ -63,12 +63,50 @@ export class PluginVersions {
       const sha = await PluginDirectory.sha256(entry).catch(() => undefined)
       if (sha === undefined) return this.unavailable(key, "its files are missing")
       if (sha !== stored.bundleSha256) return this.unavailable(key, "its bundle changed on disk since it was installed")
-      const description = await this.description(stored, entry)
+      const description = await this.description(stored)
       this.problemsByVersion.delete(key)
-      return { pkg: { id, name: stored.name, entry, description }, version, ...(stored.icon ? { icon: stored.icon } : {}) }
+      return { pkg: { id, name: stored.name, entry, version, description }, version, ...(stored.icon ? { icon: stored.icon } : {}) }
     } catch (error) {
       this.log.warn({ err: error, plugin: id, version }, "installed plugin can't be loaded")
       return this.unavailable(key, `it can't be loaded: ${error instanceof Error ? error.message.slice(0, 300) : String(error)}`)
+    }
+  }
+
+  /**
+   * Replaces a stored version's files with a staged copy of the same bundle, e.g. when they went
+   * missing or changed on disk; the rows stay as they are.
+   */
+  async repair(staged: StagedPackage) {
+    const { id, version } = staged.manifest
+    await this.directory.removeVersion(id, version)
+    await this.directory.moveIn(staged.packageDir, id, version)
+    this.problemsByVersion.delete(`${id}@${version}`)
+  }
+
+  /** switches to a stored version (rollback or roll-forward); load() it afterwards to check its files */
+  activate(id: string, version: string) {
+    this.repo.activate(id, version)
+  }
+
+  /**
+   * Removes every version but the active and the previous one, rows first. A folder that can't be
+   * removed now is an orphan that the next boot deletes.
+   */
+  async prune(id: string) {
+    const stored = this.repo.get(id)
+    if (!stored) return
+    const keep = new Set([stored.active.version, stored.previous?.version])
+    for (const { pluginId, version } of this.repo.versions()) {
+      if (pluginId !== id || keep.has(version)) continue
+      // the switch already worked; an old version that can't be removed now goes at the next prune
+      try {
+        this.repo.deleteVersion(id, version)
+      } catch (error) {
+        this.log.warn({ err: error, plugin: id, version }, "removing an old version failed")
+        continue
+      }
+      this.problemsByVersion.delete(`${id}@${version}`)
+      await this.directory.removeVersion(id, version).catch((error: unknown) => this.log.warn({ err: error, plugin: id, version }, "removing an old version's files failed"))
     }
   }
 
@@ -79,7 +117,11 @@ export class PluginVersions {
     for (const key of this.problemsByVersion.keys()) if (key.startsWith(`${id}@`)) this.problemsByVersion.delete(key)
   }
 
-  private async description(stored: StoredVersion, entry: string) {
+  /**
+   * The stored description; one a newer Nexus can't read is described again from the bundle and
+   * stored. @throws when it has to be described again and the bundle can't be
+   */
+  async description(stored: StoredVersion) {
     let json: unknown
     try {
       json = JSON.parse(stored.description)
@@ -89,7 +131,7 @@ export class PluginVersions {
     const parsed = PluginDescriptionSchema.safeParse(json)
     if (parsed.success) return parsed.data
     this.log.info({ plugin: stored.pluginId, version: stored.version }, "describing an installed plugin again")
-    const description = await this.describer.describe(entry)
+    const description = await this.describer.describe(this.directory.entryFile(stored.pluginId, stored.version, stored.entry))
     this.repo.setDescription(stored.pluginId, stored.version, JSON.stringify(description))
     return description
   }

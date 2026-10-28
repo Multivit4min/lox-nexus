@@ -125,7 +125,10 @@ export class PluginSupervisor extends Disposable {
       await this.close("stopped")
       if (next.slug !== this.instance.slug) this.rename(next)
       this.instance = next
-      this.currentPkg = pkg ?? this.currentPkg
+      if (pkg) {
+        this.currentPkg = pkg
+        this.signals.refresh()
+      }
       if (wasRunning && !this.isDisposed) await this.open()
     })
   }

@@ -42,11 +42,13 @@ export class PluginSignalService {
    * Replaces a signal's params, label and slug (same id); its wires stay, its value and force
    * follow a new topic. Kind and capability can't change: that is a different signal, whose
    * wires wouldn't fit.
-   * @throws HttpError 400 for a changed kind or capability or refused params, 404, 409 taken slug
+   * @throws HttpError 400 for a changed kind or capability or refused params, 404, 409 taken slug or an orphaned signal
    */
   async update(instanceId: string, signalId: string, input: PluginSignalInput, by: string): Promise<PluginSignalDto> {
     const supervisor = this.instances.supervisor(instanceId)
     const previous = this.require(supervisor, signalId)
+    // the plugin can't check params for a capability it no longer has
+    if (previous.orphaned) throw HttpError.conflict(`${previous.error ?? "the plugin no longer offers this signal"}: roll the plugin back or delete the signal`)
     const config = this.configOf(supervisor, signalId, input)
     if (config.kind !== previous.config.kind || config.capability !== previous.config.capability) {
       throw HttpError.badRequest("kind and capability of a signal can't change; add a new signal instead")
@@ -100,7 +102,7 @@ export class PluginSignalService {
   }
 
   private static toDto(instanceId: string, entry: PluginSignalEntry): PluginSignalDto {
-    const { config, topic, valueType, error } = entry
-    return { ...config, instanceId, topic, valueType, ...(error ? { error } : {}) }
+    const { config, topic, valueType, error, orphaned } = entry
+    return { ...config, instanceId, topic, valueType, ...(error ? { error } : {}), ...(orphaned ? { orphaned } : {}) }
   }
 }

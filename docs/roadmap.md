@@ -187,7 +187,8 @@ first-party plugins load from the workspace until then.
        commit, boot loading, uninstall, API). Done, with a third source decided on the way: the
        local plugin repository (`NEXUS_PLUGIN_REPOSITORY`), from which the first-party plugins are
        installed until M6 publishes release ZIPs.
-     - **M5e-2:** versions, hot update and rollback.
+     - **M5e-2:** versions, hot update and rollback. Done, together with unhandled promise
+       rejections in plugin workers being logged instead of ending the worker.
      - **M5e-3:** the UI and the walkthrough.
 
 **Verify:**
