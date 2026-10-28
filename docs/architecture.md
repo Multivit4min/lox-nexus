@@ -255,12 +255,9 @@ class per file, so it can later replace `loxone-ici` on npm.
 - `send --type t5 --raw <hex>` sends a crafted packet, to probe how the Miniserver reacts.
 
 **Open protocol questions, with a capture experiment for each:**
-1. **T5.** The hypothesis is that the payload is a Float64LE bitmask. The old enum values
-   16368/16384/16400/16416/16432 are the high two bytes of the doubles 1, 2, 4, 8 and 16, which fits
-   left-upper=1, right-upper=2, middle=4, left-lower=8, right-lower=16. Under that reading, pressing
-   several buttons at once gives their sum.
-   - **Experiment:** press each button and then button combinations, capture the packets, and check
-     against the hypothesis.
+1. **T5.** Answered (captured 2026-10-28): the payload is a Float64LE bitmask, left-upper=1,
+   right-upper=2, middle=4, left-lower=8, right-lower=16, and buttons pressed together send the sum.
+   See `packages/ici/PROTOCOL.md`.
 2. **SmartRGBW bytes 6–7.** Unknown. Possible meanings are control flags such as the jump/fade mode
    or the lighting-controller "mode".
    - **Experiment:** in Loxone Config, change one setting at a time (fade time, colour vs white,

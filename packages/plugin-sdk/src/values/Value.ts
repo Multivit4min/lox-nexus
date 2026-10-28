@@ -31,9 +31,9 @@ export interface TunableWhite {
   fadeTime: number
 }
 
-/** State of a Loxone Touch/T5 button panel. @experimental */
+/** State of a Loxone Touch/T5 button panel. */
 export interface T5 {
-  /** @experimental bitmask of pressed buttons, see T5Buttons */
+  /** bitmask of pressed buttons, see T5Buttons; buttons pressed together are added */
   buttons: number
 }
 

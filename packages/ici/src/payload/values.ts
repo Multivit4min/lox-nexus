@@ -1,7 +1,7 @@
 import { DataType } from "../DataType.ts"
 
 /**
- * @experimental Believed to be a Float64 bitmask of the five buttons, see PROTOCOL.md and T5Buttons.
+ * A Float64 bitmask of the five buttons, see PROTOCOL.md and T5Buttons.
  */
 export interface T5Value {
   /** OR of the T5Buttons bits, 0 when nothing is pressed */

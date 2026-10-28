@@ -59,7 +59,7 @@ Each packet ID can be used once per direction. A signal has a **data type**:
 | Digital | boolean |
 | Analog | number |
 | Text | string |
-| T5 | t5 (experimental) |
+| T5 | t5 |
 | RGBW | rgbw (smart actuator RGBW) |
 | Single channel | singleChannel (smart actuator dimmer) |
 | Tunable white | tunableWhite |

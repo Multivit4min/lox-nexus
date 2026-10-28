@@ -12,7 +12,7 @@ Every value on the bus is a `Value`: plain data, a union tagged by `type`. Impor
 | `singleChannel` | `{ channel, fadeTime }` | `channel` 0-100 %; `fadeTime` seconds (a Loxone smart actuator dimmer) |
 | `rgbw` | `{ red, green, blue, white, fadeTime, flags }` | channels 0-100 %; `fadeTime` seconds; `flags` raw bits (experimental) |
 | `tunableWhite` | `{ temperature, brightness, fadeTime }` | `temperature` Kelvin (2700-6500 in conversions); `brightness` 0-100 %; `fadeTime` seconds (experimental unit) |
-| `t5` | `{ buttons }` | bitmask 0-31 of a Loxone Touch/T5 panel (experimental) |
+| `t5` | `{ buttons }` | bitmask 0-31 of a Loxone Touch/T5 panel |
 
 ## Creating values
 
@@ -96,7 +96,7 @@ A value that already has the target type is returned unchanged.
 | `ValueDefaults.for(type)` | The default value of a type |
 | `ValueFormatter` | A short display rendering; lossy, never parse it |
 | `StringToNumber` | The lenient number parser |
-| `T5Buttons` | Names for the T5 bitmask (experimental) |
+| `T5Buttons` | Names for the T5 bitmask |
 | `Numbers` | `clamp`, `percent`, `fade`, `scale`, `percentToHex` |
 
 See the [values reference](../reference/sdk/@lox-nexus/plugin-sdk/values.md).

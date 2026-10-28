@@ -1,6 +1,6 @@
 import type { T5Value } from "./values.ts"
 
-/** @experimental Named access to the T5 button bitmask (assignment from the old library's enum). */
+/** Named access to the T5 button bitmask (positions confirmed by a capture, see PROTOCOL.md). */
 export class T5Buttons {
   static readonly LEFT_UPPER = 1
   static readonly RIGHT_UPPER = 2

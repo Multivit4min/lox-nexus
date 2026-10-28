@@ -151,7 +151,7 @@ To confirm the MAC hypothesis, compare against the serial number or MAC shown in
 | `0x00` | DIGITAL | 1 | ✅ |
 | `0x01` | ANALOG | 8 | ✅ |
 | `0x02` | TEXT | variable | ✅ |
-| `0x03` | T5 | 8 | ⚠️ hypothesis below |
+| `0x03` | T5 | 8 | ✅ |
 | `0x04` | SmartActuatorRGBW | 8 | ⚠️ bytes 6–7 unknown |
 | `0x05` | SmartActuatorSingleChannel | 8 | ⚠️ bytes 0–2 unknown |
 | `0x06` | SmartActuatorTunableWhite | 8 | ⚠️ fade unit disputed, bytes 6–7 unknown |
@@ -172,23 +172,33 @@ Unknown data types must be preserved byte-exact (`DataPacket` keeps the raw payl
 UTF-8 string, NUL-terminated. The payload length includes the terminator. Texts longer than 255
 bytes need the uint16 length field (bug 1 in `docs/loxone-ici-review.md`).
 
-### T5 ⚠️
-The old library read a uint16 at offset 6, with button codes 16368, 16384, 16400, 16416 and 16432.
-Those are `0x3FF0`, `0x4000`, `0x4010`, `0x4020` and `0x4030`: exactly the two high bytes of the
-little-endian doubles **1, 2, 4, 8 and 16**.
+### T5 ✅
+The payload is a Float64 LE holding a 5-bit button mask: `0` when no button is pressed, `1`, `2`,
+`4`, `8` or `16` for a single button. The old library read only the uint16 at offset 6, which is
+why its button codes (16368, 16384, 16400, 16416, 16432 = `0x3FF0` … `0x4030`) are the high bytes
+of these doubles.
 
-**Hypothesis:** the payload is a Float64 LE holding a 5-bit button mask:
+Confirmed on a live Miniserver (2026-10-28, a T5 output fed from the Liveview):
 
-| Bit | Value | Button (from the old enum) |
+- Each button alone gives exactly one of the doubles 1, 2, 4, 8, 16 (bytes 0–5 always zero).
+- A press is one packet with the mask; the release is one packet with `0`. There is no separate
+  long-press encoding: holding a button for 4.4 s sent the mask once and `0` on release, with no
+  repeats in between.
+- A double click is two plain press/release pairs (each press about 100–130 ms, about 100 ms apart).
+- Like other outputs, the current value is re-sent every 10 s while nothing changes.
+- Two buttons at once send the sum: both lower buttons gave `24`. Pressing both upper buttons gave
+  `2`, then `3` 50 ms later, then `1` when the first finger let go: every change of the mask is its
+  own packet.
+- The positions below were confirmed by pressing each button alone (fixture
+  `t5-buttons-2026-10-28.jsonl`); they match the old library's enum.
+
+| Bit | Value | Button |
 |---|---|---|
 | 0 | 1 | left upper |
 | 1 | 2 | right upper |
 | 2 | 4 | middle |
 | 3 | 8 | left lower |
 | 4 | 16 | right lower |
-
-If this holds, pressing two buttons at once gives the sum (for example 3 = left upper + right upper),
-which the old enum could not represent.
 
 ### SmartActuatorRGBW ⚠️
 | Offset | Size | Field | Status |
@@ -336,9 +346,7 @@ check only the sender's IP address.
 Run with `npm run ici-lab -- capture [--port <listenPort>]` (the port defaults to 61263; available from M1). It prints annotated
 hex dumps and diffs each packet against the previous one with the same packet ID.
 
-1. **T5 mask.** Press each T5 button alone, then two at a time, then hold one. Does the payload
-   decode as the doubles 1/2/4/8/16 and their sums? What happens on release (back to 0)? Is there a
-   long-press encoding?
+1. **T5.** Answered, see the T5 section.
 2. **RGBW bytes 6–7.** `0x4000` appears on sequence steps (see the SmartActuatorRGBW section).
    Next, in this order:
    1. Give a static mood a long fade time (e.g. 5 s): does the flag appear?

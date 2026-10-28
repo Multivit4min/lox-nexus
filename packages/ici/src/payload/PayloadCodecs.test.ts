@@ -45,7 +45,7 @@ describe("payload codecs", () => {
     assert.deepEqual(roundTrip(DataType.SmartTunableWhite, tw), tw)
   })
 
-  test("t5 decodes the old button codes as a bitmask (hypothesis)", () => {
+  test("t5 encodes the bitmask as the double whose high bytes are the old button codes", () => {
     const codec = PayloadCodecs.for(DataType.T5)
     for (const [mask, oldCode] of [[1, 16368], [2, 16384], [4, 16400], [8, 16416], [16, 16432]]) {
       const payload = codec.encode({ buttons: mask! })

@@ -12,6 +12,7 @@ datagrams), or a tx/rx record in the probe file.
 | `lighting-moods-2026-10-24.jsonl` | Run `moods3`, a day later: `lcout` and `moodout` while `moodin` steps through 0/50/51/99/98/60/69/0 (tx records). Every mood matches its definition in the Loxone Config project, including the new mood 60 (`g2 b50`) |
 | `lumitech-moods-2026-10-24.jsonl` | A Lighting Controller with a **Lumitech** output and a **Smart** output, stepped through moods 1–9 and off. Records `{ dir, id, type, payload }`: `lcana` (Analog, from the Lumitech output) carries the colour number, `lcout` (RGBW, from the Lumitech output) the same number as raw double bytes, `lcout2` (RGBW, from the Smart output) the mixed RGBW |
 | `encrypted-analog.jsonl` | 40 consecutive 0x9F packets from the encrypted remote system `encrypte` (same port): output `analog` mirrors `rand` every 500 ms. The password is not stored here; `IciCipher.live.test.ts` decrypts them when `ICI_FIXTURE_PASSWORD` is set and otherwise checks only the envelope |
+| `t5-buttons-2026-10-28.jsonl` | The T5 output `t5`, fed from the Liveview: middle, left top, left bottom, right top and right bottom pressed alone, then both top and both bottom buttons together, plus the 10 s re-sends of `0` |
 | `rgbw-passthrough.jsonl` | RGBW payloads sent to input `inrgbw` (wired directly to output `outrgbw`) and the echoes, which are byte-identical, including out-of-range values |
 
 Findings are documented in `../../../PROTOCOL.md`.

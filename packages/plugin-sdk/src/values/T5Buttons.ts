@@ -1,4 +1,4 @@
-/** @experimental Named access to the T5 button bitmask (believed layout, see packages/ici/PROTOCOL.md). */
+/** Named access to the T5 button bitmask (layout confirmed on a Miniserver, see packages/ici/PROTOCOL.md). */
 export class T5Buttons {
   static readonly LEFT_UPPER = 1
   static readonly RIGHT_UPPER = 2
