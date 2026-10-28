@@ -15,6 +15,7 @@ datagrams), or a tx/rx record in the probe file.
 | `t5-buttons-2026-10-28.jsonl` | The T5 output `t5`, fed from the Liveview: middle, left top, left bottom, right top and right bottom pressed alone, then both top and both bottom buttons together, plus the 10 s re-sends of `0` |
 | `fade-times-2026-10-28.jsonl` | Run `fade`: the Lighting Controller's `FadingTime` set over ICI (`fade`, tx records) to 1, 2 and 5 s, and `moodin` stepped through moods 10/11/12/off for each. Received: `sasc` (Smart single channel), `satw` (Smart tunable white) and `moodout`. The tx records are stamped when the send command returned, about a second after the packet left |
 | `rgbw-fade-2026-10-28.jsonl` | Run `rgbw-fade`: `FadingTime` set over ICI (`fade`, tx records) to 0, 1 and 5 s, and `moodin` stepped through the static moods 1–4 and off for each. Received: `lcout2` (Smart RGBW output) and `moodout`. The tx records are stamped when the send command returned, about a second after the packet left |
+| `sequence-2026-10-28.jsonl` | Mood 20 (a 4-colour sequence on the Smart output `lcout2`) switched on over ICI. Run `seq3`: step time 3 s, once at `FadingTime` 0 and once at 5 s. Run `seq6`: step time 6 s (changed in Loxone Config), `FadingTime` 0. Here the tx records are stamped just before the send |
 | `rgbw-passthrough.jsonl` | RGBW payloads sent to input `inrgbw` (wired directly to output `outrgbw`) and the echoes, which are byte-identical, including out-of-range values |
 
 Findings are documented in `../../../PROTOCOL.md`.

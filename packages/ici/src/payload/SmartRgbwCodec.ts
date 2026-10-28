@@ -7,13 +7,13 @@ import type { RgbwValue } from "./values.ts"
  * R, G, B, W (0–100) at bytes 0–3, fade time at 4–5, flags at 6–7.
  *
  * Channels are whole percent: fractions are rejected on encode, so callers round first.
- * @experimental flags (bytes 6–7) are preserved but not understood, see PROTOCOL.md.
+ * @experimental flags (bytes 6–7) are preserved; only 0x4000 is known, see PROTOCOL.md.
  */
 export class SmartRgbwCodec extends PayloadCodec<RgbwValue> {
   readonly dataType = DataType.SmartRgbw
   readonly name = "rgbw"
   readonly size = 8
-  /** @experimental bit 14, set by the Lighting Controller on sequence steps (hypothesis, see PROTOCOL.md) */
+  /** @experimental bit 14, set by the Lighting Controller on every sequence step (confirmed); how an actuator treats it is not, see PROTOCOL.md */
   static readonly FLAG_SEQUENCE_STEP = 0x4000
 
   decode(payload: Buffer): RgbwValue {

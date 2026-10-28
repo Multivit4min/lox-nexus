@@ -210,7 +210,7 @@ Confirmed on a live Miniserver (2026-10-28, a T5 output fed from the Liveview):
 | 2 | 1 | Blue 0–100 | ✅ |
 | 3 | 1 | White 0–100 | ✅ |
 | 4–5 | 2 | Fade time, uint16, units of 0.1 s | ✅ (default 0.2 s → `2`; sequence steps of 3.0 s → `30`) |
-| 6–7 | 2 | Flags, uint16 LE. `0x4000` (bit 14) is set on lighting-sequence steps; other bits never seen | ⚠️ |
+| 6–7 | 2 | Flags, uint16 LE. `0x4000` (bit 14) is set on every lighting-sequence step and nowhere else; other bits never seen | ✅ when sent, ⚠️ effect on an actuator |
 
 **Lighting Controller capture (2026-10-23, `test/fixtures/2026-10-23-live/lighting-moods.jsonl`).**
 The RGBW output of a Lighting Controller was captured while its mood was switched over ICI:
@@ -238,6 +238,20 @@ The RGBW output of a Lighting Controller was captured while its mood was switche
   controller's `FadingTime` at 0, 1 and 5 s (set over ICI). Every packet had flags `0x0000`, and
   bytes 4–5 carried the fade time (0, 10, 50). So the flag isn't about fading as such; only sequence
   steps set it.
+- **Sequence timing (2026-10-28, `sequence-2026-10-28.jsonl`).** Mood 20 of "claude" is a 4-colour
+  sequence on the Smart output (R100 → G80 B11 → G4 B100 → R100 G93 B58), captured with step times
+  of 3 s (at `FadingTime` 0 and 5 s) and 6 s:
+  - Switching to the mood sends the first colour as a plain scene change: the controller's
+    `FadingTime` as fade, flags `0`.
+  - The sequence starts once that fade is done: about 100 ms later at `FadingTime` 0, exactly 5.0 s
+    later at 5 s.
+  - Every further step, including the wrap back to the first colour, is one packet with flags
+    `0x4000` and a fade equal to the **step time** (30 at 3 s, 60 at 6 s), sent every step time.
+  - The 10 s re-sends repeat the current step packet, flag included. Leaving the mood clears the
+    flag at once.
+
+  So `0x4000` reads as "a sequence step: fade over the whole step". Whether a Smart Actuator does
+  anything different with it is still open.
 
 **Checked against the mood definitions (2026-10-24).** The Loxone Config project (read from
 `/prog`) stores each mood's value for the RGBW output as a number. After subtracting `0x60000000`
@@ -368,9 +382,9 @@ hex dumps and diffs each packet against the previous one with the same packet ID
 
 1. **T5.** Answered, see the T5 section.
 2. **RGBW bytes 6–7.** `0x4000` appears on sequence steps (see the SmartActuatorRGBW section).
-   A static mood with a 5 s fade doesn't set it (2026-10-28). Next:
-   1. Change the speed of a sequence: do the flag and the fade value change?
-   2. Send a step with and without `0x4000` to a real RGBW smart actuator and watch how it behaves.
+   When it is sent is settled (2026-10-28): on every sequence step, with the step time as fade;
+   never on static moods, whatever the fade. Open: send a step with and without `0x4000` to a real
+   RGBW smart actuator and watch how it behaves.
 3. **Fade units.** Answered: 0.1 s for RGBW, SingleChannel and TunableWhite.
 4. **TunableWhite bytes 6–7.** Always `0x0800` from the Miniserver. Open: what it means, and whether
    a real tunable white actuator behaves differently when we send `0x0000`.

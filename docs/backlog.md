@@ -8,10 +8,9 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
 `packages/ici/test/fixtures/`.
 
 - **RGBW flags (bytes 6–7).** `0x4000` appears on Lighting Controller sequence steps (mood 69).
-  Static moods never set it, not even with a 5 s fade (checked 2026-10-28). To confirm what it means:
-  1. Change the speed of a sequence. Do the flag and the fade value change? (Needs a sequence mood
-     on the Lighting Controller "claude"; the user changes the speed in Loxone Config.)
-  2. Send a step with and without `0x4000` to a real RGBW smart actuator and compare.
+  It is set on every sequence step, with the step time as fade, and never on static moods
+  (checked 2026-10-28). Left: send a step with and without `0x4000` to a real RGBW smart actuator
+  and compare (needs one wired to the test Miniserver).
 - **0x8D status packet.** Bytes 4–7 are the serial number (confirmed). Find out what byte 28
   (`0x64`) means: it has been the same in every capture since 2026-10-23, across several program
   changes. A firmware update or another Miniserver would show whether it is a version or model.
