@@ -12,8 +12,6 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
   1. Capture a static mood with a long fade time (e.g. 5 s). Does the flag appear?
   2. Change the speed of the sequence. Do the flag and the fade value change?
   3. Send a step with and without `0x4000` to a real RGBW smart actuator and compare.
-- **T5.** Wire a T5 to an ICI output. Press each button, then two at once, then hold one. Check the
-  Float64 bitmask hypothesis (1/2/4/8/16).
 - **0x8D status packet.** Compare bytes 4–7 (`eb 23 a2 94`) with the Miniserver's MAC or serial
   number (hypothesis: `50:4F:94:A2:23:EB`). Find out what byte 28 (`0x64`) means.
 - **0x9F encryption.** Receiving works end to end and is confirmed for analog (`PROTOCOL.md`).

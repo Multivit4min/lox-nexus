@@ -235,7 +235,7 @@ whether every signal is recorded or exported, or only selected ones.
    install UI, and keep installs admin-only.
 2. **zod → JSON Schema loses transforms and refinements.** Document a supported subset. The worker
    stays the authority on validation.
-3. **Unknown ICI protocol fields** (T5, RGBW bits, fade units). Unknown bytes are preserved
+3. **Unknown ICI protocol fields** (RGBW bits, fade units; T5 is confirmed). Unknown bytes are preserved
    byte-exact, codecs are marked experimental, and the fields are confirmed with captures from your
    Miniserver during M1. Some behaviour can only be checked against real hardware, so M1 needs
    your hands-on capture sessions.
