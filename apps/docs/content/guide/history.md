@@ -46,7 +46,8 @@ the detail that fits: every change for short ranges, 5-minute or hourly averages
 band from lowest to highest) for long ones. A value holds until it changes, so the line is a
 staircase. Grey areas are times nothing was recorded: Nexus wasn't running, or the signal's
 recording was switched off. Nothing is known about the value then. Text values are shown as a list
-of changes. *Delete history* removes what is stored for the signal.
+of changes. *Delete history* removes what is stored for the signal. The 1-hour view stays current
+while it is open: it follows the signal's changes and moves along with the time.
 
 ## Where it is stored
 

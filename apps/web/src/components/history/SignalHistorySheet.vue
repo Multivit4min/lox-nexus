@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue"
+import { computed, onUnmounted, ref, watch } from "vue"
 import type { HistorySeriesDto } from "@lox-nexus/api"
 import { RefreshCw, Trash2 } from "@lucide/vue"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Switch } from "@/components/ui/switch"
 import { AppContext } from "../../AppContext.ts"
+import { Throttle } from "../../lib/Throttle.ts"
+import type { LiveValues } from "../../stores/LiveValues.ts"
 import SignalHistoryChart from "./SignalHistoryChart.vue"
 import SignalHistoryTable from "./SignalHistoryTable.vue"
 
@@ -14,6 +16,8 @@ import SignalHistoryTable from "./SignalHistoryTable.vue"
 export interface HistorySubject {
   id: string
   label: string
+  /** with the view's live values, a 1-hour chart follows the signal's changes */
+  topic?: string
 }
 
 const RANGES = [
@@ -27,9 +31,11 @@ const RANGES = [
 /**
  * A signal's recorded values over a chosen range, as a chart or a table (text values only as a
  * table). The server picks the resolution. The switch records the signal or stops recording it;
- * "Delete history" removes what is stored.
+ * "Delete history" removes what is stored. The 1-hour range stays current: it loads again when
+ * the signal changes (at most every 2 s) and every 30 s, so the right edge moves along.
  */
 const subject = defineModel<HistorySubject | undefined>("subject", { required: true })
+const props = defineProps<{ live?: LiveValues }>()
 const { history, recorded } = AppContext.use()
 const range = ref<number>(RANGES[1].ms)
 const view = ref<"chart" | "table">("chart")
@@ -79,6 +85,15 @@ watch([subject, range], (values, old) => {
   }
 }, { immediate: true })
 
+const following = () => open.value && range.value === RANGES[0].ms
+const reload = new Throttle(2000, () => following() && void load())
+const tick = setInterval(() => following() && reload.request(), 30_000)
+watch(() => (subject.value?.topic ? props.live?.get(subject.value.topic)?.ts : undefined), ts => ts !== undefined && following() && reload.request())
+onUnmounted(() => {
+  clearInterval(tick)
+  reload.cancel()
+})
+
 const record = (on: boolean) => recorded.set([subject.value!.id], on).catch(report)
 
 async function purge() {
@@ -97,7 +112,7 @@ async function purge() {
     <SheetContent class="overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-3xl">
       <SheetHeader>
         <SheetTitle>History of {{ subject?.label }}</SheetTitle>
-        <SheetDescription>{{ series ? `Showing ${resolution}.` : "Loading…" }}{{ series?.gaps.length ? " Grey areas: Nexus wasn't running." : "" }}</SheetDescription>
+        <SheetDescription>{{ series ? `Showing ${resolution}.` : "Loading…" }}{{ series?.gaps.length ? " Grey areas: nothing was recorded (Nexus wasn't running, or recording was off)." : "" }}</SheetDescription>
       </SheetHeader>
       <div v-if="subject" class="grid gap-4 px-4 pb-4">
         <div class="flex flex-wrap items-center gap-2">

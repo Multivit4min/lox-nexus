@@ -149,7 +149,7 @@ async function removeSelected() {
           </span>
           <span class="text-right text-xs text-muted-foreground tabular-nums">{{ LoadShare.format(load?.[row.id]) }}</span>
           <SignalActions
-            :label="row.label" :forced="isForced(row)" :recorded="recorded.has(row.id)" :disabled="!!progress" wirable @history="historyFor = { id: row.id, label: row.label }"
+            :label="row.label" :forced="isForced(row)" :recorded="recorded.has(row.id)" :disabled="!!progress" wirable @history="historyFor = { id: row.id, label: row.label, topic: row.topic }"
             @edit="editing = row" @wire="emit('wire', row)" @force="force(row)" @release="release(row)" @remove="removeOne(row)"
           />
         </template>
@@ -171,7 +171,7 @@ async function removeSelected() {
         <SignalForm v-if="editing" :key="editing.id" :initial="editing" :submit="onUpdate" />
       </DialogContent>
     </Dialog>
-    <SignalHistorySheet v-model:subject="historyFor" />
+    <SignalHistorySheet v-model:subject="historyFor" :live="live" />
     <ForceDialog
       v-if="forcing" v-model:open="forceOpen" :topic="forcing.topic"
       :current="live.get(forcing.topic)?.value" :value-type="forcing.valueType === 'any' ? undefined : forcing.valueType"

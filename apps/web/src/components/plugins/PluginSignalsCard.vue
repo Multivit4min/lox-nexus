@@ -151,7 +151,7 @@ const remove = (signal: PluginSignalDto) =>
             <span class="truncate"><ValueText :value="live.get(row.topic)?.value" /></span>
           </span>
           <SignalActions
-            :label="row.label" :forced="isForced(row)" :recorded="recorded.has(row.id)" wirable @history="historyFor = { id: row.id, label: row.label }"
+            :label="row.label" :forced="isForced(row)" :recorded="recorded.has(row.id)" wirable @history="historyFor = { id: row.id, label: row.label, topic: row.topic }"
             @edit="dialog = { initial: row }" @wire="emit('wire', row)" @force="force(row)" @release="act(() => bus.release(row.topic))" @remove="remove(row)"
           />
         </template>
@@ -173,7 +173,7 @@ const remove = (signal: PluginSignalDto) =>
       </DialogContent>
     </Dialog>
     <BridgeDialog v-model:open="bridgeOpen" :instance-id="instance.id" :candidates="bridging" @changed="bridged" />
-    <SignalHistorySheet v-model:subject="historyFor" />
+    <SignalHistorySheet v-model:subject="historyFor" :live="live" />
     <ForceDialog
       v-if="forcing" v-model:open="forceOpen" :topic="forcing.topic" :current="live.get(forcing.topic)?.value"
       :value-type="forcing.valueType === 'any' ? undefined : forcing.valueType"
