@@ -27,7 +27,8 @@
       "pages": [
         "plugins/fronius.md",
         "plugins/homeassistant.md",
-        "plugins/calendar.md"
+        "plugins/calendar.md",
+        "plugins/webhook.md"
       ]
     },
     {

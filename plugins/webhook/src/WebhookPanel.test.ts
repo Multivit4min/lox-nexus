@@ -1,0 +1,81 @@
+import assert from "node:assert/strict"
+import { afterEach, describe, mock, test } from "node:test"
+import type { PluginTestHost } from "@lox-nexus/plugin-sdk/testing"
+import { WebhookHarness } from "./test-support/WebhookHarness.ts"
+import { WebhookPanel } from "./WebhookPanel.ts"
+
+const { call } = WebhookHarness
+
+/** the table as rows of column → cell */
+async function rows(host: PluginTestHost) {
+  const panel = await host.panel()
+  assert.equal(panel?.type, "table")
+  if (panel?.type !== "table") return []
+  assert.deepEqual(panel.columns, WebhookPanel.columns)
+  return panel.rows.map(row => Object.fromEntries(panel.columns.map((column, i) => [column, row[i]])))
+}
+
+describe("WebhookPanel", () => {
+  const harness = new WebhookHarness()
+  afterEach(async () => {
+    await harness.cleanup()
+    mock.timers.reset()
+  })
+
+  test("lists every hook with its signals and counters, then the refused calls", async () => {
+    mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-10-28T10:00:00Z") })
+    const host = await harness.start()
+    await host.addSensor("trigger", { hook: "door", pulseMs: 500 })
+    await host.addSensor("number", { hook: "door", source: "query", name: "v" })
+    await host.addSensor("text", { hook: "alarm", method: "PUT", source: "body" })
+    await call(host, { hook: "door", query: { v: "1" } })
+    mock.timers.tick(60_000)
+    await call(host, { hook: "door" })
+    await call(host, { hook: "door", method: "PUT" })
+    await call(host, { hook: "door", headers: { authorization: "Bearer wrong" } })
+    await call(host, { hook: "nope", headers: { authorization: "" } })
+    await call(host, { hook: "nope" })
+    const [alarm, door, token, unknown] = await rows(host)
+    assert.deepEqual(alarm, {
+      Hook: "alarm", URL: "/hook/<slug>/alarm", Methods: "PUT", Signals: "text from body", Calls: "0", "Last call": "never", "Last result": ""
+    })
+    assert.deepEqual(door, {
+      Hook: "door",
+      URL: "/hook/<slug>/door",
+      Methods: "POST, any",
+      Signals: "number from query v; trigger, 500 ms pulse",
+      // the call without the token counts only in the instance-wide row
+      Calls: "3",
+      "Last call": "2026-10-28T10:01:00.000Z",
+      "Last result": "ok"
+    })
+    assert.deepEqual(token, {
+      Hook: "(wrong or missing token)", URL: "/hook/<slug>/…", Methods: "", Signals: "", Calls: "2",
+      "Last call": "2026-10-28T10:01:00.000Z", "Last result": "401: wrong token 1, missing token 1"
+    })
+    assert.deepEqual(unknown, {
+      Hook: "(unknown hook)", URL: "/hook/<slug>/…", Methods: "", Signals: "", Calls: "1", "Last call": "2026-10-28T10:01:00.000Z", "Last result": "404"
+    })
+  })
+
+  test("the last result says what went wrong", async () => {
+    const host = await harness.start()
+    await host.addSensor("number", { hook: "door", path: "t" })
+    const lastResult = async () => (await rows(host))[0]?.["Last result"]
+    await call(host, { hook: "door", body: "{\"t\":1}" })
+    assert.equal(await lastResult(), "ok")
+    await call(host, { hook: "door", body: "nope" })
+    assert.equal(await lastResult(), "bad request: the body is not valid JSON")
+    await call(host, { hook: "door", method: "GET" })
+    assert.equal(await lastResult(), "method GET not allowed")
+  })
+
+  test("counters live in memory, not in the store (old bug 5)", async () => {
+    const host = await harness.start()
+    await host.addSensor("trigger", { hook: "door" })
+    for (let i = 0; i < 10; i++) await call(host, { hook: "door" })
+    assert.deepEqual(host.store, {})
+    assert.equal(host.sent.filter(message => message.type.startsWith("store")).length, 0)
+    assert.equal((await rows(host))[0]?.Calls, "10")
+  })
+})

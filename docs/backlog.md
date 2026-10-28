@@ -103,6 +103,13 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
   a value to send (an entity back as `unavailable`) has no way to clear its error; consider an
   explicit `recover()`.
 
+- **Instance slug and signal names in plugins** (webhook). A plugin only knows its `instanceId`,
+  so the webhook panel can't show its real URL (`/hook/<slug>/<name>`), and a sensor doesn't know
+  its own signal id or label, so panels describe signals by kind and params. Pass the slug in the
+  init message and the label with `signal.add` (both optional, wire-compatible); the instance
+  restarts on a slug change anyway.
+- **Panels with sections** again (webhook): instance-wide counters end up as extra table rows.
+
 ## First-party plugins
 
 - **Calendar: conditional GET.** Send `If-None-Match`/`If-Modified-Since`, so an unchanged feed
