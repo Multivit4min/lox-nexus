@@ -25,12 +25,17 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
 - **SingleChannel bytes 0–2, TunableWhite bytes 6–7, TunableWhite fade unit.** Capture
   `lcout`-style outputs of those types.
 
-## Core (from the M2 review)
+## Core
 
 - **Narrow interfaces everywhere.** `Recorder` and `ActiveWire`/`WireEngine` take `Pick<EventBus, ...>`.
-  Do the same for services added in M3+.
+  Do the same for services added since.
+- **Forces on actuators after a restart.** A force on an actuator topic is delivered once, as a
+  command. After the plugin crashes and restarts, the device may no longer match the force. Replay
+  active forces on an instance's actuator topics once it is running again.
+- **Message size limits.** Text in worker messages is capped, but `store.set` values, log data and
+  responses are not. Plugins are trusted code (ADR 0001), so this is about mistakes, not attacks.
 
-## Server (from the M3b review)
+## Server
 
 - **Broken rows are invisible.** A stored Miniserver or signal that can't be loaded (e.g. written
   by a newer version) is logged and skipped. It doesn't show up in the API and can't be deleted
@@ -39,65 +44,76 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
 - **Domain errors.** Rule violations are recognised as plain `Error`s. A `DomainError` class (or
   error codes) in core and loxone would make the 409 mapping explicit, and allow machine-readable
   codes instead of messages with UUIDs.
-- **Wire input schema in `packages/api`.** `WireBodySchema` lives in the server because the
-  transform schemas live in core. The wire editor (M5) needs them in the browser. Move the
-  transform schemas to plugin-sdk, or to a dependency-free module.
+- **One transform schema.** `WireBodySchema` lives in the server because the transform schemas live
+  in core; the browser uses `TransformDto` in `packages/api`, a mirror kept in step by a test that
+  fails to compile when they differ. Moving the schemas to a dependency-free module would leave
+  one source.
+- **`Miniserver.ts` is near the size limit** (about 170 of 200 counted lines). Split signal
+  management into its own class with the next feature there.
 
-## Signal editing and config transfer (from the review)
+## Config export and import
 
+- **Plugins are left out.** The export has no plugin instances and no wires to plugin signals, and
+  an import removes Loxone↔plugin wires. Export plugin instances (without secrets), their signals
+  and those wires, so a backup is complete.
 - **Imports don't block other changes.** Only a second import is refused. A wire or signal created
   through the API while an import runs is lost, or makes the import roll back. A lock (409/503 for
   changing `/api/*` requests during an import) would close this. The backup lives in memory, so a
   crash mid-import loses it; writing it to the data directory first would make recovery possible.
 - **Imports drop runtime state.** Forces and last values on Loxone topics are gone after an
   import, also after a rollback. They could be carried over for topics that exist before and after.
-- **Wires to plugin signals.** The export leaves out wires whose ends aren't in the file. Once
-  plugins register signals, decide whether exports should include plugin instances and their
-  signals.
 - **Rolled-back edits keep inactive wires.** If storing an edited signal fails after the runtime
   change, the signal is put back, but wires the edit made inactive stay inactive until the next
   boot. Storing only fails when runtime and database disagree, so this is rare.
-- **`Miniserver.ts` is near the size limit** (about 170 of 200 counted lines). Split signal
-  management into its own class with the next feature there.
+- **Old v1 exports (M6).** Format and mapping: `legacy-nexus.md`. Open decisions: argon2 hashes
+  (verify them, or ask for new passwords) and per-hook webhook tokens (the webhook plugin has one
+  token per instance).
 
-## Plugins (from the M4 review)
+## Plugin SDK
 
-- **Forces on actuators after a restart.** A force on an actuator topic is delivered once, as a
-  command. After the plugin crashes and restarts, the device may no longer match the force. Replay
-  active forces on an instance's actuator topics once it is running again.
-- **Message size limits.** Text in worker messages is capped, but `store.set` values, log data and
-  responses are not. Plugins are trusted code (ADR 0001), so this is about mistakes, not attacks.
-- **PluginTestHost uses real timers** for its waits. A plugin test that mocks `setTimeout` hangs
-  instead of failing. Take a clock, or wait with `setImmediate` loops.
-- **Config export and plugins.** The export leaves out plugin instances and wires to plugin
-  signals; an import removes Loxone↔plugin wires. Export plugin instances (without secrets) and
-  those wires, so a backup is complete.
-
-## Plugin SDK (found while building Home Assistant and Calendar, M5c/M5d)
-
-- **Panels with sections.** A panel is one type (keyValue, table or json). Calendar wants facts
-  plus a table of upcoming events and squeezes both into keyValue rows. Allow a list of panels or
-  titled sections.
+- **Instance slug and signal names in plugins** (started, nothing changed yet). A plugin only knows
+  its `instanceId`, so the webhook panel can't show its real URL (`/hook/<slug>/<name>`), and
+  sensors and actuators don't know their signal's id or label, so panels describe signals by kind
+  and params. Plan, all optional on the wire so older plugins and hosts keep working:
+  - `slug` in the `init` message and in `PluginContext`, with a `Plugin.slug` getter
+  - `label` in `SignalSpecSchema`; `Sensor`/`Actuator` get `this.signal: { id, label }` as an
+    optional last constructor argument, filled by `SignalHost`
+  - core sends both (`PluginSession.open`, `PluginSignals.specs`); `PluginTestHost` takes a slug and
+    labels; wire contract tests for messages without them
+  - the webhook (and script) panel show real URLs and signal labels
+- **Panels with sections.** A panel is one type (keyValue, table or json). Calendar squeezes facts
+  and its upcoming events into keyValue rows; webhook and script put instance-wide counters into
+  extra table rows. Allow a list of panels or titled sections (SDK shape plus the web PanelCard).
+- **Sensor `recover()`.** Errors from `fail()` clear on the next `emit()`. A sensor that recovers
+  without a value to send (an entity back as `unavailable`) has no way to clear its error.
+- **Testing host.**
+  - Its waits use real timers, so a plugin test that mocks `setTimeout` hangs instead of failing.
+    Take a clock, or wait with `setImmediate` loops.
+  - `mock.timers.tick()` moves `Date` to the end of the tick before the due timers run, so timers
+    set from callbacks see the wrong time; Calendar steps minute by minute.
+  - A typed `plugin` accessor: Calendar and Fronius tests cast into its internals.
+  - Real unhandled rejections don't reach `Plugin.unhandledRejection` under node:test; the script
+    plugin swaps node:test's listener to forward them. An option to forward them would remove that.
 - **Shared params with `.refine()`.** zod can't infer fields through a generic
   `z.object({...shared, ...extra}).refine(...)`, so Calendar's `FilterParams` needs a cast.
   Refinements also don't reach the JSON Schema (known limit of the supported subset).
-- **Testing with a clock.** `mock.timers.tick()` moves `Date` to the end of the tick before the due
-  timers run, so timers set from callbacks see the wrong time; Calendar steps minute by minute.
-  Together with "PluginTestHost uses real timers" above: give the testing host an injectable
-  clock, and a typed `plugin` accessor (Calendar and Fronius tests cast into its internals).
-- **Sensor errors from `fail()`** clear on the next `emit()` (M5c). A sensor that recovers without
-  a value to send (an entity back as `unavailable`) has no way to clear its error; consider an
-  explicit `recover()`.
+- **Docs gaps the plugin agents reported.** The SDK-at-a-glance page doesn't say that cancelling or
+  firing `after()` releases its teardown, that `ValueFormatter` quotes strings, or the shape of log
+  messages in `PluginTestHost.sent`; the generated wire reference cuts the message unions short.
 
-- **Instance slug and signal names in plugins** (webhook). A plugin only knows its `instanceId`,
-  so the webhook panel can't show its real URL (`/hook/<slug>/<name>`), and a sensor doesn't know
-  its own signal id or label, so panels describe signals by kind and params. Pass the slug in the
-  init message and the label with `signal.add` (both optional, wire-compatible); the instance
-  restarts on a slug change anyway.
-- **Panels with sections** again (webhook): instance-wide counters end up as extra table rows.
+## Plugin installer and UI (M5e leftovers)
+
+- **Not built from the UI design:** a "roll back" button on the install result step (the card has
+  one), plugin icons on the cards, and the names of the instances that block an uninstall
+  (`InstalledPluginDto` only has a count).
+- **Left out on purpose** (see `architecture.md`, "Left out on purpose"): ZIPs from URLs, private
+  repositories with tokens, update checks, commit SHAs as refs, signatures.
+- **Top bar at phone width:** the navigation overflows the screen; it needs a menu or wrapping.
 
 ## First-party plugins
 
+- **MQTT, Sonos, Hue.** The previous Nexus had them; behaviour, settings and bugs not to repeat are
+  in `legacy-nexus.md`. Build them with the plugin-dev agent.
 - **Home Assistant: live actuator test.** Service calls are only tested against the simulated
   server; run them against the real instance once the user names entities that may be switched.
 - **Home Assistant: events.** No `subscribe_events` (e.g. `zha_event` buttons), `input_datetime`,
