@@ -15,17 +15,19 @@ const MOODS: Record<number, { channel: number; temperature?: number; brightness:
 
 interface Line { dir: "tx" | "rx"; label?: string; hex?: string }
 
-/** Every sasc/satw packet of the 2026-10-28 run, with the fade time and mood that were sent before it. */
+/** Every sasc/satw packet of the 2026-10-28 run, with the fade time sent and the mood reported before it. */
 function packets() {
   const decoder = new PacketDecoder()
   const result: Array<{ fade: number; mood: number; id: string; payload: Buffer }> = []
   let fade = 0
   let mood = 0
   for (const line of Fixtures.lines<Line>("2026-10-23-live/fade-times-2026-10-28.jsonl")) {
+    // tx records are stamped when the send command returned, so a reply can come before its send;
+    // the fade is sent well before the moods, the mood is taken from the Miniserver's moodout
     const [name, value] = (line.label ?? "").split("=")
     if (name === "fade") fade = Number(value)
-    if (name === "moodin") mood = Number(value)
     const decoded = line.hex ? decoder.decode(Buffer.from(line.hex, "hex")) : undefined
+    if (decoded?.kind === "data" && decoded.packet.packetId === "moodout") mood = decoded.packet.payload.readDoubleLE(0)
     if (decoded?.kind === "data" && ["sasc", "satw"].includes(decoded.packet.packetId)) {
       result.push({ fade, mood, id: decoded.packet.packetId, payload: decoded.packet.payload })
     }

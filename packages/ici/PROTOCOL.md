@@ -232,8 +232,12 @@ The RGBW output of a Lighting Controller was captured while its mood was switche
   - Switching to a static mood or off clears the flag immediately.
 - **Hypothesis:** `0x4000` marks a *sequence step*. The actuator should keep fading continuously
   into the next step instead of treating it as a fresh scene change. Still unconfirmed: whether a
-  static mood with a custom (longer) fade time also sets it, and whether a Smart Actuator behaves
-  differently with and without it.
+  Smart Actuator behaves differently with and without it.
+- **A long fade doesn't set it (2026-10-28, `rgbw-fade-2026-10-28.jsonl`).** The Smart output of the
+  Lighting Controller "claude" (`lcout2`) was switched through the static moods 1–4 and off with the
+  controller's `FadingTime` at 0, 1 and 5 s (set over ICI). Every packet had flags `0x0000`, and
+  bytes 4–5 carried the fade time (0, 10, 50). So the flag isn't about fading as such; only sequence
+  steps set it.
 
 **Checked against the mood definitions (2026-10-24).** The Loxone Config project (read from
 `/prog`) stores each mood's value for the RGBW output as a number. After subtracting `0x60000000`
@@ -364,10 +368,9 @@ hex dumps and diffs each packet against the previous one with the same packet ID
 
 1. **T5.** Answered, see the T5 section.
 2. **RGBW bytes 6–7.** `0x4000` appears on sequence steps (see the SmartActuatorRGBW section).
-   Next, in this order:
-   1. Give a static mood a long fade time (e.g. 5 s): does the flag appear?
-   2. Change the speed of the sequence in mood 69: do the flag and the fade value change?
-   3. Send a step with and without `0x4000` to a real RGBW smart actuator and watch how it behaves.
+   A static mood with a 5 s fade doesn't set it (2026-10-28). Next:
+   1. Change the speed of a sequence: do the flag and the fade value change?
+   2. Send a step with and without `0x4000` to a real RGBW smart actuator and watch how it behaves.
 3. **Fade units.** Answered: 0.1 s for RGBW, SingleChannel and TunableWhite.
 4. **TunableWhite bytes 6–7.** Always `0x0800` from the Miniserver. Open: what it means, and whether
    a real tunable white actuator behaves differently when we send `0x0000`.
