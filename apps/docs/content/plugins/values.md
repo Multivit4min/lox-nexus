@@ -11,7 +11,7 @@ Every value on the bus is a `Value`: plain data, a union tagged by `type`. Impor
 | `string` | `value: string` | |
 | `singleChannel` | `{ channel, fadeTime }` | `channel` 0-100 %; `fadeTime` seconds (a Loxone smart actuator dimmer) |
 | `rgbw` | `{ red, green, blue, white, fadeTime, flags }` | channels 0-100 %; `fadeTime` seconds; `flags` raw bits (experimental) |
-| `tunableWhite` | `{ temperature, brightness, fadeTime }` | `temperature` Kelvin (2700-6500 in conversions); `brightness` 0-100 %; `fadeTime` seconds (experimental unit) |
+| `tunableWhite` | `{ temperature, brightness, fadeTime }` | `temperature` Kelvin (2700-6500 in conversions); `brightness` 0-100 %; `fadeTime` seconds |
 | `t5` | `{ buttons }` | bitmask 0-31 of a Loxone Touch/T5 panel |
 
 ## Creating values

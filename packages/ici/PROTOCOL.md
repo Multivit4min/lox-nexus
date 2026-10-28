@@ -155,8 +155,8 @@ formats them that way.
 | `0x02` | TEXT | variable | ✅ |
 | `0x03` | T5 | 8 | ✅ |
 | `0x04` | SmartActuatorRGBW | 8 | ⚠️ bytes 6–7 unknown |
-| `0x05` | SmartActuatorSingleChannel | 8 | ⚠️ bytes 0–2 unknown |
-| `0x06` | SmartActuatorTunableWhite | 8 | ⚠️ fade unit disputed, bytes 6–7 unknown |
+| `0x05` | SmartActuatorSingleChannel | 8 | ✅ |
+| `0x06` | SmartActuatorTunableWhite | 8 | ✅ except bytes 6–7 (constant `0x0800`) |
 
 Unknown data types must be preserved byte-exact (`DataPacket` keeps the raw payload; `value()` returns `undefined`) and reported, never dropped silently.
 
@@ -327,21 +327,35 @@ is why the Lighting Controller capture above was needed.
 Sending also showed that the Miniserver accepts input packets from any source port. It appears to
 check only the sender's IP address.
 
-### SmartActuatorSingleChannel ⚠️
+### SmartActuatorSingleChannel ✅
 | Offset | Size | Field | Status |
 |---|---|---|---|
-| 0–2 | 3 | Unknown, `0x00` so far | ❓ |
+| 0–2 | 3 | Always `0x00` | ✅ |
 | 3 | 1 | Channel value 0–100 | ✅ |
-| 4–5 | 2 | Fade time, uint16, units of 0.1 s | ⚠️ |
-| 6–7 | 2 | Unknown | ❓ |
+| 4–5 | 2 | Fade time, uint16, units of 0.1 s | ✅ |
+| 6–7 | 2 | Always `0x00` | ✅ |
 
-### SmartActuatorTunableWhite ⚠️
+### SmartActuatorTunableWhite ✅
 | Offset | Size | Field | Status |
 |---|---|---|---|
-| 0–1 | 2 | Colour temperature in Kelvin | ⚠️ |
-| 2–3 | 2 | Brightness in % | ⚠️ |
-| 4–5 | 2 | Fade time, uint16. The old doc says units of 0.2 s, the old code used 0.1 s | ❓ |
-| 6–7 | 2 | Unknown | ❓ |
+| 0–1 | 2 | Colour temperature in Kelvin, uint16 | ✅ |
+| 2–3 | 2 | Brightness in %, uint16 (byte 3 is always 0) | ✅ |
+| 4–5 | 2 | Fade time, uint16, units of 0.1 s (not 0.2 s as the old doc said) | ✅ |
+| 6–7 | 2 | Always `00 08` (uint16 LE `0x0800`), also when off and at fade 0 | ❓ meaning |
+
+**Fade time run (2026-10-28, `test/fixtures/2026-10-23-live/fade-times-2026-10-28.jsonl`).** The
+Lighting Controller "claude" has a Smart single channel output (`sasc`) and a Smart tunable white
+output (`satw`), with moods 10/11/12 = 80/60/40 % and 4600/4000/3000 K. Its `FadingTime` input was
+driven over ICI (input `fade`) with 1, 2 and 5 s, and `moodin` stepped through 10, 11, 12 and off
+for each:
+
+- Bytes 4–5 read 10, 20 and 50 on both outputs: the unit is 0.1 s, as for RGBW.
+- Every packet matches its mood definition; the unknown single channel bytes stay 0.
+- "Off" sends brightness 0 and **keeps the last temperature**, like the Lumitech output.
+- The Miniserver sends the target value once, with the fade time; it doesn't send intermediate
+  steps. The actuator fades by itself.
+- Our encoder writes `0x0000` at tunable white bytes 6–7. Whether a receiver needs `0x0800` can only
+  be checked with a real tunable white actuator.
 
 ## Open questions and capture experiments
 
@@ -354,10 +368,9 @@ hex dumps and diffs each packet against the previous one with the same packet ID
    1. Give a static mood a long fade time (e.g. 5 s): does the flag appear?
    2. Change the speed of the sequence in mood 69: do the flag and the fade value change?
    3. Send a step with and without `0x4000` to a real RGBW smart actuator and watch how it behaves.
-3. **Fade units.** Configure fade times of 1 s and 2 s on RGBW, SingleChannel and TunableWhite
-   outputs, and read bytes 4–5.
-4. **SingleChannel bytes 0–2, TunableWhite bytes 6–7.** Watch for any non-zero value during the
-   experiments above.
+3. **Fade units.** Answered: 0.1 s for RGBW, SingleChannel and TunableWhite.
+4. **TunableWhite bytes 6–7.** Always `0x0800` from the Miniserver. Open: what it means, and whether
+   a real tunable white actuator behaves differently when we send `0x0000`.
 5. **Header bytes 1–7, 16, 25, 34.** Do they ever change, for example with encryption, a different
    firmware or a Miniserver Gen 2?
 6. **0x8D.** Offset 4–7 is the serial number (see above). Still open: what byte 28 means.

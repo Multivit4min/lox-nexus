@@ -13,6 +13,7 @@ datagrams), or a tx/rx record in the probe file.
 | `lumitech-moods-2026-10-24.jsonl` | A Lighting Controller with a **Lumitech** output and a **Smart** output, stepped through moods 1–9 and off. Records `{ dir, id, type, payload }`: `lcana` (Analog, from the Lumitech output) carries the colour number, `lcout` (RGBW, from the Lumitech output) the same number as raw double bytes, `lcout2` (RGBW, from the Smart output) the mixed RGBW |
 | `encrypted-analog.jsonl` | 40 consecutive 0x9F packets from the encrypted remote system `encrypte` (same port): output `analog` mirrors `rand` every 500 ms. The password is not stored here; `IciCipher.live.test.ts` decrypts them when `ICI_FIXTURE_PASSWORD` is set and otherwise checks only the envelope |
 | `t5-buttons-2026-10-28.jsonl` | The T5 output `t5`, fed from the Liveview: middle, left top, left bottom, right top and right bottom pressed alone, then both top and both bottom buttons together, plus the 10 s re-sends of `0` |
+| `fade-times-2026-10-28.jsonl` | Run `fade`: the Lighting Controller's `FadingTime` set over ICI (`fade`, tx records) to 1, 2 and 5 s, and `moodin` stepped through moods 10/11/12/off for each. Received: `sasc` (Smart single channel), `satw` (Smart tunable white) and `moodout` |
 | `rgbw-passthrough.jsonl` | RGBW payloads sent to input `inrgbw` (wired directly to output `outrgbw`) and the echoes, which are byte-identical, including out-of-range values |
 
 Findings are documented in `../../../PROTOCOL.md`.

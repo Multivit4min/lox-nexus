@@ -262,9 +262,9 @@ class per file, so it can later replace `loxone-ici` on npm.
    or the lighting-controller "mode".
    - **Experiment:** in Loxone Config, change one setting at a time (fade time, colour vs white,
      master off, scene change) and diff the captures.
-3. **TunableWhite fade unit.** PROTOCOL.md says 0.2 s per step, the old code used 0.1 s.
-   - **Experiment:** capture known fade times.
-4. **SingleChannel bytes 0–2, and TunableWhite bytes 6–7.** Both unknown.
+3. **TunableWhite fade unit.** Answered (2026-10-28): 0.1 s, like RGBW and SingleChannel.
+4. **SingleChannel bytes 0–2, and TunableWhite bytes 6–7.** SingleChannel's are always 0. TunableWhite
+   sends a constant `0x0800` whose meaning is unknown (see PROTOCOL.md).
 5. **0x8D status packet.** Decode its fields enough to use it as a heartbeat.
 
 Codecs for unconfirmed fields stay byte-exact on round-trip (every unknown byte is preserved) and are

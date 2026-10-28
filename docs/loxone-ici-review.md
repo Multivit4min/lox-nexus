@@ -83,7 +83,7 @@ Line references point at the upstream repository. `loxone-nexus/…` references 
 | 13 | `IciReceiver.test` "ours and foreign", "source id" | Confirmed necessary by live captures (`red` traffic) |
 | 14 | `IciId.test`, `PacketEncoder.test` "ids that don't fit" | |
 | 15 | `PayloadCodecs.test` "out-of-range and fractional" | |
-| 16 | `PayloadCodecs.test` "0.1 s fade units (live capture)" | Confirmed for RGBW. TunableWhite stays experimental (see backlog) |
+| 16 | `PayloadCodecs.test` "0.1 s fade units (live capture)" | Confirmed for RGBW, SingleChannel and TunableWhite (`FadeTimes.test.ts`, 2026-10-28) |
 | 17 | n/a | No pulse helpers in the protocol library; pulses belong to higher layers |
 | 18 | `RemotePeer.test` "exactly once", typed `output<T>()` | |
 | 19 | by construction | Typed `EventEmitter<Events>` from `node:events` |

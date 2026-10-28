@@ -4,8 +4,9 @@ import { PayloadCodec } from "./PayloadCodec.ts"
 import type { TunableWhiteValue } from "./values.ts"
 
 /**
- * Temperature (K) at bytes 0–1, brightness (%) at 2–3, fade time at 4–5.
- * @experimental the fade unit is disputed (0.1 s assumed, like RGBW), bytes 6–7 unknown.
+ * Temperature (K) at bytes 0–1, brightness (%) at 2–3, fade time at 4–5 in 0.1 s.
+ * @experimental bytes 6–7 are a constant 0x0800 from the Miniserver with unknown meaning; they are
+ * written as 0 and discarded on decoding.
  */
 export class SmartTunableWhiteCodec extends PayloadCodec<TunableWhiteValue> {
   readonly dataType = DataType.SmartTunableWhite

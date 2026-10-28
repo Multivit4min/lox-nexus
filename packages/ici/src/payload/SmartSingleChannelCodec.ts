@@ -4,8 +4,8 @@ import { PayloadCodec } from "./PayloadCodec.ts"
 import type { SingleChannelValue } from "./values.ts"
 
 /**
- * Channel (0–100) at byte 3, fade time at 4–5. Bytes 0–2 and 6–7 are unknown and written as 0.
- * @experimental the layout comes from the old library; decoding discards the unknown bytes.
+ * Channel (0–100) at byte 3, fade time at 4–5 in 0.1 s. Bytes 0–2 and 6–7 are always 0 (confirmed
+ * by a capture, see PROTOCOL.md).
  */
 export class SmartSingleChannelCodec extends PayloadCodec<SingleChannelValue> {
   readonly dataType = DataType.SmartSingleChannel

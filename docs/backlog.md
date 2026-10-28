@@ -21,8 +21,8 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
   1. Wire a digital, a text and an RGBW output to `encrypte` and capture, to learn their kinds.
   2. Sending: find out which magic/kind the Miniserver accepts from us (probe, needs the user's OK),
      then handshake answers, heartbeat, priming and source port 61263 per the document.
-- **SingleChannel bytes 0–2, TunableWhite bytes 6–7, TunableWhite fade unit.** Capture
-  `lcout`-style outputs of those types.
+- **TunableWhite bytes 6–7.** The Miniserver always sends `0x0800`; we send `0x0000`. Send both to a
+  real tunable white actuator and compare (needs one wired to the test Miniserver).
 
 ## Core
 

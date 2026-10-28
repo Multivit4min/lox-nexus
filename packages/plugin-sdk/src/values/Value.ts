@@ -21,7 +21,7 @@ export interface Rgbw {
   flags: number
 }
 
-/** Tunable white light: colour temperature plus brightness. @experimental the ICI fade unit is unconfirmed. */
+/** Tunable white light: colour temperature plus brightness. */
 export interface TunableWhite {
   /** Kelvin; conversions keep it within 2700–6500 */
   temperature: number

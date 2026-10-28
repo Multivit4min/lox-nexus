@@ -29,7 +29,7 @@ export interface SingleChannelValue {
   fadeTime: number
 }
 
-/** Smart Actuator tunable white. @experimental fade unit unconfirmed, see PROTOCOL.md */
+/** Smart Actuator tunable white. */
 export interface TunableWhiteValue {
   /** Kelvin, uint16 */
   temperature: number
