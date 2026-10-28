@@ -189,7 +189,7 @@ first-party plugins load from the workspace until then.
        installed until M6 publishes release ZIPs.
      - **M5e-2:** versions, hot update and rollback. Done, together with unhandled promise
        rejections in plugin workers being logged instead of ending the worker.
-     - **M5e-3:** the UI and the walkthrough.
+     - **M5e-3:** the UI and the walkthrough. Done; M5e is complete.
 
 **Verify:**
 - Zip-slip, symlink and zip-bomb fixtures are rejected.

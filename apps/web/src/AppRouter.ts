@@ -17,6 +17,8 @@ export class AppRouter {
         { path: "/miniservers", name: "miniservers", component: () => import("./views/MiniserversView.vue") },
         { path: "/miniservers/:id", name: "miniserver", component: () => import("./views/MiniserverView.vue"), props: true },
         { path: "/plugins", name: "plugins", component: () => import("./views/PluginsView.vue") },
+        // before /plugins/:id, which would take "installed" for an instance id
+        { path: "/plugins/installed", name: "plugin-packages", component: () => import("./views/PluginPackagesView.vue") },
         { path: "/plugins/:id", name: "plugin", component: () => import("./views/PluginInstanceView.vue"), props: true },
         { path: "/wires", name: "wires", component: () => import("./views/WiresView.vue") },
         { path: "/inspector", name: "inspector", component: () => import("./views/InspectorView.vue") },

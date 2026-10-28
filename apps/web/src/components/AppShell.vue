@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { Activity, BookOpen, Cable, LogOut, Puzzle, Server } from "@lucide/vue"
-import { useRouter } from "vue-router"
+import { useRoute, useRouter } from "vue-router"
 import { Button } from "@/components/ui/button"
 import { AppContext } from "../AppContext.ts"
 
 const { session } = AppContext.use()
 const router = useRouter()
+const route = useRoute()
+// a section stays marked on its detail pages (/plugins/<id>, /plugins/installed), which are separate routes
+const inSection = (to: string) => route.path === to || route.path.startsWith(`${to}/`)
 
 const links = [
   { to: "/miniservers", label: "Miniservers", icon: Server },
@@ -28,7 +31,7 @@ async function logout() {
         <RouterLink
           v-for="link in links" :key="link.to" :to="link.to"
           class="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-          active-class="bg-accent text-accent-foreground"
+          :class="inSection(link.to) && 'bg-accent text-accent-foreground'" :aria-current="inSection(link.to) ? 'page' : undefined"
         >
           <component :is="link.icon" class="size-4" />
           {{ link.label }}

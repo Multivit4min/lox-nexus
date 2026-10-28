@@ -53,6 +53,7 @@ test("an update restarts instances on the new version, orphans what it dropped, 
 
   const rollbackImpact = (await admin.get("/api/plugin-packages/fixture/versions/1.0.0/impact")).json<UpdateImpactDto>()
   assert.deepEqual(rollbackImpact.removed, [])
+  assert.deepEqual(rollbackImpact.restored, [{ kind: "sensor", capability: "b", signals: 1 }])
   assert.equal((await admin.post("/api/plugin-packages/fixture/activate", { version: "1.0.0", expectedActive: "1.0.0" })).statusCode, 409)
   const rolledBack = (await admin.post("/api/plugin-packages/fixture/activate", { version: "1.0.0", expectedActive: "2.0.0" })).json<InstallOutcomeDto>()
   assert.deepEqual([rolledBack.plugin.active.version, rolledBack.plugin.previous?.version], ["1.0.0", "2.0.0"])

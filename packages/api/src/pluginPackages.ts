@@ -92,6 +92,8 @@ export interface UpdateImpactDto {
   removed: CapabilityChangeDto[]
   /** capabilities whose value type changes: their wires are rebuilt, and values convert to the new type */
   retyped: CapabilityChangeDto[]
+  /** capabilities that orphaned signals use and the new version offers again: those work again, wires included */
+  restored: CapabilityChangeDto[]
   /** top-level settings the new version requires without a default; instances lacking them stop with an error */
   newRequiredConfig: string[]
 }

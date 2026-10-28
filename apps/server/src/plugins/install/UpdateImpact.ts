@@ -19,8 +19,8 @@ const ConfigSchema = z.object({
 
 /**
  * What switching a plugin from one description to another does to its instances: which
- * capabilities disappear or change their value type (and how many configured signals use them),
- * and which settings become required. Computed from descriptions only; no plugin code runs.
+ * capabilities disappear, change their value type or come back for orphaned signals (and how many
+ * configured signals use them), and which settings become required. Computed from descriptions only; no plugin code runs.
  */
 export class UpdateImpact {
   /** @param current the active version's description; undefined for a plugin that isn't installed yet */
@@ -28,6 +28,7 @@ export class UpdateImpact {
     const signals = instances.flatMap(entry => entry.signals)
     const removed: CapabilityChangeDto[] = []
     const retyped: CapabilityChangeDto[] = []
+    const restored: CapabilityChangeDto[] = []
     for (const kind of ["sensor", "actuator"] as const) {
       const before = new Map(UpdateImpact.offered(current, kind).map(capability => [capability.id, capability]))
       const after = new Map(UpdateImpact.offered(next, kind).map(capability => [capability.id, capability]))
@@ -39,12 +40,14 @@ export class UpdateImpact {
         const now = after.get(id)
         // in use but not offered any more counts even when the current description is unknown
         if (!now) removed.push({ kind, capability: id, signals: used(id) })
+        // known to be missing only when there is a current description to compare with
+        else if (!old && current) restored.push({ kind, capability: id, signals: used(id) })
         else if (old && old.valueType !== now.valueType) {
           retyped.push({ kind, capability: id, signals: used(id), from: old.valueType, to: now.valueType })
         }
       }
     }
-    return { instances: instances.map(entry => entry.instance), removed, retyped, newRequiredConfig: UpdateImpact.newRequired(next, current) }
+    return { instances: instances.map(entry => entry.instance), removed, retyped, restored, newRequiredConfig: UpdateImpact.newRequired(next, current) }
   }
 
   private static offered(description: PluginDescription | undefined, kind: "sensor" | "actuator"): Capability[] {

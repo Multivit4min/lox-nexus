@@ -1,9 +1,8 @@
 # Publishing a plugin
 
-> Installing, updating and rolling back work through the REST API today; the UI for them is **not
-> available yet** (milestone M5e-3). Publishing the SDK to npm and a
-> plugin template repository are milestone **M6**. How to install is described in
-> [Installation](../guide/installation.md#installing-a-plugin).
+> Installing, updating and rolling back work in the web UI (Plugins, tab Installed) and through the
+> REST API. Publishing the SDK to npm and a plugin template repository are milestone **M6**. How to
+> install is described in [Installation](../guide/installation.md#installing-a-plugin).
 
 ## What exists today
 
@@ -87,9 +86,9 @@ package instead.
    - **A git repository.** An `https://` URL (no token or user name in it) and a branch or tag.
      **Commit the built bundle** to the repository, since installing never runs `npm`. Git LFS
      isn't fetched, so keep the bundle a normal file.
-3. An admin installs it in two steps: Nexus fetches and checks the package and starts the bundle
-   once in a throwaway worker to see what it offers (stage), and then installs it after
-   confirmation (confirm). See [Installation](../guide/installation.md#installing-a-plugin).
+3. An admin installs it in the UI: Nexus fetches and checks the package and starts the bundle
+   once in a throwaway worker to see what it offers, shows the impact on the review step, and
+   installs it after confirmation. See [Installation](../guide/installation.md#installing-a-plugin).
 
 The same version with the same bundle counts as already installed, and confirming it changes
 nothing. The same version with a **different** bundle is refused, so raise the version whenever

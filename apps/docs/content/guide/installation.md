@@ -1,8 +1,7 @@
 # Installation
 
 Today Nexus runs from a source checkout. A Docker image is **not available yet** (milestone M6).
-Plugins can be installed through the REST API; the UI for it is not available yet (milestone
-M5e-3), see [Plugins](#plugins).
+Plugins are installed, updated and rolled back in the web UI, see [Plugins](#plugins).
 
 ## Requirements
 
@@ -132,31 +131,84 @@ A plugin instance needs its plugin to be known to the server. There are two ways
 
 ### Installing a plugin
 
-The web UI for installing is **not available yet** (milestone M5e-3); until then use the REST API.
-It needs a session, so log in first. The examples use `curl` with a cookie jar:
+Open the **Plugins** page and choose the tab **Installed**. Every installed plugin has a card
+there. The tab **Instances** is the list of your configured plugin instances.
+
+> **Only install plugins you trust.** A plugin is code that runs on your server. It runs in a
+> worker thread with an empty environment and a memory limit, but worker threads are **not a
+> sandbox**: it can read files and open network connections like Nexus itself. Checking a plugin
+> already runs its code once, so do not check a source you don't trust.
+
+Click **Install plugin**. A dialog with three steps opens.
+
+1. **Source.** Pick where the plugin comes from:
+   - **Local repository**: choose a plugin from the list. Plugins that are not built yet are listed
+     with their problem. See [the local plugin repository](#the-local-plugin-repository).
+   - **Git**: an `https://` URL without a user name or token in it, and a branch or tag. The built
+     bundle must be committed in the repository. Git LFS files are not fetched and submodules are
+     ignored. Nexus needs `git` on the server for this.
+   - **ZIP file**: upload an archive. `package.json` is at its root or in its only top-level
+     folder, and the archive is at most 50 MiB.
+
+   A trust warning stays above the tabs. **Fetch and check** only works after you tick **I trust
+   this source**, because checking starts the plugin's code once in a throwaway worker to learn
+   which sensors and actuators it offers.
+2. **Review.** Nexus shows what you are about to install:
+   - the plugin's name and version, and how it relates to what is installed: a new plugin, an
+     update from another version, older than the active version, or already installed;
+   - the exact source: the full URL, ref and commit, or the archive name and its sha256, or the
+     folder;
+   - the bundle's sha256 and the number of sensors and actuators;
+   - the **impact** on what you have: instances that restart; sensors or actuators the new version
+     no longer offers (their signals keep their wires but get no values); signals whose value type
+     changes; **Offered again** for signals that were orphaned and work again; and new required
+     settings.
+
+   Choose **Install**, or **Back**, which discards what was fetched. A checked plugin that you
+   don't install within 15 minutes is discarded too, and checking another plugin discards the
+   previous one.
+3. **Result.** The active version and the state of each instance.
+
+Each card on the **Installed** tab shows:
+
+- the active version;
+- the source in one line: the git URL and ref with the short commit, the ZIP's name with the short
+  sha256 of the archive, or the local folder. A copy button gives the full commit or sha256;
+- when and by whom it was installed, and how many instances use it;
+- the badge **development copy runs instead** when a development plugin with the same id takes
+  precedence (see above), and **unavailable** when the installed files can't be loaded;
+- the buttons **Update**, **Roll back to** the previous version, and **Uninstall**.
+
+**Updating.** **Update** opens the same dialog, prefilled with where the plugin came from: the same
+git URL and ref, the same local folder, or the ZIP tab. Check the impact on the review step, then
+install. Running instances restart on the new version without a server restart, and instances that
+had failed start on it. Signals whose sensor or actuator is gone stay with their wires and are
+marked orphaned until a version offers it again.
+
+**Rolling back.** **Roll back to** shows the impact of switching to the previous version and then
+switches. The two versions swap, so you can go forward again the same way. Only the active and the
+previous version are kept.
+
+**Uninstalling** removes the plugin with all its files. The button is disabled while instances of
+the plugin exist (its tooltip says so): delete those first, which also deletes their signals and
+wires.
+
+Installing the same version again with the same bundle changes nothing (or repairs its files when
+they went missing); the same version with a different bundle is refused, so raise the version when
+you change a plugin. Installed plugins are stored in `<data dir>/plugins/<id>/<version>/`, and the
+database records what is installed. Back up the data directory as a whole. See
+[Publishing a plugin](../plugins/publishing.md) for what a package must contain.
+
+#### Without the UI
+
+The same steps are available over the REST API, for scripts. It needs a session, so log in first;
+the examples use `curl` with a cookie jar.
 
 ```sh
 curl -c jar -H 'content-type: application/json' \
   -d '{"username":"admin","password":"..."}' http://localhost:8080/api/auth/login
-```
 
-There are three sources:
-
-- **A ZIP file.** `package.json` is at the archive's root or in its only top-level folder, and the
-  archive is at most 50 MiB.
-- **A git repository.** An `https://` URL without a user name or token in it, and a branch or
-  tag. The built bundle must be committed in the repository. Git LFS files are not fetched, and
-  submodules are ignored. Nexus needs `git` on the server for this.
-- **The local plugin repository**, see below.
-
-Installing takes two steps, so you can look at what you are about to install. **Staging** fetches
-the plugin, checks it, and starts it once in a throwaway worker to learn which sensors and
-actuators it offers. It returns a `stagingId` with the plugin's name, version and checksums.
-**Confirm** then installs it. A staged install that isn't confirmed within 15 minutes is
-discarded, and staging another plugin discards the previous one.
-
-```sh
-# 1. stage, from a ZIP, a git repository or the local repository
+# 1. stage (fetch and check): from a ZIP, a git repository or the local repository
 curl -b jar -H 'content-type: application/zip' --data-binary @my-plugin.zip \
   'http://localhost:8080/api/plugin-packages/stage/zip?name=my-plugin.zip'
 curl -b jar -H 'content-type: application/json' \
@@ -165,59 +217,32 @@ curl -b jar -H 'content-type: application/json' \
 curl -b jar -H 'content-type: application/json' -d '{"folder":"calendar"}' \
   http://localhost:8080/api/plugin-packages/stage/local
 
-# 2. confirm (null: the plugin is not installed yet), or discard
+# 2. confirm (null: the plugin is not installed yet; otherwise the active version), or discard
 curl -b jar -H 'content-type: application/json' -d '{"expectedActive":null}' \
   http://localhost:8080/api/plugin-packages/stage/<stagingId>/confirm
 curl -b jar -X DELETE http://localhost:8080/api/plugin-packages/stage/<stagingId>
 
-# what is installed, and what the local repository offers
+# list, impact of a rollback, rollback, uninstall
 curl -b jar http://localhost:8080/api/plugin-packages
-curl -b jar http://localhost:8080/api/plugin-packages/repository
-```
-
-> **Only install plugins you trust.** A plugin is code that runs on your server. It runs in a
-> worker thread with an empty environment and a memory limit, but worker threads are **not a
-> sandbox**: it can read files and open network connections like Nexus itself. Staging already
-> runs the plugin's code once, so do not stage a source you don't trust.
-
-Installed plugins are stored in `<data dir>/plugins/<id>/<version>/`, and the database records
-what is installed. Back up the data directory as a whole.
-
-**Uninstalling** removes the plugin with all its files. It is refused while instances of the plugin
-exist: delete those first, which also deletes their signals and wires.
-
-```sh
-curl -b jar -X DELETE http://localhost:8080/api/plugin-packages/<plugin id>
-```
-
-**Updating** works like installing: stage the new version, look at the `impact` in the answer
-(instances that restart, sensors or actuators the new version no longer offers, settings it newly
-requires), and confirm with the active version as `expectedActive`. Running instances restart on
-the new version without a server restart, and instances that had failed start on it. Signals whose
-sensor or actuator is gone stay with their wires and are marked orphaned until a version offers it
-again.
-
-**Rolling back** switches to the version that was active before; the two versions swap, so the
-same call goes forward again:
-
-```sh
 curl -b jar http://localhost:8080/api/plugin-packages/<plugin id>/versions/<version>/impact
 curl -b jar -H 'content-type: application/json' -d '{"version":"1.0.0","expectedActive":"1.1.0"}' \
   http://localhost:8080/api/plugin-packages/<plugin id>/activate
+curl -b jar -X DELETE http://localhost:8080/api/plugin-packages/<plugin id>
 ```
 
-Only the active and the previous version are kept. Installing the same version again with the same
-bundle changes nothing (or repairs its files when they went missing); the same version with a
-different bundle is refused, so raise the version when you change a plugin. See
-[Publishing a plugin](../plugins/publishing.md) for what a package must contain.
+The answer to staging contains the `stagingId`, the plugin's name, version and checksums, and the
+`impact` shown on the review step.
 
 ### The local plugin repository
 
 The local plugin repository is a folder on the server with one **built** plugin per subfolder. It
 is set with `NEXUS_PLUGIN_REPOSITORY` and defaults to `<data dir>/plugin-repository`. Nexus lists
-its contents on every request (`GET /api/plugin-packages/repository`), so a plugin you copy there
-shows up without a restart, and installs from it with the `folder` name. A subfolder that isn't
-built yet is listed with the reason.
+its contents every time you look (`GET /api/plugin-packages/repository`), so a plugin you copy there
+shows up without a restart. A subfolder that isn't built yet is listed with the reason.
+
+On the **Installed** tab, below the cards, **In the local plugin repository** lists the plugins of
+that folder that are not installed or are installed in another version, each with **Install** or
+**Update**.
 
 - `npm run dev` points the repository at the workspace's `plugins/`.
 - `npm run plugins:build` builds the bundles of the first-party plugins, so they can be installed.
@@ -227,4 +252,3 @@ built yet is listed with the reason.
 ## Not available yet
 
 - A Docker image (amd64 and arm64) and backups of the whole data directory: milestone M6.
-- The installer's web UI (M5e-3).

@@ -1183,8 +1183,9 @@ stays in `docs/`.
 
 ## Design: plugin installer (M5e)
 
-Status: **M5e-1 is built** (install pipeline for new plugins, boot loading, uninstall, API); M5e-2
-(versions, hot update, rollback) and M5e-3 (UI) are still design. Decisions in ADR 0009 (archives
+Status: **built** in three steps: M5e-1 (install pipeline, boot loading, uninstall, API), M5e-2
+(versions, hot update, rollback) and M5e-3 (UI). The implementation notes at the end of this
+section say where the build differs from the design below. Decisions in ADR 0009 (archives
 and git) and ADR 0010 (versions, precedence, hot update). See "Implementation notes: M5e-1" at the
 end of this section for where the build differs from the design below.
 
@@ -1657,6 +1658,37 @@ admin-only). DTOs and input schemas go into `packages/api/src/pluginPackages.ts`
 - **Every unhandled promise rejection in a plugin worker** now goes to `Plugin.unhandledRejection`
   (default: log an error with the stack) instead of ending the worker; found with the script
   plugin, whose users forget `.catch`.
+
+### Implementation notes: M5e-3
+
+- **Where:** the Plugins page has two tabs (`PluginTabs`, router links): Instances (`/plugins`) and
+  Installed (`/plugins/installed`, registered before `/plugins/:id`). The top navigation keeps a
+  section marked on its detail routes.
+- **Installed:** `InstalledPluginCard` per plugin, plus "In the local plugin repository" with the
+  plugins that aren't installed or differ from the active version (`VersionChange`, semver
+  precedence). Uninstall is disabled while instances exist.
+- **`InstallDialog`:** source (`InstallSourceForm`: local repository, git, ZIP; `TrustWarning`;
+  "Fetch and check" needs "I trust this source"), review (`InstallReview` with `UpdateImpactList`),
+  result (`InstallResult`). Confirm sends the staged `installedVersion` as `expectedActive`. Back
+  and closing before confirming discard the staged files. "Update" prefills the source the active
+  version came from (`InstallSources.updateOf`).
+- **`RollbackDialog`** loads the impact of the previous version and calls `activate`.
+- **`UpdateImpactDto.restored`** (added for the rollback dialog): capabilities orphaned signals
+  use that the next version offers again; only reported when the current description is known.
+- **Dialogs can't be closed while a request runs** (no close button, Escape and outside clicks
+  ignored), so a late answer never lands in a closed or reopened dialog. The source form stays
+  mounted during the review, so Back returns to what was entered; "I trust this source" resets
+  when the source changes. A 404 or 409 on confirm (expired, or changed meanwhile) offers "Check
+  again".
+- **Versions in the UI** follow semver precedence, except that two strings with the same precedence
+  (`1.0.0+a`, `1.0.0+b`) are different stored versions ("another build").
+- **Not built from the design:** a roll back button on the result step (the card has it), plugin
+  icons on the cards, and the names of the instances that block an uninstall (the DTO has a count;
+  the card says to delete them on the Instances tab).
+- **Walkthrough:** headless Chromium (Playwright from the npx cache, the cached headless shell)
+  against a real server: local install, ZIP install, update with a removed sensor, rollback with
+  it offered again, uninstall disabled with an instance, phone width. Git isn't part of it: the
+  server accepts only https and the walkthrough has no network.
 
 ### Left out on purpose
 

@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableR
 import { AppContext } from "../AppContext.ts"
 import InstanceForm from "../components/plugins/InstanceForm.vue"
 import PluginStateBadge from "../components/plugins/PluginStateBadge.vue"
+import PluginTabs from "../components/plugins/PluginTabs.vue"
 import { LiveValues } from "../stores/LiveValues.ts"
 
 const context = AppContext.use()
@@ -59,8 +60,11 @@ onUnmounted(() => live.close())
 <template>
   <div class="mx-auto max-w-[96rem] space-y-4 p-6">
     <div class="flex flex-wrap items-center justify-between gap-2">
-      <h1 class="text-xl font-semibold">Plugins</h1>
-      <Button :disabled="!packages.length" :title="packages.length ? undefined : 'No plugin is installed'" @click="adding = true">
+      <div class="flex flex-wrap items-center gap-4">
+        <h1 class="text-xl font-semibold">Plugins</h1>
+        <PluginTabs />
+      </div>
+      <Button :disabled="!packages.length" :title="packages.length ? undefined : 'No plugin is installed; install one on the Installed tab'" @click="adding = true">
         <Plus class="size-4" /> Add instance
       </Button>
     </div>

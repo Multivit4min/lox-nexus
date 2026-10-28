@@ -36,5 +36,8 @@ test("an optional field that becomes required, an unknown current version, and a
   // nothing known about the active version: what the signals use and the next version lacks is removed
   const unknown = UpdateImpact.of(description({ sensors: [capability("a", "number")] }), undefined, [{ instance, signals: [signal("sensor", "a"), signal("sensor", "gone")] }])
   assert.deepEqual(unknown.removed, [{ kind: "sensor", capability: "gone", signals: 1 }])
+  assert.deepEqual(unknown.restored, [], "without a current description nothing is known to come back")
+  const back = UpdateImpact.of(description({ sensors: [capability("a", "number")] }), description({}), [{ instance, signals: [signal("sensor", "a")] }])
+  assert.deepEqual(back.restored, [{ kind: "sensor", capability: "a", signals: 1 }])
   assert.deepEqual(UpdateImpact.of(description({ config: { required: "not a list", properties: 3 } }), current, []).newRequiredConfig, [])
 })
