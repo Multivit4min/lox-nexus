@@ -113,4 +113,9 @@ describe("SchemaDraft", () => {
     assert.deepEqual(fields.map(f => [f.name, f.kind, f.code]), [["script", "string", "javascript"], ["template", "string", "json"], ["notes", "string", "text"], ["host", "string", undefined]])
     assert.equal(SchemaDraft.value(fields[0]!, "let a = 1\n"), "let a = 1\n")
   })
+
+  test("enum values can have names (enumLabels)", () => {
+    const parsed = SchemaFields.parse({ type: "string", enum: ["unix", "minutesUntil"], default: "unix", enumLabels: { minutesUntil: "Minutes until" } }, "format")
+    assert.deepEqual([parsed.options, parsed.optionLabels], [["unix", "minutesUntil"], { minutesUntil: "Minutes until" }])
+  })
 })

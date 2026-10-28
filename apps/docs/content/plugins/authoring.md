@@ -61,6 +61,9 @@ export class MyPlugin extends Plugin<z.infer<typeof config>> {
   (`z.string().meta({ title: "Variable", description: "…" })`); without a title the key is used
   ("entityId" becomes "Entity ID"). Prefer a title when the key is a generic word such as `name`,
   which the user would confuse with the signal's own name.
+- **Choices** (`z.enum`) are shown as their values unless you name them:
+  `z.enum(["current", "next"]).meta({ enumLabels: { current: "The active event", next: "The next event" } })`.
+  Values without a name are shown as they are.
 - **`this.config`** is the validated instance config with defaults applied. It is available in
   field initializers of your subclass. Use the `z` exported by the SDK, so schemas and the runtime
   share one zod version.

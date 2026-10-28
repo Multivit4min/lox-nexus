@@ -72,8 +72,8 @@ const addItem = () => emit("update:modelValue", [...items.value, SchemaDraft.fro
     <Select :model-value="text || NONE" @update:model-value="value => emit('update:modelValue', value === NONE ? '' : String(value))">
       <SelectTrigger :id="id" class="w-full"><SelectValue /></SelectTrigger>
       <SelectContent>
-        <SelectItem v-if="!field.required || field.hasDefault" :value="NONE">{{ field.hasDefault ? `Default (${field.default})` : "Not set" }}</SelectItem>
-        <SelectItem v-for="option in field.options" :key="String(option)" :value="String(option)">{{ option }}</SelectItem>
+        <SelectItem v-if="!field.required || field.hasDefault" :value="NONE">{{ field.hasDefault ? `Default (${field.optionLabels?.[String(field.default)] ?? field.default})` : "Not set" }}</SelectItem>
+        <SelectItem v-for="option in field.options" :key="String(option)" :value="String(option)">{{ field.optionLabels?.[String(option)] ?? option }}</SelectItem>
       </SelectContent>
     </Select>
   </FormField>

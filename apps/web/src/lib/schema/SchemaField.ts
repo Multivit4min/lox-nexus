@@ -5,6 +5,8 @@ export interface JsonSchemaNode {
   description?: string
   default?: unknown
   enum?: unknown[]
+  /** names for enum values, by value: not JSON Schema, set by plugins with `.meta({ enumLabels })` */
+  enumLabels?: Record<string, string>
   const?: unknown
   writeOnly?: boolean
   properties?: Record<string, JsonSchemaNode>
@@ -36,6 +38,8 @@ export interface SchemaField {
   default?: unknown
   /** enum: the allowed values */
   options?: Array<string | number | boolean>
+  /** enum: what to show for a value; values without one are shown as they are */
+  optionLabels?: Record<string, string>
   /** const: the only allowed value */
   constValue?: unknown
   minimum?: number
@@ -73,6 +77,8 @@ export class SchemaFields {
     for (const key of ["minimum", "maximum", "format"] as const) if (node[key] !== undefined) Object.assign(field, { [key]: node[key] })
     if (field.kind === "string" && node.format === "code") field.code = SchemaFields.CODE_LANGUAGES[node.contentMediaType ?? ""] ?? "text"
     if (field.kind === "enum") field.options = node.enum!.filter(SchemaFields.isPrimitive)
+    const labels = node.enumLabels ?? schema.enumLabels
+    if (field.kind === "enum" && labels && typeof labels === "object") field.optionLabels = labels
     if (field.kind === "const") field.constValue = node.const
     if (field.kind === "object") {
       const needed = new Set(node.required ?? [])
