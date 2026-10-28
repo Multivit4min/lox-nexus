@@ -165,9 +165,9 @@ export class NexusApp extends Disposable {
     const cleanup = new TopicCleanup(this.bus, db.snapshot)
     const unloadable = new UnloadableRows()
     const loxoneSignals = new LoxoneSignalService(db.loxoneSignals, this.miniservers, cleanup, unloadable, log)
-    const miniservers = new MiniserverService(db.miniservers, this.miniservers, loxoneSignals, cleanup, unloadable, log)
     const wires = new WireService(db.wires, this.wires, this.signals, log)
-    const plugins = new PluginService(db.pluginInstances, db.pluginSignals, this.plugins, this.pluginCatalog, cleanup, log, this.pluginLogs, this.selections)
+    const miniservers = new MiniserverService(db.miniservers, this.miniservers, loxoneSignals, cleanup, unloadable, log, wires)
+    const plugins = new PluginService(db.pluginInstances, db.pluginSignals, this.plugins, this.pluginCatalog, cleanup, log, this.pluginLogs, wires, this.selections)
     const pluginSignals = new PluginSignalService(db.pluginSignals, plugins, cleanup)
     const lock = new ChangeLock()
     const runtime = { cleanup, exists: (topic: string) => this.signals.atTopic(topic) !== undefined }

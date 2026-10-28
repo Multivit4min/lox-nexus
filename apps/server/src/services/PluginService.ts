@@ -11,6 +11,7 @@ import { SecretFields } from "../plugins/SecretFields.ts"
 import type { PluginLogs } from "./PluginLogs.ts"
 import type { SelectionService } from "./SelectionService.ts"
 import type { TopicCleanup } from "./TopicCleanup.ts"
+import type { WireService } from "./WireService.ts"
 
 /**
  * Plugin instances: the database is the source of truth, PluginManager the running projection.
@@ -27,6 +28,7 @@ export class PluginService {
     private readonly cleanup: TopicCleanup,
     private readonly log: Logger,
     private readonly logs: Pick<PluginLogs, "forget">,
+    private readonly wires: Pick<WireService, "sendAll">,
     /** a watching instance's choice of signals goes with it */
     private readonly selections?: Pick<SelectionService, "forget">
   ) {}
@@ -146,6 +148,9 @@ export class PluginService {
   /** runtime only; `enabled` decides what happens at the next boot */
   async start(id: string) {
     await this.supervisor(id).start()
+    // its sensors repeat the values they had, which the bus drops as unchanged, so the Miniserver
+    // gets them from here; wires to its actuators wait for the next value, as anything else would act on the device
+    this.wires.sendAll(id, { resend: true })
     return this.get(id)
   }
 

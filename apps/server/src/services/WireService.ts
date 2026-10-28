@@ -77,11 +77,19 @@ export class WireService {
       this.engine.remove(config.id)
       throw error
     }
-    // otherwise it would wait for the next change, which for PV power at night is hours away. Also
-    // a restored value: an output gets those anyway when the connection opens. A plugin actuator
-    // doesn't get it, because that would act on the device
-    if (this.signals.get(config.targetId)?.delivery === "state") this.engine.sync(config.id, { restored: true })
+    // otherwise it would wait for the next change, which for PV power at night is hours away
+    this.sendToOutputs(wire => wire.id === config.id)
     return WireService.toDto(config, true)
+  }
+
+  /**
+   * Sends the current value of every running wire to a Miniserver output that has an end owned by
+   * `ownerId` (a Miniserver or plugin instance), once.
+   * @param options.resend also when the output has that value already, so the Miniserver gets it again
+   */
+  sendAll(ownerId: string, options: { resend?: boolean } = {}) {
+    const owned = (id: string) => this.signals.get(id)?.owner?.id === ownerId
+    this.sendToOutputs(wire => owned(wire.sourceId) || owned(wire.targetId), options.resend)
   }
 
   /**
@@ -138,9 +146,12 @@ export class WireService {
     return active
   }
 
-  /** sends the source's current value through a running wire once (see WireEngine.sync) */
-  sync(id: string) {
-    this.engine.sync(id)
+  // Also a restored value: an output gets those anyway when the connection opens. Wires to a plugin
+  // actuator are left out, because sending would act on the device.
+  private sendToOutputs(matches: (wire: WireConfig) => boolean, resend = false) {
+    for (const wire of this.engine.list()) {
+      if (matches(wire) && this.signals.get(wire.targetId)?.delivery === "state") this.engine.sync(wire.id, { restored: true, resend })
+    }
   }
 
   /** stops and deletes the wire; @throws HttpError 404 */

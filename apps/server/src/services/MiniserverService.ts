@@ -8,6 +8,7 @@ import { MiniserverMapper } from "./MiniserverMapper.ts"
 import type { LoxoneSignalService } from "./LoxoneSignalService.ts"
 import type { TopicCleanup } from "./TopicCleanup.ts"
 import type { UnloadableRows } from "./UnloadableRows.ts"
+import type { WireService } from "./WireService.ts"
 
 /**
  * Miniserver configs: the database is the source of truth, MiniserverManager the running
@@ -21,7 +22,8 @@ export class MiniserverService {
     private readonly signals: LoxoneSignalService,
     private readonly cleanup: TopicCleanup,
     private readonly unloadable: UnloadableRows,
-    private readonly log: Logger
+    private readonly log: Logger,
+    private readonly wires: Pick<WireService, "sendAll">
   ) {}
 
   /** builds the runtime from the database at boot; a broken row is logged and listed as unloadable, never fatal */
@@ -117,6 +119,9 @@ export class MiniserverService {
   /** runtime only; `enabled` decides what happens at the next boot */
   async start(id: string) {
     const miniserver = this.require(id)
+    // fills outputs whose wire never delivered (the source hasn't changed since the wire was made);
+    // starting then sends the value of every output to the Miniserver
+    this.wires.sendAll(id)
     await this.tryStart(miniserver)
     return MiniserverMapper.toDto(miniserver)
   }

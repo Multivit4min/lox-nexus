@@ -40,8 +40,10 @@ removed (the server log says why).
 - A target can be fed by **one** wire.
 - Values are converted to the target's type at the end, see [Values](../plugins/values.md#conversions).
 - A new wire to a Miniserver **output** sends the source's current value right away, so the
-  Miniserver doesn't wait for the next change (PV power stays at 0 all night). A new wire to a plugin
-  **actuator** doesn't, because that would act on the device; it carries the next value.
+  Miniserver doesn't wait for the next change (PV power stays at 0 all night). So does **Start** on
+  a Miniserver (for each of its outputs) or on a plugin (for each of its sensors' wires to an
+  output), even when nothing changed. Wires to a plugin **actuator** never do this, because that
+  would act on the device; they carry the next value.
 - After a restart, values restored from the last snapshot are **not** forwarded, so a reboot never
   actuates a device with stale data. Enable *sync on start* on the wire if you want the opposite.
 - A value that passes the same wire twice within one chain of causes is dropped and a warning

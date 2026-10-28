@@ -458,7 +458,12 @@ above:
   the `OutboundRouter` explicitly sends the current value of every output in three cases: when a
   connection opens, when an output is added while running, and on a restart. The Miniserver
   therefore gets the last known value, including values restored at startup (old Nexus never
-  re-sent unlinked outputs). A removed output is taken out of the resend cycle. A release
+  re-sent unlinked outputs). An output whose wire never delivered (its source hasn't changed since)
+  has no value to send, so `WireService` sends the source's value through the wire when the wire is
+  created and when the Miniserver is started from the UI. Starting a plugin from the UI sends its
+  sensors' values to their outputs again with `force`, since the sensors repeat values the bus
+  drops as unchanged. Wires to plugin actuators are never synced like this: that would act on the
+  device. A removed output is taken out of the resend cycle. A release
   without a real value delivers nothing, so the Miniserver keeps the last forced value.
 - **Intercommunication load.** Loxone documents the limit as "an average value of 35 messages
   per second over a period of 2 minutes. If this is exceeded, secure transmission is no longer

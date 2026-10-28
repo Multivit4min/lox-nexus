@@ -14,6 +14,14 @@ export const WIRE_LOOP_TOPIC = "system/wire/loop"
 /** The slice of EventBus a wire needs, so wires can be tested with a fake. */
 export type WireBus = Pick<EventBus, "subscribe" | "publish" | "command" | "event" | "current">
 
+/** How sync() deviates from an ordinary publish. */
+export interface SyncOptions {
+  /** also a value restored at startup and not sent since, which a sensor repeating it never replaces */
+  restored?: boolean
+  /** delivered even if the target has that value already, e.g. so a Miniserver output is sent again */
+  resend?: boolean
+}
+
 /**
  * A running wire: listens to its source topic and delivers transformed values to its target.
  * Messages it publishes carry the wire as source and continue the trace of the message that
@@ -23,6 +31,7 @@ export type WireBus = Pick<EventBus, "subscribe" | "publish" | "command" | "even
 export class ActiveWire extends Disposable {
   private readonly pipeline: TransformPipeline
   private readonly source: MessageSource
+  private resending = false
 
   /** Subscribes to `from.topic` immediately. Signals are passed in (resolved by WireEngine) so the wire never looks them up. */
   constructor(
@@ -42,10 +51,18 @@ export class ActiveWire extends Disposable {
   /**
    * Delivers the value the source shows right now, as if it had just been published. The same
    * rules apply: nothing while disabled, and a restored value only with syncOnStart or `restored`.
+   * `resend` covers what the transforms deliver right away; a debounce or throttle that holds the
+   * value back delivers it later as usual, so an unchanged one is dropped then.
    */
-  sync({ restored = false } = {}) {
+  sync({ restored = false, resend = false }: SyncOptions = {}) {
     const current = this.bus.current(this.from.topic)
-    if (current) this.handle(current, restored)
+    if (!current) return
+    this.resending = resend
+    try {
+      this.handle(current, restored)
+    } finally {
+      this.resending = false
+    }
   }
 
   // Only state and command carry a value to forward. Shadowed publishes never reach subscribers,
@@ -64,7 +81,7 @@ export class ActiveWire extends Disposable {
   // Conversion happens here, after the transforms, so a map/scale sees the source's own type.
   private deliver(value: Value, cause: Cause) {
     const converted = this.target.valueType === "any" ? value : Converter.convert(value, this.target.valueType)
-    const options = { source: this.source, cause }
+    const options = { source: this.source, cause, ...(this.resending ? { force: true } : {}) }
     if (this.target.delivery === "command") this.bus.command(this.target.topic, converted, options)
     else this.bus.publish(this.target.topic, converted, options)
   }
