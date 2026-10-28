@@ -27,7 +27,7 @@ abstract class Plugin<Config = unknown> extends Disposable {
 | Member | Notes |
 |---|---|
 | `start()` | Reject only for what a restart can't fix (bad credentials): the instance goes to the error state and is not restarted. For an unreachable device resolve and call `status.set("degraded", ...)`. |
-| `catalog()` | Asked on demand by the UI; may query the device; a throw is shown to the user. Default `[]`. |
+| `catalog()` | Asked on demand by the UI; may query the device; a throw is shown to the user. Default `[]`. Answers (catalog, panel, webhook responses) over 16 MiB as JSON fail instead. |
 | `panel()` | Asked on demand; `undefined` shows nothing. Never put secrets in it. |
 | `unhandledRejection(reason)` | Called for a promise in the worker that was rejected without a handler (a forgotten `.catch`). The worker keeps running; the default logs an error with the stack. Override to say more or to set a degraded status; it must not throw. `PluginTestHost.unhandledRejection(reason)` calls it in tests. |
 | `config` | Already validated against the static `config` schema, defaults applied. Available in field initializers of subclasses. |
@@ -154,10 +154,10 @@ type HttpHandler = (request: HttpRequest) => HttpResponse | Promise<HttpResponse
 | Item | Notes |
 |---|---|
 | `store.get` | The cast to `T` is not checked; validate data an older version wrote. |
-| `store.set` | Value must be JSON; BigInt and cycles throw `Error`; keys are 1 to 200 characters (else `Error`). |
+| `store.set` | Value must be JSON; BigInt and cycles throw `Error`; keys are 1 to 200 characters, values at most 1 MiB as JSON (else `Error`). |
 | `status.set` | `message` is clipped to 10 000 characters; `"running"` clears `"degraded"`. |
 | `http.route` | Reachable at `/hook/<instance slug><path>` **without a login**: check a secret yourself. Method `"*"` matches any method; a path ending in `/*` matches everything below that prefix (`"/a/*"` matches `/a/` and `/a/b`, not `/a`; `"/*"` all). The most specific route wins: exact before prefix, longer prefix first, a named method before `"*"`. Throws `Error` on a duplicate method + path. A throwing handler gives the caller 502. |
-| `log.*` | `data` is structured-cloned. Never log secrets. |
+| `log.*` | `data` is structured-cloned; more than 64 KiB as JSON is replaced by a note with its size. Never log secrets. |
 
 ### Entry, config and re-exports
 

@@ -163,3 +163,25 @@ test("recover() clears a failure once, and only after a fail()", async () => {
   const kinds = host.sent.filter(message => ["signal.error", "signal.recovered", "emit"].includes(message.type)).map(message => message.type)
   assert.deepEqual(kinds, ["signal.error", "signal.recovered", "signal.error", "emit"])
 })
+
+test("oversized store values throw at the call, log data is left out, a huge answer fails the request", async () => {
+  const big = "x".repeat(1024 * 1024 + 1)
+  class Big extends Plugin {
+    override start() {
+      assert.throws(() => this.store.set("k", big), /store value for "k" is 1\.0 MiB; the limit is 1\.0 MiB/)
+      this.store.set("ok", "x".repeat(1000))
+      this.log.info("fetched", { response: "y".repeat(70 * 1024) })
+      this.log.info("small", { a: 1 })
+    }
+
+    override catalog() {
+      return [{ label: "z".repeat(17 * 1024 * 1024) }] as never
+    }
+  }
+  const host = await PluginTestHost.start(Big)
+  const logs = host.sent.flatMap(message => message.type === "log" ? [message.data] : [])
+  assert.deepEqual(logs, ["[log data left out: 71 KiB, more than 64 KiB]", { a: 1 }])
+  assert.deepEqual(host.sent.flatMap(message => message.type === "store.set" ? [message.key] : []), ["ok"])
+  await assert.rejects(host.catalog(), /the answer is 17\.0 MiB; the limit is 16\.0 MiB/)
+  await host.stop()
+})

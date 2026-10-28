@@ -6,6 +6,7 @@ import type { LogLevel, WorkerMessage } from "../wire/WorkerMessages.ts"
 import { CauseScope } from "./CauseScope.ts"
 import { Declarations } from "./Declarations.ts"
 import { PluginDescriber } from "./PluginDescriber.ts"
+import { MessageLimits } from "./MessageLimits.ts"
 import { RouteTable } from "./RouteTable.ts"
 import { RuntimeStore } from "./RuntimeStore.ts"
 import { SignalHost } from "./SignalHost.ts"
@@ -62,6 +63,8 @@ export class PluginRuntime {
   private async request(message: Request) {
     try {
       const result = await this.answer(message)
+      const size = MessageLimits.size(result) ?? 0
+      if (size > MessageLimits.ANSWER) throw new Error(`the answer is ${MessageLimits.describe(size)}; the limit is ${MessageLimits.describe(MessageLimits.ANSWER)}`)
       this.send({ type: "response", requestId: message.requestId, ok: true, ...(result === undefined ? {} : { result }) })
     } catch (error) {
       this.send({ type: "response", requestId: message.requestId, ok: false, error: PluginRuntime.text(error) })
@@ -123,6 +126,8 @@ export class PluginRuntime {
   // data that can't cross the thread boundary (functions, sockets) is logged as text instead
   private static cloneable(data: unknown) {
     if (data === undefined) return {}
+    const size = MessageLimits.size(data)
+    if (size !== undefined && size > MessageLimits.LOG_DATA) return { data: `[log data left out: ${MessageLimits.describe(size)}, more than ${MessageLimits.describe(MessageLimits.LOG_DATA)}]` }
     try {
       return { data: structuredClone(data) }
     } catch {
