@@ -8,6 +8,7 @@ import { StateValue } from "../entities/StateValue.ts"
 export class LightBrightnessActuator extends EntityActuator<ValueOf<"singleChannel">> {
   static readonly id = "lightBrightness"
   static readonly label = "Light brightness"
+  static readonly description = "Dims a light; 0 % turns it off"
   static readonly accepts = "singleChannel"
   static readonly domains = ["light"]
   static readonly concurrency = "latest"

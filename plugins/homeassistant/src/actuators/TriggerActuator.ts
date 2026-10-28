@@ -17,6 +17,7 @@ const SERVICES: Record<string, string> = {
 export class TriggerActuator extends EntityActuator<ValueOf<"boolean">> {
   static readonly id = "trigger"
   static readonly label = "Trigger"
+  static readonly description = "On a pulse, activates a scene, runs a script or automation, or presses a button"
   static readonly accepts = "boolean"
   static readonly domains = Object.keys(SERVICES)
 

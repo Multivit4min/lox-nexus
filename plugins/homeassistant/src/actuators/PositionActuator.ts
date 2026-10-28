@@ -13,6 +13,7 @@ const SET_POSITION = 4
 export class PositionActuator extends EntityActuator<ValueOf<"number">> {
   static readonly id = "position"
   static readonly label = "Position"
+  static readonly description = "Moves a cover or valve to a position, 0 (closed) to 100 (open)"
   static readonly accepts = "number"
   static readonly domains = ["cover", "valve"]
   static readonly concurrency = "latest"

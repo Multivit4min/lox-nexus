@@ -5,5 +5,6 @@ import { VariableActuator } from "./VariableActuator.ts"
 export class TextActuator extends VariableActuator<ValueOf<"string">> {
   static readonly id = "text"
   static readonly label = "Text"
+  static readonly description = "A text the script receives with nexus.on or nexus.get"
   static readonly accepts = "string"
 }

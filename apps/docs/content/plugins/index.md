@@ -82,6 +82,7 @@ const config = z.object({
 class CounterSensor extends Sensor<HelloPlugin, { start: number }> {
   static readonly id = "counter"
   static readonly label = "Counter"
+  static readonly description = "Counts up every interval"
   static readonly params = z.object({ start: z.number().default(0) })
   static readonly valueType = "number"
 

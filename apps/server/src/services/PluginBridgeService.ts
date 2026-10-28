@@ -16,9 +16,10 @@ const WIRE_LABEL_MAX = WireSchema.shape.label.maxLength ?? 200
  * Connects plugin signals to a Miniserver in one step: the plugin signal (existing or new), a
  * Loxone signal for it and the wire between them. A sensor gets a Loxone output, an actuator a
  * Loxone input. Items are independent: one that fails is undone completely and the others go on.
- * Topic names that aren't given are made unique (kitchen-temperature-2), because catalog entries in
- * different places often share a name. Two requests at the same time may still pick the same
- * name; the later item then fails with the 409 and can be retried.
+ * Loxone topic names that aren't given are made unique (kitchen-temperature-2), because catalog
+ * entries in different places often share a name (PluginSignalService does the same for the plugin
+ * side). Two requests at the same time may still pick the same name; the later item then fails
+ * with the 409 and can be retried.
  */
 export class PluginBridgeService {
   constructor(
@@ -88,10 +89,8 @@ export class PluginBridgeService {
       if (!signal) throw HttpError.notFound(`signal "${plugin.signalId}"`)
       return signal
     }
-    const input = plugin.signal
-    const taken = new Set(existing.filter(s => s.kind === input.kind).map(s => s.slug))
-    const slug = input.slug ?? FreeSlug.pick(Topic.slug(input.label || input.capability), taken)
-    const signal = await this.pluginSignals.add(instanceId, { ...input, slug })
+    // without a slug, add() picks a free one
+    const signal = await this.pluginSignals.add(instanceId, plugin.signal)
     undo.push({ what: `plugin signal "${signal.label}"`, run: () => this.pluginSignals.remove(instanceId, signal.id, by) })
     return signal
   }

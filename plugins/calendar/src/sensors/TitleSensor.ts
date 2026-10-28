@@ -14,6 +14,7 @@ const titleParams = FilterParams.schema({
 export class TitleSensor extends CalendarSensor<z.output<typeof titleParams>> {
   static readonly id = "title"
   static readonly label = "Event title"
+  static readonly description = "A text of the current or next matching event, such as its title"
   static readonly params = titleParams
   static readonly valueType = "string"
 

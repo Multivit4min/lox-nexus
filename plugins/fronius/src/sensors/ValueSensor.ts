@@ -18,6 +18,7 @@ const params = z.object({
 export class ValueSensor extends Sensor<FroniusPlugin, z.infer<typeof params>> {
   static readonly id = "value"
   static readonly label = "Value"
+  static readonly description = "One value the inverter reports, such as PV power, grid power or battery charge"
   static readonly params = params
   static readonly valueType = "any"
 

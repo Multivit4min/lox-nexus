@@ -76,6 +76,8 @@ export type SensorClass = (new (plugin: never, params: never, output: SensorOutp
   readonly id: string
   /** shown in UIs; default: the id */
   readonly label?: string
+  /** one sentence for UIs: what it reads or does, e.g. "The value of a sensor entity or one of its attributes" */
+  readonly description?: string
   /** default: no params (an empty object) */
   readonly params?: z.ZodType
   /** what emit() sends, so wires can convert; default "any" (it varies) */

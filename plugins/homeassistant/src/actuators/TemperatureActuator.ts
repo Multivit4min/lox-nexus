@@ -13,6 +13,7 @@ const TARGET_TEMPERATURE = 1
 export class TemperatureActuator extends EntityActuator<ValueOf<"number">> {
   static readonly id = "temperature"
   static readonly label = "Target temperature"
+  static readonly description = "Sets the target temperature of a thermostat or water heater"
   static readonly accepts = "number"
   static readonly domains = ["climate", "water_heater"]
   static readonly concurrency = "latest"

@@ -40,7 +40,8 @@ describe("SchemaFields", () => {
 
   test("nullable via anyOf and humanized names", () => {
     const parsed = SchemaFields.parse({ anyOf: [{ type: "integer" }, { type: "null" }], description: "d" }, "api_key")
-    assert.deepEqual([parsed.kind, parsed.nullable, parsed.description, parsed.label], ["integer", true, "d", "Api key"])
+    assert.deepEqual([parsed.kind, parsed.nullable, parsed.description, parsed.label], ["integer", true, "d", "API key"])
+    assert.deepEqual(["entityId", "url", "idleTime", "pollInterval"].map(name => SchemaFields.humanize(name)), ["Entity ID", "URL", "Idle time", "Poll interval"])
   })
 })
 

@@ -9,6 +9,7 @@ import { ValueSensor, type Coerced } from "./ValueSensor.ts"
 export class NumberSensor extends ValueSensor {
   static readonly id = "number"
   static readonly label = "Number"
+  static readonly description = "A number from each call to the hook"
   static readonly valueType = "number"
   private static readonly numeric = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i
   protected readonly kind = "number"

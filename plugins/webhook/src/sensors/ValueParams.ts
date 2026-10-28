@@ -13,7 +13,7 @@ export const valueParams = z.object({
   source: z.enum(["json", "query", "form", "body"]).default("json")
     .describe("Where the value comes from: a JSON path in the body, a query parameter, a form field, or the whole body text"),
   path: z.string().max(JsonPath.MAX_LENGTH).optional().describe("For source json: path into the body, e.g. sensor.values[0].temp"),
-  name: z.string().min(1).max(100).optional().describe("For source query or form: the parameter name")
+  name: z.string().min(1).max(100).optional().meta({ title: "Field name", description: "For source query or form: the parameter name" })
 }).superRefine((params, context) => {
   const issue = (path: string, message: string) => context.addIssue({ code: "custom", path: [path], message })
   if (params.source === "json") {

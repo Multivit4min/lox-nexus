@@ -777,9 +777,9 @@ above:
 
 - **SDK** (`@lox-nexus/plugin-sdk`):
   - `Plugin`, `Sensor` and `Actuator` extend `Disposable`. Their declarations (`config`,
-    `sensors`, `actuators`, `id`, `params`, `valueType`, `accepts`, `concurrency`, `label`) are
-    optional static fields of the subclass, read with defaults by `Declarations`, so subclasses
-    need no `override` on them. Methods (`start`, `catalog`, `panel`) do.
+    `sensors`, `actuators`, `id`, `params`, `valueType`, `accepts`, `concurrency`, `label`,
+    `description`) are optional static fields of the subclass, read with defaults by
+    `Declarations`, so subclasses need no `override` on them. Methods (`start`, `catalog`, `panel`) do.
   - `PluginRuntime` is the worker side: it answers host messages and turns emits, logs, status
     and store writes into messages. `SignalHost` creates the configured sensors and actuators;
     `ActuatorRunner` runs one actuator's commands one at a time (`queue`) or only the newest

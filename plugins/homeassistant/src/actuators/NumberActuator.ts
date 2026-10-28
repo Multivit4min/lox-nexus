@@ -7,6 +7,7 @@ import { StateValue } from "../entities/StateValue.ts"
 export class NumberActuator extends EntityActuator<ValueOf<"number">> {
   static readonly id = "number"
   static readonly label = "Number"
+  static readonly description = "Sets a number entity (number or input_number)"
   static readonly accepts = "number"
   static readonly domains = ["number", "input_number"]
   static readonly concurrency = "latest"

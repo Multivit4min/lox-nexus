@@ -3,6 +3,7 @@ import { PluginSignalInputSchema, type PluginSignalDto, type PluginSignalInput }
 import { PluginRequestError, Topic, type PluginSignalConfig, type PluginSignalEntry, type PluginSupervisor } from "@lox-nexus/core"
 import type { PluginSignalRepository } from "../db/repositories/PluginSignalRepository.ts"
 import { HttpError } from "../http/HttpError.ts"
+import { FreeSlug } from "./FreeSlug.ts"
 import type { PluginService } from "./PluginService.ts"
 import type { TopicCleanup } from "./TopicCleanup.ts"
 
@@ -10,7 +11,9 @@ import type { TopicCleanup } from "./TopicCleanup.ts"
  * The sensors and actuators of plugin instances. Signals are registered on the bus at once (so
  * wires can be built while the plugin is stopped); a running plugin validates the params, and
  * one it refuses is not kept (400 with the plugin's message). A stopped plugin checks them at its
- * next start; a refused signal then shows its `error`.
+ * next start; a refused signal then shows its `error`. Without a slug, one is made from the label
+ * and numbered when taken (value, value-2): generic names such as "Value" repeat often. A slug
+ * given explicitly must be free.
  */
 export class PluginSignalService {
   constructor(
@@ -82,7 +85,9 @@ export class PluginSignalService {
     if (!offered.some(capability => capability.id === parsed.capability)) {
       throw HttpError.badRequest(`${supervisor.pkg.name} has no ${parsed.kind} "${parsed.capability}"`)
     }
-    return { id, ...parsed, slug: parsed.slug ?? Topic.slug(parsed.label || parsed.capability) }
+    if (parsed.slug) return { id, ...parsed, slug: parsed.slug }
+    const taken = new Set(supervisor.signals.list().filter(e => e.config.kind === parsed.kind && e.config.id !== id).map(e => e.config.slug))
+    return { id, ...parsed, slug: FreeSlug.pick(Topic.slug(parsed.label || parsed.capability), taken) }
   }
 
   private require(supervisor: PluginSupervisor, signalId: string) {

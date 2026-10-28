@@ -28,6 +28,12 @@ export class Declarations {
     return capability.label ?? capability.id
   }
 
+  /** spread into a description: absent rather than undefined, so describe() output stays plain JSON */
+  static description(capability: SensorClass | ActuatorClass) {
+    // a plugin written in plain JS may declare anything; a non-string would fail the host's check of the whole description
+    return typeof capability.description === "string" && capability.description ? { description: capability.description } : {}
+  }
+
   static valueType(sensor: SensorClass) {
     return sensor.valueType ?? "any"
   }

@@ -9,6 +9,7 @@ import { ValueSensor, type Coerced } from "./ValueSensor.ts"
 export class TextSensor extends ValueSensor {
   static readonly id = "text"
   static readonly label = "Text"
+  static readonly description = "A text from each call to the hook"
   static readonly valueType = "string"
   /** longer text is refused: one value travels to the bus, the recorder, every inspector and the Miniserver */
   static readonly MAX_LENGTH = 4096

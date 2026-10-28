@@ -15,6 +15,7 @@ import { FilterParams, type Filter } from "../filter/FilterParams.ts"
 export class DismissActuator extends Actuator<CalendarPlugin, Filter, ValueOf<"boolean">> {
   static readonly id = "dismiss"
   static readonly label = "Dismiss active events"
+  static readonly description = "On a pulse, hides the matching events that are active now, e.g. after the bins were put out"
   static readonly params = FilterParams.schema({})
   static readonly accepts = "boolean"
 

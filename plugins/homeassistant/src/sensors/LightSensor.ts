@@ -20,6 +20,7 @@ const params = EntityId.params.extend({
 export class LightSensor extends EntitySensor<z.infer<typeof params>> {
   static readonly id = "light"
   static readonly label = "Light"
+  static readonly description = "A light's brightness or colour, as a Loxone smart actuator value"
   static readonly params = params
   static readonly valueType = "any"
   private last: Value | undefined

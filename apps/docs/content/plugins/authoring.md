@@ -53,8 +53,14 @@ export class MyPlugin extends Plugin<z.infer<typeof config>> {
 (`Api`, `Poller`, `PowerSensor` and `SwitchActuator` are your own classes.)
 
 - **Static declarations** (`config`, `sensors`, `actuators`, and on capabilities `id`, `label`,
-  `params`, `valueType`, `accepts`, `concurrency`) are all optional except a capability's `id`. They
-  are static so the host can describe a plugin (forms, JSON Schema) without starting it.
+  `description`, `params`, `valueType`, `accepts`, `concurrency`) are all optional except a
+  capability's `id`. They are static so the host can describe a plugin (forms, JSON Schema) without
+  starting it. Give each sensor and actuator a `description`: users pick from a list of them, and
+  one sentence on what it reads or does tells them more than a label alone.
+- **Form fields** are labelled with the field's `title` and explained by its `description`
+  (`z.string().meta({ title: "Variable", description: "…" })`); without a title the key is used
+  ("entityId" becomes "Entity ID"). Prefer a title when the key is a generic word such as `name`,
+  which the user would confuse with the signal's own name.
 - **`this.config`** is the validated instance config with defaults applied. It is available in
   field initializers of your subclass. Use the `z` exported by the SDK, so schemas and the runtime
   share one zod version.
@@ -125,7 +131,8 @@ import { Value } from "@lox-nexus/plugin-sdk/values"
 export class PowerSensor extends Sensor<MyPlugin, { path: string }> {
   static readonly id = "power"                    // stored with the signal: don't rename
   static readonly label = "Power"
-  static readonly params = z.object({ path: z.string() })
+  static readonly description = "The power the inverter reports"   // shown when adding it
+  static readonly params = z.object({ path: z.string().describe("Where the value is in the data, e.g. site.P_PV") })
   static readonly valueType = "number"            // what emit() sends; "any" if it varies
 
   override start() {

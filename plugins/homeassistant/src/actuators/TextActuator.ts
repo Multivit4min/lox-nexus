@@ -16,6 +16,7 @@ const SERVICES: Record<string, [service: string, field: string]> = {
 export class TextActuator extends EntityActuator<ValueOf<"string">> {
   static readonly id = "text"
   static readonly label = "Text or option"
+  static readonly description = "Sets a text, picks an option of a select, or sets a thermostat's mode"
   static readonly accepts = "string"
   static readonly domains = Object.keys(SERVICES)
   static readonly concurrency = "latest"

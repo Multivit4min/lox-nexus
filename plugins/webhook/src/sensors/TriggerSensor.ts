@@ -21,6 +21,7 @@ const params = z.object({
 export class TriggerSensor extends Sensor<WebhookPlugin, z.infer<typeof params>> implements HookHandler {
   static readonly id = "trigger"
   static readonly label = "Trigger (pulse)"
+  static readonly description = "A short pulse for each call to the hook, e.g. for a doorbell"
   static readonly params = params
   static readonly valueType = "boolean"
 

@@ -21,6 +21,7 @@ const params = z.object({
 export class ServiceCallActuator extends Actuator<HomeAssistantPlugin, z.infer<typeof params>> {
   static readonly id = "service"
   static readonly label = "Service call"
+  static readonly description = "Calls any Home Assistant service, for what the other actuators don't cover"
   static readonly params = params
   static readonly accepts = "any"
 

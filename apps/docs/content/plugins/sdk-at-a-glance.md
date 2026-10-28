@@ -66,6 +66,7 @@ Static declarations ([`SensorClass`](../reference/sdk/@lox-nexus/plugin-sdk.md#s
 ```ts
 static readonly id: string                       // required; stored with the signal, never rename
 static readonly label?: string                   // default: id
+static readonly description?: string             // one sentence the UI shows when adding it
 static readonly params?: z.ZodType               // default: empty object; validated before construction
 static readonly valueType?: ValueType | "any"    // what emit() sends; default "any"
 ```
@@ -92,6 +93,7 @@ Static declarations ([`ActuatorClass`](../reference/sdk/@lox-nexus/plugin-sdk.md
 ```ts
 static readonly id: string                          // required; stored with the signal, never rename
 static readonly label?: string                      // default: id
+static readonly description?: string                // one sentence the UI shows when adding it
 static readonly params?: z.ZodType                  // default: empty object
 static readonly accepts?: ValueType | "any"         // wires convert to this before run(); default "any"
 static readonly concurrency?: ActuatorConcurrency   // "queue" (default) | "latest"

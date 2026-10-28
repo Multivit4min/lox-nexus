@@ -8,6 +8,8 @@ export type JsonSchema = Record<string, unknown>
 export const CapabilityDescriptionSchema = z.object({
   id: z.string(),
   label: z.string(),
+  /** one sentence on what it reads or does; absent when the plugin gives none (and from older SDKs) */
+  description: z.string().optional(),
   /** JSON Schema of the params; fields marked secret are `writeOnly` */
   params: z.record(z.string(), z.unknown()),
   /** what a sensor emits or an actuator accepts; "any" means it isn't fixed */

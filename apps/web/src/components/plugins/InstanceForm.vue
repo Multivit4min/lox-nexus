@@ -39,6 +39,8 @@ watch(label, name => {
 })
 
 async function onSubmit() {
+  // the field sits under "Advanced", where the browser's own required check couldn't point at it
+  if (!slug.value) return void (failure.value = slugEdited.value ? "Set a topic name under Advanced" : "The name needs a letter or digit, or set a topic name under Advanced")
   busy.value = true
   failure.value = undefined
   try {
@@ -64,15 +66,24 @@ async function onSubmit() {
           </SelectContent>
         </Select>
       </FormField>
-      <FormField id="label" label="Name"><Input id="label" v-model="label" required maxlength="100" /></FormField>
-      <FormField id="slug" label="Topic name" :hint="`${plugin || '<plugin>'}/${slug || '<name>'}/…`">
-        <Input id="slug" v-model="slug" required @input="slugEdited = true" />
+      <FormField id="label" label="Name" class="col-span-2" hint="e.g. the place or device it connects to: Home, Garage inverter">
+        <Input id="label" v-model="label" required maxlength="100" />
       </FormField>
     </div>
     <div v-if="field" class="max-h-[50vh] overflow-y-auto pr-1">
       <SchemaFieldInput id="config" v-model="draft" :field="field" :secrets="initial?.secrets" />
     </div>
-    <label class="flex items-center gap-2 text-sm"><Switch v-model="enabled" /> Start automatically</label>
+    <label class="flex items-center gap-2 text-sm"><Switch v-model="enabled" /> Start now and whenever Nexus starts</label>
+    <details class="text-sm">
+      <summary class="cursor-pointer text-muted-foreground">Advanced</summary>
+      <FormField
+        id="slug" label="Topic name" class="mt-3"
+        :hint="initial ? 'Changing it moves the topics of all its sensors and actuators' : 'Made from the name; its signals appear on the bus under this'"
+      >
+        <Input id="slug" v-model="slug" @input="slugEdited = true" />
+      </FormField>
+      <p class="mt-1 font-mono text-xs text-muted-foreground">{{ plugin || "…" }}/{{ slug || "…" }}/…</p>
+    </details>
     <Alert v-if="failure" variant="destructive"><AlertDescription>{{ failure }}</AlertDescription></Alert>
     <Button type="submit" :disabled="busy || !pkg">{{ initial ? "Save" : "Add instance" }}</Button>
   </form>

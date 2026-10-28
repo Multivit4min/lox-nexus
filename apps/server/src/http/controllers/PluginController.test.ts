@@ -50,7 +50,11 @@ describe("plugin API", { timeout: 10_000 }, () => {
     const refused = await admin.post(`${base()}/signals`, { kind: "sensor", capability: "value", params: { start: "x" }, label: "bad" })
     assert.deepEqual([refused.statusCode, /invalid params/.test(refused.json<{ error: string }>().error)], [400, true])
     assert.equal((await admin.post(`${base()}/signals`, { kind: "actuator", capability: "nope", label: "x" })).statusCode, 400)
-    assert.equal((await admin.post(`${base()}/signals`, { kind: "sensor", capability: "value", params: { start: 1 }, label: "Counter value" })).statusCode, 409)
+    // a repeated name gets a free topic name; one given explicitly must be free
+    const again = await admin.post(`${base()}/signals`, { kind: "sensor", capability: "value", params: { start: 1 }, label: "Counter value" })
+    assert.equal(again.json<PluginSignalDto>().slug, "counter-value-2")
+    assert.equal((await admin.post(`${base()}/signals`, { kind: "sensor", capability: "value", params: { start: 1 }, label: "x", slug: "counter-value" })).statusCode, 409)
+    assert.equal((await admin.delete(`${base()}/signals/${again.json<PluginSignalDto>().id}`)).statusCode, 204)
     assert.deepEqual((await admin.get(`${base()}/signals`)).json<PluginSignalDto[]>().map(s => s.slug), ["counter-value"])
   })
 

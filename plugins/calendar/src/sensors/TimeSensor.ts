@@ -20,6 +20,7 @@ const timeParams = FilterParams.schema({
 export class TimeSensor extends CalendarSensor<z.output<typeof timeParams>> {
   static readonly id = "time"
   static readonly label = "Event time"
+  static readonly description = "When the current or next matching event starts or ends"
   static readonly params = timeParams
   static readonly valueType = "number"
 

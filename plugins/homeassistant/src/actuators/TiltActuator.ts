@@ -10,6 +10,7 @@ const SET_TILT_POSITION = 128
 export class TiltActuator extends EntityActuator<ValueOf<"number">> {
   static readonly id = "tilt"
   static readonly label = "Tilt position"
+  static readonly description = "Tilts a cover's slats, 0 (closed) to 100 (open)"
   static readonly accepts = "number"
   static readonly domains = ["cover"]
   static readonly concurrency = "latest"

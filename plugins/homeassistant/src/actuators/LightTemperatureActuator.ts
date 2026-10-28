@@ -7,6 +7,7 @@ import { EntityActuator } from "./EntityActuator.ts"
 export class LightTemperatureActuator extends EntityActuator<ValueOf<"tunableWhite">> {
   static readonly id = "lightTemperature"
   static readonly label = "Light colour temperature"
+  static readonly description = "Sets a light's colour temperature and brightness from a tunable white value"
   static readonly accepts = "tunableWhite"
   static readonly domains = ["light"]
   static readonly concurrency = "latest"

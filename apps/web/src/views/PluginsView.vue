@@ -5,7 +5,7 @@ import { useIntervalFn } from "@vueuse/core"
 import { Play, Plus, Square } from "@lucide/vue"
 import { useRouter } from "vue-router"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { AppContext } from "../AppContext.ts"
 import InstanceForm from "../components/plugins/InstanceForm.vue"
@@ -102,7 +102,10 @@ onUnmounted(() => live.close())
     </Table>
     <Dialog v-model:open="adding">
       <DialogContent class="sm:max-w-4xl">
-        <DialogHeader><DialogTitle>Add plugin instance</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Add plugin instance</DialogTitle>
+          <DialogDescription>An instance is one configured connection, e.g. one Home Assistant server or one inverter. Add its sensors and actuators afterwards.</DialogDescription>
+        </DialogHeader>
         <InstanceForm :packages="packages" :submit="create" />
       </DialogContent>
     </Dialog>

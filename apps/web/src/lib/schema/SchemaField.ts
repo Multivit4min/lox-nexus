@@ -82,11 +82,14 @@ export class SchemaFields {
     return field
   }
 
-  /** "pollInterval" → "Poll interval", "api_key" → "Api key" */
+  /** "pollInterval" → "Poll interval", "api_key" → "API key", "entityId" → "Entity ID" */
   static humanize(name: string) {
     const words = name.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/[_-]+/g, " ").trim().toLowerCase()
+      .split(" ").map(word => (SchemaFields.ACRONYMS.has(word) ? word.toUpperCase() : word)).join(" ")
     return words.charAt(0).toUpperCase() + words.slice(1)
   }
+
+  private static readonly ACRONYMS = new Set(["api", "id", "ip", "url", "uri", "http", "https", "mqtt", "tls", "ssl", "ics"])
 
   // `T | null` comes as a type list or as anyOf with a null branch
   private static unwrapNull(schema: JsonSchemaNode): { node: JsonSchemaNode; nullable: boolean } {

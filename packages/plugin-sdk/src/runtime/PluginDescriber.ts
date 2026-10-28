@@ -11,10 +11,10 @@ export class PluginDescriber {
     return {
       config: PluginDescriber.schemaOf(Declarations.config(type)),
       sensors: Declarations.sensors(type).map(sensor => ({
-        id: sensor.id, label: Declarations.label(sensor), params: PluginDescriber.schemaOf(Declarations.params(sensor)), valueType: Declarations.valueType(sensor)
+        id: sensor.id, label: Declarations.label(sensor), ...Declarations.description(sensor), params: PluginDescriber.schemaOf(Declarations.params(sensor)), valueType: Declarations.valueType(sensor)
       })),
       actuators: Declarations.actuators(type).map(actuator => ({
-        id: actuator.id, label: Declarations.label(actuator), params: PluginDescriber.schemaOf(Declarations.params(actuator)), valueType: Declarations.accepts(actuator)
+        id: actuator.id, label: Declarations.label(actuator), ...Declarations.description(actuator), params: PluginDescriber.schemaOf(Declarations.params(actuator)), valueType: Declarations.accepts(actuator)
       }))
     }
   }

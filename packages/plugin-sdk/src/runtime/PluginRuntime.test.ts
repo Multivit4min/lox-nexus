@@ -6,6 +6,7 @@ import { Value } from "../values/Value.ts"
 import { Actuator } from "../plugin/Actuator.ts"
 import { Plugin, type PluginClass } from "../plugin/Plugin.ts"
 import { Sensor } from "../plugin/Sensor.ts"
+import { PluginDescriber } from "./PluginDescriber.ts"
 
 describe("PluginRuntime through PluginTestHost", () => {
   test("init validates the config and applies its defaults; failures are reported", async () => {
@@ -114,6 +115,24 @@ test("unhandled rejections go to the plugin, which logs them by default; a throw
   assert.deepEqual(await logs(Quiet, new Error("boom")), ["error unhandled promise rejection: boom"])
   assert.deepEqual(await logs(Loud, "plain"), ["warn script failed: plain"])
   assert.deepEqual(await logs(Broken, "x"), ["error unhandled promise rejection: override broke"])
+})
+
+test("describe passes a description on, and leaves the field out without one", () => {
+  class Described extends Sensor<Plugin, object> {
+    static readonly id = "described"
+    static readonly description = "What it reads"
+  }
+  class Plain extends Actuator<Plugin, object> {
+    static readonly id = "plain"
+    run() {}
+  }
+  class DescribedPlugin extends Plugin {
+    static readonly sensors = [Described]
+    static readonly actuators = [Plain]
+  }
+  const description = PluginDescriber.describe(DescribedPlugin)
+  assert.equal(description.sensors[0]?.description, "What it reads")
+  assert.equal("description" in description.actuators[0]!, false)
 })
 
 test("the plugin knows its slug, and each sensor and actuator its signal's id and label", async () => {

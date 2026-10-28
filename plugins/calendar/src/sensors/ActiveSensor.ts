@@ -7,6 +7,7 @@ import { CalendarSensor } from "./CalendarSensor.ts"
 export class ActiveSensor extends CalendarSensor<Filter> {
   static readonly id = "active"
   static readonly label = "Event active"
+  static readonly description = "On while a matching event is going on (with its lead and lag time)"
   static readonly params = FilterParams.schema({})
   static readonly valueType = "boolean"
 

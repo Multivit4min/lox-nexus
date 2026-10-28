@@ -4,6 +4,7 @@ import { VariableSensor } from "./VariableSensor.ts"
 export class NumberSensor extends VariableSensor {
   static readonly id = "number"
   static readonly label = "Number"
+  static readonly description = "A number the script sends with nexus.set"
   static readonly valueType = "number"
   protected readonly type = "number"
 }

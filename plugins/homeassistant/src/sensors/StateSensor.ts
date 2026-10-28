@@ -15,6 +15,7 @@ const params = EntityId.params.extend({
 export class StateSensor extends EntitySensor<z.infer<typeof params>> {
   static readonly id = "state"
   static readonly label = "State or attribute"
+  static readonly description = "The state of an entity, or one of its attributes"
   static readonly params = params
   static readonly valueType = "any"
 

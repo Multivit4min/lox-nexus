@@ -45,6 +45,8 @@ export type ActuatorClass = (new (plugin: never, params: never, signal?: SignalI
   readonly id: string
   /** shown in UIs; default: the id */
   readonly label?: string
+  /** one sentence for UIs: what it does, e.g. "Dims a light; 0 % turns it off" */
+  readonly description?: string
   /** default: no params (an empty object) */
   readonly params?: z.ZodType
   /** the value type run() expects; wires convert to it. Default "any": values pass unchanged */

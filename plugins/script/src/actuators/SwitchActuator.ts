@@ -5,5 +5,6 @@ import { VariableActuator } from "./VariableActuator.ts"
 export class SwitchActuator extends VariableActuator<ValueOf<"boolean">> {
   static readonly id = "switch"
   static readonly label = "Switch"
+  static readonly description = "An on/off value the script receives with nexus.on or nexus.get"
   static readonly accepts = "boolean"
 }

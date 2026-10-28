@@ -20,6 +20,7 @@ const FEATURES: Record<string, number> = { climate: 128 | 256, media_player: 128
 export class OnOffActuator extends EntityActuator<ValueOf<"boolean">> {
   static readonly id = "onOff"
   static readonly label = "On/off"
+  static readonly description = "Switches an entity on or off (opens or closes a cover or valve, locks or unlocks a lock)"
   static readonly accepts = "boolean"
   static readonly domains = [
     "switch", "light", "input_boolean", "fan", "automation", "siren", "humidifier", "media_player", "remote",

@@ -5,5 +5,6 @@ import { VariableActuator } from "./VariableActuator.ts"
 export class NumberActuator extends VariableActuator<ValueOf<"number">> {
   static readonly id = "number"
   static readonly label = "Number"
+  static readonly description = "A number the script receives with nexus.on or nexus.get"
   static readonly accepts = "number"
 }

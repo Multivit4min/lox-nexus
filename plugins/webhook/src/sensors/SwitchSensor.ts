@@ -8,6 +8,7 @@ import { ValueSensor, type Coerced } from "./ValueSensor.ts"
 export class SwitchSensor extends ValueSensor {
   static readonly id = "switch"
   static readonly label = "Switch (on/off)"
+  static readonly description = "An on/off value from each call to the hook"
   static readonly valueType = "boolean"
   private static readonly words: ReadonlyMap<string, boolean> = new Map([
     ["true", true], ["on", true], ["yes", true], ["1", true],

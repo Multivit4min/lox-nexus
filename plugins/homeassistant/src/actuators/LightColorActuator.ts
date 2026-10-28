@@ -14,6 +14,7 @@ const COLOR_MODES = ["rgb", "rgbw", "rgbww", "hs", "xy"]
 export class LightColorActuator extends EntityActuator<ValueOf<"rgbw">> {
   static readonly id = "lightColor"
   static readonly label = "Light colour"
+  static readonly description = "Sets a light's colour from an RGBW value"
   static readonly accepts = "rgbw"
   static readonly domains = ["light"]
   static readonly concurrency = "latest"
