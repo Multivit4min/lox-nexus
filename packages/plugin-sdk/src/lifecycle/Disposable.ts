@@ -1,3 +1,5 @@
+import { SystemClock, type Clock } from "./Clock.ts"
+
 /** Cleanup callback registered with a Disposable. May be async; errors are collected, not swallowed. */
 export type Teardown = () => void | Promise<void>
 
@@ -32,6 +34,8 @@ export abstract class Disposable implements DisposableLike {
   static readonly MAX_TIMER_MS = 2_147_483_647
   private readonly teardowns = new Set<Teardown>()
   private disposing: Promise<void> | undefined
+  // ES-private, so subclasses can keep their own `clock` fields
+  #clock: Clock | undefined
 
   /** true from the moment dispose() starts, not when it finishes */
   get isDisposed() {
@@ -71,9 +75,31 @@ export abstract class Disposable implements DisposableLike {
     this.teardowns.add(teardown)
   }
 
-  /** ties the lifetime of a child resource to this object; returns it so construction and registration fit in one expression */
+  /**
+   * Sets the clock for every() and after() calls from now on, unless one is set already; without
+   * one they run on the system clock. Timers started before keep the clock they started on.
+   * Plugin, Sensor and Actuator set it from the plugin's context.
+   */
+  protected useClock(clock: Clock | undefined) {
+    this.#clock ??= clock
+  }
+
+  /**
+   * The clock this object runs on: every() and after() use it, and a Disposable that isn't a
+   * plugin, sensor or actuator reads the time from it (`this.currentClock().now()`).
+   */
+  protected currentClock(): Clock {
+    return this.#clock ?? SystemClock.instance
+  }
+
+  /**
+   * ties the lifetime of a child resource to this object; returns it so construction and
+   * registration fit in one expression. A Disposable child without a clock of its own inherits
+   * this one's (timers it started in its constructor stay on the system clock).
+   */
   protected own<T extends DisposableLike>(resource: T): T {
     this.onDispose(() => resource.dispose())
+    if (resource instanceof Disposable) resource.useClock(this.#clock)
     return resource
   }
 
@@ -83,9 +109,10 @@ export abstract class Disposable implements DisposableLike {
    */
   protected every(ms: number, fn: () => void): () => void {
     if (!Number.isFinite(ms) || ms <= 0 || ms > Disposable.MAX_TIMER_MS) throw new RangeError(`interval must be between 1 and ${Disposable.MAX_TIMER_MS} ms, got ${ms}`)
-    const timer = setInterval(fn, ms)
+    const clock = this.currentClock()
+    const timer = clock.setInterval(fn, ms)
     const cancel = () => {
-      clearInterval(timer)
+      clock.clearInterval(timer)
       this.teardowns.delete(cancel)
     }
     this.onDispose(cancel)
@@ -104,9 +131,10 @@ export abstract class Disposable implements DisposableLike {
    */
   protected after(ms: number, fn: () => void): () => void {
     if (!Number.isFinite(ms) || ms < 0) throw new RangeError(`delay must be a finite number >= 0, got ${ms}`)
-    let timer: NodeJS.Timeout | undefined
+    const clock = this.currentClock()
+    let timer: unknown
     const cancel = () => {
-      clearTimeout(timer)
+      clock.clearTimeout(timer)
       this.teardowns.delete(cancel)
     }
     const fire = () => {
@@ -114,10 +142,10 @@ export abstract class Disposable implements DisposableLike {
       fn()
     }
     // long delays are re-measured against a fixed deadline at every step, so timer drift can't add up
-    const deadline = Date.now() + ms
+    const deadline = clock.now() + ms
     const schedule = (remaining: number) => {
       const step = Math.min(remaining, Disposable.MAX_TIMER_MS)
-      timer = setTimeout(() => (step < remaining ? schedule(Math.max(0, deadline - Date.now())) : fire()), step)
+      timer = clock.setTimeout(() => (step < remaining ? schedule(Math.max(0, deadline - clock.now())) : fire()), step)
     }
     this.onDispose(cancel)
     schedule(ms)

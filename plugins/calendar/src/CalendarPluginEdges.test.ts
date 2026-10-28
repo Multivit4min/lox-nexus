@@ -30,7 +30,7 @@ describe("CalendarPlugin edge cases", { timeout: 20_000 }, () => {
     const active = await host.addSensor("active")
     await plugin.source.refresh()
     assert.equal(host.status.status, "running")
-    h.advanceTo("2026-11-03T07:00:00Z")
+    await h.advanceTo("2026-11-03T07:00:00Z")
     await plugin.source.refresh()
     assert.deepEqual(host.values(active).at(-1), Value.boolean(true))
     const errors = host.sent.flatMap(message => (message.type === "log" && message.level === "error" ? [message.data] : []))

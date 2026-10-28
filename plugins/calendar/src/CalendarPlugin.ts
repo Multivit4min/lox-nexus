@@ -43,11 +43,11 @@ export class CalendarPlugin extends Plugin<CalendarConfig> {
   }
 
   override catalog() {
-    return new CalendarCatalog(this.agenda.visible, Date.now(), this.zone).build()
+    return new CalendarCatalog(this.agenda.visible, this.clock.now(), this.zone).build()
   }
 
   override panel() {
-    return new CalendarPanel(this.source, this.agenda, this.zone, this.client.host).build(Date.now())
+    return new CalendarPanel(this.source, this.agenda, this.zone, this.client.host).build(this.clock.now())
   }
 
   private problemChanged(problem: string | undefined) {

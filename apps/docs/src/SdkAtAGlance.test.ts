@@ -24,3 +24,13 @@ test("SDK at a glance lists every export plugin authors use", () => {
   const missing = names.filter(name => !new RegExp(`\\b${name}\\b`).test(page))
   assert.deepEqual(missing, [], "add these exports to apps/docs/content/plugins/sdk-at-a-glance.md")
 })
+
+// the generated reference shows the message unions only as z.infer<…>, so the page lists them
+test("SDK at a glance has a row for every host and worker message", () => {
+  const page = fs.readFileSync(path.join(repository, "apps", "docs", "content", "plugins", "sdk-at-a-glance.md"), "utf8")
+  const types = ["HostMessages.ts", "WorkerMessages.ts"].flatMap(file =>
+    [...fs.readFileSync(path.join(sdk, "wire", file), "utf8").matchAll(/type: z\.literal\("([^"]+)"\)/g)].map(([, type]) => type!))
+  assert.ok(types.length > 20, `parsed only ${types.length} message types; did the schema style change?`)
+  const missing = types.filter(type => !page.includes(`| \`${type}\` |`))
+  assert.deepEqual(missing, [], "add these messages to the tables in apps/docs/content/plugins/sdk-at-a-glance.md")
+})

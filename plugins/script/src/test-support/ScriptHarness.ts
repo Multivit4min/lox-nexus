@@ -8,10 +8,11 @@ import { ScriptPlugin } from "../ScriptPlugin.ts"
  */
 export class ScriptHarness {
   private readonly hosts: PluginTestHost[] = []
-  private restoreRejections: (() => void) | undefined
 
-  async start(script?: string, store?: Record<string, unknown>) {
+  /** `forwardRejections`: the process's unhandled rejections go to the script, as in a worker */
+  async start(script?: string, store?: Record<string, unknown>, forwardRejections = false) {
     const host = await PluginTestHost.start(ScriptPlugin, {
+      forwardRejections,
       config: script === undefined ? {} : { script },
       ...(store ? { store } : {})
     })
@@ -19,30 +20,10 @@ export class ScriptHarness {
     return host
   }
 
-  /**
-   * Hands this process's unhandled rejections to the host, as PluginEntry's handler does in a
-   * worker, until cleanup. node:test's own listener would report them as test failures, so it is
-   * set aside meanwhile; any rejection still shows up, as a log line of the plugin or the runtime.
-   */
-  forwardRejections(host: PluginTestHost) {
-    const runner = process.listeners("unhandledRejection")
-    const forward = (reason: unknown) => host.unhandledRejection(reason)
-    process.removeAllListeners("unhandledRejection")
-    process.on("unhandledRejection", forward)
-    this.restoreRejections = () => {
-      process.off("unhandledRejection", forward)
-      for (const listener of runner) process.on("unhandledRejection", listener)
-    }
-  }
-
   async cleanup() {
     try {
       await Promise.all(this.hosts.splice(0).map(host => host.stop()))
-      // rejections caused by the stop arrive a few turns later
-      for (let turn = 0; turn < 5; turn++) await new Promise<void>(resolve => setImmediate(resolve))
     } finally {
-      this.restoreRejections?.()
-      this.restoreRejections = undefined
       mock.timers.reset()
     }
   }

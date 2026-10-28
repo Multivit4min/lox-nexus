@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { after, afterEach, before, describe, mock, test } from "node:test"
+import { after, afterEach, before, describe, test } from "node:test"
 import { Value } from "@lox-nexus/plugin-sdk/values"
 import { CalendarHarness } from "../test-support/CalendarHarness.ts"
 import { TimeFormat } from "../time/TimeFormat.ts"
@@ -19,17 +19,17 @@ describe("calendar sensors", { timeout: 20_000 }, () => {
     const plain = await host.addSensor("active")
     const padded = await host.addSensor("active", { leadMinutes: 30, lagMinutes: 15 })
     assert.deepEqual([host.values(plain), host.values(padded)], [[Value.boolean(false)], [Value.boolean(false)]])
-    h.advanceTo("2026-11-03T06:30:00Z")
+    await h.advanceTo("2026-11-03T06:30:00Z")
     assert.deepEqual(host.values(padded).at(-1), Value.boolean(true), "active exactly when the lead begins")
     assert.deepEqual(host.values(plain).at(-1), Value.boolean(false))
-    h.advanceTo("2026-11-03T07:00:00Z")
+    await h.advanceTo("2026-11-03T07:00:00Z")
     assert.deepEqual(host.values(plain).at(-1), Value.boolean(true))
-    h.advanceTo("2026-11-03T07:59:59Z")
+    await h.advanceTo("2026-11-03T07:59:59Z")
     assert.deepEqual(host.values(plain).at(-1), Value.boolean(true), "still active just before the end")
-    h.advanceTo("2026-11-03T08:00:00Z")
+    await h.advanceTo("2026-11-03T08:00:00Z")
     assert.deepEqual(host.values(plain).at(-1), Value.boolean(false), "inactive exactly at the end")
     assert.deepEqual(host.values(padded).at(-1), Value.boolean(true), "the lag keeps it active")
-    h.advanceTo("2026-11-03T08:15:00Z")
+    await h.advanceTo("2026-11-03T08:15:00Z")
     assert.deepEqual(host.values(padded).at(-1), Value.boolean(false))
     assert.equal(host.values(plain).length, 3, "one value per transition, no polling in between")
   })
@@ -42,7 +42,7 @@ describe("calendar sensors", { timeout: 20_000 }, () => {
     const what = await host.addSensor("title", { show: "description" })
     assert.deepEqual([current, next, where, what].map(id => host.values(id).at(-1)),
       [Value.string(""), Value.string("Waste collection"), Value.string("Main Street"), Value.string("")])
-    h.advanceTo("2026-11-03T07:00:00Z")
+    await h.advanceTo("2026-11-03T07:00:00Z")
     assert.deepEqual([current, next, where, what].map(id => host.values(id).at(-1)),
       [Value.string("Waste collection"), Value.string(""), Value.string(""), Value.string("Put the bins out")])
   })
@@ -53,10 +53,10 @@ describe("calendar sensors", { timeout: 20_000 }, () => {
     const currentStart = await host.addSensor("time", { which: "currentStart" })
     assert.deepEqual(host.values(start), [Value.number(3)], "2.5 minutes round up to 3")
     assert.deepEqual(host.values(currentStart), [Value.number(TimeFormat.NONE_MINUTES)])
-    h.advanceTo("2026-11-03T07:00:00Z")
+    await h.advanceTo("2026-11-03T07:00:00Z")
     assert.deepEqual(host.values(start).slice(1), [Value.number(2), Value.number(1), Value.number(TimeFormat.NONE_MINUTES)])
     assert.deepEqual(host.values(currentStart).at(-1), Value.number(0))
-    h.advanceTo("2026-11-03T07:02:00Z")
+    await h.advanceTo("2026-11-03T07:02:00Z")
     assert.deepEqual(host.values(currentStart).slice(1), [Value.number(0), Value.number(-1), Value.number(-2)])
   })
 
@@ -90,19 +90,13 @@ describe("calendar sensors", { timeout: 20_000 }, () => {
   test("a step of the wall clock is caught up within 15 minutes, not at the next read", async () => {
     const host = await h.started("/single.ics", { config: { refreshMinutes: 10_080 } })
     const active = await host.addSensor("active")
-    // NTP sets the wall clock forward into the event; timers run on a monotonic clock and don't
-    // notice (mock.timers.setTime would move both, so only Date.now is shifted)
-    const monotonic = Date.now.bind(Date)
-    const step = Date.parse("2026-11-03T07:10:00Z") - monotonic()
-    const wall = mock.method(Date, "now", () => monotonic() + step)
-    try {
-      mock.timers.tick(14 * 60_000)
-      assert.deepEqual(host.values(active), [Value.boolean(false)])
-      mock.timers.tick(60_000)
-      assert.deepEqual(host.values(active), [Value.boolean(false), Value.boolean(true)])
-    } finally {
-      wall.mock.restore()
-    }
+    // NTP sets the wall clock forward into the event; pending timers keep their remaining delay
+    const clock = h.clock()
+    clock.jump(Date.parse("2026-11-03T07:10:00Z") - clock.now())
+    await clock.advance(14 * 60_000)
+    assert.deepEqual(host.values(active), [Value.boolean(false)])
+    await clock.advance(60_000)
+    assert.deepEqual(host.values(active), [Value.boolean(false), Value.boolean(true)])
   })
 
   test("nothing is sent before the calendar was read once", async () => {

@@ -23,7 +23,7 @@ export class DismissActuator extends Actuator<CalendarPlugin, Filter, ValueOf<"b
 
   run(value: ValueOf<"boolean">) {
     if (!value.value) return
-    const now = Date.now()
+    const now = this.clock.now()
     const agenda = this.plugin.agenda
     const shown = this.plugin.shown
     const active = agenda.visible.filter(occurrence =>

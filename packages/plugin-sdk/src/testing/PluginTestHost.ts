@@ -1,4 +1,5 @@
 import { z } from "zod"
+import type { Clock } from "../lifecycle/Clock.ts"
 import type { PluginClass } from "../plugin/Plugin.ts"
 import { PluginRuntime } from "../runtime/PluginRuntime.ts"
 import type { Value } from "../values/Value.ts"
@@ -6,6 +7,7 @@ import type { HostMessage, HttpRequest } from "../wire/HostMessages.ts"
 import type { CatalogNode, HttpResponse, Panel, PluginDescription } from "../wire/Shapes.ts"
 import { WatchedValueSchema, type WatchedSignal, type WatchedValue } from "../wire/WatchShapes.ts"
 import type { WorkerMessage } from "../wire/WorkerMessages.ts"
+import { RejectionForwarder } from "./RejectionForwarder.ts"
 
 // taken when this module loads, before a test can mock timers (mock.timers): waits for the plugin
 // must time out for real, and a mocked tick must not end them early
@@ -22,6 +24,14 @@ export interface TestHostOptions {
   instanceId?: string
   /** the instance's slug (Plugin.slug); default "test" */
   slug?: string
+  /** the plugin's clock, usually a TestClock; default the system clock */
+  clock?: Clock
+  /**
+   * Hands this process's unhandled promise rejections to the plugin (Plugin.unhandledRejection) as
+   * the worker would, from start until stop() returns, instead of letting node:test fail the test
+   * with them. One such host at a time. Default false.
+   */
+  forwardRejections?: boolean
 }
 
 type Waiter = { match: (message: WorkerMessage) => boolean; resolve: (message: WorkerMessage) => void }
@@ -44,12 +54,13 @@ export class PluginTestHost<T extends PluginClass = PluginClass> {
   readonly store: Record<string, unknown>
   private readonly runtime: PluginRuntime
   private readonly waiters = new Set<Waiter>()
+  private rejections: RejectionForwarder | undefined
   private nextRequest = 1
   private nextSignal = 1
 
-  private constructor(type: T, store: Record<string, unknown>) {
+  private constructor(type: T, store: Record<string, unknown>, clock?: Clock) {
     this.store = { ...store }
-    this.runtime = new PluginRuntime(type, message => this.receive(message))
+    this.runtime = new PluginRuntime(type, message => this.receive(message), clock)
   }
 
   /**
@@ -57,11 +68,15 @@ export class PluginTestHost<T extends PluginClass = PluginClass> {
    * @throws Error with the plugin's message when init fails (invalid config, start threw)
    */
   static async start<T extends PluginClass>(type: T, options: TestHostOptions = {}): Promise<PluginTestHost<T>> {
-    const host = new PluginTestHost(type, options.store ?? {})
+    const host = new PluginTestHost(type, options.store ?? {}, options.clock)
+    if (options.forwardRejections) host.rejections = new RejectionForwarder(reason => host.unhandledRejection(reason))
     const done = host.waitFor(message => message.type === "ready" || message.type === "failed")
     await host.runtime.handle({ type: "init", instanceId: options.instanceId ?? "test", slug: options.slug ?? "test", config: options.config ?? {}, store: host.store })
     const outcome = await done
-    if (outcome.type === "failed") throw new Error(outcome.error)
+    if (outcome.type === "failed") {
+      await host.rejections?.restore()
+      throw new Error(outcome.error)
+    }
     return host
   }
 
@@ -137,8 +152,8 @@ export class PluginTestHost<T extends PluginClass = PluginClass> {
   }
 
   /**
-   * Hands `reason` to the plugin as the worker would for an unhandled promise rejection (the test
-   * process keeps its own handler, so real ones don't reach the plugin here).
+   * Hands `reason` to the plugin as the worker would for an unhandled promise rejection. Real ones
+   * only reach the plugin with `forwardRejections`; otherwise node:test keeps handling them.
    */
   unhandledRejection(reason: unknown) {
     this.runtime.rejected(reason)
@@ -166,9 +181,14 @@ export class PluginTestHost<T extends PluginClass = PluginClass> {
 
   /** stops the plugin like the host would; resolves when it reported `stopped` */
   async stop() {
-    const stopped = this.waitFor(message => message.type === "stopped")
-    await this.runtime.handle({ type: "shutdown" })
-    await stopped
+    try {
+      const stopped = this.waitFor(message => message.type === "stopped")
+      await this.runtime.handle({ type: "shutdown" })
+      await stopped
+    } finally {
+      await this.rejections?.restore()
+      this.rejections = undefined
+    }
   }
 
   private async add(kind: "sensor" | "actuator", capability: string, params: unknown, label: string | undefined) {

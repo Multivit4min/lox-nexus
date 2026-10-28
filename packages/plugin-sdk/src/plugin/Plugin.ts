@@ -1,4 +1,5 @@
 import type { z } from "zod"
+import { SystemClock, type Clock } from "../lifecycle/Clock.ts"
 import { Disposable } from "../lifecycle/Disposable.ts"
 import type { CatalogNode, Panel } from "../wire/Shapes.ts"
 import type { WatchDeclaration, WatchedValue } from "../wire/WatchShapes.ts"
@@ -28,11 +29,20 @@ export abstract class Plugin<Config = unknown> extends Disposable {
   /** Field initializers of subclasses run after this, so they can already use `this.config`. */
   constructor(protected readonly context: PluginContext) {
     super()
+    this.useClock(context.clock)
   }
 
   /** The instance config, already validated against the static `config` schema (defaults applied). */
   get config(): Config {
     return this.context.config as Config
+  }
+
+  /**
+   * The time to use instead of `Date.now()`: `this.clock.now()`. every() and after() run on it too.
+   * The system clock in production; a TestClock when a test gives one.
+   */
+  get clock(): Clock {
+    return this.context.clock ?? SystemClock.instance
   }
 
   /** Shortcut for `context.log`. */

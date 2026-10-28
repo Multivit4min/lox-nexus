@@ -25,6 +25,12 @@ export abstract class Actuator<P extends Plugin = Plugin, Params = unknown, V ex
    */
   constructor(readonly plugin: P, readonly params: Params, readonly signal: SignalInfo = { id: "", label: "" }) {
     super()
+    this.useClock(plugin.clock)
+  }
+
+  /** the plugin's clock: `this.clock.now()` instead of `Date.now()`; every() and after() run on it */
+  get clock() {
+    return this.plugin.clock
   }
 
   /** Optional setup; a rejection makes adding the signal fail and disposes the actuator. */

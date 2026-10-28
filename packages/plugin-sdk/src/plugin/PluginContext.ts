@@ -1,3 +1,4 @@
+import type { Clock } from "../lifecycle/Clock.ts"
 import type { HttpRequest } from "../wire/HostMessages.ts"
 import type { HttpResponse } from "../wire/Shapes.ts"
 import type { WatchedSignal } from "../wire/WatchShapes.ts"
@@ -66,4 +67,6 @@ export interface PluginContext {
   readonly http: PluginHttp
   /** only for plugins that declare `watches`; absent with older runtimes */
   readonly watch?: WatchView
+  /** the time and timers the plugin runs on (Plugin.clock); the system clock in production, absent with older runtimes */
+  readonly clock?: Clock
 }

@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { SystemClock, type Clock } from "../lifecycle/Clock.ts"
 import type { Plugin, PluginClass } from "../plugin/Plugin.ts"
 import type { PluginContext, PluginLogger } from "../plugin/PluginContext.ts"
 import { HostMessageSchema, WIRE_VERSION, type HostMessage } from "../wire/HostMessages.ts"
@@ -32,7 +33,8 @@ export class PluginRuntime {
   private readonly routes = new RouteTable()
   private readonly watch: WatchHost
 
-  constructor(private readonly type: PluginClass, private readonly send: (message: WorkerMessage) => void) {
+  /** @param clock what the plugin's timers and `clock.now()` run on; tests pass a TestClock */
+  constructor(private readonly type: PluginClass, private readonly send: (message: WorkerMessage) => void, private readonly clock: Clock = SystemClock.instance) {
     this.watch = new WatchHost(send, error => this.log("error", `handling watched values failed: ${PluginRuntime.text(error)}`))
   }
 
@@ -112,7 +114,7 @@ export class PluginRuntime {
     const log = Object.fromEntries((["debug", "info", "warn", "error"] as const).map(level =>
       [level, (message: string, data?: unknown) => this.log(level, message, data)])) as PluginLogger
     return {
-      instanceId, ...(slug === undefined ? {} : { slug }), config, log, http: this.routes, watch: this.watch,
+      instanceId, ...(slug === undefined ? {} : { slug }), config, log, http: this.routes, watch: this.watch, clock: this.clock,
       store: new RuntimeStore(store, this.send),
       status: { set: (status, message) => this.send({ type: "status", status, ...(message ? { message: PluginRuntime.clip(message) } : {}) }) }
     }

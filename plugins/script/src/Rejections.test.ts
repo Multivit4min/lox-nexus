@@ -9,8 +9,7 @@ describe("unhandled rejections", () => {
   afterEach(() => harness.cleanup())
 
   test("are the script's, also from host promises, and are logged with the script line", async () => {
-    const host = await harness.start("nexus.on(\"go\", () => {\n  new Response(\"{}\").json().then(() => { null.boom })\n  crypto.subtle.digest(\"nope\", new Uint8Array(1)).then(() => {})\n  Promise.reject(new Error(\"forgotten\"))\n})")
-    harness.forwardRejections(host)
+    const host = await harness.start("nexus.on(\"go\", () => {\n  new Response(\"{}\").json().then(() => { null.boom })\n  crypto.subtle.digest(\"nope\", new Uint8Array(1)).then(() => {})\n  Promise.reject(new Error(\"forgotten\"))\n})", undefined, true)
     const go = await host.addActuator("switch", { name: "go" })
     await host.actuate(go, { type: "boolean", value: true })
     await until(() => logs(host, "error").length === 3)

@@ -73,57 +73,47 @@ Put recorded (or documented) responses under `test/fixtures/` and serve those. C
 
 ## Time
 
-Use `mock.timers` instead of sleeping:
+Give the host a `TestClock` and move it by hand, instead of sleeping:
 
 ```ts
-import { mock, test } from "node:test"
+import { PluginTestHost, TestClock } from "@lox-nexus/plugin-sdk/testing"
 
-mock.timers.enable({ apis: ["setInterval"] })
-// ... start the host, then:
-mock.timers.tick(5000)
-mock.timers.reset()
+const clock = new TestClock("2026-11-02T08:00:00Z")
+const host = await PluginTestHost.start(MyPlugin, { clock, config })
+await clock.advance(5000)                     // or: await clock.advanceTo("2026-11-02T09:30:00Z")
 ```
 
-Enable only the timer APIs your plugin uses. See the [quick start](index.md#3-test-it) for a
-complete example.
+The plugin's `every()` and `after()` run on it, and `this.clock.now()` reads it, in the plugin and
+in its sensors and actuators.
 
-### When the plugin needs `setTimeout` and `Date`
+- **Each timer runs at its own due time.** `advance()` goes from one due timer to the next, so a
+  callback that reads the time or sets the next timer sees the time it was due at. After each
+  callback it lets promise callbacks and I/O events run once.
+- **Network I/O stays real.** A read that a timer starts against a test server is still running
+  when `advance()` returns. Wait for it the way your plugin lets you (an awaited `refresh()`, or
+  polling with `setImmediate`).
+- **`clock.jump(ms)`** steps the time without running anything, like an NTP correction: pending
+  timers keep their remaining delay. Use it to test that a plugin catches a wall-clock step.
+- The host's own waits (`next()`, `stop()`) use real timers, so they work with any clock.
 
-Time-based plugins (a calendar, a schedule) need `setTimeout` and `Date` faked too. Watch for these:
-
-- **The host's own waits use `setTimeout`.** `next()` and `stop()` wait with a real-looking
-  timeout. With `setTimeout` faked they freeze unless you advance the clock, and a hung test
-  never ends. Give the suite a safety net (`{ timeout: 10_000 }` on `test()` or `describe()`), and
-  stop every host in `finally` or a cleanup function.
-- **`tick(ms)` sets `Date` to the end of the tick first**, then runs the timers due within it. A
-  timer set from a callback therefore sees a time that is too late. Advance in small steps:
-
-  ```ts
-  function advanceTo(time: string, stepMs = 60_000) {
-    const target = Date.parse(time)
-    while (Date.now() < target) mock.timers.tick(Math.min(stepMs, target - Date.now()))
-  }
-  ```
-
-- **Waiting for network I/O cannot use fake `setTimeout`.** A real socket needs real event-loop
-  turns, so wait with `setImmediate` in a loop and measure the deadline with `performance.now()`
-  (not faked by default):
-
-  ```ts
-  async function until(done: () => boolean, ms = 2000) {
-    const start = performance.now()
-    while (!done()) {
-      if (performance.now() - start > ms) throw new Error("timed out")
-      await new Promise<void>(resolve => setImmediate(resolve))
-    }
-  }
-  ```
-
-- Enable `Date` together with the timers: `mock.timers.enable({ apis: ["setTimeout", "setInterval", "Date"], now: Date.parse("2026-11-02T08:00:00Z") })`.
-- Call `mock.timers.reset()` in `finally`, after the hosts have stopped.
-
-The first-party Calendar plugin has a working harness for all of this in
+The first-party Calendar plugin is tested this way: see
 `plugins/calendar/src/test-support/CalendarHarness.ts`.
+
+### With `mock.timers`
+
+A plugin that reads `Date.now()` itself, or code outside the plugin, can still be tested with
+`mock.timers`: the default clock looks up the global timers on every call. Two things to know:
+`tick(ms)` sets `Date` to the end of the tick before it runs the timers due within it, so a timer
+set from a callback sees a time that is too late; and with `setTimeout` faked, waiting for real
+network I/O needs `setImmediate` in a loop. `TestClock` avoids both.
+
+## Unhandled promise rejections
+
+In a worker, a rejected promise that nobody handles goes to your plugin's `unhandledRejection()`.
+Under `node --test` it fails the test instead. To test your handler, start the host with
+`forwardRejections: true`: from start until `stop()` returns, the process's unhandled rejections
+go to the plugin as they would in a worker. Use it for one host at a time. `host.unhandledRejection(reason)`
+hands a single reason to the plugin without it.
 
 ## Reaching the plugin instance
 

@@ -10,6 +10,7 @@
  */
 export { Disposable } from "./lifecycle/Disposable.ts"
 export type { DisposableLike, Listenable, Listener, Teardown } from "./lifecycle/Disposable.ts"
+export { SystemClock, type Clock } from "./lifecycle/Clock.ts"
 export { Plugin, type PluginClass } from "./plugin/Plugin.ts"
 export { Sensor, type SensorClass, type SensorOutput } from "./plugin/Sensor.ts"
 export { Actuator, type ActuatorClass, type ActuatorConcurrency } from "./plugin/Actuator.ts"

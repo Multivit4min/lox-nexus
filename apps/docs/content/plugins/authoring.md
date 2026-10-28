@@ -118,9 +118,17 @@ down). Teardowns of one object run in reverse registration order. The whole stop
 `watched()` included, has 5 seconds; then the worker is terminated, so keep a last flush on
 dispose shorter than that (the InfluxDB plugin gives its last write 3 seconds).
 
+**Time.** Ask `this.clock.now()` for the current time instead of `Date.now()` (and write
+`new Date(this.clock.now())` for a `Date`). `every()` and `after()` run on the same clock. In
+production it is the system clock; in tests it can be a `TestClock` that you move by hand (see
+[Testing](testing.md#time)). Plugins, sensors and actuators have `this.clock`; other classes you
+`own()` (a poller, a client) inherit the plugin's clock for their timers and read the time with
+`this.currentClock().now()`. A child that starts a timer in its own constructor, before it is
+owned, stays on the system clock, so start timers in `start()` or later.
+
 `after()` and `every()` count elapsed time, not wall-clock time, so a clock step (an NTP sync after
 boot) is not noticed. For a deadline given as a wall-clock time, wait in shorter slices (the
-Calendar plugin caps its waits at 15 minutes) and re-check `Date.now()` each time.
+Calendar plugin caps its waits at 15 minutes) and re-check `this.clock.now()` each time.
 
 Anything you own must implement `dispose(): void | Promise<void>` (a `DisposableLike`).
 

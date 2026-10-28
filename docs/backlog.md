@@ -61,17 +61,9 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
 
 ## Plugin SDK
 
-- **Testing host.**
-  - An injectable clock: `mock.timers.tick()` moves `Date` to the end of the tick before the due
-    timers run, so timers set from callbacks see the wrong time; Calendar steps minute by minute.
-    Needs a `now()` in the plugin context that plugins use instead of `Date`.
-  - Real unhandled rejections don't reach `Plugin.unhandledRejection` under node:test; the script
-    plugin swaps node:test's listener to forward them. An option to forward them would remove that.
 - **Shared params with `.refine()`.** zod can't infer fields through a generic
   `z.object({...shared, ...extra}).refine(...)`, so Calendar's `FilterParams` needs a cast.
   Refinements also don't reach the JSON Schema (known limit of the supported subset).
-- **Wire reference.** The generated TypeDoc page cuts the message unions (`HostMessage`,
-  `WorkerMessage`) short; list their members on the SDK-at-a-glance page or configure TypeDoc.
 
 ## Plugin installer and UI (M5e leftovers)
 

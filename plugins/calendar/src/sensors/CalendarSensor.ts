@@ -58,7 +58,7 @@ export abstract class CalendarSensor<Params extends Filter> extends Sensor<Calen
     this.cancelTimer = undefined
     const agenda = this.plugin.agenda
     if (!agenda.loaded) return
-    const now = Date.now()
+    const now = this.clock.now()
     try {
       this.update(agenda.visible, now)
       const at = this.nextUpdate(agenda.visible, now)

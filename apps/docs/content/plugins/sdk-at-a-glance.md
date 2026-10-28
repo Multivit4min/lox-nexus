@@ -125,6 +125,8 @@ abstract class Disposable implements DisposableLike {
   dispose(): Promise<void>
   protected onDispose(teardown: Teardown): void
   protected own<T extends DisposableLike>(resource: T): T
+  protected useClock(clock: Clock | undefined): void
+  protected currentClock(): Clock
   protected every(ms: number, fn: () => void): () => void
   protected after(ms: number, fn: () => void): () => void
   protected listen(emitter: Listenable, event: string | symbol, listener: Listener): void
@@ -135,12 +137,14 @@ abstract class Disposable implements DisposableLike {
 |---|---|
 | `dispose()` | Teardowns run in reverse registration order; idempotent. Throws `AggregateError` after all ran if any failed. |
 | `onDispose(teardown)` | Throws `Error` if already disposed. |
-| `own(resource)` | Disposes `resource` with this object; returns it. |
+| `useClock(clock)` | Sets the clock `every()` and `after()` run on, unless one is set; timers already running keep theirs. Plugin, Sensor and Actuator set it from the plugin's context. |
+| `currentClock()` | That clock (the system clock if none is set). A plain `Disposable` reads the time from it; plugins, sensors and actuators have `this.clock`. |
+| `own(resource)` | Disposes `resource` with this object; returns it. A `Disposable` child without a clock inherits this one's. |
 | `every(ms, fn)` | Returns a cancel function. Throws `RangeError` unless `0 < ms <= MAX_TIMER_MS`. |
 | `after(ms, fn)` | Returns a cancel function. Throws `RangeError` for negative or non-finite `ms`; long delays are stepped. Firing or cancelling releases its teardown, so calling it again and again (a restarted pulse) doesn't pile anything up. |
 | `listen(emitter, event, listener)` | Subscribes until disposed. |
 
-Related types: `Teardown = () => void | Promise<void>`, `DisposableLike { dispose(): void | Promise<void> }`, `Listenable { on(event, listener): unknown; off(event, listener): unknown }` (an `EventEmitter` fits), `Listener = (...args: any[]) => void`.
+Related types: `Clock { now(); setTimeout(fn, ms); clearTimeout(handle); setInterval(fn, ms); clearInterval(handle) }` (`SystemClock.instance` in production, `TestClock` from `/testing` in tests), `Teardown = () => void | Promise<void>`, `DisposableLike { dispose(): void | Promise<void> }`, `Listenable { on(event, listener): unknown; off(event, listener): unknown }` (an `EventEmitter` fits), `Listener = (...args: any[]) => void`.
 
 ### Context objects
 
@@ -270,7 +274,15 @@ class PluginTestHost<T extends PluginClass = PluginClass> {
   pushValues(values: Array<Omit<WatchedValue, "ts" | "kind"> & Partial<Pick<WatchedValue, "ts" | "kind">>>, dropped?: number): Promise<void>
   stop(): Promise<void>
 }
-interface TestHostOptions { config?: unknown; store?: Record<string, unknown>; instanceId?: string; slug?: string /* default "test" */ }
+interface TestHostOptions { config?: unknown; store?: Record<string, unknown>; instanceId?: string; slug?: string /* default "test" */; clock?: Clock /* e.g. a TestClock */; forwardRejections?: boolean }
+
+class TestClock implements Clock {
+  constructor(start?: number | string | Date)
+  get pending(): number
+  advance(ms: number): Promise<void>       // runs each due timer at its own due time
+  advanceTo(time: number | string | Date): Promise<void>
+  jump(ms: number): void                   // a wall-clock step; timers keep their remaining delay
+}
 ```
 
 | Member | Notes |
@@ -311,5 +323,41 @@ type LogLevel = "debug" | "info" | "warn" | "error"
 | `HttpRequest` | `path` is below `/hook/<instance>`; repeated query keys and headers are joined with `", "`; header names lowercase; the session cookie is not forwarded; `body` is utf-8 text. |
 | `HttpResponse` | `status` 100-599; `body` is utf-8 text. |
 | `Panel` cells | Strings only; format numbers yourself. `sections` shows titled parts one below the other (facts above a table); hosts before it refuse that type, which fails only the panel. |
+
+**Messages.** Host and worker talk in these messages (`type` tells them apart). A plugin never
+sends them itself; the runtime does. Requests carry a `requestId` and are answered with `response`
+`{ requestId, ok, result?, error? }`.
+
+| Host → worker (`HostMessage`) | Fields | Answer |
+|---|---|---|
+| `init` | `instanceId`, `slug?`, `config`, `store` | `ready` or `failed` |
+| `describe` | `requestId` | the `PluginDescription` |
+| `signal.add` | `requestId`, `signal` (`SignalSpec`) | ok once the sensor's or actuator's `start()` resolved |
+| `signal.remove` | `requestId`, `id` | ok once disposed |
+| `actuate` | `requestId`, `signalId`, `value`, `causeId?` | ok, or the error `run()` threw |
+| `catalog` | `requestId` | `CatalogNode[]` |
+| `panel` | `requestId` | a `Panel`, or none |
+| `http.request` | `requestId`, `request` (`HttpRequest`) | an `HttpResponse` |
+| `watch.signals` | `signals` (`WatchedSignal[]`) | none |
+| `watch.values` | `seq`, `values` (`WatchedValue[]`), `dropped?` | `watch.ack` |
+| `ping` | `seq` | `pong` |
+| `shutdown` | | `stopped` |
+
+| Worker → host (`WorkerMessage`) | Fields | Meaning |
+|---|---|---|
+| `hello` | `version` | the wire version, sent first |
+| `ready` | | `init` done |
+| `failed` | `error` | `init` failed |
+| `emit` | `signalId`, `value`, `causeId?` | a sensor's value |
+| `status` | `status`, `message?` | `running` or `degraded` |
+| `log` | `level`, `message`, `data?`, `causeId?` | a log line |
+| `store.set` | `key`, `value` | persist a store entry |
+| `store.delete` | `key` | remove a store entry |
+| `response` | `requestId`, `ok`, `result?`, `error?` | the answer to a request |
+| `signal.error` | `signalId`, `error` | a sensor or actuator stopped working |
+| `signal.recovered` | `signalId` | the failure is over |
+| `watch.ack` | `seq` | a `watch.values` batch is handled |
+| `pong` | `seq` | answers `ping` |
+| `stopped` | | `shutdown` done |
 
 For hosts and tools: `WIRE_VERSION` (1), `HostMessageSchema`, `WorkerMessageSchema`, `SignalSpecSchema`, `HttpRequestSchema`, `HttpResponseSchema`, `CatalogEntrySchema`, `CatalogNodeSchema`, `PanelSchema`, `CapabilityDescriptionSchema`, `PluginDescriptionSchema`, `PluginHealthSchema`, `LogLevelSchema`, the matching types (`HostMessage`, `WorkerMessage`, `SignalSpec`, `CapabilityDescription`, `PluginDescription`, `JsonSchema`) and `PluginWorkerData`.

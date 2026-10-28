@@ -61,7 +61,7 @@ export class CalendarSource extends Disposable {
       // outside the read's error handling: a sensor's failure is not a problem of the feed
       this.agenda.replace(read.result.occurrences, read.at.getTime())
     } else {
-      this.lastError = { message: read.problem, at: new Date() }
+      this.lastError = { message: read.problem, at: new Date(this.currentClock().now()) }
     }
     const problem = read.ok ? undefined : read.problem
     // only changes are reported, so a long outage is one status change and one log line
@@ -73,7 +73,7 @@ export class CalendarSource extends Disposable {
   private async read(): Promise<{ ok: true; result: ReadResult; at: Date } | { ok: false; problem: string }> {
     try {
       const text = await this.client.fetch(this.abort.signal)
-      const at = new Date()
+      const at = new Date(this.currentClock().now())
       const feed = this.parse(text)
       const result = this.reader.occurrences(feed, at)
       this.noteLeftOut(result)

@@ -37,6 +37,12 @@ export abstract class Sensor<P extends Plugin = Plugin, Params = unknown> extend
    */
   constructor(readonly plugin: P, readonly params: Params, private readonly output: SensorOutput, readonly signal: SignalInfo = { id: "", label: "" }) {
     super()
+    this.useClock(plugin.clock)
+  }
+
+  /** the plugin's clock: `this.clock.now()` instead of `Date.now()`; every() and after() run on it */
+  get clock() {
+    return this.plugin.clock
   }
 
   // whether a fail() is still showing, so recover() only tells the host when there is something to clear
