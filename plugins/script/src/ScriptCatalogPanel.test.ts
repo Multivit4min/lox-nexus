@@ -13,13 +13,19 @@ const script = `
   nexus.get("target")
 `
 
-/** the table as rows of column → cell */
-async function rows(host: PluginTestHost) {
+/** the panel's two sections: the script state as label → value, the variables as rows of column → cell */
+async function sections(host: PluginTestHost) {
   const panel = await host.panel()
-  assert.equal(panel?.type, "table")
-  if (panel?.type !== "table") return []
-  assert.deepEqual(panel.columns, ScriptPanel.columns)
-  return panel.rows.map(row => Object.fromEntries(panel.columns.map((column, i) => [column, row[i]])))
+  assert.equal(panel?.type, "sections")
+  const [script, variables] = panel?.type === "sections" ? panel.sections.map(section => section.panel) : []
+  assert.equal(script?.type, "keyValue")
+  assert.equal(variables?.type, "table")
+  if (script?.type !== "keyValue" || variables?.type !== "table") return { state: {}, rows: [] }
+  assert.deepEqual(variables.columns, ScriptPanel.columns)
+  return {
+    state: Object.fromEntries(script.items.map(item => [item.label, item.value])),
+    rows: variables.rows.map(row => Object.fromEntries(variables.columns.map((column, i) => [column, row[i]])))
+  }
 }
 
 describe("catalog and panel", () => {
@@ -61,12 +67,10 @@ describe("catalog and panel", () => {
     await host.addSensor("text", { name: "power" })
     mock.timers.tick(60_000)
     await assert.rejects(host.actuate(await host.addActuator("number", { name: "fail" }), Value.number(1)))
-    const [state, error, ...variables] = await rows(host)
+    const { state, rows: variables } = await sections(host)
     assert.deepEqual(state, {
-      Variable: "(script)", Direction: "", Signals: "", "Last value": "running, 1 timer active", Calls: "", "Last call": "2026-10-28T10:00:00.000Z"
-    })
-    assert.deepEqual(error, {
-      Variable: "(last error)", Direction: "", Signals: "", "Last value": "line 9, column 32: nope", Calls: "1", "Last call": "2026-10-28T10:01:00.000Z"
+      State: "running, 1 timer active", Started: "2026-10-28T10:00:00.000Z", "Uncaught errors": "1",
+      "Last error": "line 9, column 32: nope (2026-10-28T10:01:00.000Z)"
     })
     assert.deepEqual(variables.map(row => [row.Variable, row.Direction, row.Signals, row["Last value"], row.Calls]), [
       ["away", "from script (set)", "0", "true", "1"],
@@ -81,8 +85,8 @@ describe("catalog and panel", () => {
   test("the panel shows a failed top level", async () => {
     const host = await harness.start("throw new Error(\"setup failed\")")
     await ScriptHarness.until(() => host.status.status === "degraded")
-    const [state] = await rows(host)
-    assert.equal(state?.["Last value"], "running, 0 timers active; top level failed: line 1, column 7: setup failed")
+    const { state } = await sections(host)
+    assert.equal(state.State, "running, 0 timers active; top level failed: line 1, column 7: setup failed")
   })
 
   test("names the script makes up are capped and the cap is logged once", async () => {

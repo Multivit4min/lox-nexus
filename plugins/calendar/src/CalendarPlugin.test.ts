@@ -15,11 +15,14 @@ const closedPort = async () => {
   return port
 }
 
-/** the key-value panel as "label = value" lines */
+/** the panel as lines: the feed facts as "label = value", then the events as "when = title (dismissed)" */
 const panelLines = async (host: PluginTestHost) => {
   const panel = await host.panel()
-  assert.equal(panel?.type, "keyValue")
-  return panel?.type === "keyValue" ? panel.items.map(item => `${item.label} = ${item.value}`) : []
+  assert.equal(panel?.type, "sections")
+  if (panel?.type !== "sections") return []
+  return panel.sections.flatMap(({ panel: part }) => part.type === "keyValue"
+    ? part.items.map(item => `${item.label} = ${item.value}`)
+    : part.type === "table" ? part.rows.map(([when, title, note]) => `${when} = ${title}${note ? ` (${note})` : ""}`) : [])
 }
 
 const SECRET_PATH = "/private/token-5f3a9c/basic.ics"

@@ -197,9 +197,9 @@ it. Add those signals by hand.
 
 ## Panel
 
-One table. The first row is the script: `running`, the number of active timers, the start time,
-and the error if the top level failed. Then `(last error)` with the last uncaught error, its line,
-the number of errors since the start and when it happened. Then a row per variable and direction:
+Two sections. **Script**: `running` with the number of active timers (and the error if the top level
+failed), the start time, the number of uncaught errors since the start, and the last one with its
+line and time. **Variables**: a table with a row per variable and direction:
 its name, `from script (set)` or `to script (on, get)`, the number of signals using it, the last
 value, the number of `set` calls or values received, and the time of the last one.
 

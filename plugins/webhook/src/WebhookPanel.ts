@@ -3,9 +3,8 @@ import type { CallStats, Tally } from "./hooks/CallStats.ts"
 import type { HookRegistry } from "./hooks/HookRegistry.ts"
 
 /**
- * One table: a row per configured hook with its signals and counters, then two rows for calls
- * refused before reaching a hook (token, unknown name). The SDK's panel is a single table or
- * key-value list, so the instance-wide counters are rows of the same table.
+ * Two sections: a table with a row per configured hook (its signals and counters), and the calls
+ * refused before reaching a hook (wrong or missing token, unknown name).
  *
  * URLs show `<slug>` only with a host too old to tell the plugin its slug. Never shows the token.
  */
@@ -19,12 +18,24 @@ export class WebhookPanel {
   }
 
   build(): Panel {
-    const rows = this.hooks.names().map(name => this.hookRow(name))
     const { wrongToken, missingToken, unknownHook } = this.stats
-    rows.push(this.rejectedRow("(wrong or missing token)", { count: wrongToken.count + missingToken.count, ...WebhookPanel.latest(wrongToken, missingToken) },
-      `401: wrong token ${wrongToken.count}, missing token ${missingToken.count}`))
-    rows.push(this.rejectedRow("(unknown hook)", unknownHook, "404"))
-    return { type: "table", columns: WebhookPanel.columns, rows }
+    const tokens = { count: wrongToken.count + missingToken.count, ...WebhookPanel.latest(wrongToken, missingToken) }
+    return {
+      type: "sections",
+      sections: [
+        { title: "Hooks", panel: { type: "table", columns: WebhookPanel.columns, rows: this.hooks.names().map(name => this.hookRow(name)) } },
+        {
+          title: "Refused calls",
+          panel: {
+            type: "keyValue",
+            items: [
+              { label: "Wrong or missing token (401)", value: `${WebhookPanel.counted(tokens)} · wrong ${wrongToken.count}, missing ${missingToken.count}` },
+              { label: `Unknown hook (404, under ${this.base}/…)`, value: WebhookPanel.counted(unknownHook) }
+            ]
+          }
+        }
+      ]
+    }
   }
 
   private hookRow(name: string) {
@@ -35,8 +46,8 @@ export class WebhookPanel {
     return [name, `${this.base}/${name}`, methods, signals, String(tally?.count ?? 0), WebhookPanel.time(tally?.lastAt), tally?.lastResult ?? ""]
   }
 
-  private rejectedRow(label: string, tally: Tally, result: string) {
-    return [label, `${this.base}/…`, "", "", String(tally.count), WebhookPanel.time(tally.lastAt), tally.count > 0 ? result : ""]
+  private static counted(tally: Tally) {
+    return tally.count === 0 ? "none" : `${tally.count}, last ${WebhookPanel.time(tally.lastAt)}`
   }
 
   private static latest(a: Tally, b: Tally): Pick<Tally, "lastAt"> {

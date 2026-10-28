@@ -21,7 +21,9 @@ describe("unhandled rejections", () => {
     ])
     assert.equal(host.status.status, "running")
     const panel = await host.panel()
-    assert.equal(panel?.type === "table" ? panel.rows[1]?.[4] : undefined, "3", "counted as errors in the panel")
+    const script = panel?.type === "sections" ? panel.sections[0]?.panel : undefined
+    const errors = script?.type === "keyValue" ? script.items.find(item => item.label === "Uncaught errors")?.value : undefined
+    assert.equal(errors, "3", "counted as errors in the panel")
   })
 
   test("the plugin's override is what the SDK calls", async () => {

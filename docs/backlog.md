@@ -66,9 +66,6 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
 
 ## Plugin SDK
 
-- **Panels with sections.** A panel is one type (keyValue, table or json). Calendar squeezes facts
-  and its upcoming events into keyValue rows; webhook and script put instance-wide counters into
-  extra table rows. Allow a list of panels or titled sections (SDK shape plus the web PanelCard).
 - **Testing host.**
   - An injectable clock: `mock.timers.tick()` moves `Date` to the end of the tick before the due
     timers run, so timers set from callbacks see the wrong time; Calendar steps minute by minute.

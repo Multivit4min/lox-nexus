@@ -168,7 +168,7 @@ type HttpHandler = (request: HttpRequest) => HttpResponse | Promise<HttpResponse
 | [`code`](../reference/sdk/@lox-nexus/plugin-sdk.md#code) | `code<T extends z.ZodType>(schema: T, language?: CodeLanguage): T` | Marks a string field as source code (`format: "code"` plus the language's `contentMediaType`), so the UI edits it in a code editor. `CodeLanguage` is `"javascript"` (default), `"json"` or `"text"`. Validating the code stays the plugin's job. |
 | `z` | zod | Use this one, not your own copy. |
 | [`SupersededError`](../reference/sdk/@lox-nexus/plugin-sdk.md#supersedederror) | `class extends Error` | See `concurrency: "latest"`. |
-| `CatalogNode`, `CatalogEntry`, `Panel`, `HttpRequest`, `HttpResponse` | types, see [wire](#lox-nexusplugin-sdkwire) | Return values of `catalog()`, `panel()` and webhook handlers. |
+| `CatalogNode`, `CatalogEntry`, `Panel`, `PanelPart`, `HttpRequest`, `HttpResponse` | types, see [wire](#lox-nexusplugin-sdkwire) | Return values of `catalog()`, `panel()` and webhook handlers. |
 
 ## `@lox-nexus/plugin-sdk/values`
 
@@ -275,10 +275,11 @@ Plugin authors need only the shapes ([reference](../reference/sdk/@lox-nexus/plu
 ```ts
 interface CatalogNode { label: string; children?: CatalogNode[]; entries?: CatalogEntry[] }
 type CatalogEntry = { kind: "sensor" | "actuator"; capability: string; params: unknown; label: string; value?: Value; unit?: string }
-type Panel =
+type PanelPart =
   | { type: "keyValue"; items: { label: string; value: string }[] }
   | { type: "table"; columns: string[]; rows: string[][] }
   | { type: "json"; data: unknown }
+type Panel = PanelPart | { type: "sections"; sections: { title: string; panel: PanelPart }[] }  // at most 20 sections
 type HttpRequest = { method: string; path: string; query: Record<string, string>; headers: Record<string, string>; body: string }
 type HttpResponse = { status: number; headers?: Record<string, string>; body?: string }
 type PluginHealth = "running" | "degraded"
@@ -290,6 +291,6 @@ type LogLevel = "debug" | "info" | "warn" | "error"
 | `CatalogEntry.params` | Validated against the capability's `params` schema when the user adds it. |
 | `HttpRequest` | `path` is below `/hook/<instance>`; repeated query keys and headers are joined with `", "`; header names lowercase; the session cookie is not forwarded; `body` is utf-8 text. |
 | `HttpResponse` | `status` 100-599; `body` is utf-8 text. |
-| `Panel` cells | Strings only; format numbers yourself. |
+| `Panel` cells | Strings only; format numbers yourself. `sections` shows titled parts one below the other (facts above a table); hosts before it refuse that type, which fails only the panel. |
 
 For hosts and tools: `WIRE_VERSION` (1), `HostMessageSchema`, `WorkerMessageSchema`, `SignalSpecSchema`, `HttpRequestSchema`, `HttpResponseSchema`, `CatalogEntrySchema`, `CatalogNodeSchema`, `PanelSchema`, `CapabilityDescriptionSchema`, `PluginDescriptionSchema`, `PluginHealthSchema`, `LogLevelSchema`, the matching types (`HostMessage`, `WorkerMessage`, `SignalSpec`, `CapabilityDescription`, `PluginDescription`, `JsonSchema`) and `PluginWorkerData`.

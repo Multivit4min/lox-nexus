@@ -64,23 +64,36 @@ export const CatalogNodeSchema: z.ZodType<CatalogNode> = z.lazy(() => z.object({
 
 /**
  * A declarative status view a plugin shows on its page, returned by Plugin.panel(); plugins ship
- * no UI code. Three shapes exist (cells are plain strings, so format numbers yourself):
+ * no UI code. Four shapes exist (cells are plain strings, so format numbers yourself):
  *
  * ```ts
  * { type: "keyValue", items: [{ label: "Firmware", value: "1.34" }] }
  * { type: "table", columns: ["Meter", "Power"], rows: [["Grid", "412 W"]] }
  * { type: "json", data: { anything: "JSON-serialisable" } }
+ * { type: "sections", sections: [{ title: "Inverter", panel: { type: "keyValue", items } }, { title: "Meters", panel: { type: "table", columns, rows } }] }
  * ```
  *
  * Never put secrets in a panel.
  */
+const KeyValuePanel = z.object({ type: z.literal("keyValue"), items: z.array(z.object({ label: z.string(), value: z.string() })) })
+const TablePanel = z.object({ type: z.literal("table"), columns: z.array(z.string()), rows: z.array(z.array(z.string())) })
+/** shown as a formatted tree; data must be JSON */
+const JsonPanel = z.object({ type: z.literal("json"), data: z.unknown() })
+
+/** One part of a panel; a section holds one of these. */
+export const PanelPartSchema = z.discriminatedUnion("type", [KeyValuePanel, TablePanel, JsonPanel])
+/** A key-value list, a table or a JSON tree. */
+export type PanelPart = z.infer<typeof PanelPartSchema>
+
 export const PanelSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("keyValue"), items: z.array(z.object({ label: z.string(), value: z.string() })) }),
-  z.object({ type: z.literal("table"), columns: z.array(z.string()), rows: z.array(z.array(z.string())) }),
-  /** shown as a formatted tree; data must be JSON */
-  z.object({ type: z.literal("json"), data: z.unknown() })
+  KeyValuePanel, TablePanel, JsonPanel,
+  /**
+   * titled parts shown one below the other, e.g. facts as key-value pairs above a table. Hosts
+   * before this type refuse it, which fails only the panel request.
+   */
+  z.object({ type: z.literal("sections"), sections: z.array(z.object({ title: z.string(), panel: PanelPartSchema })).max(20) })
 ])
-/** A status view: a key-value list, a table or a JSON tree; see PanelSchema for the three shapes. */
+/** A status view: a key-value list, a table, a JSON tree, or titled sections of those; see PanelSchema. */
 export type Panel = z.infer<typeof PanelSchema>
 
 /** What a webhook handler answers (see PluginHttp.route); `body` is utf-8 text, `headers` and `body` default to empty. */

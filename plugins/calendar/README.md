@@ -115,11 +115,10 @@ doesn't grow. An occurrence the organiser moves after it was dismissed counts as
 
 ## Panel
 
-The feed's host, the last successful read, the number of upcoming occurrences, the dismissal count,
-the time zone, the last error, events left out and series cut short (see below), and the next 15
-occurrences as
-"2026-11-02 18:00 – 19:00 = Training", in the plugin's time zone, with "(dismissed)" where it
-applies.
+Two sections. **Feed**: the feed's host, the last successful read, the number of upcoming
+occurrences, the dismissal count, the time zone, the last error, and events left out and series cut
+short (see below). **Next 15 events**: a table of when ("2026-11-02 18:00 – 19:00", in the plugin's
+time zone), the title, and "dismissed" where it applies.
 
 ## Tests
 

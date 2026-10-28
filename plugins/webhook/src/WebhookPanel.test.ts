@@ -6,13 +6,20 @@ import { WebhookPanel } from "./WebhookPanel.ts"
 
 const { call } = WebhookHarness
 
-/** the table as rows of column → cell */
-async function rows(host: PluginTestHost) {
+/** the panel's sections by title */
+async function sections(host: PluginTestHost) {
   const panel = await host.panel()
-  assert.equal(panel?.type, "table")
-  if (panel?.type !== "table") return []
-  assert.deepEqual(panel.columns, WebhookPanel.columns)
-  return panel.rows.map(row => Object.fromEntries(panel.columns.map((column, i) => [column, row[i]])))
+  assert.equal(panel?.type, "sections")
+  return Object.fromEntries(panel?.type === "sections" ? panel.sections.map(section => [section.title, section.panel]) : [])
+}
+
+/** the hooks table as rows of column → cell */
+async function rows(host: PluginTestHost) {
+  const table = (await sections(host)).Hooks
+  assert.equal(table?.type, "table")
+  if (table?.type !== "table") return []
+  assert.deepEqual(table.columns, WebhookPanel.columns)
+  return table.rows.map(row => Object.fromEntries(table.columns.map((column, i) => [column, row[i]])))
 }
 
 describe("WebhookPanel", () => {
@@ -35,7 +42,8 @@ describe("WebhookPanel", () => {
     await call(host, { hook: "door", headers: { authorization: "Bearer wrong" } })
     await call(host, { hook: "nope", headers: { authorization: "" } })
     await call(host, { hook: "nope" })
-    const [alarm, door, token, unknown] = await rows(host)
+    const [alarm, door, ...more] = await rows(host)
+    assert.deepEqual(more, [], "one row per hook")
     assert.deepEqual(alarm, {
       Hook: "alarm", URL: "/hook/test/alarm", Methods: "PUT", Signals: "text from body", Calls: "0", "Last call": "never", "Last result": ""
     })
@@ -44,17 +52,17 @@ describe("WebhookPanel", () => {
       URL: "/hook/test/door",
       Methods: "POST, any",
       Signals: "\"Door level\": number from query v; trigger, 500 ms pulse",
-      // the call without the token counts only in the instance-wide row
+      // the call without the token counts only among the refused calls
       Calls: "3",
       "Last call": "2026-10-28T10:01:00.000Z",
       "Last result": "ok"
     })
-    assert.deepEqual(token, {
-      Hook: "(wrong or missing token)", URL: "/hook/test/…", Methods: "", Signals: "", Calls: "2",
-      "Last call": "2026-10-28T10:01:00.000Z", "Last result": "401: wrong token 1, missing token 1"
-    })
-    assert.deepEqual(unknown, {
-      Hook: "(unknown hook)", URL: "/hook/test/…", Methods: "", Signals: "", Calls: "1", "Last call": "2026-10-28T10:01:00.000Z", "Last result": "404"
+    assert.deepEqual((await sections(host))["Refused calls"], {
+      type: "keyValue",
+      items: [
+        { label: "Wrong or missing token (401)", value: "2, last 2026-10-28T10:01:00.000Z · wrong 1, missing 1" },
+        { label: "Unknown hook (404, under /hook/test/…)", value: "1, last 2026-10-28T10:01:00.000Z" }
+      ]
     })
   })
 

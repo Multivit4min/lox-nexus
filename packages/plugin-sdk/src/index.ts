@@ -19,7 +19,7 @@ export { secret } from "./plugin/Secret.ts"
 export { code, type CodeLanguage } from "./plugin/Code.ts"
 export { PluginEntry } from "./runtime/PluginEntry.ts"
 export { SupersededError } from "./runtime/ActuatorRunner.ts"
-export type { CatalogEntry, CatalogNode, HttpResponse, Panel } from "./wire/Shapes.ts"
+export type { CatalogEntry, CatalogNode, HttpResponse, Panel, PanelPart } from "./wire/Shapes.ts"
 export type { HttpRequest } from "./wire/HostMessages.ts"
 /** the zod the SDK is built with; plugins use it so schemas and the runtime agree on one version */
 export { z } from "zod"

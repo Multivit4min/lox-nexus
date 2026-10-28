@@ -4,9 +4,8 @@ import type { ScriptState } from "./run/ScriptState.ts"
 import type { VariableRecord, VariableTable } from "./variables/VariableTable.ts"
 
 /**
- * One table: the script's state and its last uncaught error first, then a row per variable and
- * direction. The SDK's panel is a single table or key-value list, so the state is rows of the
- * same table. Counters live in memory and start at zero with every start.
+ * Two sections: the script's state with its last uncaught error, and a table with a row per
+ * variable and direction. Counters live in memory and start at zero with every start.
  */
 export class ScriptPanel {
   static readonly columns = ["Variable", "Direction", "Signals", "Last value", "Calls", "Last call"]
@@ -16,18 +15,27 @@ export class ScriptPanel {
   constructor(private readonly state: ScriptState, private readonly table: VariableTable, private readonly timers: () => number) {}
 
   build(): Panel {
-    const rows = [this.stateRow()]
-    const { lastError } = this.state
-    if (lastError) rows.push(["(last error)", "", "", lastError.text, String(this.state.errors), ScriptPanel.time(lastError.at)])
-    rows.push(...this.table.all().map(record => this.variableRow(record)))
-    return { type: "table", columns: ScriptPanel.columns, rows }
+    const rows = this.table.all().map(record => this.variableRow(record))
+    return {
+      type: "sections",
+      sections: [
+        { title: "Script", panel: { type: "keyValue", items: this.stateItems() } },
+        { title: "Variables", panel: { type: "table", columns: ScriptPanel.columns, rows } }
+      ]
+    }
   }
 
-  private stateRow() {
+  private stateItems() {
     const timers = this.timers()
     const running = `running, ${timers} ${timers === 1 ? "timer" : "timers"} active`
-    const text = this.state.topLevel === "failed" ? `${running}; top level failed: ${this.state.topLevelError ?? ""}` : running
-    return ["(script)", "", "", text, "", ScriptPanel.time(this.state.startedAt)]
+    const state = this.state.topLevel === "failed" ? `${running}; top level failed: ${this.state.topLevelError ?? ""}` : running
+    const { lastError } = this.state
+    return [
+      { label: "State", value: state },
+      { label: "Started", value: ScriptPanel.time(this.state.startedAt) },
+      { label: "Uncaught errors", value: String(this.state.errors) },
+      ...(lastError ? [{ label: "Last error", value: `${lastError.text} (${ScriptPanel.time(lastError.at)})` }] : [])
+    ]
   }
 
   private variableRow(record: VariableRecord) {
