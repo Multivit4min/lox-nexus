@@ -98,4 +98,18 @@ describe("SchemaDraft", () => {
     const typed = { ...(SchemaDraft.from(nulls, stored) as Record<string, unknown>), obj: { a: "set" }, plain: "" }
     assert.deepEqual(SchemaDraft.value(nulls, typed as never), { obj: { a: "set" }, n: null, list: [] }, "an emptied non-nullable field goes back to its default")
   })
+
+  test("strings marked as code get their language; other formats stay plain strings", () => {
+    const fields = SchemaFields.parse({
+      type: "object",
+      properties: {
+        script: { type: "string", format: "code", contentMediaType: "text/javascript", default: "nexus.set(\"x\", 1)" },
+        template: { type: "string", format: "code", contentMediaType: "application/json" },
+        notes: { type: "string", format: "code", contentMediaType: "text/x-unknown" },
+        host: { type: "string", format: "uri" }
+      }
+    }).fields!
+    assert.deepEqual(fields.map(f => [f.name, f.kind, f.code]), [["script", "string", "javascript"], ["template", "string", "json"], ["notes", "string", "text"], ["host", "string", undefined]])
+    assert.equal(SchemaDraft.value(fields[0]!, "let a = 1\n"), "let a = 1\n")
+  })
 })

@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { SchemaDraft, type Draft } from "../../lib/schema/SchemaDraft.ts"
 import type { SchemaField } from "../../lib/schema/SchemaField.ts"
 import FormField from "../FormField.vue"
+import CodeEditor from "./CodeEditor.vue"
 
 /**
  * One field of a schema form, recursive for objects and arrays. Updates are emitted as new
@@ -78,6 +79,9 @@ const addItem = () => emit("update:modelValue", [...items.value, SchemaDraft.fro
   </FormField>
   <FormField v-else-if="field.kind === 'const'" :id="id" :label="label" :hint="hint">
     <Input :id="id" :model-value="JSON.stringify(field.constValue)" disabled />
+  </FormField>
+  <FormField v-else-if="field.code && !field.secret" :id="id" :label="label" :hint="hint">
+    <CodeEditor :id="id" :model-value="text" :language="field.code" :required="needed" :placeholder="placeholder" @update:model-value="value => emit('update:modelValue', value)" />
   </FormField>
   <FormField v-else-if="field.kind === 'json'" :id="id" :label="label" :hint="hint || 'as JSON'">
     <Textarea :id="id" :model-value="text" class="font-mono text-xs" rows="4" :required="needed" @update:model-value="value => emit('update:modelValue', String(value))" />

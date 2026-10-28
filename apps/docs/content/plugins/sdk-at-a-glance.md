@@ -146,7 +146,7 @@ type HttpHandler = (request: HttpRequest) => HttpResponse | Promise<HttpResponse
 | `store.get` | The cast to `T` is not checked; validate data an older version wrote. |
 | `store.set` | Value must be JSON; BigInt and cycles throw `Error`; keys are 1 to 200 characters (else `Error`). |
 | `status.set` | `message` is clipped to 10 000 characters; `"running"` clears `"degraded"`. |
-| `http.route` | Reachable at `/hook/<instance slug><path>` **without a login**: check a secret yourself. Exact path, no wildcards. Throws `Error` on a duplicate method + path. A throwing handler gives the caller 502. |
+| `http.route` | Reachable at `/hook/<instance slug><path>` **without a login**: check a secret yourself. Method `"*"` matches any method; a path ending in `/*` matches everything below that prefix (`"/a/*"` matches `/a/` and `/a/b`, not `/a`; `"/*"` all). The most specific route wins: exact before prefix, longer prefix first, a named method before `"*"`. Throws `Error` on a duplicate method + path. A throwing handler gives the caller 502. |
 | `log.*` | `data` is structured-cloned. Never log secrets. |
 
 ### Entry, config and re-exports
@@ -155,6 +155,7 @@ type HttpHandler = (request: HttpRequest) => HttpResponse | Promise<HttpResponse
 |---|---|---|
 | [`PluginEntry`](../reference/sdk/@lox-nexus/plugin-sdk.md#pluginentry) | `static define<T extends PluginClass>(type: T): T` | `export default PluginEntry.define(MyPlugin)` in `src/index.ts`. Starts the worker runtime only when loaded by Nexus. |
 | [`secret`](../reference/sdk/@lox-nexus/plugin-sdk.md#secret) | `secret<T extends z.ZodType>(schema: T): T` | Marks a field `writeOnly`: never sent back to the UI, kept when an update omits it. Top-level fields only. |
+| [`code`](../reference/sdk/@lox-nexus/plugin-sdk.md#code) | `code<T extends z.ZodType>(schema: T, language?: CodeLanguage): T` | Marks a string field as source code (`format: "code"` plus the language's `contentMediaType`), so the UI edits it in a code editor. `CodeLanguage` is `"javascript"` (default), `"json"` or `"text"`. Validating the code stays the plugin's job. |
 | `z` | zod | Use this one, not your own copy. |
 | [`SupersededError`](../reference/sdk/@lox-nexus/plugin-sdk.md#supersedederror) | `class extends Error` | See `concurrency: "latest"`. |
 | `CatalogNode`, `CatalogEntry`, `Panel`, `HttpRequest`, `HttpResponse` | types, see [wire](#lox-nexusplugin-sdkwire) | Return values of `catalog()`, `panel()` and webhook handlers. |

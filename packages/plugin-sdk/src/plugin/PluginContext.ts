@@ -35,7 +35,10 @@ export type HttpHandler = (request: HttpRequest) => HttpResponse | Promise<HttpR
 /** Webhook routes, reachable at /hook/<instance><path> without a login: check a secret yourself. */
 export interface PluginHttp {
   /**
-   * @param path exact path below the instance, e.g. "/github"; no wildcards
+   * @param method e.g. "POST" (case-insensitive), or "*" for any method
+   * @param path below the instance, e.g. "/github"; ending in "/*" it matches every path below
+   *   that prefix ("/a/*" matches "/a/" and "/a/b", not "/a"; "/*" matches all). The most specific route wins: exact before prefix, longer
+   *   prefix before shorter, a named method before "*". The handler sees the full `request.path`.
    * @throws Error when the method (case-insensitive) and path are already registered
    */
   route(method: string, path: string, handler: HttpHandler): void

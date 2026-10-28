@@ -14,6 +14,7 @@ export interface JsonSchemaNode {
   minimum?: number
   maximum?: number
   format?: string
+  contentMediaType?: string
 }
 
 /** json: anything the form has no input for (records, unions, tuples), edited as JSON text */
@@ -40,14 +41,26 @@ export interface SchemaField {
   minimum?: number
   maximum?: number
   format?: string
+  /** string marked as source code by the plugin (`code()` in the SDK): edited in a code editor */
+  code?: CodeLanguage
   /** object: its properties, in schema order */
   fields?: SchemaField[]
   /** array: the item */
   items?: SchemaField
 }
 
+/** The languages a code field can be shown as; unknown media types are plain text. */
+export type CodeLanguage = "javascript" | "json" | "text"
+
 /** Turns a JSON Schema into the field tree a SchemaForm renders. Unknown shapes fall back to "json". */
 export class SchemaFields {
+  private static readonly CODE_LANGUAGES: Record<string, CodeLanguage> = {
+    "text/javascript": "javascript",
+    "application/javascript": "javascript",
+    "application/json": "json",
+    "text/plain": "text"
+  }
+
   static parse(schema: JsonSchemaNode, name = "", required = true): SchemaField {
     const { node, nullable } = SchemaFields.unwrapNull(schema)
     const field: SchemaField = {
@@ -58,6 +71,7 @@ export class SchemaFields {
     if (description) field.description = description
     if (field.hasDefault) field.default = "default" in schema ? schema.default : node.default
     for (const key of ["minimum", "maximum", "format"] as const) if (node[key] !== undefined) Object.assign(field, { [key]: node[key] })
+    if (field.kind === "string" && node.format === "code") field.code = SchemaFields.CODE_LANGUAGES[node.contentMediaType ?? ""] ?? "text"
     if (field.kind === "enum") field.options = node.enum!.filter(SchemaFields.isPrimitive)
     if (field.kind === "const") field.constValue = node.const
     if (field.kind === "object") {

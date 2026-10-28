@@ -230,8 +230,12 @@ private authentic(given: string | undefined) {
 
 (`hookSecret` is a `secret(z.string())` field of your config.)
 
-- The route is `/hook/<instance slug><path>`, for example `/hook/demo/github`. The path is exact; no
-  wildcards. Registering the same method and path twice throws.
+- The route is `/hook/<instance slug><path>`, for example `/hook/demo/github`. A method of `"*"`
+  matches any method, and a path ending in `/*` matches everything below it (`/a/*` matches `/a/` and `/a/b`, not `/a`;
+  `"/*"` everything),
+  for names the user chooses at run time; the handler reads `request.path`. The most specific route
+  wins: exact before prefix, longer prefix first, a named method before `"*"`. Registering the same
+  method and path twice throws. The [webhook plugin](webhook.md) is a full example.
 - **Webhooks are reachable without a login.** Check a shared secret yourself, as above.
 - The request has `method`, `path`, `query`, `headers` (lowercase names, repeated ones joined with
   `, `; the session cookie is not forwarded) and `body` (utf-8 text). The answer is
