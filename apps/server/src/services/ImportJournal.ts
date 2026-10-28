@@ -23,16 +23,20 @@ export interface ImportBackup {
  * database, so it is private to the user and lives next to the database.
  */
 export class ImportJournal {
+  static readonly FILE_NAME = "import-in-progress.json"
+
   constructor(private readonly file: string) {}
 
   /** @param dataDir the data directory; the journal is `import-in-progress.json` in it */
   static in(dataDir: string) {
-    return new ImportJournal(path.join(dataDir, "import-in-progress.json"))
+    return new ImportJournal(path.join(dataDir, ImportJournal.FILE_NAME))
   }
 
-  /** writes it atomically (temp file, fsync, rename), so a crash leaves the old or the new one */
+  /** writes it atomically (temp file, fsync, rename, fsync of the folder), so a crash leaves the old or the new one */
   write({ backup, passwords }: ImportBackup) {
     const temp = `${this.file}.tmp`
+    // a leftover temp file would keep its mode; the new one is created 0600
+    fs.rmSync(temp, { force: true })
     const fd = fs.openSync(temp, "w", 0o600)
     try {
       fs.writeSync(fd, JSON.stringify({ backup, passwords: Object.fromEntries(passwords) }))
@@ -41,6 +45,7 @@ export class ImportJournal {
       fs.closeSync(fd)
     }
     fs.renameSync(temp, this.file)
+    ImportJournal.syncFolder(path.dirname(this.file))
   }
 
   /**
@@ -59,8 +64,40 @@ export class ImportJournal {
     return { backup, passwords: new Map(Object.entries(passwords)) }
   }
 
+  /** removes it; never throws */
   clear() {
-    fs.rmSync(this.file, { force: true })
-    fs.rmSync(`${this.file}.tmp`, { force: true })
+    try {
+      fs.rmSync(this.file, { force: true })
+      fs.rmSync(`${this.file}.tmp`, { force: true })
+    } catch {
+      // a journal left behind is restored at the next start, which is what it would hold anyway
+    }
+  }
+
+  /**
+   * Moves the journal aside as `import-failed-<time>.json`, so it is neither applied again at every
+   * start (over later changes) nor overwritten by the next import. @returns where it went, if anywhere
+   */
+  setAside(): string | undefined {
+    const target = path.join(path.dirname(this.file), `import-failed-${new Date().toISOString().replace(/[:.]/g, "-")}.json`)
+    try {
+      fs.renameSync(this.file, target)
+      return target
+    } catch {
+      return undefined
+    }
+  }
+
+  // makes a rename durable on power loss (a no-op where folders can't be opened, e.g. Windows)
+  private static syncFolder(folder: string) {
+    let fd: number | undefined
+    try {
+      fd = fs.openSync(folder, "r")
+      fs.fsyncSync(fd)
+    } catch {
+      // best effort
+    } finally {
+      if (fd !== undefined) fs.closeSync(fd)
+    }
   }
 }

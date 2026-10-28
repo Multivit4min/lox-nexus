@@ -97,8 +97,9 @@ export class HistoryRecorder extends Disposable {
 
   /** a signal that was deleted: nothing more of it is written, also not its open buckets */
   forget(signalId: string) {
+    // pause state stays: a config import unregisters and registers the same ids again, and their
+    // pause rows stay open until a resume; purging the history deletes the rows themselves
     this.aggregator.forget(signalId)
-    this.pauses.forget(signalId)
     this.samples = this.samples.filter(sample => sample.signalId !== signalId)
     this.buckets = this.buckets.filter(bucket => bucket.signalId !== signalId)
     this.latest.clear()
@@ -160,7 +161,7 @@ export class HistoryRecorder extends Disposable {
     this.dropped += this.samples.length + this.buckets.length
     this.log(`dropped a batch of history that failed ${this.failures} times`, error)
     this.failures = 0
-    this.pauses.done(this.pauses.changes.length)
+    // pause changes stay pending: they are few, and losing a resume would leave a gap open for good
     this.clear()
   }
 

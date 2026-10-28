@@ -37,10 +37,28 @@ test("an import cut off in the middle is undone at the next start, passwords inc
   assert.equal(fs.existsSync(path.join(dir, "import-in-progress.json")), false)
 })
 
-test("an unreadable journal is left alone and doesn't stop the start", async t => {
+const failed = (dir: string) => fs.readdirSync(dir).filter(name => name.startsWith("import-failed-"))
+
+test("an unreadable journal is set aside for a person and doesn't stop the start", async t => {
   const dir = TestApp.tempDir()
   fs.writeFileSync(path.join(dir, "import-in-progress.json"), "{ not json")
   const app = await TestApp.start({ databaseFile: path.join(dir, "nexus.db") })
   t.after(() => app.dispose())
-  assert.equal(fs.readFileSync(path.join(dir, "import-in-progress.json"), "utf8"), "{ not json")
+  assert.equal(fs.existsSync(path.join(dir, "import-in-progress.json")), false)
+  assert.deepEqual(failed(dir).map(name => fs.readFileSync(path.join(dir, name), "utf8")), ["{ not json"])
+})
+
+test("a restore at the start that can't bring everything back sets the journal aside and the start goes on", async t => {
+  const dir = TestApp.tempDir()
+  const miniserver = (id: string, slug: string) => ({
+    id, slug, label: slug, host: "127.0.0.1", port: 7000, listenPort: 7001, ownId: "nexus", remoteId: "ms", enabled: false, resendInterval: 0, signals: []
+  })
+  // two Miniservers on one listen port: the second one can't come back
+  const backup = ConfigExportSchema.parse({ format: "lox-nexus/config", version: 1, miniservers: [miniserver("a", "a"), miniserver("b", "b")], wires: [] })
+  ImportJournal.in(dir).write({ backup, passwords: new Map() })
+  const app = await TestApp.start({ databaseFile: path.join(dir, "nexus.db") })
+  t.after(() => app.dispose())
+  assert.deepEqual(app.app.miniservers.list().map(m => m.config.id), ["a"], "as much as possible came back")
+  assert.equal(fs.existsSync(path.join(dir, "import-in-progress.json")), false, "not applied again at the next start")
+  assert.equal(failed(dir).length, 1)
 })

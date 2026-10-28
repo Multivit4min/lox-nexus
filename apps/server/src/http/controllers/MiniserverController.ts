@@ -61,7 +61,8 @@ export class MiniserverController implements Controller {
     app.get("/api/miniservers/:id/signal-load", request => this.miniservers.signalLoad(MiniserverController.id(request)))
     app.post("/api/miniservers/:id/start", request => this.miniservers.start(MiniserverController.id(request)))
     app.post("/api/miniservers/:id/stop", request => this.miniservers.stop(MiniserverController.id(request)))
-    app.post("/api/miniservers/:id/project", request => this.projects.read(MiniserverController.id(request), ProjectReadSchema.parse(request.body)))
+    // reading a Loxone Config project changes nothing, so a config import doesn't hold it off
+    app.post("/api/miniservers/:id/project", { config: { lockFree: true } }, request => this.projects.read(MiniserverController.id(request), ProjectReadSchema.parse(request.body)))
     this.registerSignals(app)
     // in its own scope: only this route reads raw bytes, and only it accepts large bodies. Other
     // content types are refused (415) before their body is read, so no large JSON gets parsed.
@@ -69,7 +70,7 @@ export class MiniserverController implements Controller {
       const bodyLimit = MiniserverController.PROJECT_FILE_LIMIT
       scope.removeAllContentTypeParsers()
       scope.addContentTypeParser("application/octet-stream", { parseAs: "buffer", bodyLimit }, (_request, body, done) => done(null, body))
-      scope.post("/api/miniservers/:id/project/file", { bodyLimit }, request => {
+      scope.post("/api/miniservers/:id/project/file", { bodyLimit, config: { lockFree: true } }, request => {
         if (!Buffer.isBuffer(request.body)) throw HttpError.badRequest("send the file as application/octet-stream")
         return this.projects.readFile(MiniserverController.id(request), FileQuery.parse(request.query).name, request.body)
       })

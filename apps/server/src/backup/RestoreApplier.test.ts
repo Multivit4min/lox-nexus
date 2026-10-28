@@ -18,7 +18,11 @@ test("a restore cut off halfway is finished by the next start, without losing ei
   fs.mkdirSync(path.join(dir, "plugins", "q"), { recursive: true })
   fs.writeFileSync(path.join(dir, "plugins", "q", "b.js"), "current plugin")
   fs.writeFileSync(path.join(dir, "restore-pending", "apply.json"), JSON.stringify({ before }))
+  // left by an import that was cut off: it must not put the old configuration back over the restored one
+  fs.writeFileSync(path.join(dir, "import-in-progress.json"), "{}")
   assert.equal(RestoreApplier.apply(dir), before, "the same folder as the first run")
+  assert.equal(fs.existsSync(path.join(dir, "import-in-progress.json")), false)
+  assert.equal(fs.readFileSync(path.join(before, "import-in-progress.json"), "utf8"), "{}")
   assert.equal(fs.readFileSync(path.join(dir, "nexus.db"), "utf8"), "restored db")
   assert.equal(fs.readFileSync(path.join(before, "nexus.db"), "utf8"), "current db")
   assert.equal(fs.readFileSync(path.join(dir, "plugins", "p", "a.js"), "utf8"), "restored plugin")

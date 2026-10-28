@@ -9,6 +9,9 @@ interface Waiting {
 /** Thrown when a plugin answers a request with ok: false; the message is the plugin's. */
 export class PluginRequestError extends Error {}
 
+/** Thrown when a plugin can't answer: it didn't within the timeout, or it stopped or crashed first. */
+export class PluginUnavailableError extends Error {}
+
 /** Matches worker responses to host requests by id, with a timeout per request. */
 export class RequestTracker extends Disposable {
   private nextId = 1
@@ -25,7 +28,7 @@ export class RequestTracker extends Disposable {
     const result = new Promise<unknown>((resolve, reject) => {
       const cancel = this.after(timeoutMs, () => {
         this.waiting.delete(requestId)
-        reject(new Error(`the plugin did not answer ${what} within ${timeoutMs} ms`))
+        reject(new PluginUnavailableError(`the plugin did not answer ${what} within ${timeoutMs} ms`))
       })
       this.waiting.set(requestId, { resolve, reject, cancel })
     })
@@ -46,7 +49,7 @@ export class RequestTracker extends Disposable {
   failAll(reason: string) {
     for (const waiting of this.waiting.values()) {
       waiting.cancel()
-      waiting.reject(new Error(reason))
+      waiting.reject(new PluginUnavailableError(reason))
     }
     this.waiting.clear()
   }

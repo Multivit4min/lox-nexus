@@ -11,7 +11,7 @@ import type { Controller } from "../Controller.ts"
  *   400 for a file that isn't a valid export (nothing changes); 409 when a step fails (the
  *   previous configuration is restored) or another import is running; 500 when the restore was
  *   incomplete too. Forces and last values stay on topics that exist after it. While it runs,
- *   other changing API requests get 503 with Retry-After.
+ *   other changing API requests (but login, previews and project reads) get 503 with Retry-After.
  */
 export class ConfigController implements Controller {
   /** exports of a few thousand signals exceed the default 1 MB body limit */
@@ -26,7 +26,8 @@ export class ConfigController implements Controller {
       // no-store: it lists hosts and ports, and a cached copy would go stale
       return reply.header("content-disposition", `attachment; filename="lox-nexus-config-${date}.json"`).header("cache-control", "no-store").send(doc)
     })
-    app.post("/api/config/import", { bodyLimit: ConfigController.IMPORT_BODY_LIMIT }, request =>
+    // lock-free here: the import takes the lock itself, so a second one gets its 409
+    app.post("/api/config/import", { bodyLimit: ConfigController.IMPORT_BODY_LIMIT, config: { lockFree: true } }, request =>
       this.transfer.import(ConfigExportSchema.parse(request.body), request.user!.username))
   }
 }

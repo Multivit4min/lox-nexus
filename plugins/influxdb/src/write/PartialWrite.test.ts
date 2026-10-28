@@ -13,8 +13,9 @@ test("the dropped points of a partial write are read from 1.x and 3 answers", ()
   assert.equal(PartialWrite.dropped("unable to parse", 10), undefined)
 })
 
-test("a 400 partial write keeps the dropped count; other rejections don't have one", () => {
+test("a 400 or 422 partial write keeps the dropped count; other rejections don't have one", () => {
   const policy = new RetryPolicy("the token")
   assert.deepEqual(policy.answer({ status: 400, body: "partial write: x dropped=1" }, 0, 5), { kind: "reject", reason: "HTTP 400: partial write: x dropped=1", dropped: 1 })
-  assert.deepEqual(policy.answer({ status: 422, body: "partial write: x dropped=1" }, 0, 5), { kind: "reject", reason: "HTTP 422: partial write: x dropped=1" })
+  assert.deepEqual(policy.answer({ status: 422, body: "partial write: x dropped=1" }, 0, 5), { kind: "reject", reason: "HTTP 422: partial write: x dropped=1", dropped: 1 })
+  assert.deepEqual(policy.answer({ status: 404, body: "partial write: x dropped=1" }, 0, 5).kind, "retry")
 })

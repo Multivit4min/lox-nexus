@@ -758,14 +758,22 @@ above:
     signal`. If the restore can't bring everything back the answer is 500 and the log says what
     is missing. SQL never reaches the client.
   - Before clearing, the import writes the backup with the Miniserver passwords to
-    `import-in-progress.json` next to the database (`ImportJournal`, 0600, atomic) and deletes it
-    when it is over. A file left behind means Nexus stopped in the middle; the next start restores
-    it (`ConfigTransfer.recover()`, after loading and before the API listens).
+    `import-in-progress.json` next to the database (`ImportJournal`, 0600, atomic with an fsync of
+    the folder) and deletes it after a successful import or a complete rollback; after an
+    incomplete rollback it stays, so the next start tries again. A file left behind means Nexus
+    stopped in the middle; the next start restores it (`ConfigTransfer.recover()`, right after the
+    stored configuration is loaded, before values come back and Miniservers start). A journal that
+    can't be read or restored is renamed `import-failed-<time>.json` and logged; the start goes
+    on. Applying a backup moves a journal into its `before-restore-<time>` folder. Forces and
+    values aren't in the journal: after a crash they are gone, as the import's clear released them.
   - Forces and last real values on Loxone topics are taken before clearing
     (`TopicCleanup.keep`) and put back afterwards, also after a rollback, on the topics that exist
     again (`bringBack`); the others are released.
-  - The import holds a `ChangeLock`: a second import gets 409, and every other changing API request
-    gets 503 with `Retry-After` until it is done. Reads go on.
+  - The import holds a `ChangeLock`: it waits (up to 10 s, else 409) for changing requests already
+    running, then every other changing API request gets 503 with `Retry-After` until it is done.
+    Reads go on, and so do routes marked `lockFree` (login, logout, password, setup, the wire
+    preview, reading a Loxone Config project). The import route itself is `lockFree`, so a second
+    import reaches the lock and gets 409.
   - The UI has Export and Import buttons on the Miniservers page. The import asks for
     confirmation and reports counts, kept passwords and inactive wires.
 - **UI fixes found on the way.** `VirtualTable` subtracted the header from

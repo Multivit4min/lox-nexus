@@ -127,5 +127,8 @@ load figure at the top lists them:
   Config, or is missing.
 - *Port in use*: another program listens on `listenPort`; use another port or share it with a
   Miniserver of Nexus.
+- *"Stored entries that can't be loaded"* on the Miniservers page: a Miniserver or signal was saved
+  by another (newer) version of Nexus and doesn't run. Delete it there, or start the version that
+  wrote it. A deleted Miniserver frees its topic name for a new one.
 - The **Bus Inspector** and `system/loxone/<slug>/error` show problems; each kind is reported at
   most once a minute.

@@ -178,9 +178,10 @@ export class NexusApp extends Disposable {
     if (this.isDisposed) return undefined
     plugins.load()
     wires.load()
+    // before values come back and Miniservers start, so a half import never talks to a Miniserver
+    await transfer.recover()
     this.snapshot.restore()
     for (const failure of await this.miniservers.startEnabled()) log.warn({ err: failure.error, miniserver: failure.id }, "miniserver failed to start")
-    await transfer.recover()
     if (this.isDisposed) return undefined
     this.own(new SystemEventLogger(this.bus, log.child({ component: "bus" })))
     this.http = this.own(this.createHttp({ miniservers, loxoneSignals, wires, plugins, pluginSignals, transfer, lock }))

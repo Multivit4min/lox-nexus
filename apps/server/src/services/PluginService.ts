@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto"
-import { PluginNotRunningError, PluginRequestError, type PluginInstanceConfig, type PluginManager, type PluginPackage, type PluginSupervisor } from "@lox-nexus/core"
+import { PluginNotRunningError, PluginRequestError, PluginUnavailableError, type PluginInstanceConfig, type PluginManager, type PluginPackage, type PluginSupervisor } from "@lox-nexus/core"
 import type { PluginInstanceDto, PluginInstanceInput, PluginPackageDto } from "@lox-nexus/api"
 import { PluginInstanceInputSchema } from "@lox-nexus/api"
 import type { Logger } from "pino"
@@ -226,6 +226,7 @@ export class PluginService {
     } catch (error) {
       if (error instanceof PluginNotRunningError) throw HttpError.conflict(error.message)
       if (error instanceof PluginRequestError) throw new HttpError(502, `the plugin failed: ${error.message}`)
+      if (error instanceof PluginUnavailableError) throw new HttpError(503, error.message)
       throw error
     }
   }

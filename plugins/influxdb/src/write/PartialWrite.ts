@@ -1,8 +1,8 @@
 /**
- * Reads how many points of a refused batch InfluxDB dropped, when it wrote the rest. InfluxDB 1.x
- * answers such a batch with 400 and `partial write: … dropped=N`; InfluxDB 3 with 400 and JSON
+ * Reads how many points of a refused batch InfluxDB dropped, when it wrote the rest: an answer
+ * (400, or 422 for a field type conflict) with `partial write: … dropped=N`, or InfluxDB 3's JSON
  * `{ "error": "partial write of line protocol occurred", "data": [one entry per failed line] }`.
- * InfluxDB 2 refuses whole batches. A body cut short (only its start is kept) can't be counted.
+ * A body cut short (only its start is kept) can't be counted.
  */
 export class PartialWrite {
   /** @returns the dropped points, when the body says so and it is fewer than the batch; else undefined */

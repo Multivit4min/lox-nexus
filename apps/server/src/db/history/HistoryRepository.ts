@@ -43,8 +43,9 @@ export class HistoryRepository implements HistoryStore {
     return this.db.all<{ signal_id: string }>("SELECT DISTINCT signal_id FROM pauses WHERE resumed IS NULL").map(row => row.signal_id)
   }
 
+  /** with the signals that only have pauses (they paused before writing a sample), so retention purges those too */
   seriesIds() {
-    return this.db.all<{ signal_id: string }>("SELECT signal_id FROM series").map(row => row.signal_id)
+    return this.db.all<{ signal_id: string }>("SELECT signal_id FROM series UNION SELECT signal_id FROM pauses").map(row => row.signal_id)
   }
 
   purge(signalId: string, limit: number) {

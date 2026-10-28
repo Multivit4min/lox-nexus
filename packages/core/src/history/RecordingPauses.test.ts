@@ -50,14 +50,16 @@ describe("recording pauses", () => {
     await history.dispose()
   })
 
-  test("a deleted signal's pause changes are dropped with it", async () => {
+  test("forgetting a signal (an import unregisters and registers it again) keeps its pause, so its next value resumes it", async () => {
     const store = new MemoryHistoryStore()
     const history = recorder(store)
     history.record(temp, message(Value.number(1)))
     history.release("temp")
     history.forget("temp")
+    mock.timers.tick(1000)
+    history.record(temp, message(Value.number(2)))
     history.flush()
-    assert.deepEqual(store.pauses, [])
+    assert.deepEqual(store.pauses.map(change => change.kind), ["pause", "resume"])
     await history.dispose()
   })
 })

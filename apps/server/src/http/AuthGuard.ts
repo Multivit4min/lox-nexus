@@ -10,6 +10,8 @@ declare module "fastify" {
   interface FastifyContextConfig {
     /** reachable without a session (login, setup, health) */
     public?: boolean
+    /** a POST that changes no configuration (login, a preview), so a config import doesn't hold it off (ChangeLock) */
+    lockFree?: boolean
   }
 }
 

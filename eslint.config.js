@@ -60,6 +60,18 @@ export default tseslint.config(
     "core is IO-free; Loxone and the server plug into it, not the other way round."),
   restrictImports(["packages/loxone/**", "packages/api/**"], ["server", "web"],
     "Libraries must not depend on apps."),
+  // the web bundles packages/api, so core may only lend it types; loxone and ici not even that
+  {
+    files: ["packages/api/**"],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": ["error", {
+        patterns: [
+          { group: workspace("core"), allowTypeImports: true, message: "packages/api may import types from core only (import type), so no core code reaches the web bundle." },
+          { group: [...workspace("loxone"), ...workspace("ici")], message: "packages/api must not depend on loxone or ici." }
+        ]
+      }]
+    }
+  },
   restrictImports(["apps/web/**"], ["core", "loxone", "ici", "server"],
     "The web UI talks to the server through @lox-nexus/api only (plus plugin-sdk/values)."),
   restrictImports(["apps/docs/**"], ["core", "loxone", "ici", "api", "server", "web", "plugin-sdk"],

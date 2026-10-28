@@ -42,13 +42,6 @@ export class RecordingPauses {
     this.pending.push({ signalId, at, kind: "pause" })
   }
 
-  /** a deleted signal: its history goes, so do its pauses */
-  forget(signalId: string) {
-    this.recording.delete(signalId)
-    this.paused.delete(signalId)
-    this.pending = this.pending.filter(change => change.signalId !== signalId)
-  }
-
   /** the first `count` changes were written (or dropped) */
   done(count: number) {
     this.pending = this.pending.slice(count)

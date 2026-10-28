@@ -22,12 +22,12 @@ export class AuthController implements Controller {
 
   /** Setup and login are throttled per client address (request.ip, see NEXUS_TRUST_PROXY). */
   register(app: FastifyInstance) {
-    const open = { config: { public: true } }
+    const open = { config: { public: true, lockFree: true } }
     app.get("/api/auth", open, (request): AuthStateDto => this.state(request))
     app.post("/api/auth/setup", open, (request, reply) => this.setup(request, reply))
     app.post("/api/auth/login", open, (request, reply) => this.login(request, reply))
     app.post("/api/auth/logout", open, (request, reply) => this.logout(request, reply))
-    app.post("/api/auth/password", (request, reply) => this.changePassword(request, reply))
+    app.post("/api/auth/password", { config: { lockFree: true } }, (request, reply) => this.changePassword(request, reply))
   }
 
   // request.user is set by AuthGuard even on public routes, so the UI learns its login state in one call

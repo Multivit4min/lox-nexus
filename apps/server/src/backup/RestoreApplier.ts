@@ -1,5 +1,6 @@
 import fs from "node:fs"
 import path from "node:path"
+import { ImportJournal } from "../services/ImportJournal.ts"
 import { RestoreService } from "./RestoreService.ts"
 
 /**
@@ -9,7 +10,8 @@ import { RestoreService } from "./RestoreService.ts"
  * step is done once even if a step fails and the next start runs it again: the folder is recorded
  * in the marker, and a file whose replacement already moved in is left alone. Without a backed-up
  * history the current one stays; history of signals the restored configuration lacks is removed
- * by retention later.
+ * by retention later. A config import's journal goes along, so it can't put the old configuration
+ * back over the restored one.
  */
 export class RestoreApplier {
   /** @returns the folder the previous files went to, or undefined when nothing is to be restored */
@@ -33,6 +35,8 @@ export class RestoreApplier {
       }
       fs.renameSync(incoming, path.join(dataDir, name))
     }
+    const journal = path.join(dataDir, ImportJournal.FILE_NAME)
+    if (fs.existsSync(journal)) fs.renameSync(journal, path.join(before, ImportJournal.FILE_NAME))
     fs.rmSync(pending, { recursive: true, force: true })
     return before
   }

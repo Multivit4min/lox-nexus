@@ -2,7 +2,7 @@ import { EventEmitter } from "node:events"
 import { Disposable } from "@lox-nexus/plugin-sdk"
 import { WIRE_VERSION, type HostMessage, type WorkerMessage } from "@lox-nexus/plugin-sdk/wire"
 import type { PluginConnection } from "./PluginTransport.ts"
-import { RequestTracker } from "./RequestTracker.ts"
+import { PluginUnavailableError, RequestTracker } from "./RequestTracker.ts"
 
 /** Timeouts of a session, in ms; tests shorten them. */
 export interface SessionTimings {
@@ -85,10 +85,10 @@ export class PluginSession extends Disposable {
 
   /**
    * Sends a request and resolves with the plugin's result.
-   * @throws PluginRequestError with the plugin's message, or Error on timeout or exit
+   * @throws PluginRequestError with the plugin's message, or PluginUnavailableError on timeout or exit
    */
   request(body: RequestBody, timeoutMs = this.timings.requestMs): Promise<unknown> {
-    if (this.over) return Promise.reject(new Error("the plugin is not running"))
+    if (this.over) return Promise.reject(new PluginUnavailableError("the plugin is not running"))
     const { requestId, result } = this.requests.create(timeoutMs, body.type)
     this.connection.send({ ...body, requestId } as Request)
     return result
@@ -142,7 +142,7 @@ export class PluginSession extends Disposable {
   private waitFor(types: WorkerMessage["type"] | WorkerMessage["type"][], timeoutMs: number, what: string) {
     const wanted = new Set(Array.isArray(types) ? types : [types])
     return new Promise<WorkerMessage>((resolve, reject) => {
-      if (this.over) return reject(new Error(`the plugin ${this.endReason} before it could ${what}`))
+      if (this.over) return reject(new PluginUnavailableError(`the plugin ${this.endReason} before it could ${what}`))
       const done = () => {
         cancel()
         this.connection.off("message", onMessage)
@@ -155,11 +155,11 @@ export class PluginSession extends Disposable {
       }
       const onEnd = (reason: string) => {
         done()
-        reject(new Error(`the plugin ${reason} before it could ${what}`))
+        reject(new PluginUnavailableError(`the plugin ${reason} before it could ${what}`))
       }
       const cancel = this.after(timeoutMs, () => {
         done()
-        reject(new Error(`the plugin did not ${what} within ${timeoutMs} ms`))
+        reject(new PluginUnavailableError(`the plugin did not ${what} within ${timeoutMs} ms`))
       })
       this.connection.on("message", onMessage)
       this.waiting.add(onEnd)

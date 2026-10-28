@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto"
 import { PluginSignalInputSchema, type PluginSignalDto, type PluginSignalInput } from "@lox-nexus/api"
-import { PluginRequestError, Topic, type PluginSignalConfig, type PluginSignalEntry, type PluginSupervisor } from "@lox-nexus/core"
+import { PluginRequestError, PluginUnavailableError, Topic, type PluginSignalConfig, type PluginSignalEntry, type PluginSupervisor } from "@lox-nexus/core"
 import type { PluginSignalRepository } from "../db/repositories/PluginSignalRepository.ts"
 import { HttpError } from "../http/HttpError.ts"
 import { FreeSlug } from "./FreeSlug.ts"
@@ -96,12 +96,14 @@ export class PluginSignalService {
     return entry
   }
 
-  // the plugin refusing params is the user's mistake (400); a taken topic is a conflict (409)
+  // the plugin refusing params is the user's mistake (400); a taken topic is a conflict (409); a
+  // plugin that timed out or stopped meanwhile is unavailable (503)
   private static async refusals(work: () => Promise<void>) {
     try {
       await work()
     } catch (error) {
       if (error instanceof PluginRequestError) throw HttpError.badRequest(error.message)
+      if (error instanceof PluginUnavailableError) throw new HttpError(503, error.message)
       throw HttpError.fromDomain(error)
     }
   }

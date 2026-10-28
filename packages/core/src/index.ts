@@ -30,7 +30,7 @@ export { PluginSession, InitFailedError, type SessionTimings } from "./plugins/P
 export { PluginSupervisor, DEFAULT_TIMINGS, type SupervisorDeps, type SupervisorTimings } from "./plugins/PluginSupervisor.ts"
 export { PluginSignals, type PluginBus, type PluginSignalEntry } from "./plugins/PluginSignals.ts"
 export { PluginCalls, PluginNotRunningError } from "./plugins/PluginCalls.ts"
-export { PluginRequestError } from "./plugins/RequestTracker.ts"
+export { PluginRequestError, PluginUnavailableError } from "./plugins/RequestTracker.ts"
 export { PluginManager } from "./plugins/PluginManager.ts"
 export { PluginTopics } from "./plugins/PluginTopics.ts"
 export { PackageDescriber } from "./plugins/PackageDescriber.ts"

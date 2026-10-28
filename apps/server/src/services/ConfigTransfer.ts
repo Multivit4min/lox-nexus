@@ -54,8 +54,9 @@ export class ConfigTransfer {
 
   /**
    * Restores the configuration an import left in the journal when Nexus stopped in the middle of
-   * it. Called at boot, after the stored configuration is loaded and before the HTTP API starts.
-   * An unreadable journal is logged and left for a person to look at.
+   * it. Called at boot, after the stored configuration is loaded and before values are restored,
+   * Miniservers start and the HTTP API listens. A journal that can't be read or restored is logged
+   * and set aside (`import-failed-<time>.json`) for a person to look at; the start goes on.
    */
   async recover() {
     const journal = this.options.journal
@@ -63,15 +64,17 @@ export class ConfigTransfer {
     try {
       left = journal?.read()
     } catch (error) {
-      this.log.error({ err: error }, "an interrupted config import left a journal that can't be read; it was not restored")
+      this.log.error({ err: error, keptAt: journal?.setAside() }, "an interrupted config import left a journal that can't be read; it was not restored")
       return
     }
-    if (!left) return
+    if (!journal || !left) return
     this.log.warn("a config import was interrupted; restoring the configuration from before it")
     try {
       await this.lock.hold("restoring an interrupted import", () => this.restore(left.backup, left.passwords, "nexus"))
-    } finally {
-      journal?.clear()
+      journal.clear()
+    } catch (error) {
+      // never fails the start, and never runs again by itself over later changes
+      this.log.error({ err: error, keptAt: journal.setAside() }, "restoring the configuration from before an interrupted import failed")
     }
   }
 
@@ -124,13 +127,16 @@ export class ConfigTransfer {
       try {
         await this.clear(by, false)
         // a file without selections keeps the current rules on its signals; they went with the clear
-        return await this.apply({ ...doc, selections: { history: doc.selections?.history ?? backup.selections?.history } }, passwords, false)
+        const result = await this.apply({ ...doc, selections: { history: doc.selections?.history ?? backup.selections?.history } }, passwords, false)
+        this.options.journal?.clear()
+        return result
       } catch (error) {
         this.log.warn({ err: error }, "import failed, restoring the previous configuration")
+        // an incomplete restore throws and keeps the journal, so the next start tries again
         await this.restore(backup, passwords, by)
+        this.options.journal?.clear()
         throw error
       } finally {
-        this.options.journal?.clear()
         if (kept) this.bringBack(kept, by)
       }
     })

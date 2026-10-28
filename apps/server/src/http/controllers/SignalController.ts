@@ -32,7 +32,7 @@ export class SignalController implements Controller {
       return { ...signal, ...(current ? { current } : {}) }
     }))
     app.get("/api/wires", () => this.wires.list())
-    app.post("/api/wires/preview", request => this.wires.preview(request.body))
+    app.post("/api/wires/preview", { config: { lockFree: true } }, request => this.wires.preview(request.body))
     app.post("/api/wires", (request, reply) => reply.code(201).send(this.wires.create(request.body)))
     app.put("/api/wires/:id", request => this.wires.update(IdParams.parse(request.params).id, request.body))
     app.delete("/api/wires/:id", (request, reply) => {

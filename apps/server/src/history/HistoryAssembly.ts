@@ -66,7 +66,7 @@ export class HistoryAssembly extends Disposable {
 
   /**
    * Applies a changed selection at once: a signal that left it pauses now, not at its next value,
-   * and a paused one that is back records again from its current value. Without this a signal
+   * and a paused one that is back records again from its current state (a command isn't repeated). Without this a signal
    * that changes rarely would be drawn holding its value across the time it wasn't recorded.
    */
   private reconcile(deps: HistoryDeps, selection: () => SignalSelection) {
@@ -78,7 +78,8 @@ export class HistoryAssembly extends Disposable {
       }
       if (!this.recorder.isPaused(signal.id)) continue
       const current = deps.bus.current(signal.topic)
-      if (current?.value && (current.kind === "state" || current.kind === "command")) {
+      // a state holds and starts the line again; a command happened once and isn't recorded twice
+      if (current?.value && current.kind === "state") {
         // recorded as of now, without the restored flag a boot snapshot may still carry
         const flags = { ...current.flags }
         delete flags.restored
