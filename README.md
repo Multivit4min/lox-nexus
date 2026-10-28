@@ -72,7 +72,7 @@ docs).
 | `packages/api` | REST/WebSocket contract between server and UI |
 | `apps/server` | Composition root, HTTP API, persistence, plugin installer |
 | `apps/web` | Vue 3 + Tailwind + shadcn-vue UI |
-| `plugins/*` | First-party plugins: homeassistant, calendar, fronius |
+| `plugins/*` | First-party plugins: homeassistant, calendar, fronius, influxdb, script, webhook |
 | `docs/` | Architecture, ADRs, roadmap, plugin authoring guide |
 
 ## Working with Claude Code
@@ -80,3 +80,14 @@ docs).
 `CLAUDE.md` holds the project conventions. Subagents live in `.claude/agents/` (architect,
 plugin-dev, reviewer, doc-writer, Explore). Ask for one by name, e.g. "use plugin-dev to port the
 calendar". To change an agent, edit its file in `.claude/agents/` or ask Claude to update it.
+
+## License
+
+Lox Nexus is free software under the **GNU General Public License v3.0 or later** (`LICENSE`):
+the server, the web UI and the packages they are built from (`apps/*`, `packages/core`,
+`packages/loxone`, `packages/api`).
+
+The parts other projects build on are under the **MIT License**, each with its own `LICENSE`
+file: the plugin SDK (`packages/plugin-sdk`), the ICI protocol library (`packages/ici`) and the
+first-party plugins (`plugins/*`). Plugins only depend on the SDK and talk to Nexus over messages,
+so a plugin may use any license, closed source included. See `docs/adr/0015-licensing.md`.

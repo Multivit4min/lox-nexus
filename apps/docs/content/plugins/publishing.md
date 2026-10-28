@@ -101,6 +101,14 @@ added, so a rollback keeps working. A required setting that is new or was option
 existing instances with an error until the user fills it in; give new settings a default where
 you can.
 
+## License
+
+The plugin SDK is under the MIT License, and your plugin only depends on the SDK and talks to
+Nexus over messages. So you choose your plugin's license freely, closed source included; Nexus
+itself is GPL-3.0-or-later, which doesn't extend to plugins. The first-party plugins are MIT as
+well, so you may copy from them. Put a `LICENSE` file and the `license` field in `package.json`,
+so users can see what they install.
+
 ## Trust
 
 Plugins are **trusted code**. Each runs in a worker thread with an empty environment and a memory

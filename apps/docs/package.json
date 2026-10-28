@@ -1,6 +1,7 @@
 {
   "name": "@lox-nexus/docs",
   "version": "0.0.0",
+  "license": "GPL-3.0-or-later",
   "private": true,
   "description": "Documentation site for Lox Nexus: a static build with relative links, served at /docs/ or hosted anywhere",
   "type": "module",
