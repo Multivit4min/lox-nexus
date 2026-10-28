@@ -13,7 +13,8 @@ const bare = computed(() => route.meta.public === true)
   <TooltipProvider>
     <RouterView v-if="bare" />
     <AppShell v-else>
-      <RouterView />
+      <!-- keyed by path: views load their data once, so /plugins/a → /plugins/b (back, forward, a link) needs a fresh view -->
+      <RouterView :key="route.path" />
     </AppShell>
   </TooltipProvider>
 </template>

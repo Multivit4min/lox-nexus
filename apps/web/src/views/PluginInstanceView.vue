@@ -125,7 +125,7 @@ onUnmounted(() => {
         <h1 class="text-xl font-semibold">{{ instance.label }}</h1>
         <PluginStateBadge :state="instance.state" />
         <span v-if="instance.restarts" class="text-sm text-muted-foreground" title="automatic restarts after crashes">restarted {{ instance.restarts }}×</span>
-        <div class="ml-auto flex gap-2">
+        <div class="ml-auto flex flex-wrap gap-2">
           <Button v-if="stopped" variant="outline" size="sm" :disabled="busy" @click="lifecycle('start')"><Play class="size-4" /> Start</Button>
           <template v-else-if="instance.state !== 'unavailable'">
             <Button variant="outline" size="sm" :disabled="busy" @click="lifecycle('stop', 'start')"><RotateCw class="size-4" /> Restart</Button>

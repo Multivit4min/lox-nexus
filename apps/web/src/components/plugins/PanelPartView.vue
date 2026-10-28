@@ -13,6 +13,7 @@ defineProps<{ part: PanelPart }>()
       <dd class="break-words">{{ item.value }}</dd>
     </template>
   </dl>
+  <p v-else-if="part.type === 'table' && part.rows.length === 0" class="text-sm text-muted-foreground">Nothing to show yet.</p>
   <div v-else-if="part.type === 'table'" class="max-h-96 overflow-auto">
     <Table>
       <TableHeader><TableRow><TableHead v-for="column in part.columns" :key="column">{{ column }}</TableHead></TableRow></TableHeader>

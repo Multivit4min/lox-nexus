@@ -115,7 +115,7 @@ async function adopt(packets: DiscoveredPacketDto[], progress: (done: number) =>
         <h1 class="text-xl font-semibold">{{ ms.label }}</h1>
         <HealthBadge :health="ms.health" />
         <LoadIndicator :miniserver-id="ms.id" :percent="ms.load" />
-        <div class="ml-auto flex gap-2">
+        <div class="ml-auto flex flex-wrap gap-2">
           <Button v-if="ms.running" variant="outline" size="sm" @click="run('stop')"><Square class="size-4" /> Stop</Button>
           <Button v-else variant="outline" size="sm" @click="run('start')"><Play class="size-4" /> Start</Button>
           <Button variant="outline" size="sm" @click="importing = true"><FileDown class="size-4" /> Import from Loxone Config</Button>

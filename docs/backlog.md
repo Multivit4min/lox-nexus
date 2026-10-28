@@ -85,7 +85,6 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
   (`InstalledPluginDto` only has a count).
 - **Left out on purpose** (see `architecture.md`, "Left out on purpose"): ZIPs from URLs, private
   repositories with tokens, update checks, commit SHAs as refs, signatures.
-- **Top bar at phone width:** the navigation overflows the screen; it needs a menu or wrapping.
 
 ## First-party plugins
 

@@ -25,25 +25,26 @@ async function logout() {
 
 <template>
   <div class="flex h-screen flex-col bg-background text-foreground">
-    <header class="flex items-center gap-6 border-b px-4 py-2">
-      <span class="font-semibold">Lox Nexus</span>
+    <!-- below md the links show icons only (named for screen readers and tooltips), so a phone needs no sideways scrolling -->
+    <header class="flex items-center gap-2 border-b px-2 py-2 sm:gap-6 sm:px-4">
+      <span class="font-semibold whitespace-nowrap">Lox Nexus</span>
       <nav class="flex gap-1">
         <RouterLink
-          v-for="link in links" :key="link.to" :to="link.to"
-          class="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+          v-for="link in links" :key="link.to" :to="link.to" :title="link.label"
+          class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground md:px-3"
           :class="inSection(link.to) && 'bg-accent text-accent-foreground'" :aria-current="inSection(link.to) ? 'page' : undefined"
         >
           <component :is="link.icon" class="size-4" />
-          {{ link.label }}
+          <span class="sr-only md:not-sr-only">{{ link.label }}</span>
         </RouterLink>
       </nav>
-      <div class="ml-auto flex items-center gap-2 text-sm text-muted-foreground">
+      <div class="ml-auto flex items-center gap-1 text-sm text-muted-foreground sm:gap-2">
         <!-- relative to the page (hash routes), so it also works behind a proxy prefix -->
-        <a href="docs/" target="_blank" rel="noopener" class="flex items-center gap-2 rounded-md px-3 py-1.5 hover:bg-accent hover:text-accent-foreground">
+        <a href="docs/" target="_blank" rel="noopener" title="Docs" class="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent hover:text-accent-foreground md:px-3">
           <BookOpen class="size-4" />
-          Docs
+          <span class="sr-only md:not-sr-only">Docs</span>
         </a>
-        {{ session.state.user?.username }}
+        <span class="hidden sm:inline">{{ session.state.user?.username }}</span>
         <Button variant="ghost" size="icon" title="Log out" @click="logout">
           <LogOut class="size-4" />
         </Button>

@@ -29,7 +29,7 @@ export class WebhookPanel {
           panel: {
             type: "keyValue",
             items: [
-              { label: "Wrong or missing token (401)", value: `${WebhookPanel.counted(tokens)} · wrong ${wrongToken.count}, missing ${missingToken.count}` },
+              { label: "Wrong or missing token (401)", value: tokens.count === 0 ? "none" : `${WebhookPanel.counted(tokens)} · wrong ${wrongToken.count}, missing ${missingToken.count}` },
               { label: `Unknown hook (404, under ${this.base}/…)`, value: WebhookPanel.counted(unknownHook) }
             ]
           }

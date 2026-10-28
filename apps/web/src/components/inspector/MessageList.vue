@@ -52,13 +52,14 @@ const flagStyles: Record<string, string> = {
         <template v-if="messages[row.index]">
           <span class="w-24 shrink-0 text-muted-foreground">{{ MessageText.time(messages[row.index]!.ts) }}</span>
           <span class="w-4 shrink-0 text-center">{{ MessageText.symbol(messages[row.index]!) }}</span>
-          <span class="w-80 shrink-0 truncate" :title="messages[row.index]!.topic">{{ messages[row.index]!.topic }}</span>
+          <!-- narrower on phones so the value stays visible; the full topic is in the tooltip and the details -->
+          <span class="w-36 shrink-0 truncate sm:w-80" :title="messages[row.index]!.topic">{{ messages[row.index]!.topic }}</span>
           <span class="min-w-0 flex-1 truncate">
             <ValueText v-if="messages[row.index]!.value" :value="messages[row.index]!.value" />
             <span v-else class="text-muted-foreground">{{ MessageText.detail(messages[row.index]!) }}</span>
           </span>
           <span v-for="flag in MessageText.flags(messages[row.index]!)" :key="flag" class="rounded px-1.5" :class="flagStyles[flag]">{{ flag }}</span>
-          <span class="w-48 shrink-0 truncate text-right text-muted-foreground">{{ MessageText.source(messages[row.index]!) }}</span>
+          <span class="hidden w-48 shrink-0 truncate text-right text-muted-foreground md:block">{{ MessageText.source(messages[row.index]!) }}</span>
         </template>
       </div>
     </div>
