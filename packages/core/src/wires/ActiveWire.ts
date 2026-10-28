@@ -41,20 +41,20 @@ export class ActiveWire extends Disposable {
 
   /**
    * Delivers the value the source shows right now, as if it had just been published. The same
-   * rules apply: nothing while disabled, and a restored value only with syncOnStart.
+   * rules apply: nothing while disabled, and a restored value only with syncOnStart or `restored`.
    */
-  sync() {
+  sync({ restored = false } = {}) {
     const current = this.bus.current(this.from.topic)
-    if (current) this.handle(current)
+    if (current) this.handle(current, restored)
   }
 
   // Only state and command carry a value to forward. Shadowed publishes never reach subscribers,
   // so a forced source does not leak its real value through the wire. Restored (snapshot) values
   // are skipped unless syncOnStart, so a restart doesn't re-trigger actuators with stale data.
-  private handle(message: BusMessage) {
+  private handle(message: BusMessage, restored = false) {
     if (!this.config.enabled || !message.value) return
     if (message.kind !== "state" && message.kind !== "command") return
-    if (message.flags?.restored && !this.config.syncOnStart) return
+    if (message.flags?.restored && !this.config.syncOnStart && !restored) return
     if (!this.guard.allow(this.config.id, message)) {
       return this.bus.event(WIRE_LOOP_TOPIC, `wire "${this.config.label}" dropped a value: loop detected`, { source: this.source, cause: message })
     }

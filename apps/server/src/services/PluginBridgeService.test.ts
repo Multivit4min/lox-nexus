@@ -24,8 +24,7 @@ function setup(wireError: Error, removeFails = false) {
     {
       create: (): WireDto => {
         throw wireError
-      },
-      sync: () => undefined
+      }
     },
     { warn: (_: unknown, message: string) => void logged.push(["warn", message]), error: (_: unknown, message: string) => void logged.push(["error", message]) } as never
   )

@@ -70,6 +70,24 @@ describe("what the wire editor needs", { timeout: 10_000 }, () => {
     assert.equal((await admin.delete("/api/wires/odd")).statusCode, 204)
   })
 
+  test("a new wire sends the source's current value to a Miniserver output at once, also a 0", async () => {
+    const [source, target] = [await signal("loxone/haus/in/in"), await signal("loxone/haus/out/out")]
+    app.app.bus.publish(source.topic, Value.number(0), { source: { kind: "user", id: "test" } })
+    const created = await admin.post("/api/wires", { label: "now", sourceId: source.id, targetId: target.id })
+    assert.equal(created.statusCode, 201, created.body)
+    assert.deepEqual(app.app.bus.current(target.topic)?.value, Value.boolean(false), "Out is digital")
+    assert.equal((await admin.delete(`/api/wires/${created.json<WireDto>().id}`)).statusCode, 204)
+  })
+
+  test("also a value restored at startup, which a sensor repeating it doesn't replace", async () => {
+    const [source, target] = [await signal("loxone/haus/in/in"), await signal("loxone/haus/out/out")]
+    app.app.bus.restoreSnapshot([{ topic: source.topic, value: Value.number(1), ts: 0 }])
+    app.app.bus.publish(source.topic, Value.number(1), { source: { kind: "user", id: "test" } })
+    const created = await admin.post("/api/wires", { label: "restored", sourceId: source.id, targetId: target.id })
+    assert.deepEqual(app.app.bus.current(target.topic)?.value, Value.boolean(true))
+    assert.equal((await admin.delete(`/api/wires/${created.json<WireDto>().id}`)).statusCode, 204)
+  })
+
   test("a wire stopped by a signal change starts again when the change is undone", async () => {
     const [source, target] = [await signal("loxone/haus/in/in"), await signal("loxone/haus/out/out")]
     assert.equal((await admin.post("/api/wires", { label: "w", sourceId: source.id, targetId: target.id })).statusCode, 201)

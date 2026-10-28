@@ -25,7 +25,7 @@ export class PluginBridgeService {
   constructor(
     private readonly pluginSignals: Pick<PluginSignalService, "list" | "add" | "remove">,
     private readonly loxoneSignals: Pick<LoxoneSignalService, "list" | "add" | "remove" | "forgetDiscovered">,
-    private readonly wires: Pick<WireService, "create" | "sync">,
+    private readonly wires: Pick<WireService, "create">,
     private readonly log: Pick<Logger, "warn" | "error">
   ) {}
 
@@ -55,10 +55,9 @@ export class PluginBridgeService {
       const wire = this.wires.create({
         label: `${from.label} → ${to.label}`.slice(0, WIRE_LABEL_MAX), sourceId: from.id, targetId: to.id, transforms: [], enabled: true, syncOnStart: false
       })
-      // a sensor's value goes to the Miniserver now, not at its next change; the other way round
-      // would act on the device with whatever the Miniserver last sent
-      if (sensor) this.wires.sync(wire.id)
-      else this.loxoneSignals.forgetDiscovered(miniserverId, loxone.packetId, by)
+      // create() sends a sensor's value to the Miniserver at once; the other way round it would act
+      // on the device with whatever the Miniserver last sent, so it doesn't
+      if (!sensor) this.loxoneSignals.forgetDiscovered(miniserverId, loxone.packetId, by)
       return { ok: true, signal, loxone, wire }
     } catch (error) {
       if (!(error instanceof HttpError)) this.log.error({ err: error, instanceId, miniserverId }, "connecting a plugin signal to a Miniserver failed")

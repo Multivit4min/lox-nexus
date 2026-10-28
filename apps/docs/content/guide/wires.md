@@ -17,8 +17,8 @@ other end. **Connect to a Miniserver** creates all three in one step: tick signa
 signal list, or entries in its catalog (which are added as signals), and press the button above the
 list.
 
-- A **sensor** gets a Miniserver **output**: its values are sent to the Miniserver. A value the
-  sensor has sent since Nexus started goes to the Miniserver right away, not only at its next change.
+- A **sensor** gets a Miniserver **output**: its values are sent to the Miniserver. Its current
+  value goes to the Miniserver right away, not only at its next change.
 - An **actuator** gets a Miniserver **input**: the Miniserver controls it. Nothing is sent to the
   device until the Miniserver sends a value.
 
@@ -39,6 +39,9 @@ removed (the server log says why).
   Miniserver **outputs** and plugin **actuators**.
 - A target can be fed by **one** wire.
 - Values are converted to the target's type at the end, see [Values](../plugins/values.md#conversions).
+- A new wire to a Miniserver **output** sends the source's current value right away, so the
+  Miniserver doesn't wait for the next change (PV power stays at 0 all night). A new wire to a plugin
+  **actuator** doesn't, because that would act on the device; it carries the next value.
 - After a restart, values restored from the last snapshot are **not** forwarded, so a reboot never
   actuates a device with stale data. Enable *sync on start* on the wire if you want the opposite.
 - A value that passes the same wire twice within one chain of causes is dropped and a warning

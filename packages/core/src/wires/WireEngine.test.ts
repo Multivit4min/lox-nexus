@@ -103,6 +103,8 @@ describe("WireEngine", () => {
     // a restored value stays put without syncOnStart, as it would at boot
     assert.deepEqual(seen.map(m => [m.topic, m.value]), [["x/a", Value.number(3)], ["x/c", Value.number(1)], ["x/b", Value.number(3)]])
     assert.equal(seen.at(-1)?.causedBy, seen[0]!.id)
+    engine.sync("restored", { restored: true })
+    assert.equal(seen.at(-1)?.topic, "x/d", "unless asked for")
   })
   test("sync() sends nothing over a disabled wire, and a forced source's forced value", () => {
     const { bus, engine, seen } = setup(signal("a", "x/a", "source"), signal("b", "x/b", "target"), signal("c", "x/c", "target"))

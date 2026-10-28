@@ -65,7 +65,8 @@ export class WireService {
   }
 
   /**
-   * Starts the wire, then stores it; the start is undone if storing fails.
+   * Starts the wire, then stores it; the start is undone if storing fails. A Miniserver target gets
+   * the source's current value at once.
    * @throws ZodError 400, HttpError 409 for unknown signals or a target that already has a wire
    */
   create(input: unknown): WireDto {
@@ -76,6 +77,10 @@ export class WireService {
       this.engine.remove(config.id)
       throw error
     }
+    // otherwise it would wait for the next change, which for PV power at night is hours away. Also
+    // a restored value: an output gets those anyway when the connection opens. A plugin actuator
+    // doesn't get it, because that would act on the device
+    if (this.signals.get(config.targetId)?.delivery === "state") this.engine.sync(config.id, { restored: true })
     return WireService.toDto(config, true)
   }
 
