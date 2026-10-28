@@ -23,6 +23,17 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
 - **TunableWhite bytes 6–7.** The Miniserver always sends `0x0800`; we send `0x0000`. Send both to a
   real tunable white actuator and compare (needs one wired to the test Miniserver).
 
+## Loxone connections
+
+- **WebSocket API plugin (`loxone-controls`).** Evaluated and parked by the owner (2026-10-28):
+  `docs/evaluations/loxone-connections.md`, ADR 0016 (Proposed). A plugin on the Miniserver's
+  WebSocket API would reach every visualised control without wiring in Loxone Config, with a
+  room/category catalog, outside the 35 msg/s intercommunication limit. Steps L1 (read states),
+  L2 (commands), L3 (colours, moods). Needs: the owner's decision on the ADR, a dedicated
+  non-admin Miniserver user, and the "verify" items at the end of the evaluation.
+- **Guide: Miniserver → Nexus over HTTP.** A Virtual Output calling the webhook plugin works today;
+  it only needs a guide page.
+
 ## Server
 
 - **`Miniserver.ts` is near the size limit** (about 170 of 200 counted lines). Split signal
