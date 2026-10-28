@@ -87,6 +87,12 @@ Key = `SHA256(password)[0..15]` ✅. Packets come from source port 65534, like 0
 | 5–11 | 7 | Random nonce | ✅ |
 | 12–15 | 4 | **Sequence: a 32-bit packet counter (LE), XOR-ed with a constant mask.** Unmasked it rose by exactly 1 per packet over 80 packets. The document reads this as "1-byte counter + constant 3-byte device suffix", which is how it looks over a short time (the higher bytes change only on carries; the document's own examples have different "suffixes") | ✅ |
 
+**Known inaccuracy.** The magic and kind values above (`42 32 5D 2D`, `0xC0`) are what one
+password's IVs contain, not general constants: the IV fields are masked with a value derived from
+the password, so another password gives other bytes. This was found at the end of the 2026-10-23
+session and not worked out further. Receiving is unaffected, because Nexus doesn't rely on these
+bytes:
+
 Because magic and kind differ per sender, Nexus checks the password by the body instead (a wrong
 key never yields a valid NUL-terminated packet id), and takes the data type from a documented kind
 or else from the payload shape (1 byte digital, NUL-terminated text, 8 bytes analog). Smart
@@ -391,8 +397,6 @@ hex dumps and diffs each packet against the previous one with the same packet ID
 5. **Header bytes 1–7, 16, 25, 34.** Do they ever change, for example with encryption, a different
    firmware or a Miniserver Gen 2?
 6. **0x8D.** Offset 4–7 is the serial number (see above). Still open: what byte 28 means.
-7. **0x9F.** Layout confirmed for analog (see above). Open: the kind bytes of digital, text and
-   the smart actuator types on our Miniserver (wire such outputs to `encrypte`); whether magic and
-   kind are masked like the sequence; what magic/kind a Miniserver accepts from *us* (sending);
-   handshakes (none seen in 40 s of receiving: a sending Miniserver apparently needs nothing
-   from its receiver).
+7. **0x9F.** Receiving is confirmed for analog. The IV analysis (the password-derived mask over
+   magic and kind) and sending encrypted packets are parked: the work was stopped on purpose on
+   2026-10-23, and whether and how to continue is the owner's decision.

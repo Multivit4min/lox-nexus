@@ -14,12 +14,12 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
 - **0x8D status packet.** Bytes 4–7 are the serial number (confirmed). Find out what byte 28
   (`0x64`) means: it has been the same in every capture since 2026-10-23, across several program
   changes. A firmware update or another Miniserver would show whether it is a version or model.
-- **0x9F encryption.** Receiving works end to end and is confirmed for analog (`PROTOCOL.md`).
-  Our Miniserver's IV magic and kind differ from the third-party document, and bytes 12–15 are a
-  masked 32-bit counter. Next:
-  1. Wire a digital, a text and an RGBW output to `encrypte` and capture, to learn their kinds.
-  2. Sending: find out which magic/kind the Miniserver accepts from us (probe, needs the user's OK),
-     then handshake answers, heartbeat, priming and source port 61263 per the document.
+- **0x9F encryption: parked by decision.** Receiving works end to end and is confirmed for analog
+  (`PROTOCOL.md`). The IV fields are masked with a password-derived value, so the magic and kind
+  bytes in `IvBlock` and `PROTOCOL.md` are one password's values, not constants (decrypting is
+  unaffected). Modelling that mask and sending encrypted packets were stopped on purpose on
+  2026-10-23; the owner decides whether and how to continue. Claude doesn't pick this up on its
+  own.
 - **TunableWhite bytes 6–7.** The Miniserver always sends `0x0800`; we send `0x0000`. Send both to a
   real tunable white actuator and compare (needs one wired to the test Miniserver).
 

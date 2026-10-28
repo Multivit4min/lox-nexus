@@ -22,8 +22,10 @@ export const IvKind = {
  * - bytes 12–15 are one 32-bit packet counter XOR-ed with a constant mask (it increased by exactly
  *   1 per packet over 80 packets once unmasked). The document's "counter + constant 3-byte suffix"
  *   is the same thing seen over a short time.
- * - magic and kind differ per sender (document: 4C01E2C5 / analog 0x2A; ours: 42325D2D / 0xC0),
- *   probably masked the same way. They can't be used to check the password or the data type.
+ * - magic and kind differ per sender (document: 4C01E2C5 / analog 0x2A; ours: 42325D2D / 0xC0).
+ *   They are masked with a value derived from the password, so "ours" is one password's values,
+ *   not a constant. They can't be used to check the password or the data type. Modelling the mask
+ *   is parked on purpose, see docs/backlog.md.
  * @experimental
  */
 export class IvBlock {
