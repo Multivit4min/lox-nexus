@@ -20,7 +20,7 @@ export class BusProcessor {
     private readonly chain: CausalChain,
     private readonly clock: Clock,
     private readonly retained: RetainedState,
-    private readonly forces: ForceRegistry,
+    private readonly forces: Pick<ForceRegistry, "delete" | "get" | "set">,
     private readonly subscribers: Subscribers,
     private readonly topicKinds?: TopicKinds
   ) {}

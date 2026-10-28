@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import { beforeEach, describe, test } from "node:test"
 import type { MiniserverDto, MiniserverInput } from "@lox-nexus/api"
+import { DomainError } from "@lox-nexus/core"
 import { HttpError } from "../http/HttpError.ts"
 import { LoggerFactory } from "../logging/LoggerFactory.ts"
 import type { ConfigDocument } from "./ConfigCheck.ts"
@@ -68,7 +69,7 @@ describe("ConfigTransfer failure handling", () => {
   })
 
   test("a failed step restores the backup, even if clearing for the restore fails", async () => {
-    fake.failAdd = new Error("packet id taken")
+    fake.failAdd = new DomainError("packet-id-taken", "packet id taken")
     fake.failRemove.add("new")
     await assert.rejects(transfer.import(doc(miniserver("new", [signal])), "t"), (error: HttpError) =>
       error.status === 409 && error.message === "miniservers[0].signals[0]: packet id taken")

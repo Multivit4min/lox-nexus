@@ -575,8 +575,10 @@ above:
     - `POST inject`
 - **Error mapping.**
   - zod → 400
-  - domain errors (taken slug, a target that already has a wire) → 409. These are plain `Error`s
-    from core and loxone; subclasses and errors with a `code` stay 500.
+  - domain errors (taken slug, a target that already has a wire) → 409 with a machine-readable
+    `code` (`{ error, code }`, e.g. `slug-taken`, `target-fed`). Core and loxone throw them as
+    `DomainError` (in core) and the services translate them (`HttpError.fromDomain`); any other
+    error stays 500.
   - a busy password hasher → 503
   - SQLite constraint → 409
   - invalid topic, pattern or past expiry (`RangeError`) → 400

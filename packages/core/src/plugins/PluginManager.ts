@@ -1,6 +1,7 @@
 import { Disposable } from "@lox-nexus/plugin-sdk"
 import { PluginSupervisor, type SupervisorDeps } from "./PluginSupervisor.ts"
 import type { PluginInstanceConfig, PluginPackage } from "./PluginTypes.ts"
+import { DomainError } from "../DomainError.ts"
 
 /**
  * Owns the supervisors of all plugin instances. One failing plugin never stops the others or the
@@ -23,7 +24,7 @@ export class PluginManager extends Disposable {
    * @throws Error for a duplicate id or a slug another instance uses
    */
   add(instance: PluginInstanceConfig, pkg: PluginPackage) {
-    if (this.supervisors.has(instance.id)) throw new Error(`plugin instance "${instance.id}" already exists`)
+    if (this.supervisors.has(instance.id)) throw new DomainError("instance-exists", `plugin instance "${instance.id}" already exists`)
     this.assertSlugFree(instance)
     const supervisor = new PluginSupervisor(instance, pkg, this.deps)
     this.supervisors.set(instance.id, supervisor)
@@ -36,7 +37,7 @@ export class PluginManager extends Disposable {
    */
   async update(instance: PluginInstanceConfig, pkg?: PluginPackage) {
     const supervisor = this.supervisors.get(instance.id)
-    if (!supervisor) throw new Error(`unknown plugin instance "${instance.id}"`)
+    if (!supervisor) throw new DomainError("unknown-instance", `unknown plugin instance "${instance.id}"`)
     this.assertSlugFree(instance)
     await supervisor.update(instance, pkg)
     return supervisor
@@ -76,6 +77,6 @@ export class PluginManager extends Disposable {
 
   private assertSlugFree(instance: PluginInstanceConfig) {
     const taken = this.list().some(other => other.config.id !== instance.id && other.config.slug === instance.slug)
-    if (taken) throw new Error(`slug "${instance.slug}" is already used by another plugin instance`)
+    if (taken) throw new DomainError("slug-taken", `slug "${instance.slug}" is already used by another plugin instance`)
   }
 }

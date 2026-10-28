@@ -17,7 +17,7 @@ import type { UnloadableRows } from "./UnloadableRows.ts"
 export class MiniserverService {
   constructor(
     private readonly repo: MiniserverRepository,
-    private readonly manager: MiniserverManager,
+    private readonly manager: Pick<MiniserverManager, "add" | "get" | "list" | "remove" | "update">,
     private readonly signals: LoxoneSignalService,
     private readonly cleanup: TopicCleanup,
     private readonly unloadable: UnloadableRows,

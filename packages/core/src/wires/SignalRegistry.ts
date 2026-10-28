@@ -2,6 +2,7 @@ import { EventEmitter } from "node:events"
 import type { TopicKinds } from "../bus/TopicKinds.ts"
 import { Topic } from "../bus/Topic.ts"
 import type { Signal } from "./Signal.ts"
+import { DomainError } from "../DomainError.ts"
 
 /** Events of SignalRegistry. */
 export interface SignalRegistryEvents {
@@ -24,9 +25,9 @@ export class SignalRegistry extends EventEmitter<SignalRegistryEvents> implement
    */
   register(signal: Signal) {
     Topic.assertValid(signal.topic)
-    if (this.byId.has(signal.id)) throw new Error(`signal "${signal.id}" is already registered`)
+    if (this.byId.has(signal.id)) throw new DomainError("signal-exists", `signal "${signal.id}" is already registered`)
     const clash = this.byTopic.get(SignalRegistry.key(signal.direction, signal.topic))
-    if (clash) throw new Error(`topic "${signal.topic}" already has a ${signal.direction} signal ("${clash.id}")`)
+    if (clash) throw new DomainError("topic-taken", `topic "${signal.topic}" already has a ${signal.direction} signal ("${clash.id}")`)
     const copy = { ...signal }
     this.byId.set(copy.id, copy)
     this.byTopic.set(SignalRegistry.key(copy.direction, copy.topic), copy)
@@ -54,7 +55,7 @@ export class SignalRegistry extends EventEmitter<SignalRegistryEvents> implement
     const previous = this.require(signal.id)
     const key = SignalRegistry.key(signal.direction, signal.topic)
     const clash = this.byTopic.get(key)
-    if (clash && clash.id !== signal.id) throw new Error(`topic "${signal.topic}" already has a ${signal.direction} signal ("${clash.id}")`)
+    if (clash && clash.id !== signal.id) throw new DomainError("topic-taken", `topic "${signal.topic}" already has a ${signal.direction} signal ("${clash.id}")`)
     const copy = { ...signal }
     this.byTopic.delete(SignalRegistry.key(previous.direction, previous.topic))
     this.byId.set(copy.id, copy)
@@ -70,7 +71,7 @@ export class SignalRegistry extends EventEmitter<SignalRegistryEvents> implement
   /** @throws Error for an unknown id */
   require(id: string): Signal {
     const signal = this.byId.get(id)
-    if (!signal) throw new Error(`unknown signal "${id}"`)
+    if (!signal) throw new DomainError("unknown-signal", `unknown signal "${id}"`)
     return signal
   }
 

@@ -1,3 +1,4 @@
+import { DomainError } from "@lox-nexus/core"
 import { Disposable } from "@lox-nexus/plugin-sdk"
 import { Miniserver, type MiniserverDeps } from "./Miniserver.ts"
 import { MiniserverConfigSchema, type MiniserverConfig, type MiniserverConfigInput } from "./MiniserverConfig.ts"
@@ -32,7 +33,7 @@ export class MiniserverManager extends Disposable {
    */
   add(input: MiniserverConfigInput): Miniserver {
     const config = MiniserverConfigSchema.parse(input)
-    if (this.miniservers.has(config.id)) throw new Error(`miniserver "${config.id}" already exists`)
+    if (this.miniservers.has(config.id)) throw new DomainError("miniserver-exists", `miniserver "${config.id}" already exists`)
     this.assertFree(config)
     const miniserver = new Miniserver(config, this.deps)
     this.miniservers.set(config.id, miniserver)
@@ -46,7 +47,7 @@ export class MiniserverManager extends Disposable {
    */
   async update(id: string, input: MiniserverConfigInput) {
     const miniserver = this.miniservers.get(id)
-    if (!miniserver) throw new Error(`unknown miniserver "${id}"`)
+    if (!miniserver) throw new DomainError("unknown-miniserver", `unknown miniserver "${id}"`)
     const config = MiniserverConfigSchema.parse({ ...input, id })
     this.assertFree(config)
     await miniserver.update(config)
@@ -82,13 +83,13 @@ export class MiniserverManager extends Disposable {
 
   private assertFree(config: MiniserverConfig) {
     const others = this.list().map(m => m.config).filter(other => other.id !== config.id)
-    if (others.some(other => other.slug === config.slug)) throw new Error(`slug "${config.slug}" is already used by another miniserver`)
+    if (others.some(other => other.slug === config.slug)) throw new DomainError("slug-taken", `slug "${config.slug}" is already used by another miniserver`)
     // on a shared socket both would receive the same packets; port 0 is never shared
     const twin = config.listenPort === 0 ? undefined : others.find(other =>
       other.listenPort === config.listenPort && other.listenAddress === config.listenAddress &&
       other.ownId === config.ownId && other.remoteId === config.remoteId)
     if (twin) {
-      throw new Error(`miniserver "${twin.label || twin.slug}" already listens on port ${config.listenPort} with the same ids; ` +
+      throw new DomainError("port-taken", `miniserver "${twin.label || twin.slug}" already listens on port ${config.listenPort} with the same ids; ` +
         "Miniservers sharing a port need a different Miniserver ID or our ID")
     }
   }

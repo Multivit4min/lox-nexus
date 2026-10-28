@@ -4,6 +4,7 @@ import { LoopGuard } from "./LoopGuard.ts"
 import type { Signal } from "./Signal.ts"
 import type { SignalRegistry } from "./SignalRegistry.ts"
 import { WireSchema, type WireConfig, type WireInput } from "./WireSchema.ts"
+import { DomainError } from "../DomainError.ts"
 
 /** Topic of events about wires that failed to dispose or were dropped because a signal changed. */
 export const WIRE_ERROR_TOPIC = "system/wire/error"
@@ -21,7 +22,7 @@ export class WireEngine extends Disposable {
   private readonly dropped = new Map<string, WireConfig>()
 
   /** Registers its own cleanup: disposing the engine removes all wires, and unregistering a signal removes its wires. */
-  constructor(private readonly bus: WireBus, private readonly signals: SignalRegistry) {
+  constructor(private readonly bus: WireBus, private readonly signals: Pick<SignalRegistry, "get" | "on" | "off">) {
     super()
     this.listen(signals, "unregistered", (signal: Signal) => this.removeWiresOf(signal.id))
     this.listen(signals, "updated", (signal: Signal) => this.rebuildWiresOf(signal.id))
@@ -36,7 +37,7 @@ export class WireEngine extends Disposable {
    */
   add(input: WireInput): WireConfig {
     const config = WireSchema.parse(input)
-    if (this.wires.has(config.id)) throw new Error(`wire "${config.id}" already exists`)
+    if (this.wires.has(config.id)) throw new DomainError("wire-exists", `wire "${config.id}" already exists`)
     const { from, to } = this.resolve(config)
     this.wires.set(config.id, new ActiveWire(config, from, to, this.bus, this.guard))
     this.dropped.delete(config.id)
@@ -92,12 +93,12 @@ export class WireEngine extends Disposable {
   private resolve(config: WireConfig) {
     const from = this.signals.get(config.sourceId)
     const to = this.signals.get(config.targetId)
-    if (!from) throw new Error(`source signal "${config.sourceId}" does not exist (any more)`)
-    if (!to) throw new Error(`target signal "${config.targetId}" does not exist (any more)`)
-    if (from.direction !== "source") throw new Error(`"${from.label || from.id}" is not a source`)
-    if (to.direction !== "target") throw new Error(`"${to.label || to.id}" is not a target`)
+    if (!from) throw new DomainError("unknown-signal", `source signal "${config.sourceId}" does not exist (any more)`)
+    if (!to) throw new DomainError("unknown-signal", `target signal "${config.targetId}" does not exist (any more)`)
+    if (from.direction !== "source") throw new DomainError("not-a-source", `"${from.label || from.id}" is not a source`)
+    if (to.direction !== "target") throw new DomainError("not-a-target", `"${to.label || to.id}" is not a target`)
     const feeding = [...this.wires.values()].find(wire => wire.config.targetId === to.id && wire.config.id !== config.id)
-    if (feeding) throw new Error(`"${to.label || to.id}" is already fed by wire "${WireEngine.nameOf(feeding.config)}"`)
+    if (feeding) throw new DomainError("target-fed", `"${to.label || to.id}" is already fed by wire "${WireEngine.nameOf(feeding.config)}"`)
     return { from, to }
   }
 

@@ -27,7 +27,7 @@ export class WireService {
 
   constructor(
     private readonly repo: WireRepository,
-    private readonly engine: WireEngine,
+    private readonly engine: Pick<WireEngine, "add" | "list" | "problem" | "remove" | "sync">,
     private readonly signals: Pick<SignalRegistry, "get">,
     private readonly log: Logger
   ) {}
@@ -146,7 +146,7 @@ export class WireService {
   }
 
   // unknown signals or a target that already has a wire are the user's mistake: 409, not 500
-  private static start(engine: WireEngine, input: WireInput): WireConfig {
+  private static start(engine: Pick<WireEngine, "add">, input: WireInput): WireConfig {
     try {
       return engine.add(input)
     } catch (error) {

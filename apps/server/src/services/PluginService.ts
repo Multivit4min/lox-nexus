@@ -22,8 +22,8 @@ export class PluginService {
   constructor(
     private readonly repo: PluginInstanceRepository,
     private readonly signalRepo: PluginSignalRepository,
-    private readonly manager: PluginManager,
-    private readonly available: PluginCatalog,
+    private readonly manager: Pick<PluginManager, "add" | "get" | "list" | "remove" | "replacePackage" | "update">,
+    private readonly available: Pick<PluginCatalog, "get" | "list">,
     private readonly cleanup: TopicCleanup,
     private readonly log: Logger,
     private readonly logs: Pick<PluginLogs, "forget">,

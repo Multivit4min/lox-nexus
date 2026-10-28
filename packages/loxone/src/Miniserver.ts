@@ -1,4 +1,4 @@
-import { SystemClock, type Clock, type MessageSource, type Signal, type SignalRegistry } from "@lox-nexus/core"
+import { DomainError, SystemClock, type Clock, type MessageSource, type Signal, type SignalRegistry } from "@lox-nexus/core"
 import { Disposable } from "@lox-nexus/plugin-sdk"
 import { Value } from "@lox-nexus/plugin-sdk/values"
 import { DiscoveryList } from "./DiscoveryList.ts"
@@ -152,7 +152,7 @@ export class Miniserver extends Disposable {
   updateSignal(input: LoxoneSignalConfigInput) {
     const config = LoxoneSignalConfigSchema.parse(input)
     const previous = this.entries.remove(config.id)
-    if (!previous) throw new Error(`unknown signal "${config.id}"`)
+    if (!previous) throw new DomainError("unknown-signal", `unknown signal "${config.id}"`)
     let entry: LoxoneSignalEntry
     try {
       entry = this.entries.add(config, this.currentTopics.forSignal(config))

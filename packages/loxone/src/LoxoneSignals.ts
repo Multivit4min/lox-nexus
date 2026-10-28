@@ -1,3 +1,4 @@
+import { DomainError } from "@lox-nexus/core"
 import type { LoxoneSignalConfig } from "./MiniserverConfig.ts"
 import type { SignalLookup } from "./SignalLookup.ts"
 
@@ -25,9 +26,9 @@ export class LoxoneSignals implements SignalLookup {
    * @throws Error for a duplicate id or a packet id that already has a signal in this direction
    */
   add(config: LoxoneSignalConfig, topic: string): LoxoneSignalEntry {
-    if (this.byId.has(config.id)) throw new Error(`signal "${config.id}" already exists`)
+    if (this.byId.has(config.id)) throw new DomainError("signal-exists", `signal "${config.id}" already exists`)
     const taken = config.direction === "in" ? this.inputs : this.outputsByPacket
-    if (taken.has(config.packetId)) throw new Error(`packet id "${config.packetId}" already has an ${config.direction} signal`)
+    if (taken.has(config.packetId)) throw new DomainError("packet-id-taken", `packet id "${config.packetId}" already has an ${config.direction} signal`)
     const entry = { config, topic }
     this.index(entry)
     return entry

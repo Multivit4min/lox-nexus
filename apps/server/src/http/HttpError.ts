@@ -1,7 +1,12 @@
+import { DomainError } from "@lox-nexus/core"
+
 /** An error with an HTTP status; the message is sent to the client, so it must not leak internals. */
 export class HttpError extends Error {
-  /** @param status the HTTP status code to answer with */
-  constructor(readonly status: number, message: string) {
+  /**
+   * @param status the HTTP status code to answer with
+   * @param code machine-readable, sent along with the message (a DomainError's code)
+   */
+  constructor(readonly status: number, message: string, readonly code?: string) {
     super(message)
   }
 
@@ -21,12 +26,11 @@ export class HttpError extends Error {
   }
 
   /**
-   * Turns a rule violation from core or loxone ("slug already used", "target already has a wire")
-   * into a 409. Those are plain Errors; subclasses (TypeError, ZodError) and errors with a code
-   * (SQLite, system errors) are bugs or infrastructure problems and stay 400/500.
+   * Turns a rule violation from core or loxone (a DomainError: "slug already used", "target already
+   * has a wire") into a 409 with its code. Anything else (TypeError, ZodError, SQLite and system
+   * errors) is a bug or an infrastructure problem and is returned as it is.
    */
   static fromDomain(error: unknown): unknown {
-    if (!(error instanceof Error) || error.constructor !== Error || "code" in error) return error
-    return HttpError.conflict(error.message)
+    return error instanceof DomainError ? new HttpError(409, error.message, error.code) : error
   }
 }

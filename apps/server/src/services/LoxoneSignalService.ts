@@ -12,7 +12,7 @@ import type { UnloadableRows } from "./UnloadableRows.ts"
 export class LoxoneSignalService {
   constructor(
     private readonly repo: LoxoneSignalRepository,
-    private readonly manager: MiniserverManager,
+    private readonly manager: Pick<MiniserverManager, "get">,
     private readonly cleanup: TopicCleanup,
     private readonly unloadable: UnloadableRows,
     private readonly log: Logger

@@ -8,6 +8,7 @@ import type { Signal } from "../wires/Signal.ts"
 import type { SignalRegistry } from "../wires/SignalRegistry.ts"
 import { PluginTopics } from "./PluginTopics.ts"
 import type { PluginInstanceConfig, PluginPackage, PluginSignalConfig, SignalValueType } from "./PluginTypes.ts"
+import { DomainError } from "../DomainError.ts"
 
 /** The slice of EventBus the plugin side needs. */
 export type PluginBus = Pick<EventBus, "publish" | "subscribe" | "result" | "event" | "replayForce">
@@ -55,7 +56,7 @@ export class PluginSignals extends Disposable {
    * @throws Error for a capability the plugin doesn't offer, a duplicate id or a taken topic
    */
   add(config: PluginSignalConfig) {
-    if (this.entries.has(config.id)) throw new Error(`signal "${config.id}" already exists`)
+    if (this.entries.has(config.id)) throw new DomainError("signal-exists", `signal "${config.id}" already exists`)
     const entry = this.entryFor(config)
     this.registry.register(this.signalOf(entry))
     this.entries.set(config.id, { ...entry, ...this.subscribe(entry) })
@@ -69,7 +70,7 @@ export class PluginSignals extends Disposable {
    */
   restore(config: PluginSignalConfig) {
     if (this.capability(config)) return this.add(config)
-    if (this.entries.has(config.id)) throw new Error(`signal "${config.id}" already exists`)
+    if (this.entries.has(config.id)) throw new DomainError("signal-exists", `signal "${config.id}" already exists`)
     const entry: PluginSignalEntry = { config, topic: this.topics.forSignal(config), valueType: "any", orphaned: true, error: this.orphanReason(config) }
     this.registry.register(this.signalOf(entry))
     this.entries.set(config.id, { ...entry, ...this.subscribe(entry) })
@@ -79,7 +80,7 @@ export class PluginSignals extends Disposable {
   /** Replaces a signal's config (same id); its wires stay. @throws like add() */
   update(config: PluginSignalConfig) {
     const previous = this.entries.get(config.id)
-    if (!previous) throw new Error(`unknown signal "${config.id}"`)
+    if (!previous) throw new DomainError("unknown-signal", `unknown signal "${config.id}"`)
     const entry = this.entryFor(config)
     this.registry.update(this.signalOf(entry))
     void previous.subscription?.dispose()
@@ -192,7 +193,7 @@ export class PluginSignals extends Disposable {
 
   private entryFor(config: PluginSignalConfig): PluginSignalEntry {
     const capability = this.capability(config)
-    if (!capability) throw new Error(`${this.pkg().name} has no ${config.kind} "${config.capability}"`)
+    if (!capability) throw new DomainError("unknown-capability", `${this.pkg().name} has no ${config.kind} "${config.capability}"`)
     return { config, topic: this.topics.forSignal(config), valueType: capability.valueType }
   }
 

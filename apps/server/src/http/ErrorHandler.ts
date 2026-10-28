@@ -5,7 +5,7 @@ import { SetupDoneError } from "../auth/SetupDoneError.ts"
 import { HttpError } from "./HttpError.ts"
 
 /**
- * Maps errors to JSON responses: { error, issues? }. Unexpected errors are logged and answered
+ * Maps errors to JSON responses: { error, issues?, code? } (`code` for domain rule violations). Unexpected errors are logged and answered
  * with a generic 500, so stack traces and SQL never reach the client.
  *
  * Status mapping: ZodError 400 (with issues), HttpError its own status, SetupDoneError 409,
@@ -21,7 +21,7 @@ export class ErrorHandler {
     if (error instanceof z.ZodError) {
       return reply.code(400).send({ error: z.prettifyError(error), issues: error.issues })
     }
-    if (error instanceof HttpError) return reply.code(error.status).send({ error: error.message })
+    if (error instanceof HttpError) return reply.code(error.status).send({ error: error.message, ...(error.code ? { code: error.code } : {}) })
     if (error instanceof SetupDoneError) return reply.code(409).send({ error: error.message })
     if (error instanceof BusyError) return reply.code(503).header("retry-after", 1).send({ error: error.message })
     if (ErrorHandler.isConstraint(error)) return reply.code(409).send({ error: "conflicts with existing data" })

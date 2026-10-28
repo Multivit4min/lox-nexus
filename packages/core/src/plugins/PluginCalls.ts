@@ -4,6 +4,7 @@ import type { BusMessage } from "../bus/BusMessage.ts"
 import type { PluginSession } from "./PluginSession.ts"
 import { PluginSignals, type PluginBus } from "./PluginSignals.ts"
 import type { PluginSignalConfig } from "./PluginTypes.ts"
+import { DomainError } from "../DomainError.ts"
 
 /** Thrown for calls that need the plugin running. */
 export class PluginNotRunningError extends Error {
@@ -53,7 +54,7 @@ export class PluginCalls {
   /** Like addSignal for a changed signal; a refusal puts the previous config back. */
   async updateSignal(config: PluginSignalConfig) {
     const previous = this.signals().get(config.id)?.config
-    if (!previous) throw new Error(`unknown signal "${config.id}"`)
+    if (!previous) throw new DomainError("unknown-signal", `unknown signal "${config.id}"`)
     this.signals().update(config)
     try {
       await this.recreate(config)

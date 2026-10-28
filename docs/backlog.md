@@ -23,16 +23,8 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
 - **TunableWhite bytes 6–7.** The Miniserver always sends `0x0800`; we send `0x0000`. Send both to a
   real tunable white actuator and compare (needs one wired to the test Miniserver).
 
-## Core
-
-- **Narrow interfaces everywhere.** `Recorder` and `ActiveWire`/`WireEngine` take `Pick<EventBus, ...>`.
-  Do the same for services added since.
-
 ## Server
 
-- **Domain errors.** Rule violations are recognised as plain `Error`s. A `DomainError` class (or
-  error codes) in core and loxone would make the 409 mapping explicit, and allow machine-readable
-  codes instead of messages with UUIDs.
 - **One transform schema.** `WireBodySchema` lives in the server because the transform schemas live
   in core; the browser uses `TransformDto` in `packages/api`, a mirror kept in step by a test that
   fails to compile when they differ. Moving the schemas to a dependency-free module would leave

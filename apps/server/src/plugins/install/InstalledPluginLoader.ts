@@ -17,7 +17,7 @@ export class InstalledPluginLoader {
     private readonly staging: StagingArea,
     private readonly repo: PluginPackageRepository,
     private readonly versions: PluginVersions,
-    private readonly catalog: PluginCatalog,
+    private readonly catalog: Pick<PluginCatalog, "setInstalled">,
     private readonly log: Logger
   ) {}
 

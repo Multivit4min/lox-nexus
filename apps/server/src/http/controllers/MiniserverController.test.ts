@@ -48,6 +48,7 @@ describe("miniserver API", { timeout: 10_000 }, () => {
     assert.equal(invalid.statusCode, 400)
     const taken = await admin.post("/api/miniservers", { slug: "haus", label: "", host: "h", port: 1, listenPort: 2, ownId: "a", remoteId: "b", enabled: false })
     assert.equal(taken.statusCode, 409)
+    assert.deepEqual(taken.json(), { error: "slug \"haus\" is already used by another miniserver", code: "slug-taken" })
     assert.equal((await admin.get("/api/miniservers/nope")).statusCode, 404)
   })
 

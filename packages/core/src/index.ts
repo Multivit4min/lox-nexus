@@ -43,3 +43,4 @@ export { HistoryRetention, type RetentionSettings } from "./history/HistoryReten
 export { SeriesAggregator } from "./history/SeriesAggregator.ts"
 export { ValueProjection } from "./history/ValueProjection.ts"
 export { WatchFeed, type WatchDeps } from "./plugins/WatchFeed.ts"
+export { DomainError, type DomainErrorCode } from "./DomainError.ts"

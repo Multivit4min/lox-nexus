@@ -25,7 +25,7 @@ export class DevPluginLoader extends Disposable {
   constructor(
     private readonly dir: string,
     private readonly describer: Pick<PackageDescriber, "describe">,
-    private readonly catalog: PluginCatalog,
+    private readonly catalog: Pick<PluginCatalog, "setDevelopment">,
     private readonly changed: (pkg: PluginPackage) => Promise<void>,
     private readonly log: Logger
   ) {
