@@ -128,10 +128,10 @@ Worked examples from the document (password unknown, so only the layout can be t
 |---|---|---|---|
 | 0 | 1 | Control byte `0x8D` | ✅ |
 | 1–3 | 3 | `0x00` | ⚠️ |
-| 4–7 | 4 | Constant per Miniserver. Hypothesis: the tail of the MAC address, byte-reversed (`eb 23 a2 94` → `…94:A2:23:EB`; Loxone's MAC prefix is `50:4F:94`) | ⚠️ |
+| 4–7 | 4 | The last four bytes of the Miniserver's serial number (= its MAC), reversed: `eb 23 a2 94` → `…94:A2:23:EB`. Loxone's prefix `50:4F:94` is not sent | ✅ |
 | 8–15 | 8 | Own ID of the sending Miniserver (`server`) | ✅ |
 | 16–27 | 12 | `0x00` | ⚠️ |
-| 28 | 1 | `0x64` (100), constant so far | ❓ |
+| 28 | 1 | `0x64` (100), the same in every capture since 2026-10-23, across program changes | ❓ |
 
 **Observed on a live Miniserver (2026-10-23, `test/fixtures/2026-10-23-live/status-0x8d.jsonl`):**
 - Interval about **278 s** (4 min 38 s), not about 7 minutes.
@@ -142,7 +142,9 @@ Worked examples from the document (password unknown, so only the layout can be t
 - The packet is usable as a heartbeat. Treat a Miniserver as stale after missing two status packets
   (about 10 min) with no data packets in between.
 
-To confirm the MAC hypothesis, compare against the serial number or MAC shown in Loxone Config.
+Bytes 4–7 were confirmed on 2026-10-28 against the serial number Loxone Config shows for the test
+Miniserver (`50:4F:94:A2:23:EB`, an MS2331 on firmware 17.2.10.21). `StatusPacket.serialTail`
+formats them that way.
 
 ## Data types
 
@@ -358,8 +360,7 @@ hex dumps and diffs each packet against the previous one with the same packet ID
    experiments above.
 5. **Header bytes 1–7, 16, 25, 34.** Do they ever change, for example with encryption, a different
    firmware or a Miniserver Gen 2?
-6. **0x8D.** Offset 4–7 is constant (see above). Still open: confirm it against the Miniserver's
-   serial number or MAC, and find out what byte 28 means.
+6. **0x8D.** Offset 4–7 is the serial number (see above). Still open: what byte 28 means.
 7. **0x9F.** Layout confirmed for analog (see above). Open: the kind bytes of digital, text and
    the smart actuator types on our Miniserver (wire such outputs to `encrypte`); whether magic and
    kind are masked like the sequence; what magic/kind a Miniserver accepts from *us* (sending);

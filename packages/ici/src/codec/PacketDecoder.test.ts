@@ -34,7 +34,7 @@ describe("PacketDecoder", () => {
     const [buffer] = Fixtures.datagrams("2026-10-23-live/status-0x8d.jsonl")
     const result = decoder.decode(buffer!)
     assert.equal(result.kind, "status")
-    if (result.kind === "status") assert.deepEqual([result.packet.sourceId, result.packet.deviceTag], ["server", "eb23a294"])
+    if (result.kind === "status") assert.deepEqual([result.packet.sourceId, result.packet.deviceTag, result.packet.serialTail], ["server", "eb23a294", "94:A2:23:EB"])
   })
 
   test("reports short and inconsistent datagrams as malformed (review #2)", () => {

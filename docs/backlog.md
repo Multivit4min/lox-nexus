@@ -12,8 +12,9 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
   1. Capture a static mood with a long fade time (e.g. 5 s). Does the flag appear?
   2. Change the speed of the sequence. Do the flag and the fade value change?
   3. Send a step with and without `0x4000` to a real RGBW smart actuator and compare.
-- **0x8D status packet.** Compare bytes 4–7 (`eb 23 a2 94`) with the Miniserver's MAC or serial
-  number (hypothesis: `50:4F:94:A2:23:EB`). Find out what byte 28 (`0x64`) means.
+- **0x8D status packet.** Bytes 4–7 are the serial number (confirmed). Find out what byte 28
+  (`0x64`) means: it has been the same in every capture since 2026-10-23, across several program
+  changes. A firmware update or another Miniserver would show whether it is a version or model.
 - **0x9F encryption.** Receiving works end to end and is confirmed for analog (`PROTOCOL.md`).
   Our Miniserver's IV magic and kind differ from the third-party document, and bytes 12–15 are a
   masked 32-bit counter. Next:

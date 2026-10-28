@@ -13,7 +13,7 @@ export class PacketDescriber {
   describe(result: DecodeResult, raw: Buffer): string {
     switch (result.kind) {
       case "data": return this.data(result.packet)
-      case "status": return `status  ${result.packet.sourceId} tag=${result.packet.deviceTag} raw=${raw.toString("hex")}`
+      case "status": return `status  ${result.packet.sourceId} serial=…${result.packet.serialTail} raw=${raw.toString("hex")}`
       case "encrypted": return this.encrypted(result.packet)
       case "unknown": return `unknown control 0x${result.control.toString(16)} raw=${raw.toString("hex")}`
       case "malformed": return `MALFORMED ${result.reason} raw=${raw.toString("hex")}`
