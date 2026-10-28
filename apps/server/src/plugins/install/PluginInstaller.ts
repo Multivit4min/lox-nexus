@@ -1,0 +1,108 @@
+import path from "node:path"
+import type { Logger } from "pino"
+import type { PluginPackageRepository, StoredVersion } from "../../db/repositories/PluginPackageRepository.ts"
+import { InstallError } from "./InstallError.ts"
+import type { PackageInspector, StagedPackage } from "./PackageInspector.ts"
+import type { PendingInstall, PendingInstalls } from "./PendingInstalls.ts"
+import { PluginDirectory } from "./PluginDirectory.ts"
+import type { PluginSource } from "./PluginSource.ts"
+import type { PluginVersions } from "./PluginVersions.ts"
+import type { StagingArea } from "./StagingArea.ts"
+
+/** A staged install and how it compares to what is installed. */
+export interface StageResult {
+  pending: PendingInstall
+  installedVersion?: string
+  sameAsInstalled: boolean
+}
+
+/** What the installer works with; all built by PluginAssembly. */
+export interface InstallerDeps {
+  staging: StagingArea
+  pending: PendingInstalls
+  inspector: PackageInspector
+  versions: PluginVersions
+  repo: PluginPackageRepository
+  log: Logger
+}
+
+/**
+ * The two phases of an install. stage() fetches into a staging folder, checks and describes the
+ * plugin, and parks it for review; confirm() moves it into place and records it. Callers hold
+ * the OperationLock around both.
+ */
+export class PluginInstaller {
+  constructor(private readonly deps: InstallerDeps) {}
+
+  /**
+   * Fetches, checks and describes the plugin (which runs its code once) and parks it for review,
+   * replacing any earlier pending install.
+   * @throws InstallError exists/unsupported for an installed id, plus whatever the source throws; the staging folder is gone afterwards
+   */
+  async stage(source: PluginSource, by: string): Promise<StageResult> {
+    const { staging, pending, inspector, log } = this.deps
+    await pending.discard()
+    const stagingDir = await staging.create()
+    try {
+      const packageDir = path.join(stagingDir, "package")
+      const fetched = await source.fetch(packageDir)
+      const staged = await inspector.inspect(packageDir, fetched)
+      const comparison = this.compare(staged)
+      const parked = await pending.put(stagingDir, staged, by)
+      log.info({ by, source: staged.origin, plugin: staged.manifest.id, version: staged.manifest.version, bundleSha256: staged.bundleSha256 }, "plugin staged")
+      return { pending: parked, ...comparison }
+    } catch (error) {
+      await staging.remove(stagingDir)
+      if (error instanceof InstallError) log.warn({ by, reason: error.reason, problem: error.message }, "plugin install refused")
+      throw InstallError.fromFileSystem(error)
+    }
+  }
+
+  /**
+   * Installs a staged plugin after re-checking that nothing changed since the review. An identical
+   * re-install succeeds without changing anything.
+   * @param expectedActive the active version the user's review was based on, null for a new plugin
+   * @returns the active version afterwards and whether it changed
+   * @throws InstallError not-found (expired), conflict (installed meanwhile), exists, unsupported, no-space
+   */
+  async confirm(stagingId: string, expectedActive: string | null, by: string): Promise<{ stored: StoredVersion; changed: boolean }> {
+    const { pending, staging, versions, repo, log } = this.deps
+    const install = pending.get(stagingId)
+    if (!install) throw new InstallError("not-found", "the checked install expired or was discarded; check it again")
+    const { staged } = install
+    if ((repo.get(staged.manifest.id)?.active.version ?? null) !== expectedActive) {
+      await pending.discard(stagingId)
+      throw new InstallError("conflict", `${staged.manifest.name} changed since it was checked; check it again`)
+    }
+    pending.take(stagingId)
+    try {
+      const entry = PluginDirectory.inside(staged.packageDir, staged.manifest.entry)
+      if (await PluginDirectory.sha256(entry) !== staged.bundleSha256) throw new InstallError("conflict", "the staged bundle changed; check it again")
+      if (this.compare(staged).sameAsInstalled) return { stored: repo.get(staged.manifest.id)!.active, changed: false }
+      const stored = await versions.commit(staged, by)
+      log.info({ by, source: staged.origin, plugin: stored.pluginId, version: stored.version, bundleSha256: stored.bundleSha256 }, "plugin installed")
+      return { stored, changed: true }
+    } catch (error) {
+      throw InstallError.fromFileSystem(error)
+    } finally {
+      await staging.remove(install.stagingDir)
+    }
+  }
+
+  /** drops a staged install the user cancelled; false when it is gone already */
+  discard(stagingId: string) {
+    return this.deps.pending.discard(stagingId)
+  }
+
+  // updating an installed plugin (hot update, rollback) is M5e-2; until then only new plugins and identical re-installs
+  private compare(staged: StagedPackage): Omit<StageResult, "pending"> {
+    const { id, name, version } = staged.manifest
+    const active = this.deps.repo.get(id)?.active
+    if (!active) return { sameAsInstalled: false }
+    if (active.version === version) {
+      if (active.bundleSha256 === staged.bundleSha256) return { installedVersion: version, sameAsInstalled: true }
+      throw new InstallError("exists", `${name} ${version} is installed with a different bundle; raise the version to install this one`)
+    }
+    throw new InstallError("unsupported", `${name} ${active.version} is installed; updating an installed plugin isn't supported yet, uninstall it first`)
+  }
+}

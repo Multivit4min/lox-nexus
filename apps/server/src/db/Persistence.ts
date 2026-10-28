@@ -6,6 +6,7 @@ import { LoadSampleRepository } from "./repositories/LoadSampleRepository.ts"
 import { LoxoneSignalRepository } from "./repositories/LoxoneSignalRepository.ts"
 import { MiniserverRepository } from "./repositories/MiniserverRepository.ts"
 import { PluginInstanceRepository } from "./repositories/PluginInstanceRepository.ts"
+import { PluginPackageRepository } from "./repositories/PluginPackageRepository.ts"
 import { PluginSignalRepository } from "./repositories/PluginSignalRepository.ts"
 import { PluginStoreRepository } from "./repositories/PluginStoreRepository.ts"
 import { SessionRepository } from "./repositories/SessionRepository.ts"
@@ -32,6 +33,7 @@ export class Persistence {
   readonly pluginInstances: PluginInstanceRepository
   readonly pluginSignals: PluginSignalRepository
   readonly pluginStore: PluginStoreRepository
+  readonly pluginPackages: PluginPackageRepository
 
   /**
    * Opens the file and migrates it before any repository exists.
@@ -56,6 +58,7 @@ export class Persistence {
     this.pluginInstances = new PluginInstanceRepository(this.db)
     this.pluginSignals = new PluginSignalRepository(this.db)
     this.pluginStore = new PluginStoreRepository(this.db, warn)
+    this.pluginPackages = new PluginPackageRepository(this.db)
   }
 
   /** closes the database; repositories must not be used afterwards */

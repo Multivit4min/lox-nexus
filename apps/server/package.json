@@ -14,16 +14,20 @@
     "fastify": "^5.12.7",
     "pino": "^10.4.0",
     "pino-pretty": "^13.2.0",
+    "yauzl": "^3.4.0",
     "zod": "^4.6.7"
   },
   "scripts": {
-    "dev": "NEXUS_WEB_DIR=${NEXUS_WEB_DIR:-../web/dist} NEXUS_DOCS_DIR=${NEXUS_DOCS_DIR:-../docs/dist} NEXUS_DEV_PLUGINS_DIR=${NEXUS_DEV_PLUGINS_DIR:-../../plugins} node --env-file-if-exists=../../.env --conditions=@lox-nexus/source --import tsx --watch src/main.ts",
+    "dev": "NEXUS_WEB_DIR=${NEXUS_WEB_DIR:-../web/dist} NEXUS_DOCS_DIR=${NEXUS_DOCS_DIR:-../docs/dist} NEXUS_DEV_PLUGINS_DIR=${NEXUS_DEV_PLUGINS_DIR-../../plugins} NEXUS_PLUGIN_REPOSITORY=${NEXUS_PLUGIN_REPOSITORY:-../../plugins} node --env-file-if-exists=../../.env --conditions=@lox-nexus/source --import tsx --watch src/main.ts",
     "start": "node --conditions=@lox-nexus/source --import tsx src/main.ts",
     "reset-password": "node --env-file-if-exists=../../.env --conditions=@lox-nexus/source --import tsx src/reset-password.ts"
   },
   "devDependencies": {
     "@lox-nexus/ici": "*",
     "@types/ws": "^8.18.2",
+    "@types/yauzl": "^3.4.0",
+    "esbuild": "^0.28.2",
+    "fflate": "^0.8.3",
     "ws": "^8.22.0"
   }
 }

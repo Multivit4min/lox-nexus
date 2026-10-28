@@ -1,12 +1,14 @@
 # Publishing a plugin
 
-> **Not available yet.** Installing a plugin from a ZIP file or a git URL is milestone **M5e**.
-> Publishing the SDK to npm and a plugin template repository are milestone **M6**. This page
-> describes the package format Nexus already reads, and what you can do today.
+> Installing works through the REST API today; the UI for it is **not available yet** (milestone
+> M5e-3), and neither is updating an installed plugin (M5e-2). Publishing the SDK to npm and a
+> plugin template repository are milestone **M6**. How to install is described in
+> [Installation](../guide/installation.md#installing-a-plugin).
 
 ## What exists today
 
 - The package format below (the `loxNexus` manifest and a self-contained ESM bundle).
+- **Installing** from a ZIP file, a git repository or the server's local plugin repository.
 - **Development loading**: Nexus runs every plugin in the directory named by `NEXUS_DEV_PLUGINS_DIR`
   from source (`src/index.ts`) and restarts its instances when a file changes. `npm run dev` points
   it at the repository's `plugins/` directory. Because the SDK is a workspace package and is not on
@@ -37,9 +39,14 @@ A plugin is an npm package whose `package.json` has a `loxNexus` block:
 | `apiVersion` | Must be `1`, the plugin API this Nexus implements. Another number is refused. |
 | `id` | The plugin's topic segment and stable reference (`example/<instance>/sensor/...`). Lowercase letters, digits, `.`, `_` and `-`, starting with a letter or digit. `loxone` and `system` are **reserved** for Nexus. Never change it after release: instances and topics refer to it. |
 | `name` | Display name, not empty. |
-| `entry` | The built bundle, relative to the package. In development `src/index.ts` runs instead. |
+| `entry` | The built bundle, relative to the package. In development `src/index.ts` runs instead. To install: a relative path such as `dist/plugin.js` (no leading `/` or `./`, no `..`, backslashes or empty segments), at most 512 characters, ending in `.js` or `.mjs`. |
 | `icon` | Optional icon name shown in the UI. |
-| `version` (top level) | Defaults to `0.0.0` when absent. |
+| `version` (top level) | Defaults to `0.0.0` when absent. To install: required, a strict [semantic version](https://semver.org) such as `1.2.0` or `1.3.0-beta.1`, at most 64 characters. |
+| `type` (top level) | To install: `"module"`, unless the entry ends in `.mjs`. A plugin is an ES module. |
+
+To install, the manifest rules are stricter than for development. The `id` is at most 64
+characters (it is also a folder name), `name` at most 100, and `icon` at most 50 (lowercase letters,
+digits and `-`). Nexus names the field that is wrong when it refuses a package.
 
 ## Building the bundle
 
@@ -69,24 +76,30 @@ package instead.
 
 ## Releasing
 
-The intended flow, once the installer exists (M5e):
+1. Raise `version`, build the bundle, and make it part of what you hand out: `package.json` and
+   the file named by `entry` are what gets installed. A source map next to the bundle
+   (`<entry>.map`) is installed too if there is one. Everything else is ignored: sources,
+   `node_modules`, READMEs and other files are not installed.
+2. Hand it out in one of two ways.
+   - **A ZIP file.** `package.json` is at the archive's root or in its only top-level folder (as
+     "download as ZIP" and most zip tools pack a folder). Up to 50 MiB; no absolute paths, `..`,
+     backslashes, symbolic links, encrypted or duplicate entries, and at most 5 000 entries.
+   - **A git repository.** An `https://` URL (no token or user name in it) and a branch or tag.
+     **Commit the built bundle** to the repository, since installing never runs `npm`. Git LFS
+     isn't fetched, so keep the bundle a normal file.
+3. An admin installs it in two steps: Nexus fetches and checks the package and starts the bundle
+   once in a throwaway worker to see what it offers (stage), and then installs it after
+   confirmation (confirm). See [Installation](../guide/installation.md#installing-a-plugin).
 
-1. Build the bundle and commit it, or attach it to a ZIP: the package must contain `package.json`
-   with the manifest and the file named by `entry`.
-2. An admin installs it from a ZIP upload or a git URL plus a ref (only https; the ref must contain
-   the built bundle). Nexus checks the manifest, asks the bundle to describe itself in a throwaway
-   worker, and moves it into the data directory. The previous version is kept for rollback, and
-   running instances restart on the new version without a server restart.
-3. ZIP uploads are limited (no absolute paths, `..`, symlinks, more than 5 000 entries or more than
-   50 MB uncompressed).
-
-Until then, share the plugin as source for use under `plugins/` of a checkout.
+The same version with the same bundle counts as already installed, and confirming it changes
+nothing. The same version with a **different** bundle is refused, so raise the version whenever
+the bundle changes. Installing a different version of an installed plugin is not supported yet
+(M5e-2); the admin has to uninstall the old one first.
 
 ## Trust
 
 Plugins are **trusted code**. Each runs in a worker thread with an empty environment and a memory
 limit, but worker threads are **not a sandbox**: a plugin can read files, open network
-connections and use anything Node offers to the Nexus process. Once installing is available
-(M5e), it will be admin-only and the UI will show a plugin's source and commit. Only run plugins
-whose code you trust, and keep secrets in
-`secret()` config fields: they never reach the browser or the bus.
+connections and use anything Node offers to the Nexus process. Installing is admin-only (every user is an admin in v1) and records where each version came from (the git
+commit, or the ZIP's checksum). Staging a plugin already runs its code once. Only run plugins whose
+code you trust, and keep secrets in `secret()` config fields: they never reach the browser or the bus.

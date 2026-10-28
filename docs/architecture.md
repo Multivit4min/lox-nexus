@@ -210,21 +210,14 @@ Each class lives in its own file under `packages/core/src/plugins/`:
 
 ### Installer (server)
 
-Lives in `apps/server/src/plugins/install/`:
-- **`PluginInstaller`** runs through the steps below. Each source is its own class: **`ZipSource`**
-  and **`GitSource`**.
-  1. Stage in `data/plugins/.staging/<uuid>`.
-  2. Fetch the source:
-     - **`ZipSource`** uses yauzl. It rejects absolute paths, `..` segments, symlinks, more than
-       5k entries and more than 50 MB uncompressed.
-     - **`GitSource`** uses `execFile git clone --depth 1 --no-recurse-submodules`, https only,
-       with no prompts and a timeout. It records the resolved commit.
-  3. **`ManifestValidator`** checks the `"loxNexus": { apiVersion, entry, name, icon }` block in
-     package.json and records a sha256.
-  4. A throwaway describe worker returns the JSON Schemas (zod v4 `toJSONSchema`; secret fields
-     become `writeOnly`).
-  5. Atomic move into `data/plugins/<id>/<version>`. The previous version is kept for one-click
-     rollback, and instances roll over without a server restart.
+Lives in `apps/server/src/plugins/install/`. The full design (classes, flow, versions, hot update,
+API, threat model, tests) is in "Design: plugin installer (M5e)" below; ADRs 0009 and 0010.
+- An install fetches a **`ZipSource`** (upload, yauzl) or a **`GitSource`** (https only, shallow
+  clone without a working tree, resolved commit recorded) into `data/plugins/.staging/<uuid>`,
+  keeps only `package.json` and the bundle, validates the manifest (**`ManifestValidator`**), asks
+  a throwaway worker to describe it, and shows the result for confirmation. Confirming moves it
+  into `data/plugins/<id>/<version>` and activates it; running instances restart on it without a
+  server restart. The active and the previous version are kept, so rollback is one click.
 - **Plugins must ship a prebuilt, self-contained ESM bundle.** The bundle is built with esbuild, with
   the SDK and dependencies bundled in and no native modules, so an install never runs `npm`.
 - **Security (stated in the docs and the install UI):** worker threads are not a sandbox, so plugins
@@ -1188,6 +1181,468 @@ stays in `docs/`.
   - `plugin-dev` works from these pages instead of the SDK source, and reports every question they
     didn't answer as a docs gap. Building Calendar that way found eight.
 
+## Design: plugin installer (M5e)
+
+Status: **M5e-1 is built** (install pipeline for new plugins, boot loading, uninstall, API); M5e-2
+(versions, hot update, rollback) and M5e-3 (UI) are still design. Decisions in ADR 0009 (archives
+and git) and ADR 0010 (versions, precedence, hot update). See "Implementation notes: M5e-1" at the
+end of this section for where the build differs from the design below.
+
+### On disk
+
+```
+data/plugins/                       0700, created at boot
+  .staging/<uuid>/                  one install attempt; wiped at every boot
+    git/                            GitSource only: the bare, shallow clone
+    package/                        what will be installed
+  <id>/<version>/package.json       copied verbatim
+  <id>/<version>/<entry>            the bundle, at the manifest's relative path (e.g. dist/plugin.js)
+  <id>/<version>/<entry>.map        only if the source has it
+```
+
+- **Only `package.json`, the bundle and its source map are installed.** Nothing else from a ZIP or
+  a repository is ever written, so archive paths never become file system paths (ADR 0009).
+- `.staging` is inside `data/plugins`, so the final `rename` is on the same file system and
+  atomic. `id` can't start with a dot (manifest rule), so no plugin collides with `.staging`.
+- At most two versions per plugin: the active one and the one active before it.
+
+### Database (migration 5, `plugin_packages`)
+
+`plugin_instances`, `plugin_signals` and `plugin_store` exist (migration 3). New:
+
+```sql
+CREATE TABLE plugin_versions (
+  plugin_id TEXT NOT NULL,
+  version TEXT NOT NULL,              -- strict semver, also the directory name
+  name TEXT NOT NULL,
+  icon TEXT,
+  entry TEXT NOT NULL,                -- normalized relative path
+  source_kind TEXT NOT NULL CHECK (source_kind IN ('zip', 'git', 'local')),
+  source TEXT NOT NULL,               -- git: https URL; zip: the uploaded file name; local: the folder
+  ref TEXT,                           -- git: the branch or tag asked for
+  commit_sha TEXT,                    -- git: the resolved commit
+  archive_sha256 TEXT,                -- zip: of the uploaded archive, to compare with a release
+  bundle_sha256 TEXT NOT NULL,        -- of the entry file; re-checked at boot and on activation
+  description TEXT NOT NULL,          -- PluginDescription JSON from the describe step
+  installed_at INTEGER NOT NULL,
+  installed_by TEXT NOT NULL,
+  PRIMARY KEY (plugin_id, version)
+);
+CREATE TABLE plugin_packages (
+  id TEXT PRIMARY KEY,
+  active_version TEXT NOT NULL,
+  previous_version TEXT,              -- the rollback target; NULL after the first install
+  FOREIGN KEY (id, active_version) REFERENCES plugin_versions(plugin_id, version),
+  FOREIGN KEY (id, previous_version) REFERENCES plugin_versions(plugin_id, version)
+);
+```
+
+- The database is the source of truth, the directory holds the files, the catalog is the
+  projection. A version directory without a row is an orphan and deleted at boot; a row whose
+  files are missing or whose `bundle_sha256` doesn't match makes that version unavailable.
+- The description is stored so a boot runs no plugin code outside instances. If it no longer
+  parses (a newer Nexus changed `PluginDescriptionSchema`), the loader describes the bundle again
+  in a throwaway worker and updates the row.
+- `plugin_instances.plugin` stays a plain id without a foreign key: dev plugins and unavailable
+  instances have no package row.
+
+### Classes
+
+`apps/server/src/plugins/install/` (one class per file):
+
+| Class | Responsibility |
+|---|---|
+| `InstallError` | `reason` (`invalid-source`, `invalid-package`, `describe-failed`, `busy`, `exists`, `conflict`, `git-failed`, `timeout`, `no-space`) and its HTTP status. Messages are safe to show. |
+| `InstallLimits` | The numbers in one place: 5,000 entries, 50 MiB unpacked (declared total), 20 MiB bundle, 256 KiB package.json, 100 MiB git object store, 120 s git, 15 min pending TTL, describe timings (hello 10 s, request 10 s, grace 2 s). |
+| `PluginDirectory` | The layout above. Every path goes through one `inside(root, ...parts)` check (`path.relative` must not start with `..` or be absolute). `moveIn(stagedDir, id, version)` (mkdir `<id>`, `rename`; `EEXIST`/`ENOTEMPTY` → `exists`), `removeVersion`, `removePlugin`, `listOnDisk()`, `sha256(file)` (streamed). |
+| `StagingArea` | `create()` → `.staging/<uuid>` (0700), `remove(dir)` (best effort, logged), `sweep()` at boot. |
+| `ManifestValidator` | package.json text → `InstallManifest`: size cap, JSON, `PluginManifestSchema` extended with a strict semver `version` (≤ 64 chars, no default), `type: "module"` unless the entry ends in `.mjs`, and the entry rules below. |
+| `PluginSource` | Interface: `fetch(packageDir, signal): Promise<{ origin, manifest }>`. Writes `package.json` and the entry (and map) into `packageDir`. |
+| `ZipEntryPolicy` | Per entry: name not absolute, no drive letter, no backslash, no NUL or control characters, no `..` segment, ≤ 512 chars, not a symlink (Unix mode `0o120000` in `externalFileAttributes >>> 16` when made on Unix), not encrypted, no duplicate name. In total: ≤ 5,000 entries, declared uncompressed sum ≤ 50 MiB. |
+| `ZipArchive` | The only class that uses yauzl (`fromBuffer`, `lazyEntries`, `validateEntrySizes`, `strictFileNames`). Lists every entry through the policy before anything is extracted; `extract(entry, file, maxBytes)` streams one entry with a byte counter. |
+| `ZipSource` | The package root is the archive root, or its single top-level directory (ignoring `__MACOSX/` and `.DS_Store`), which must hold `package.json`. Reads and validates it, extracts the entry. Origin: file name and the archive's sha256. |
+| `GitUrl` | Value object: `GitUrl.parse(url, ref, schemes = ["https"])`. Rules in the security part. |
+| `GitRunner` | `execFile` of `git` with a fixed argv prefix, a minimal environment, a timeout, `maxBuffer` and `killSignal: "SIGKILL"`. The binary and the schemes are injectable for tests. |
+| `GitSource` | Shallow, filtered, bare-like clone without a working tree; reads `package.json` and the entry as blobs (flow below). Origin: URL, ref, commit. |
+| `PackageInspector` | On the staged package: `lstat` package.json and entry (regular files, size caps), bundle sha256, then `PackageDescriber.describe(entry)` with the install timings. Returns a `StagedPackage`. |
+| `PendingInstalls` | At most one staged install, by a fresh `stagingId`, expiring after 15 minutes (`after()`); a new stage discards the previous one. Disposing removes its directory. |
+| `PluginVersions` | Commits and switches versions: `commit(staged, by)` (moveIn, then one transaction: insert version, set active and previous), `activate(id, version)`, `prune(id)` (rows and directories other than active and previous), `uninstall(id)`, `package(id, version)` → `PluginPackage` after the sha256 check. |
+| `PluginInstaller` | The two phases: `stage(source, by)` and `confirm(stagingId, expectedActive, by)`, plus `discard`. Holds the operation lock. |
+| `InstalledPluginLoader` | Boot: `sweep()`, delete orphan directories, prune, then load every active version into the catalog. One broken plugin is logged and skipped. |
+| `UpdateImpact` | What switching to a description does to existing instances: signals whose capability disappears, capabilities whose value type changes, new required top-level config fields without a default. |
+
+Elsewhere:
+- `db/repositories/PluginPackageRepository.ts`: both new tables.
+- `services/PluginPackageService.ts`: what the controller calls. After a commit or activation it
+  updates the catalog and, if the installed copy is the effective one, calls
+  `PluginService.packageChanged`.
+- `http/controllers/PluginPackageController.ts`, with its own scope for the ZIP upload.
+- `plugins/PluginCatalog.ts`: two layers, `setInstalled`/`removeInstalled` and `setDevelopment`.
+  `get(id)` returns the development entry if there is one, else the installed one. `CatalogEntry`
+  gets `source: "development" | "installed"`, the installed version, and `shadows` (the installed
+  version a development copy hides).
+- `NexusApp.ts` is at 197 lines, so the plugin wiring (describer, both loaders, installer,
+  package service) moves into a `PluginAssembly` helper that only `NexusApp` constructs, like
+  `createHttp`. Boot order: installed plugins, then development plugins, then
+  `PluginService.load()`.
+- **Core** (small, in `packages/core/src/plugins/`):
+  - `PluginPackage` gets an optional `version`, for messages.
+  - `PluginSignals.refresh()`: re-resolves every signal against the current package. A capability
+    that is gone keeps the signal registered with its old value type (so its wires stay) and marks
+    it **orphaned** with `"<name> <version> no longer offers sensor \"x\""`. A changed value type
+    goes through `registry.update`, so `WireEngine` rebuilds or drops its wires (and restarts them
+    after a rollback).
+  - `PluginSupervisor.update(_, pkg)` calls `refresh()` when the package changes.
+    `PluginCalls.addAll()` skips orphaned signals, so the worker's "unknown capability" doesn't
+    replace the clearer message.
+  - Nothing in core knows about installing, files or versions.
+
+### Development and installed plugins with the same id
+
+The development copy wins while `NEXUS_DEV_PLUGINS_DIR` provides it (ADR 0010). Setting that
+variable is an explicit choice of whoever runs the process, and it is never set in production.
+Installing or activating a version of a shadowed plugin only changes the database and the
+installed layer; the instances keep running the development copy. The API marks the package as
+shadowed. Install tests and the walkthrough use a plugin id that isn't in the workspace.
+
+### Install flow
+
+**Phase 1, stage** (`POST /api/plugin-packages/stage/{git,zip}`). The UI shows the trust warning
+*before* this request, because describing runs the plugin's code once.
+
+1. Take the operation lock, or answer 409 `busy`. One install, activation or uninstall runs at a
+   time, server-wide.
+2. Discard a pending install, then `StagingArea.create()`.
+3. Source fetch into `<staging>/package/`:
+   - **ZIP:** `ZipArchive` checks every entry through `ZipEntryPolicy` first. Then `ZipSource`
+     finds the root, extracts and validates `package.json` (≤ 256 KiB), and extracts only the
+     entry (≤ 20 MiB, byte-counted; yauzl also fails on an entry larger than declared) and
+     `<entry>.map` if present.
+   - **Git:** with `GitRunner`, every call under the same hardening:
+     1. `git clone --depth 1 --single-branch --no-tags --no-recurse-submodules --filter=blob:none
+        --no-checkout --branch=<ref> -- <url> <staging>/git`. No working tree, so no checkout,
+        no symlinks, no `.gitattributes` filters and no checkout hooks. A server without partial
+        clone support ignores `--filter` (the depth and timeout still bound it).
+     2. `git rev-parse HEAD`: the commit.
+     3. `git ls-tree HEAD -- package.json <entry>`: mode must be `100644` or `100755` (not
+        `120000` symlink, not `160000` submodule). `git cat-file -s` gives the size before
+        anything is fetched.
+     4. `git cat-file blob HEAD:<path>` (fetches that one blob) with `maxBuffer` = cap + 1.
+        A bundle that starts with `version https://git-lfs` is refused with "stored with Git LFS".
+     5. The object store must stay under 100 MiB. `<staging>/git` is deleted once the files are
+        read.
+4. **Manifest rules** (`ManifestValidator`):
+   - `apiVersion` 1.
+   - `id` matches `^[a-z0-9][a-z0-9._-]*$`, ≤ 64 characters, not `loxone` or `system` (the list
+     stays in `PluginManifest.ts`).
+   - `name` 1..100, `icon` optional, ≤ 50, `^[a-z0-9-]+$`.
+   - `version` strict semver.
+   - `entry` relative POSIX path: no leading `/` or `./`, no `..` segment, no backslash, no NUL,
+     ends in `.js` or `.mjs`. `PluginDirectory.inside` checks the joined path again.
+5. `PackageInspector`: the entry and package.json are regular files (`lstat`), within their caps.
+   The bundle's sha256. Then the throwaway describe worker: `PluginWorker` with `env: {}`, a
+   128 MB heap, hello within 10 s and the description within 10 s; it is terminated after.
+6. Compare with what is installed:
+   - Same id and version with the same `bundle_sha256` → `sameAsInstalled`, and confirming only
+     activates it.
+   - Same id and version with other content → 409 `exists` ("raise the version").
+   - Otherwise `UpdateImpact` against the active version and the stored instances.
+7. Register in `PendingInstalls`, release the lock, answer 201 with a `StagedInstallDto`.
+
+Any failure in 2–6 removes the staging directory, releases the lock and answers with the
+`InstallError`'s status. Unexpected errors are 500, logged with the stack.
+
+**Phase 2, confirm** (`POST /api/plugin-packages/stage/:stagingId/confirm` with
+`{ expectedActive }`):
+
+1. Take the lock. Unknown or expired `stagingId` → 404.
+2. `expectedActive` must equal the current active version (or `null` for a new plugin), else
+   409 `conflict` ("changed meanwhile, check again"): the impact shown would be stale.
+3. Re-check the staged bundle's sha256.
+4. `PluginVersions.commit`: `rename` into `<id>/<version>`, then one transaction for the
+   version row and the package row (`previous_version` = the old active). If the transaction
+   fails, the directory is removed again.
+5. `catalog.setInstalled`. If the installed copy is the effective one,
+   `PluginService.packageChanged(pkg)`: see hot update.
+6. `prune(id)`, remove the staging directory, release the lock, answer 200 with an
+   `InstallOutcomeDto` (the package plus each instance's state after its restart).
+
+**Crash and disk full.**
+
+| Interrupted | What the next boot finds | What happens |
+|---|---|---|
+| during phase 1 | a `.staging/<uuid>` | `sweep()` deletes it; nothing else changed |
+| after the `rename`, before the transaction | `<id>/<version>` without a row | deleted as an orphan |
+| after the transaction | the new version active | loaded normally, instances start on it |
+| during `prune` | extra rows or directories | `prune` runs again at boot |
+
+- `ENOSPC` or `EDQUOT` anywhere becomes `no-space` (507), after the same cleanup. There is no free
+  space check before an install.
+- Partially written files can't be activated: the sha256 is checked on confirm, on activation and
+  at boot.
+
+### Hot update and rollback
+
+Activation is the same for an update (confirm) and a rollback or roll-forward
+(`POST /api/plugin-packages/:id/activate { version }`; only the active or previous version exists):
+
+- **Running instances** restart on the new package through `PluginManager.replacePackage`. Each
+  supervisor's lifecycle queue serializes it: graceful shutdown (5 s grace), swap, `refresh()`,
+  start. Instances of other plugins are untouched, and the server never restarts (ADR 0001).
+- **Instances that weren't running:** `PluginService.packageChanged` notes beforehand which
+  enabled instances were in `error` or `crashed`, and starts them on the new version (a fix
+  should take effect). Instances stopped by hand stay stopped. Unavailable instances get a
+  supervisor and start if enabled, as today.
+- **Signals:** an orphaned signal keeps its row, topic, wires and last value, shows its error,
+  and receives nothing. After a rollback, `refresh()` clears the mark and `addAll` creates it
+  again. A changed value type rebuilds its wires or drops them as inactive (they come back once
+  the type fits again). Nothing is deleted automatically.
+- **Stored config:** never migrated. The plugin validates it in `init`. An instance whose config
+  the new schema refuses ends in `error` with the plugin's message. The user then fixes it in the
+  form, which now renders the new schema, or rolls back. Secret fields follow the effective
+  description.
+- **Store:** kept as it is. Authors must read their own older store formats and tolerate newer
+  ones (rollback); this goes into `plugin-authoring.md`.
+- **In-flight commands:** a request pending when the old worker shuts down fails, so its bus
+  `result` is `ok: false` with "the plugin was stopped". A command arriving during the restart
+  gets "not running" at once. Nothing is queued or replayed, so a device never receives a stale
+  command later; the next state change or a Miniserver resend brings it up to date.
+- **What the user sees:** before confirming, the review lists the instances that will restart and
+  the impact. Afterwards it shows every instance's state, with a "roll back to x" button. There
+  is no automatic rollback.
+
+### Uninstall
+
+`DELETE /api/plugin-packages/:id` is refused with 409 while any instance of that plugin id exists,
+running or not, and the message names them. Deleting instances also deletes their signals and
+wires, so it stays a separate, explicit action on the instance page. Otherwise it removes the
+rows, every version directory and the installed catalog layer. A development copy stays available.
+
+### REST API
+
+All routes need a session (every user is an admin in v1; once roles exist, these routes are
+admin-only). DTOs and input schemas go into `packages/api/src/pluginPackages.ts`.
+
+| Route | Body | Answer |
+|---|---|---|
+| `GET /api/plugin-packages` | | `InstalledPluginDto[]` |
+| `POST /api/plugin-packages/stage/git` | `GitInstallInput { url, ref }` | 201 `StagedInstallDto` |
+| `POST /api/plugin-packages/stage/zip?name=<file>` | raw bytes, `application/zip` or `application/octet-stream`, `bodyLimit` 50 MiB in its own scope | 201 `StagedInstallDto` |
+| `GET /api/plugin-packages/repository` | | `RepositoryPluginDto[]` (M5e-1: the local plugin repository) |
+| `POST /api/plugin-packages/stage/local` | `LocalInstallInput { folder }` | 201 `StagedInstallDto` |
+| `POST /api/plugin-packages/stage/:stagingId/confirm` | `{ expectedActive: string \| null }` | 200 `InstallOutcomeDto` |
+| `DELETE /api/plugin-packages/stage/:stagingId` | | 204 |
+| `GET /api/plugin-packages/:id/versions/:version/impact` | | `UpdateImpactDto` |
+| `POST /api/plugin-packages/:id/activate` | `{ version }` | 200 `InstallOutcomeDto` |
+| `DELETE /api/plugin-packages/:id` | | 204, or 409 with the instances |
+
+- `PluginVersionDto`: `version`, `source` (`{ kind: "git", url, ref, commit }`,
+  `{ kind: "zip", fileName, archiveSha256 }` or `{ kind: "local", folder }`), `bundleSha256`, `installedAt`, `installedBy`,
+  `available`, `problem?`.
+- `InstalledPluginDto`: `id`, `name`, `icon?`, `active` and `previous?` (`PluginVersionDto`),
+  `instances` (count), `shadowedByDevelopment`.
+- `StagedInstallDto`: `stagingId`, `expiresAt`, the manifest (`id`, `name`, `version`), `source`,
+  `bundleSha256`, sensor and actuator counts, `installedVersion?`, `sameAsInstalled`, `impact`.
+- `UpdateImpactDto`: `instances`, `removed` and `retyped` capabilities (each with how many
+  signals use it), `newRequiredConfig`.
+- `InstallOutcomeDto`: `plugin` plus `instances: { id, label, state, lastError? }[]`.
+- `PluginPackageDto.source` (`GET /api/plugins`) becomes `"development" | "installed"`.
+- Errors: 400 invalid source or package and describe failures; 404; 409 `busy`, `exists`,
+  `conflict` and uninstall with instances; 413 upload too large; 502 git failed (unreachable,
+  ref not found); 504 git timeout; 507 no space.
+
+### UI
+
+- **Plugins** page gets two tabs: Instances (as today) and **Installed** (`/plugins/installed`;
+  vue-router ranks the static path above `/plugins/:id`).
+- **Installed** lists one card per plugin:
+  - name and icon, the active version, and its source (git URL, ref and short commit with copy;
+    or the ZIP name and short archive sha256), when and by whom
+  - the instance count, plus badges for "development copy runs instead" and "files missing"
+  - actions: **Update** (the install dialog, prefilled with the git URL), **Roll back to <previous>**
+    (a dialog with the impact) and **Uninstall** (disabled with the instance names while instances
+    exist)
+- **Install dialog**, three steps:
+  1. **Source:** Git (URL, branch or tag) or ZIP (file picker). A permanent warning: "Plugins are
+     trusted code. A plugin runs inside Nexus with the same access to files and the network as
+     Nexus itself; worker threads are not a sandbox. Checking a plugin already runs its code once.
+     Only install plugins whose source you trust." The "Fetch and check" button needs an
+     "I trust this source" checkbox.
+  2. **Review:** name, id, version (new, or "1.2.0 → 1.3.0", or "older than the active one"), the
+     source with the full commit or archive sha256, the bundle sha256, the capability counts, and
+     the impact: instances that restart, signals that lose their capability, new required
+     settings. Install or Cancel (cancel discards the staged install).
+  3. **Result:** each instance's state after the restart, with a roll back button.
+- Components: `InstallDialog`, `InstallSourceForm`, `InstallReview`, `TrustWarning`,
+  `InstalledPluginCard`, `UpdateImpactList`, and a `PluginPackageApi` facade.
+
+### Security
+
+- **Who can install:** a logged-in user (everyone is an admin in v1). CSRF is covered by
+  SameSite=Strict and the Origin check on state-changing requests, which includes the upload.
+- **Trusted code, not defended:** installing is running code by design. A plugin can read the
+  database file, open connections and use everything Nexus can. The describe step already runs it
+  in staging. There are no signatures and no sandbox; a later `child_process` transport with
+  `--permission` stays possible (ADR 0001). The trust warning says so before anything is fetched.
+- **Defended:**
+  - **Malicious archives:**
+    - archive paths are never used as write paths
+    - absolute, drive, backslash, `..` and control-character names are refused; so are symlinks,
+      encrypted entries and duplicates
+    - more than 5,000 entries, or a declared total over 50 MiB, is refused
+    - an entry larger than it declares fails in yauzl, and extraction is byte-counted against its
+      cap
+    - the upload body is capped at 50 MiB
+  - **Git URL tricks:**
+    - `new URL` must succeed with `https:`. That rules out `ext::`, `file://`, `ssh://`, `git://`,
+      scp syntax (`git@host:x`), local paths, and anything starting with `-`.
+    - No user info in the URL (no tokens stored or logged). Host required; ≤ 2,048 characters;
+      no whitespace or control characters; the normalized `href` is what runs.
+  - **Ref:** `^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$`, no `..`, `//`, `@{` or trailing `.lock`/`/`.
+    Passed as `--branch=<ref>`; the URL comes after `--`.
+  - **Git environment:**
+    - only `PATH`, `HOME=<staging>`, `LC_ALL=C`, `GIT_TERMINAL_PROMPT=0`, `GIT_CONFIG_NOSYSTEM=1`,
+      `GIT_CONFIG_GLOBAL=/dev/null`, `GIT_ALLOW_PROTOCOL=https` (tests: their scheme)
+    - every call gets `-c protocol.allow=never -c protocol.https.allow=always -c credential.helper=
+      -c core.hooksPath=/dev/null -c core.fsmonitor=false -c core.symlinks=false`
+    - no askpass, no inherited proxy or SSL variables, so TLS verification stays on
+  - **Huge repos:** depth 1, one branch, no tags, blobs filtered, a 120 s timeout with SIGKILL,
+    the 100 MiB object store cap, and `maxBuffer` on every read.
+  - **Symlinks in a checkout:** there is no checkout. Tree modes are checked for the two files we
+    read, and the copies in staging are `lstat`ed again.
+  - **Path traversal:** the manifest entry rules, and `PluginDirectory.inside` on every join.
+    `id` and `version` are restricted to characters that can't form a path segment like `..`.
+  - **DoS by repeated installs:** one operation at a time (409), one pending install with a TTL,
+    two versions per plugin, staging wiped at boot.
+  - **Tampering or corruption at rest:** sha256 checked at boot and on activation. A writable
+    data directory already owns the server, so this is integrity, not a defense.
+- **Logging (pino, `component: "installer"`):**
+  - every stage, confirm, activate, discard and uninstall at info, with the user, the source
+    (URL and ref, or file name and archive sha256), the commit, `id`, `version` and bundle sha256
+  - refused archives and URLs at warn, with the reason
+  - git's stderr at debug, cut to 2,000 characters; it can't hold credentials, because the URL
+    has none
+
+### Tests
+
+- **Fixtures are built in the tests, not checked in:**
+  - Plugin bundles come from tiny SDK plugins under `apps/server/src/test-support/plugins/`,
+    built with esbuild's API (`conditions: ["@lox-nexus/source"]`) once per test file. v1 offers
+    sensors `a` and `b`. v2 drops `b` and adds a required setting.
+  - Archives are made with fflate's `zipSync`. A symlink entry is `attrs: 0o120777 << 16` with
+    `os: 3`.
+  - A lying size, the encrypted bit and a duplicate name are byte patches of the central
+    directory (a small helper).
+  - The bomb is 51 MiB of zeros, about 50 KB zipped.
+  - esbuild and fflate become devDependencies of `apps/server`.
+- **ZIP:** zip-slip (`../x`, `a/../../x`), absolute, `C:\x`, a backslash, a symlink, 5,001 entries,
+  the bomb, a lying size, encrypted, a duplicate `package.json`, no `package.json`, two top-level
+  directories, a `__MACOSX` wrapper (accepted), a missing entry, `entry: "../x.js"`, an entry that
+  is a directory, a bundle over 20 MiB.
+- **Git without network:**
+  - `GitSource` and `GitUrl` take the allowed schemes, `["https"]` by default. Tests pass
+    `["file"]` and use a local bare repository made with `git init --bare` and
+    `uploadpack.allowFilter true`. The repository holds the built fixture with its bundle
+    committed, a tag, a symlinked entry (`120000`), a submodule entry (`160000`) and an LFS pointer.
+  - Unit tests check `GitUrl` against `ext::sh -c x`, `file:///`, `/tmp/x`, `git@host:x`,
+    `ssh://`, `http://`, `-uhttps://…`, `--upload-pack=x`, user info, whitespace and length.
+  - A test asserts `GitRunner`'s argv and environment.
+  - A `HOME` with a `.gitconfig` whose `core.hooksPath` script writes a marker proves the global
+    config is ignored.
+  - A fake `git` that sleeps, with a 100 ms timeout, proves the kill.
+  - An opt-in live test (`NEXUS_GIT_LIVE_URL`) clones a public repository over real https.
+- **Same plugin from git and ZIP:** both installs of the fixture give the same `bundle_sha256` and
+  description. The second is `sameAsInstalled`.
+- **Crash and disk full:**
+  - `InstalledPluginLoader` gets a prepared directory: staging leftovers, an orphan version, a
+    row without files and a sha256 mismatch.
+  - `ENOSPC` is simulated with `mock.method(fs.promises, "rename" | "writeFile")`.
+  - The transaction failure is simulated through the repository.
+- **Concurrency:** two parallel stages (409 `busy`), confirm with a stale `expectedActive` (409),
+  an expired `stagingId` (404, with `mock.timers`), and a new stage that discards the pending one.
+- **Hot update** (real `WorkerTransport`, through the HTTP API of one `NexusApp`):
+  1. install v1, create two instances, signals `a` and `b`, and a wire from `b` to a Loxone
+     output
+  2. confirm v2: the instances restart and run; `b` is orphaned, its wire is kept but inactive;
+     an instance of another plugin keeps its worker (same thread id); `/api/health` answers
+     throughout
+  3. roll back: `b` works again and its wire is active
+  4. restart the app: the active version and the previous one persist
+- **Uninstall:** 409 with instances; afterwards no rows and no directories.
+- **Headless walkthrough** (M5e-3): install the fixture from a ZIP and from git, review, confirm,
+  check an instance, update, roll back, try to uninstall with instances.
+  - The cached Playwright Chromium (`~/.cache/ms-playwright/chromium*-1248`) is missing system
+    libraries here: nss, nspr, atk, at-spi, dbus, cups, Xcomposite, Xdamage, Xfixes, Xrandr, gbm,
+    xkbcommon and asound.
+  - Either the user installs them (`npx playwright install-deps chromium`, needs root), or the
+    `.deb`s are fetched with `apt-get download` and unpacked with `dpkg -x` into a user directory
+    used through `LD_LIBRARY_PATH`. Either way needs the user's permission.
+
+### Implementation notes: M5e-1
+
+- **Third source: the local plugin repository** (user decision for open question 5).
+  - `NEXUS_PLUGIN_REPOSITORY` names a folder with one built plugin per subfolder. It defaults to
+    `<dataDir>/plugin-repository`, and `npm run dev` presets the workspace's `plugins/`.
+  - `LocalRepository` lists it on every request; only package.json is read, and folders without a
+    `loxNexus` block are skipped. Unbuilt plugins are listed with a problem.
+  - `LocalSource` copies package.json, the bundle and its map. All three must be plain files
+    (`lstat`), and their real paths must stay inside the folder (`realpath`), so neither a symlinked
+    file nor a symlinked folder leads out.
+  - The client only ever sends a folder name from the listing (`POST stage/local { folder }`).
+    `GET /api/plugin-packages/repository` lists the folders with their installed version.
+  - The source stored for the version is the folder's absolute path.
+  - `npm run plugins:build` builds the first-party bundles. This is how fronius, homeassistant and
+    calendar reach an installation until M6 publishes release ZIPs.
+- **Git runs in its own process group** (`GitProcess`). With a partial clone, `cat-file` leaves the
+  download to helper processes (`git fetch`, upload-pack), so the timeout, the stdout cap and a
+  shutdown kill the whole group.
+  - **One deadline per fetch:** the 120 s budget is shared by all calls, so one stage can't hold the
+    lock for several minutes.
+  - **Size cap while downloading:** the clone's size is measured every 250 ms while git runs, and
+    going over 100 MiB kills it. The cap therefore holds while downloading, not only afterwards.
+  - **No `cat-file -s`:** asking for a size already fetches the blob.
+  - **Messages:** git's stderr has the staging path replaced. "No space left on device" becomes
+    507.
+- **The operation lock lives in `PluginPackageService`** (`OperationLock`). It covers the commit,
+  the catalog update and `packageChanged`, not just the installer's own steps.
+- **Updates wait for M5e-2.** Staging an installed id with another version answers 409
+  `unsupported` ("uninstall it first"). The same version and bundle is `sameAsInstalled`, and the
+  same version with another bundle is 409 `exists`. `StagedInstallDto` has no `impact` yet, and
+  there is no `activate` or `prune`.
+- **Uninstall** removes the catalog entry before any file is touched, so no instance can be created
+  meanwhile. Folders that can't be removed are logged and become orphans for the next boot. A
+  commit removes a leftover folder that has no row before moving in.
+- **Boot never fails over leftovers.** Unreadable or undeletable folders are logged and skipped.
+- **Other differences:**
+  - ZIP names are also checked as raw bytes: yauzl decodes legacy CP437 names, which turns control
+    bytes into glyphs.
+  - The upload accepts `application/x-zip-compressed` as well, which is what Windows browsers send.
+  - Git URLs with a query or fragment are refused.
+  - `DevPluginLoader` ignores changes under `dist/` and `node_modules/`, so building the plugins
+    doesn't restart every development instance.
+
+### Left out on purpose
+
+- ZIPs from URLs, private repositories and tokens, commit SHAs as refs, plugins in a subdirectory
+  of a repository, signatures.
+- Update checks, automatic rollback, more than two versions, a free-space check before installing.
+- Built-in first-party plugins in production (open question below).
+
+### Open questions (recommendations in the M5e report; to be confirmed by the user)
+
+1. ZIP from an https URL, or uploads only? Recommended: uploads only for now.
+2. Private repositories? Recommended: not in M5e. Later, a per-host credential (write-only, passed
+   to git through `GIT_CONFIG_COUNT` with `http.extraHeader`, never in argv or the URL).
+3. Update checks? Recommended: none automatic; later a "check for updates" button
+   (`git ls-remote --tags`) for git-installed plugins.
+4. Commit SHAs as refs? Recommended: branches and tags only; the resolved commit is shown and
+   stored.
+5. How do fronius, homeassistant and calendar reach a production install, now that `dist/` is
+   git-ignored? **Decided:** a local plugin repository that Nexus lists by itself (see
+   "Implementation notes: M5e-1"); release ZIPs from CI in M6 stay the plan for production.
+6. Git in the runtime image? Recommended: yes, the M6 Dockerfile installs git. Without it,
+   `GitSource` answers "git is not installed" and ZIP still works.
+
 ## Dependencies (installed in the milestone that first needs them)
 
 | Where | Packages |
@@ -1196,7 +1651,7 @@ stays in `docs/`.
 | packages/ici | none (node:dgram, node:crypto) |
 | packages/plugin-sdk, core, api | zod 4 |
 | packages/loxone | zod 4, basic-ftp, saxes, fflate (reading Loxone Config projects) |
-| apps/server | fastify 5, @fastify/websocket, @fastify/cookie, @fastify/static, pino, pino-pretty, zod 4 (node:sqlite and node:crypto built in); later yauzl, esbuild |
+| apps/server | fastify 5, @fastify/websocket, @fastify/cookie, @fastify/static, pino, pino-pretty, zod 4 (node:sqlite and node:crypto built in); M5e: yauzl (ADR 0009), and esbuild + fflate as devDependencies for test fixtures; the `git` binary at run time for git installs |
 | apps/web | vue 3, vue-router, vite, tailwindcss 4 + @tailwindcss/vite, shadcn-vue (reka-ui, cn, class-variance-authority, @lucide/vue, @vueuse/core, tw-animate-css), @tanstack/vue-virtual, vue-tsc, eslint-plugin-vue |
 | apps/docs | markdown-it, Shiki, TypeDoc + typedoc-plugin-markdown, zod (build-time only) |
 | plugins/homeassistant | none (Node's `WebSocket`); `ws` only for the test server |

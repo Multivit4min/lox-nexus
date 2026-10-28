@@ -181,6 +181,14 @@ first-party plugins load from the workspace until then.
      rollback and a throwaway describe worker.
    - Hot update of running instances.
    - An install UI that shows the source, the commit and the trust warning.
+   - Design: `docs/architecture.md`, "Design: plugin installer (M5e)", and ADRs 0009 and 0010.
+     It is built in three steps:
+     - **M5e-1:** the install pipeline for new plugins (sources, validation, staging, describe,
+       commit, boot loading, uninstall, API). Done, with a third source decided on the way: the
+       local plugin repository (`NEXUS_PLUGIN_REPOSITORY`), from which the first-party plugins are
+       installed until M6 publishes release ZIPs.
+     - **M5e-2:** versions, hot update and rollback.
+     - **M5e-3:** the UI and the walkthrough.
 
 **Verify:**
 - Zip-slip, symlink and zip-bomb fixtures are rejected.

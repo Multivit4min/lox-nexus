@@ -12,8 +12,11 @@ export interface PluginPackageDto {
   name: string
   icon?: string
   version: string
-  /** development: loaded from the workspace's plugins/ (restarts on file changes) */
-  source: "development"
+  /**
+   * development: loaded from the workspace's plugins/ (restarts on file changes); installed:
+   * through the installer (see InstalledPluginDto)
+   */
+  source: "development" | "installed"
   /** config schema and the sensors and actuators it offers, as JSON Schema */
   description: PluginDescription
 }

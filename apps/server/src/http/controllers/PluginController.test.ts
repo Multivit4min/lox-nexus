@@ -22,7 +22,7 @@ describe("plugin API", { timeout: 10_000 }, () => {
     const description = await PluginTestHost.describe(CounterPlugin)
     const pluginTransport = new FakePluginTransport().add("counter.ts", CounterPlugin)
     app = await TestApp.start({ pluginTransport }, {}, nexus =>
-      nexus.pluginCatalog.set({ pkg: { id: "counter", name: "Counter", entry: "counter.ts", description }, version: "1.0.0", source: "development" }))
+      nexus.pluginCatalog.setDevelopment({ pkg: { id: "counter", name: "Counter", entry: "counter.ts", description }, version: "1.0.0" }))
     admin = await app.admin()
   })
   after(() => app.dispose())

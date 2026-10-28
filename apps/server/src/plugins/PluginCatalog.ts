@@ -7,26 +7,51 @@ export interface CatalogEntry {
   version: string
   /** from the manifest; how the UI interprets it is up to the UI */
   icon?: string
-  /** where the plugin came from; only workspace plugins (DevPluginLoader) exist so far */
-  source: "development"
+  /** development: the workspace's plugins/ from source (DevPluginLoader); installed: through the installer */
+  source: "development" | "installed"
 }
 
-/** The plugins available to create instances from, by id. Filled by the loaders. */
+/**
+ * The plugins available to create instances from, by id, in two layers. A development copy wins
+ * over an installed plugin with the same id (ADR 0010): whoever sets NEXUS_DEV_PLUGINS_DIR wants
+ * to run their source.
+ */
 export class PluginCatalog {
-  private readonly entries = new Map<string, CatalogEntry>()
+  private readonly developmentEntries = new Map<string, CatalogEntry>()
+  private readonly installedEntries = new Map<string, CatalogEntry>()
 
   /** adds or replaces by plugin id; a reload replaces the old package */
-  set(entry: CatalogEntry) {
-    this.entries.set(entry.pkg.id, entry)
+  setDevelopment(entry: Omit<CatalogEntry, "source">) {
+    this.developmentEntries.set(entry.pkg.id, { ...entry, source: "development" })
   }
 
-  /** undefined when no loader provided that plugin */
+  /** the active installed version of a plugin */
+  setInstalled(entry: Omit<CatalogEntry, "source">) {
+    this.installedEntries.set(entry.pkg.id, { ...entry, source: "installed" })
+  }
+
+  removeInstalled(id: string) {
+    this.installedEntries.delete(id)
+  }
+
+  /** the entry instances run: the development copy if there is one; undefined when no loader provided it */
   get(id: string) {
-    return this.entries.get(id)
+    return this.developmentEntries.get(id) ?? this.installedEntries.get(id)
   }
 
-  /** sorted by name, for stable UI order */
+  /** the installed layer only, also when a development copy hides it */
+  installed(id: string) {
+    return this.installedEntries.get(id)
+  }
+
+  /** whether a development copy hides the installed plugin */
+  shadowed(id: string) {
+    return this.developmentEntries.has(id) && this.installedEntries.has(id)
+  }
+
+  /** the effective entries, sorted by name for stable UI order */
   list() {
-    return [...this.entries.values()].sort((a, b) => a.pkg.name.localeCompare(b.pkg.name))
+    const ids = new Set([...this.developmentEntries.keys(), ...this.installedEntries.keys()])
+    return [...ids].map(id => this.get(id)!).sort((a, b) => a.pkg.name.localeCompare(b.pkg.name))
   }
 }

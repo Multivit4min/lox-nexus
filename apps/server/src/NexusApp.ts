@@ -1,5 +1,5 @@
 import {
-  EventBus, PackageDescriber, PluginManager, Recorder, SignalRegistry, SystemClock, WireEngine, WorkerTransport,
+  EventBus, PluginManager, Recorder, SignalRegistry, SystemClock, WireEngine, WorkerTransport,
   type Clock, type PluginTransport, type SupervisorTimings
 } from "@lox-nexus/core"
 import { MiniserverFtp, MiniserverManager, ProjectReader } from "@lox-nexus/loxone"
@@ -18,11 +18,12 @@ import { ConfigController } from "./http/controllers/ConfigController.ts"
 import { HookController } from "./http/controllers/HookController.ts"
 import { MiniserverController } from "./http/controllers/MiniserverController.ts"
 import { PluginController } from "./http/controllers/PluginController.ts"
+import { PluginPackageController } from "./http/controllers/PluginPackageController.ts"
 import { SignalController } from "./http/controllers/SignalController.ts"
 import { HttpServer } from "./http/HttpServer.ts"
 import { SessionCookie } from "./http/SessionCookie.ts"
-import { DevPluginLoader } from "./plugins/DevPluginLoader.ts"
-import { PluginCatalog } from "./plugins/PluginCatalog.ts"
+import { PluginAssembly, type InstallOptions } from "./plugins/PluginAssembly.ts"
+import type { PluginCatalog } from "./plugins/PluginCatalog.ts"
 import { ConfigTransfer } from "./services/ConfigTransfer.ts"
 import { LoxoneProjectService } from "./services/LoxoneProjectService.ts"
 import { LoxoneSignalService } from "./services/LoxoneSignalService.ts"
@@ -48,6 +49,7 @@ export interface NexusAppOptions {
   pluginTimings?: Partial<SupervisorTimings>
   /** reads Loxone Config projects from Miniservers; tests pass a fake instead of FTP */
   projectReader?: Pick<ProjectReader, "read" | "file">
+  install?: InstallOptions
 }
 
 /** The services the HTTP layer needs, built in start(). */
@@ -76,9 +78,9 @@ export class NexusApp extends Disposable {
   readonly wires: WireEngine
   readonly miniservers: MiniserverManager
   readonly plugins: PluginManager
-  /** the plugins instances can be created from; development plugins are added at start */
-  readonly pluginCatalog = new PluginCatalog()
-  private readonly pluginTransport: PluginTransport
+  /** the plugins instances can be created from; filled at start */
+  readonly pluginCatalog: PluginCatalog
+  private readonly pluginAssembly: PluginAssembly
   /** each plugin instance's recent log lines */
   readonly pluginLogs: PluginLogs
   private readonly clock: Clock
@@ -98,12 +100,14 @@ export class NexusApp extends Disposable {
     // owned before the Miniservers, so it is disposed after them and saves their last values
     this.snapshot = this.own(new SnapshotWriter(this.bus, this.signals, this.persistence.snapshot, log))
     this.miniservers = this.own(new MiniserverManager({ bus: this.bus, signals: this.signals, clock: this.clock, loadHistory: this.persistence.loadSamples }))
-    this.pluginTransport = options.pluginTransport ?? new WorkerTransport()
+    const transport = options.pluginTransport ?? new WorkerTransport()
     this.pluginLogs = new PluginLogs(log.child({ component: "plugin" }), this.clock)
     this.plugins = this.own(new PluginManager({
-      bus: this.bus, registry: this.signals, transport: this.pluginTransport, store: this.persistence.pluginStore,
+      bus: this.bus, registry: this.signals, transport, store: this.persistence.pluginStore,
       logs: this.pluginLogs, ...(options.pluginTimings ? { timings: options.pluginTimings } : {})
     }))
+    this.pluginAssembly = this.own(new PluginAssembly(config, transport, this.persistence.pluginPackages, log, options.install))
+    this.pluginCatalog = this.pluginAssembly.catalog
   }
 
   /**
@@ -122,7 +126,7 @@ export class NexusApp extends Disposable {
     const pluginSignals = new PluginSignalService(db.pluginSignals, plugins, cleanup)
     this.bus.restoreForces()
     miniservers.load()
-    await this.loadDevPlugins(plugins)
+    await this.pluginAssembly.load(plugins)
     if (this.isDisposed) return undefined
     plugins.load()
     wires.load()
@@ -135,17 +139,6 @@ export class NexusApp extends Disposable {
     // failures show up as each instance's state; nothing to wait for here
     this.plugins.startEnabled().catch((error: unknown) => log.error({ err: error }, "starting the plugins failed"))
     return address
-  }
-
-  // development only: plugins/* from source, described by throwaway workers, reloaded on change
-  private async loadDevPlugins(plugins: PluginService) {
-    const dir = this.config.devPluginsDir
-    if (!dir) return
-    const log = this.log.child({ component: "plugins" })
-    const loader = this.own(new DevPluginLoader(dir, new PackageDescriber(this.pluginTransport), this.pluginCatalog, pkg => plugins.packageChanged(pkg), log))
-    await loader.load()
-    loader.watch()
-    log.info({ plugins: this.pluginCatalog.list().map(entry => entry.pkg.id) }, "development plugins loaded")
   }
 
   /** the HTTP server; undefined until start() got that far. Tests use its inject(). */
@@ -180,6 +173,7 @@ export class NexusApp extends Disposable {
         new BusController(this.bus, this.recorder),
         new ConfigController(new ConfigTransfer({ miniservers, signals: loxoneSignals, wires }, log)),
         new PluginController(plugins, pluginSignals, this.pluginLogs),
+        new PluginPackageController(this.pluginAssembly.packages(plugins)),
         stream
       ],
       publicControllers: [new HookController(this.plugins)]

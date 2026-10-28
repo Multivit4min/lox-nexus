@@ -9,7 +9,7 @@ import type { NexusApp } from "../../NexusApp.ts"
 import { TestApp } from "../../test-support/TestApp.ts"
 
 const withCounter = (description: PluginDescription) => (nexus: NexusApp) =>
-  nexus.pluginCatalog.set({ pkg: { id: "counter", name: "Counter", entry: "counter.ts", description }, version: "1.0.0", source: "development" })
+  nexus.pluginCatalog.setDevelopment({ pkg: { id: "counter", name: "Counter", entry: "counter.ts", description }, version: "1.0.0" })
 
 // every app is also disposed in a hook (disposing twice is fine), so a failing assertion can't
 // leave a server running and keep the test run alive

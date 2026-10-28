@@ -23,7 +23,9 @@ const EnvSchema = z.object({
   /** comma-separated origins the UI is reached at through a proxy that rewrites Host, e.g. https://nexus.example */
   NEXUS_PUBLIC_ORIGINS: list.pipe(z.array(z.url())).default([]),
   /** development: run every plugin in this directory from source (`npm run dev` sets the workspace's plugins/) */
-  NEXUS_DEV_PLUGINS_DIR: z.string().min(1).optional()
+  NEXUS_DEV_PLUGINS_DIR: z.string().min(1).optional(),
+  /** a folder with one built plugin per subfolder, offered for installing; default <dataDir>/plugin-repository */
+  NEXUS_PLUGIN_REPOSITORY: z.string().min(1).optional()
 })
 
 /** Process configuration from environment variables. Everything persistent lives under `dataDir`. */
@@ -43,6 +45,8 @@ export class Config {
   readonly publicOrigins: string[]
   /** absolute path, if configured */
   readonly devPluginsDir: string | undefined
+  /** absolute path; a missing folder is an empty repository */
+  readonly pluginRepositoryDir: string
 
   /** @throws ZodError naming every invalid variable */
   constructor(env: Record<string, string | undefined> = process.env) {
@@ -57,11 +61,17 @@ export class Config {
     this.trustProxy = parsed.NEXUS_TRUST_PROXY
     this.publicOrigins = parsed.NEXUS_PUBLIC_ORIGINS
     this.devPluginsDir = parsed.NEXUS_DEV_PLUGINS_DIR && path.resolve(parsed.NEXUS_DEV_PLUGINS_DIR)
+    this.pluginRepositoryDir = path.resolve(parsed.NEXUS_PLUGIN_REPOSITORY ?? path.join(this.dataDir, "plugin-repository"))
   }
 
   /** the SQLite file */
   get databaseFile() {
     return path.join(this.dataDir, "nexus.db")
+  }
+
+  /** installed plugins, one folder per plugin and version */
+  get pluginsDir() {
+    return path.join(this.dataDir, "plugins")
   }
 
   // compose files often set `NEXUS_HTTP_PORT=` meaning "unset"; coerced, "" would become port 0

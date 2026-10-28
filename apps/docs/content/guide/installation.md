@@ -1,7 +1,8 @@
 # Installation
 
-Today Nexus runs from a source checkout. A Docker image and an installer for plugins are **not
-available yet** (both are planned for milestone M6 and M5e, see [Plugins](#plugins)).
+Today Nexus runs from a source checkout. A Docker image is **not available yet** (milestone M6).
+Plugins can be installed through the REST API; the UI for it is not available yet (milestone
+M5e-3), see [Plugins](#plugins).
 
 ## Requirements
 
@@ -96,7 +97,8 @@ Everything is configured through environment variables. Empty variables count as
 | `NEXUS_SECURE_COOKIES` | `false` | `true` or `1` when users reach Nexus over https (directly or through a proxy). Accepts `true`, `false`, `1`, `0` only. |
 | `NEXUS_TRUST_PROXY` | not set | Comma-separated addresses or CIDRs of reverse proxies whose `X-Forwarded-For` is believed. |
 | `NEXUS_PUBLIC_ORIGINS` | not set | Comma-separated origins (for example `https://nexus.example`) the UI is reached at through a proxy that rewrites `Host`. |
-| `NEXUS_DEV_PLUGINS_DIR` | not set | Directory whose subdirectories are plugins, run from source. See [Plugins](#plugins). |
+| `NEXUS_DEV_PLUGINS_DIR` | not set | Directory whose subdirectories are plugins, run from source. Development only. See [Plugins](#plugins). |
+| `NEXUS_PLUGIN_REPOSITORY` | `<data dir>/plugin-repository` | The local plugin repository: a folder with one built plugin per subfolder that can be installed from. See [Plugins](#plugins). |
 
 An invalid value stops the server at startup with a message naming the variable.
 
@@ -118,16 +120,96 @@ documentation use relative links. Strip the prefix in the proxy and forward WebS
 
 ## Plugins
 
-A plugin instance needs the plugin to be known to the server. Today there is one way:
+A plugin instance needs its plugin to be known to the server. There are two ways.
 
-- Set `NEXUS_DEV_PLUGINS_DIR` to a directory that contains plugin packages. Nexus runs each one
-  from source (`src/index.ts`) and restarts its instances when a file changes. The first-party
-  plugins in the repository's `plugins/` directory are loaded this way.
+- **Installed plugins** are added through the installer, described below. They live in the data
+  directory and survive restarts.
+- **Development plugins**: set `NEXUS_DEV_PLUGINS_DIR` to a directory of plugin packages. Nexus
+  runs each one from source (`src/index.ts`) and restarts its instances when a file changes.
+  `npm run dev` points it at the repository's `plugins/`. A development plugin takes precedence
+  over an installed plugin with the same id. To run the installed copies instead, set the
+  variable to empty (`NEXUS_DEV_PLUGINS_DIR= npm run dev`).
 
-Installing a plugin from a ZIP file or a git URL is **not available yet** (milestone M5e). See
-[Publishing a plugin](../plugins/publishing.md).
+### Installing a plugin
+
+The web UI for installing is **not available yet** (milestone M5e-3); until then use the REST API.
+It needs a session, so log in first. The examples use `curl` with a cookie jar:
+
+```sh
+curl -c jar -H 'content-type: application/json' \
+  -d '{"username":"admin","password":"..."}' http://localhost:8080/api/auth/login
+```
+
+There are three sources:
+
+- **A ZIP file.** `package.json` is at the archive's root or in its only top-level folder, and the
+  archive is at most 50 MiB.
+- **A git repository.** An `https://` URL without a user name or token in it, and a branch or
+  tag. The built bundle must be committed in the repository. Git LFS files are not fetched, and
+  submodules are ignored. Nexus needs `git` on the server for this.
+- **The local plugin repository**, see below.
+
+Installing takes two steps, so you can look at what you are about to install. **Staging** fetches
+the plugin, checks it, and starts it once in a throwaway worker to learn which sensors and
+actuators it offers. It returns a `stagingId` with the plugin's name, version and checksums.
+**Confirm** then installs it. A staged install that isn't confirmed within 15 minutes is
+discarded, and staging another plugin discards the previous one.
+
+```sh
+# 1. stage, from a ZIP, a git repository or the local repository
+curl -b jar -H 'content-type: application/zip' --data-binary @my-plugin.zip \
+  'http://localhost:8080/api/plugin-packages/stage/zip?name=my-plugin.zip'
+curl -b jar -H 'content-type: application/json' \
+  -d '{"url":"https://github.com/owner/plugin.git","ref":"v1.2.0"}' \
+  http://localhost:8080/api/plugin-packages/stage/git
+curl -b jar -H 'content-type: application/json' -d '{"folder":"calendar"}' \
+  http://localhost:8080/api/plugin-packages/stage/local
+
+# 2. confirm (null: the plugin is not installed yet), or discard
+curl -b jar -H 'content-type: application/json' -d '{"expectedActive":null}' \
+  http://localhost:8080/api/plugin-packages/stage/<stagingId>/confirm
+curl -b jar -X DELETE http://localhost:8080/api/plugin-packages/stage/<stagingId>
+
+# what is installed, and what the local repository offers
+curl -b jar http://localhost:8080/api/plugin-packages
+curl -b jar http://localhost:8080/api/plugin-packages/repository
+```
+
+> **Only install plugins you trust.** A plugin is code that runs on your server. It runs in a
+> worker thread with an empty environment and a memory limit, but worker threads are **not a
+> sandbox**: it can read files and open network connections like Nexus itself. Staging already
+> runs the plugin's code once, so do not stage a source you don't trust.
+
+Installed plugins are stored in `<data dir>/plugins/<id>/<version>/`, and the database records
+what is installed. Back up the data directory as a whole.
+
+**Uninstalling** removes the plugin with all its files. It is refused while instances of the plugin
+exist: delete those first, which also deletes their signals and wires.
+
+```sh
+curl -b jar -X DELETE http://localhost:8080/api/plugin-packages/<plugin id>
+```
+
+**Updating** an installed plugin to another version is **not supported yet** (milestone M5e-2).
+Uninstall it first, then install the new version. Installing the same version again with the same
+bundle changes nothing; the same version with a different bundle is refused, so raise the version
+when you change a plugin. See [Publishing a plugin](../plugins/publishing.md) for what a package
+must contain.
+
+### The local plugin repository
+
+The local plugin repository is a folder on the server with one **built** plugin per subfolder. It
+is set with `NEXUS_PLUGIN_REPOSITORY` and defaults to `<data dir>/plugin-repository`. Nexus lists
+its contents on every request (`GET /api/plugin-packages/repository`), so a plugin you copy there
+shows up without a restart, and installs from it with the `folder` name. A subfolder that isn't
+built yet is listed with the reason.
+
+- `npm run dev` points the repository at the workspace's `plugins/`.
+- `npm run plugins:build` builds the bundles of the first-party plugins, so they can be installed.
+- Installing copies the files, so rebuilding a plugin in the repository never changes the
+  installed version.
 
 ## Not available yet
 
 - A Docker image (amd64 and arm64) and backups of the whole data directory: milestone M6.
-- The plugin installer (ZIP upload, git URL, rollback): milestone M5e.
+- The installer's web UI (M5e-3), updating an installed plugin and rollback (M5e-2).

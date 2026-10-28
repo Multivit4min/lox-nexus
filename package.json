@@ -17,6 +17,7 @@
     "dev:web:hmr": "npm run dev:hmr -w @lox-nexus/web",
     "reset-password": "npm run reset-password -w @lox-nexus/server --",
     "docs:build": "npm run build -w @lox-nexus/docs",
+    "plugins:build": "npm run build -w plugins --if-present -- --log-level=warning",
     "docs:dev": "npm run dev -w @lox-nexus/docs",
     "build": "npm run build --workspaces --if-present",
     "typecheck": "tsc -p tsconfig.json && npm run typecheck -w @lox-nexus/web",

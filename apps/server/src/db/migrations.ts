@@ -125,5 +125,38 @@ export const MIGRATIONS: readonly Migration[] = [
       -- 1: the signal carries Loxone colour numbers (a Lighting Controller's Lumitech output)
       ALTER TABLE loxone_signals ADD COLUMN lumitech INTEGER NOT NULL DEFAULT 0;
     `
+  },
+  {
+    version: 5,
+    name: "plugin_packages",
+    sql: `
+      -- installed plugins (the installer); the files are in <dataDir>/plugins/<id>/<version>/
+      CREATE TABLE plugin_versions (
+        plugin_id TEXT NOT NULL,
+        version TEXT NOT NULL,
+        name TEXT NOT NULL,
+        icon TEXT,
+        entry TEXT NOT NULL,
+        source_kind TEXT NOT NULL CHECK (source_kind IN ('zip', 'git', 'local')),
+        -- git: the https URL; zip: the uploaded file name; local: the folder
+        source TEXT NOT NULL,
+        ref TEXT,
+        commit_sha TEXT,
+        archive_sha256 TEXT,
+        bundle_sha256 TEXT NOT NULL,
+        -- the PluginDescription JSON, so a boot runs no plugin code outside instances
+        description TEXT NOT NULL,
+        installed_at INTEGER NOT NULL,
+        installed_by TEXT NOT NULL,
+        PRIMARY KEY (plugin_id, version)
+      );
+      CREATE TABLE plugin_packages (
+        id TEXT PRIMARY KEY,
+        active_version TEXT NOT NULL,
+        previous_version TEXT,
+        FOREIGN KEY (id, active_version) REFERENCES plugin_versions(plugin_id, version),
+        FOREIGN KEY (id, previous_version) REFERENCES plugin_versions(plugin_id, version)
+      );
+    `
   }
 ]

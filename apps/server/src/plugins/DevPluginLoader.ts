@@ -16,6 +16,8 @@ import { PluginManifestSchema } from "./PluginManifest.ts"
 export class DevPluginLoader extends Disposable {
   /** edits arrive in bursts (save, format, rebuild); one restart per burst */
   static readonly DEBOUNCE_MS = 300
+  /** folders inside a plugin whose changes don't affect what development runs */
+  static readonly IGNORED: ReadonlySet<string> = new Set(["dist", "node_modules"])
   private readonly pending = new Map<string, () => void>()
   /** reloads of one plugin run one after another, so a slow describe can't overtake a newer one */
   private readonly queues = new Map<string, Promise<void>>()
@@ -40,7 +42,9 @@ export class DevPluginLoader extends Disposable {
   watch() {
     if (!fs.existsSync(this.dir)) return
     const watcher = fs.watch(this.dir, { recursive: true }, (_event, file) => {
-      const name = file?.toString().split(path.sep)[0]
+      const [name, inside] = file?.toString().split(path.sep) ?? []
+      // development runs src/; a build (npm run plugins:build) or an install must not restart every instance
+      if (inside && DevPluginLoader.IGNORED.has(inside)) return
       if (name && !this.isDisposed) this.schedule(name)
     })
     // a watcher error (the directory was removed, too many files) must not take the server down
@@ -72,7 +76,7 @@ export class DevPluginLoader extends Disposable {
       const manifest = PluginManifestSchema.parse(JSON.parse(fs.readFileSync(manifestFile, "utf8")))
       const { id, name, icon } = manifest.loxNexus
       const pkg: PluginPackage = { id, name, entry, description: await this.describer.describe(entry) }
-      this.catalog.set({ pkg, version: manifest.version, source: "development", ...(icon ? { icon } : {}) })
+      this.catalog.setDevelopment({ pkg, version: manifest.version, ...(icon ? { icon } : {}) })
       return pkg
     } catch (error) {
       this.log.warn({ err: error, plugin: path.basename(root) }, "skipping a development plugin that can't be loaded")

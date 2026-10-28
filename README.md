@@ -32,6 +32,7 @@ npm run dev          # server (watch mode) on http://localhost:8080; serves the 
 npm run dev:web      # rebuilds the UI into apps/web/dist on every save; reload the page to see changes
 npm run dev:web:hmr  # alternative: Vite with hot reload on http://127.0.0.1:5173 (direct access only)
 npm run build        # then NEXUS_WEB_DIR=apps/web/dist serves the UI from the server
+npm run plugins:build  # builds the first-party plugins' bundles, so they can be installed
 ```
 
 `npm run dev` reads the repository's `.env` if there is one (variables already set win).
@@ -46,7 +47,7 @@ Server settings come from environment variables:
 
 | Variable | Default | |
 |---|---|---|
-| `NEXUS_DATA_DIR` | `./data` | database and (later) plugins |
+| `NEXUS_DATA_DIR` | `./data` | database and installed plugins (`plugins/`) |
 | `NEXUS_HTTP_HOST` / `NEXUS_HTTP_PORT` | `0.0.0.0` / `8080` | |
 | `NEXUS_LOG_LEVEL` | `info` | |
 | `NEXUS_SECURE_COOKIES` | `false` | set to `true` behind https |
@@ -54,7 +55,8 @@ Server settings come from environment variables:
 | `NEXUS_TRUST_PROXY` | | reverse proxy addresses whose `X-Forwarded-For` is trusted |
 | `NEXUS_PUBLIC_ORIGINS` | | origins the UI is reached at through a proxy that rewrites `Host` |
 | `NEXUS_DOCS_DIR` | | built documentation site (`npm run docs:build` → `apps/docs/dist`), served at `/docs/` without a login |
-| `NEXUS_DEV_PLUGINS_DIR` | | development: run every plugin in this directory from source (`npm run dev` sets the workspace's `plugins/`) |
+| `NEXUS_DEV_PLUGINS_DIR` | | development: run every plugin in this directory from source (`npm run dev` sets the workspace's `plugins/`; set it empty to run installed plugins instead) |
+| `NEXUS_PLUGIN_REPOSITORY` | `<data dir>/plugin-repository` | local plugin repository: a folder with one built plugin per subfolder, offered for installing (`npm run dev` sets the workspace's `plugins/`) |
 
 Forgot the password? `npm run reset-password` sets a new one (see the installation guide in the
 docs).
