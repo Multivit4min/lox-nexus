@@ -285,6 +285,51 @@ that capability's `params` schema when it is added. `label` is the suggested sig
 value the sensor would emit. The unit is the device's own, at most 32 characters. Both are only
 informative: an invalid value or a longer unit is dropped instead of failing the catalog.
 
+## Watching signals (exporters)
+
+A plugin can receive the values of signals the user chooses: Loxone signals, other plugins'
+sensors and actuators, anything on the bus. That is how an exporter (InfluxDB, MQTT, a CSV file)
+works. Declare it and implement `watched()`:
+
+```ts
+import { Plugin, type WatchedValue } from "@lox-nexus/plugin-sdk"
+
+export default class InfluxPlugin extends Plugin<InfluxConfig> {
+  static readonly watches = { label: "Exported signals", description: "Values of these signals are written to InfluxDB" }
+
+  override async watched(values: readonly WatchedValue[], dropped: number) {
+    // oldest first; this.watch.signal(id) has the signal's label, topic, type and owner
+    for (const value of values) {
+      const signal = this.watch.signal(value.signalId)
+      if (signal) this.buffer.add(signal, value)
+    }
+    if (dropped) this.log.warn(`${dropped} values were dropped while the export was behind`)
+  }
+
+  override watchChanged() {
+    // optional: this.watch.signals() is the new list (chosen, left out, renamed)
+  }
+}
+```
+
+- **The user decides what the plugin sees**, on the instance's page: all signals or chosen ones,
+  whole Miniservers or plugin instances, single signals. The plugin's config says *how* it exports,
+  never *what*. Until the user chooses, the plugin gets nothing.
+- **First** `watchChanged()` with the list, and the current value of each chosen signal
+  (`initial: true`; actuators have none unless forced); **then** every change, as the bus shows
+  it: forced values are marked `forced`, commands to actuators have `kind: "command"`. Callbacks
+  never overlap, and a batch always meets the list it was sent with. On shutdown, a running
+  `watched()` finishes before the plugin is disposed.
+- **Delivery is paced by the plugin.** The next batch comes once `watched()` returns (or its promise
+  settles), and Nexus sends at most two batches ahead. While a plugin is slower than the values
+  arrive, Nexus keeps a bounded queue and drops the oldest; `dropped` says how many since the last
+  batch. A throw in `watched()` is logged and doesn't stop the feed. Keep your own buffer bounded
+  too.
+- **Trust**: a watching plugin sees values of other systems, for example alarm states. The install
+  review and the instance page say so. Secrets never travel on the bus.
+- **Testing**: `host.watchSignals([...])` sets the chosen signals, and `await host.pushValues([...])`
+  delivers a batch and resolves when `watched()` finished.
+
 ## Panel
 
 `panel()` returns a status view for the instance's page. Plugins ship no UI code, so it is data:

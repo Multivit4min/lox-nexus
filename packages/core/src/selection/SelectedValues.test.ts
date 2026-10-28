@@ -54,3 +54,19 @@ test("a changed selection and a new signal apply at once; the registry finds sig
   bus.publish("loxone/haus/in/temp", Value.number(3), source)
   assert.equal(seen.length, 1, "disposed: unsubscribed")
 })
+
+test("after a force is released, the real value passes as a change even when it came from the snapshot", async () => {
+  const { registry, bus, seen, values } = setup(new SignalSelection("all"))
+  registry.register(signal("temp", "loxone/haus/in/temp", "source"))
+  bus.restoreSnapshot([{ topic: "loxone/haus/in/temp", value: Value.number(20), ts: 0 }])
+  bus.force("loxone/haus/in/temp", Value.number(5), { by: "david" })
+  bus.release("loxone/haus/in/temp", "david")
+  const restored: boolean[] = []
+  values.dispose()
+  const again = new SelectedValues(bus, registry, () => new SignalSelection("all"), (_s, message) => restored.push(message.flags?.restored === true))
+  bus.restoreSnapshot([{ topic: "loxone/haus/in/temp", value: Value.number(21), ts: 1 }])
+  assert.deepEqual(seen.slice(-2), ["temp state {\"type\":\"number\",\"value\":5} forced", "temp state {\"type\":\"number\",\"value\":20}"])
+  assert.deepEqual(restored, [true], "a replay without a force before it stays a replay")
+  await again.dispose()
+})
+

@@ -21,6 +21,8 @@ let db: Persistence
 let directory: PluginDirectory
 let versions: PluginVersions
 const describe = mock.fn(async () => description)
+/** a description as this version stores it */
+const stamped = JSON.stringify({ ...description, format: PluginVersions.FORMAT })
 
 beforeEach(() => {
   root = TestApp.tempDir()
@@ -41,13 +43,15 @@ async function installed(id: string, bundle = `export default ${JSON.stringify(i
   fs.writeFileSync(file, bundle)
   return {
     pluginId: id, version: "1.0.0", name: id, entry: "dist/plugin.js", source: { kind: "local", folder: "/x" },
-    bundleSha256: await PluginDirectory.sha256(file), description: JSON.stringify(description), installedAt: 1, installedBy: "admin", ...overrides
+    bundleSha256: await PluginDirectory.sha256(file), description: stamped, installedAt: 1, installedBy: "admin", ...overrides
   }
 }
 
 test("boot removes staging leftovers and orphan folders, and loads what the database says", async () => {
   db.pluginPackages.insert(await installed("good"))
   db.pluginPackages.insert(await installed("stale", "x", { description: "{not json" }))
+  // stored by an older Nexus, which dropped description fields it didn't know (like `watches`)
+  db.pluginPackages.insert(await installed("older", "y", { description: JSON.stringify(description) }))
   const missing = await installed("missing")
   fs.rmSync(directory.versionDir("missing", "1.0.0"), { recursive: true })
   db.pluginPackages.insert(missing)
@@ -66,13 +70,14 @@ test("boot removes staging leftovers and orphan folders, and loads what the data
   fs.chmodSync(path.join(directory.root, "locked"), 0o700)
   assert.equal(fs.existsSync(directory.stagingDir), false)
   assert.equal(fs.existsSync(path.join(directory.root, "orphan")), false)
-  assert.deepEqual(catalog.list().map(entry => entry.pkg.id).sort(), ["good", "stale"])
+  assert.deepEqual(catalog.list().map(entry => entry.pkg.id).sort(), ["good", "older", "stale"])
   assert.equal(catalog.get("good")?.source, "installed")
   assert.equal(versions.problem("missing", "1.0.0"), "its files are missing")
   assert.match(versions.problem("changed", "1.0.0") ?? "", /changed on disk/)
-  // an unreadable description is described again and stored
-  assert.equal(describe.mock.callCount(), 1)
-  assert.equal(db.pluginPackages.get("stale")?.active.description, JSON.stringify(description))
+  // an unreadable description, and one in an older format, is described again and stored
+  assert.equal(describe.mock.callCount(), 2)
+  assert.equal(db.pluginPackages.get("stale")?.active.description, stamped)
+  assert.equal(db.pluginPackages.get("older")?.active.description, stamped)
 })
 
 function staged(packageDir: string): StagedPackage {

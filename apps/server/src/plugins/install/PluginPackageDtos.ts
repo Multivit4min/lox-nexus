@@ -28,6 +28,7 @@ export class PluginPackageDtos {
     return {
       stagingId, expiresAt, id, name, version, ...(icon ? { icon } : {}), source: staged.origin, bundleSha256: staged.bundleSha256,
       sensors: staged.description.sensors.length, actuators: staged.description.actuators.length,
+      ...(staged.description.watches ? { watches: true } : {}),
       ...(result.installedVersion ? { installedVersion: result.installedVersion } : {}), sameAsInstalled: result.sameAsInstalled
     }
   }

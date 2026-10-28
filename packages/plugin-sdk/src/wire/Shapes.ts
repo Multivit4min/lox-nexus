@@ -1,5 +1,6 @@
 import { z } from "zod"
 import { ValueSchema, ValueTypeSchema } from "../values/ValueSchema.ts"
+import { WatchDeclarationSchema } from "./WatchShapes.ts"
 
 /** A JSON Schema document, as produced by zod's toJSONSchema. */
 export type JsonSchema = Record<string, unknown>
@@ -21,7 +22,9 @@ export type CapabilityDescription = z.infer<typeof CapabilityDescriptionSchema>
 export const PluginDescriptionSchema = z.object({
   config: z.record(z.string(), z.unknown()),
   sensors: z.array(CapabilityDescriptionSchema),
-  actuators: z.array(CapabilityDescriptionSchema)
+  actuators: z.array(CapabilityDescriptionSchema),
+  /** set when the plugin watches signals the user chooses (`static readonly watches`) */
+  watches: WatchDeclarationSchema.optional()
 })
 export type PluginDescription = z.infer<typeof PluginDescriptionSchema>
 

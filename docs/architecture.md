@@ -1798,6 +1798,29 @@ Plan and reasons: ADR 0012. Charts, API and the InfluxDB export follow in later 
   `RecordButtons` records ticked signals in bulk; `HistoryView` (`/history`) has recording, mode,
   per-owner exceptions, the signal rules and retention.
 
+## Implementation notes: watching plugins (statistics S3)
+
+Plan and reasons: ADR 0013.
+
+- **SDK**: `static readonly watches` (WatchDeclaration) on the plugin class, passed into the
+  description; `Plugin.watched?(values, dropped)` and `watchChanged()`; `this.watch` (WatchView:
+  `signals()`, `signal(id)`). Wire shapes in `wire/WatchShapes.ts`; messages `watch.signals`,
+  `watch.values` (host) and `watch.ack` (worker). `WatchHost` on the worker side queues batches so
+  `watched()` runs one at a time and acks each when it settles. `PluginTestHost.watchSignals()` and
+  `pushValues()`.
+- **Core**: `WatchFeed` (one per running session of a watching plugin, started by the supervisor
+  after `addAll`, stopped with the session) uses `SelectedValues` with the instance's selection.
+  It sends the list and the current values of newly chosen signals (`initial`), checks for a
+  changed choice or changed signals every second, skips replays (`restored`), and keeps at most
+  two batches in flight and 20 000 values queued (dropped in chunks of 1 000, counted).
+  `PluginSession.notify()` sends the notifications; `watch.ack` goes to the feed.
+- **Server**: the supervisors get `watch: { bus, signals, selection: id => selections.of(id) }`.
+  `/api/selections/:consumer` accepts the ids of instances whose plugin watches
+  (`PluginService.watches`). The staged install says `watches`, and the install review shows it.
+- **Web**: `WatchSelectionCard` on the instance page (mode, per-owner rules with the shared
+  `OwnerRuleList`, and a searchable signal list whose ticks set or remove a signal's rule).
+  `SelectionRules` mirrors the server's rule order to show what is chosen.
+
 ## Dependencies (installed in the milestone that first needs them)
 
 | Where | Packages |

@@ -65,6 +65,8 @@ export interface StagedInstallDto {
   bundleSha256: string
   sensors: number
   actuators: number
+  /** the plugin can receive the values of signals the user chooses (also of other systems) */
+  watches?: boolean
   /** the active installed version with the same id */
   installedVersion?: string
   /** the same version with the same bundle is installed already; confirming changes nothing */

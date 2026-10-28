@@ -3,6 +3,7 @@ import { PluginRuntime } from "../runtime/PluginRuntime.ts"
 import type { Value } from "../values/Value.ts"
 import type { HostMessage, HttpRequest } from "../wire/HostMessages.ts"
 import type { CatalogNode, HttpResponse, Panel, PluginDescription } from "../wire/Shapes.ts"
+import type { WatchedSignal, WatchedValue } from "../wire/WatchShapes.ts"
 import type { WorkerMessage } from "../wire/WorkerMessages.ts"
 
 // taken when this module loads, before a test can mock timers (mock.timers): waits for the plugin
@@ -140,6 +141,23 @@ export class PluginTestHost<T extends PluginClass = PluginClass> {
    */
   unhandledRejection(reason: unknown) {
     this.runtime.rejected(reason)
+  }
+
+  /** the signals the user chose, for a plugin that declares `watches`; replaces the previous list */
+  async watchSignals(signals: WatchedSignal[]) {
+    await this.runtime.handle({ type: "watch.signals", signals })
+  }
+
+  /**
+   * Delivers values of watched signals like the host does; resolves once the plugin acknowledged
+   * the batch, i.e. its watched() finished. `ts` and `kind` default to now and "state".
+   */
+  async pushValues(values: Array<Omit<WatchedValue, "ts" | "kind"> & Partial<Pick<WatchedValue, "ts" | "kind">>>, dropped = 0) {
+    const seq = this.nextRequest++
+    const acked = this.waitFor(m => m.type === "watch.ack" && m.seq === seq)
+    const complete = values.map(value => ({ ts: Date.now(), kind: "state" as const, ...value }))
+    await this.runtime.handle({ type: "watch.values", seq, values: complete, ...(dropped ? { dropped } : {}) })
+    await acked
   }
 
   /** stops the plugin like the host would; resolves when it reported `stopped` */

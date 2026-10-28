@@ -18,7 +18,10 @@ const host = [
   { type: "shutdown" },
   // optional additions within version 1: older plugins ignore them, older hosts don't send them
   { type: "init", instanceId: "i", slug: "home", config: {}, store: {} },
-  { type: "signal.add", requestId: 8, signal: { id: "s", kind: "sensor", capability: "c", params: {}, label: "Kitchen" } }
+  { type: "signal.add", requestId: 8, signal: { id: "s", kind: "sensor", capability: "c", params: {}, label: "Kitchen" } },
+  // only sent to plugins that declare `watches`, so older plugins never see them
+  { type: "watch.signals", signals: [{ id: "s", topic: "loxone/home/in/t", label: "T", valueType: "number", owner: { kind: "miniserver", id: "m" } }] },
+  { type: "watch.values", seq: 0, values: [{ signalId: "s", ts: 1, kind: "state", value: { type: "number", value: 1 }, forced: true, initial: true }], dropped: 2 }
 ]
 const worker = [
   { type: "hello", version: 1 },
@@ -33,7 +36,9 @@ const worker = [
   { type: "signal.error", signalId: "s", error: "e" },
   { type: "signal.recovered", signalId: "s" },
   { type: "pong", seq: 1 },
-  { type: "stopped" }
+  { type: "stopped" },
+  // an addition within version 1: only an answer to watch.values, which older hosts never send
+  { type: "watch.ack", seq: 0 }
 ]
 
 test("wire version 1 messages keep parsing", () => {

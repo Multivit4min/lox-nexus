@@ -2,6 +2,7 @@ import { z } from "zod"
 import type { ActuatorClass } from "../plugin/Actuator.ts"
 import type { PluginClass } from "../plugin/Plugin.ts"
 import type { SensorClass } from "../plugin/Sensor.ts"
+import { WatchDeclarationSchema } from "../wire/WatchShapes.ts"
 
 /** Reads a plugin's static declarations with their defaults, so they stay optional for authors. */
 export class Declarations {
@@ -32,6 +33,11 @@ export class Declarations {
   static description(capability: SensorClass | ActuatorClass) {
     // a plugin written in plain JS may declare anything; a non-string would fail the host's check of the whole description
     return typeof capability.description === "string" && capability.description ? { description: capability.description } : {}
+  }
+
+  /** the declaration, if any; PluginDescriber.assertValid refuses an invalid one */
+  static watches(type: PluginClass) {
+    return type.watches === undefined ? {} : { watches: WatchDeclarationSchema.parse(type.watches) }
   }
 
   static valueType(sensor: SensorClass) {

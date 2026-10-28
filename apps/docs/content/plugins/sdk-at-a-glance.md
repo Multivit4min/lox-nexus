@@ -39,6 +39,18 @@ Static declarations on the subclass ([`PluginClass`](../reference/sdk/@lox-nexus
 static readonly config?: z.ZodType      // default: no config (empty object)
 static readonly sensors?: readonly SensorClass[]      // ids unique among sensors
 static readonly actuators?: readonly ActuatorClass[]  // ids unique among actuators
+static readonly watches?: { label: string; description?: string }  // receives values of signals the user chooses
+```
+
+A watching plugin implements `watched(values, dropped)` (batches, oldest first; the next comes
+when it returns) and optionally `watchChanged()`; `this.watch.signals()` / `signal(id)` describe
+the chosen signals. See [Watching signals](authoring.md#watching-signals-exporters).
+
+```ts
+type WatchDeclaration = { label: string; description?: string }
+interface WatchView { signals(): WatchedSignal[]; signal(id: string): WatchedSignal | undefined }
+type WatchedSignal = { id: string; topic: string; label: string; valueType: ValueType | "any"; owner?: { kind: "miniserver" | "plugin"; id: string } }
+type WatchedValue = { signalId: string; ts: number; kind: "state" | "command"; value: Value; forced?: true; initial?: true }
 ```
 
 ### Sensor ([reference](../reference/sdk/@lox-nexus/plugin-sdk.md#abstract-sensor))

@@ -1,8 +1,9 @@
 import type { z } from "zod"
 import { Disposable } from "../lifecycle/Disposable.ts"
 import type { CatalogNode, Panel } from "../wire/Shapes.ts"
+import type { WatchDeclaration, WatchedValue } from "../wire/WatchShapes.ts"
 import type { ActuatorClass } from "./Actuator.ts"
-import type { PluginContext } from "./PluginContext.ts"
+import type { PluginContext, WatchView } from "./PluginContext.ts"
 import type { SensorClass } from "./Sensor.ts"
 
 /**
@@ -62,6 +63,13 @@ export abstract class Plugin<Config = unknown> extends Disposable {
     return this.context.http
   }
 
+  /** The signals the user chose for this instance, for plugins that declare `watches`. */
+  get watch(): WatchView {
+    return this.context.watch ?? Plugin.NO_WATCH
+  }
+
+  private static readonly NO_WATCH: WatchView = { signals: () => [], signal: () => undefined }
+
   /**
    * Starts the work. Reject only for problems a restart can't fix (invalid credentials, a missing
    * device): the instance goes into the error state and is not restarted. For a device that is
@@ -81,6 +89,17 @@ export abstract class Plugin<Config = unknown> extends Disposable {
   panel(): Panel | undefined | Promise<Panel | undefined> {
     return undefined
   }
+
+  /**
+   * Values of the watched signals (plugins that declare `watches`), oldest first, in batches of up
+   * to a thousand. The next batch comes once this returns (or its promise settles), so a slow
+   * export slows delivery instead of piling up; meanwhile the host keeps a bounded queue and
+   * `dropped` says how many values it had to leave out since the last batch. A throw is logged.
+   */
+  watched?(values: readonly WatchedValue[], dropped: number): void | Promise<void>
+
+  /** The watched signals changed: chosen or left out, renamed. `this.watch` has the new list. */
+  watchChanged(): void {}
 
   /**
    * A promise in this worker was rejected and nobody handled it (a forgotten `.catch`). The worker
@@ -107,4 +126,9 @@ export type PluginClass = (new (context: PluginContext) => Plugin) & {
   readonly sensors?: readonly SensorClass[]
   /** the actuators this plugin offers; ids must be unique among actuators */
   readonly actuators?: readonly ActuatorClass[]
+  /**
+   * set when the plugin receives values of signals the user chooses (an exporter): Plugin.watched()
+   * gets them. The label and description are shown where the user chooses them.
+   */
+  readonly watches?: WatchDeclaration
 }

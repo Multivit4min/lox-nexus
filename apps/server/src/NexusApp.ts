@@ -130,6 +130,7 @@ export class NexusApp extends Disposable {
     this.pluginLogs = new PluginLogs(log.child({ component: "plugin" }), this.clock)
     this.plugins = this.own(new PluginManager({
       bus: this.bus, registry: this.signals, transport, store: this.persistence.pluginStore,
+      watch: { bus: this.bus, signals: this.signals, selection: id => this.selections.of(id), changes: this.selections },
       logs: this.pluginLogs, ...(options.pluginTimings ? { timings: options.pluginTimings } : {})
     }))
     this.pluginAssembly = this.own(new PluginAssembly(config, transport, this.persistence.pluginPackages, this.persistence.pluginSignals, log, options.install))
@@ -148,7 +149,7 @@ export class NexusApp extends Disposable {
     const loxoneSignals = new LoxoneSignalService(db.loxoneSignals, this.miniservers, cleanup, log)
     const miniservers = new MiniserverService(db.miniservers, this.miniservers, loxoneSignals, cleanup, log)
     const wires = new WireService(db.wires, this.wires, this.signals, log)
-    const plugins = new PluginService(db.pluginInstances, db.pluginSignals, this.plugins, this.pluginCatalog, cleanup, log, this.pluginLogs)
+    const plugins = new PluginService(db.pluginInstances, db.pluginSignals, this.plugins, this.pluginCatalog, cleanup, log, this.pluginLogs, this.selections)
     const pluginSignals = new PluginSignalService(db.pluginSignals, plugins, cleanup)
     this.bus.restoreForces()
     miniservers.load()
@@ -200,7 +201,7 @@ export class NexusApp extends Disposable {
         new ConfigController(new ConfigTransfer({ miniservers, signals: loxoneSignals, wires, selections: this.selections }, log)),
         new PluginController(plugins, pluginSignals, this.pluginLogs, new PluginBridgeService(pluginSignals, loxoneSignals, wires, log)),
         new PluginPackageController(this.pluginAssembly.packages(plugins)),
-        ...this.history.controllers,
+        ...this.history.controllers(id => plugins.watches(id)),
         stream
       ],
       publicControllers: [new HookController(this.plugins)]

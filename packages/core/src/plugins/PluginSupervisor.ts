@@ -9,6 +9,7 @@ import { PluginSignals, type PluginBus } from "./PluginSignals.ts"
 import { PluginTopics } from "./PluginTopics.ts"
 import type { PluginTransport } from "./PluginTransport.ts"
 import type { PluginInstanceConfig, PluginLogSink, PluginPackage, PluginState, PluginStateStore } from "./PluginTypes.ts"
+import { WatchFeed, type WatchDeps } from "./WatchFeed.ts"
 
 /** Session timeouts plus the restart policy, in ms. */
 export interface SupervisorTimings extends SessionTimings {
@@ -31,6 +32,8 @@ export interface SupervisorDeps {
   store: PluginStateStore
   logs: PluginLogSink
   timings?: Partial<SupervisorTimings>
+  /** for plugins that declare `watches`; without it they get no values */
+  watch?: WatchDeps
 }
 
 /**
@@ -44,6 +47,8 @@ export class PluginSupervisor extends Disposable {
   readonly calls: PluginCalls
   private readonly inbox: PluginInbox
   private session: PluginSession | undefined
+  /** feeds a watching plugin while its session runs */
+  private feed: WatchFeed | undefined
   private current: PluginState = "stopped"
   private failure: string | undefined
   private crashes = 0
@@ -153,6 +158,8 @@ export class PluginSupervisor extends Disposable {
     this.failure = undefined
     await this.calls.addAll()
     if (this.isDisposed || this.session !== session) return
+    const { watch } = this.deps
+    if (watch && this.currentPkg.description.watches) this.feed = new WatchFeed(this.instance.id, watch, message => session.notify(message), text => this.report(text))
     this.setState(this.inbox.health)
     this.cancelStable = this.after(this.timings.stableMs, () => this.backoff.reset())
   }
@@ -162,6 +169,7 @@ export class PluginSupervisor extends Disposable {
     this.cancelStable()
     const session = this.session
     this.session = undefined
+    this.stopFeed()
     if (session) {
       this.setState("stopping")
       await session.close().catch(() => undefined)
@@ -170,14 +178,20 @@ export class PluginSupervisor extends Disposable {
   }
 
   private wire(session: PluginSession) {
-    session.events.on("message", message => this.inbox.receive(message))
+    session.events.on("message", message => (message.type === "watch.ack" ? this.feed?.ack(message.seq) : this.inbox.receive(message)))
     session.events.on("output", (stream, line) => this.deps.logs.log(this.instance, stream === "stderr" ? "warn" : "info", line))
     session.events.on("ended", reason => {
       if (this.session !== session) return
       this.session = undefined
+      this.stopFeed()
       this.cancelStable()
       this.crashed(reason)
     })
+  }
+
+  private stopFeed() {
+    this.feed?.dispose().catch(() => undefined)
+    this.feed = undefined
   }
 
   private refused(reason: string) {

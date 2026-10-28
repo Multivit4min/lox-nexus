@@ -1,5 +1,6 @@
 import type { HttpRequest } from "../wire/HostMessages.ts"
 import type { HttpResponse } from "../wire/Shapes.ts"
+import type { WatchedSignal } from "../wire/WatchShapes.ts"
 import type { LogLevel, PluginHealth } from "../wire/WorkerMessages.ts"
 
 /** Log lines go to the host's log, tagged with the instance and the bus message being handled. */
@@ -44,6 +45,12 @@ export interface PluginHttp {
   route(method: string, path: string, handler: HttpHandler): void
 }
 
+/** The signals the user chose for a watching plugin; empty for others and until the host sends them. */
+export interface WatchView {
+  signals(): WatchedSignal[]
+  signal(id: string): WatchedSignal | undefined
+}
+
 /** Everything a plugin gets from the runtime. */
 export interface PluginContext {
   /** stable for the life of the configured instance (webhook URLs use the instance's slug instead) */
@@ -57,4 +64,6 @@ export interface PluginContext {
   readonly store: PluginStore
   readonly status: PluginStatus
   readonly http: PluginHttp
+  /** only for plugins that declare `watches`; absent with older runtimes */
+  readonly watch?: WatchView
 }

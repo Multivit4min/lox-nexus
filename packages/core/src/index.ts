@@ -42,3 +42,4 @@ export { HistoryRecorder, type RecorderSettings } from "./history/HistoryRecorde
 export { HistoryRetention, type RetentionSettings } from "./history/HistoryRetention.ts"
 export { SeriesAggregator } from "./history/SeriesAggregator.ts"
 export { ValueProjection } from "./history/ValueProjection.ts"
+export { WatchFeed, type WatchDeps } from "./plugins/WatchFeed.ts"

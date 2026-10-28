@@ -38,8 +38,7 @@ export class HistoryAssembly extends Disposable {
   readonly recorder: HistoryRecorder
   readonly retention: HistoryRetention
   readonly service: HistoryService
-  /** the history API and the selections API (whose only consumer so far is the history) */
-  readonly controllers: Controller[]
+  private readonly selections: HistoryDeps["selections"]
 
   /** @param file history.db, or ":memory:" for tests */
   constructor(file: string, deps: HistoryDeps) {
@@ -60,6 +59,17 @@ export class HistoryAssembly extends Disposable {
       reader: new HistoryReadRepository(database.db), store: this.store, settings: this.settings, signals: deps.signals,
       selection: () => deps.selections.of(HistoryAssembly.CONSUMER), forget: id => recorder.forget(id), dropped: () => recorder.dropped, clock: deps.clock, file
     })
-    this.controllers = [new HistoryController(this.service, this.settings), new SelectionController(deps.selections, consumer => consumer === HistoryAssembly.CONSUMER)]
+    this.selections = deps.selections
+  }
+
+  /**
+   * The history API, and the selections API for the history and for plugin instances that watch
+   * signals (`watching` says whether an id is one).
+   */
+  controllers(watching: (consumer: string) => boolean): Controller[] {
+    return [
+      new HistoryController(this.service, this.settings),
+      new SelectionController(this.selections, consumer => consumer === HistoryAssembly.CONSUMER || watching(consumer))
+    ]
   }
 }

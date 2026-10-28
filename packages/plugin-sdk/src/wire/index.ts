@@ -12,4 +12,7 @@ export {
   CapabilityDescriptionSchema, CatalogEntrySchema, CatalogNodeSchema, HttpResponseSchema, PanelPartSchema, PanelSchema, PluginDescriptionSchema,
   type CapabilityDescription, type CatalogEntry, type CatalogNode, type HttpResponse, type JsonSchema, type Panel, type PanelPart, type PluginDescription
 } from "./Shapes.ts"
+export {
+  WatchDeclarationSchema, WatchedSignalSchema, WatchedValueSchema, type WatchDeclaration, type WatchedSignal, type WatchedValue
+} from "./WatchShapes.ts"
 export type { PluginWorkerData } from "../runtime/PluginEntry.ts"

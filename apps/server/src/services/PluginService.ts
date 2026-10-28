@@ -9,6 +9,7 @@ import { HttpError } from "../http/HttpError.ts"
 import type { PluginCatalog } from "../plugins/PluginCatalog.ts"
 import { SecretFields } from "../plugins/SecretFields.ts"
 import type { PluginLogs } from "./PluginLogs.ts"
+import type { SelectionService } from "./SelectionService.ts"
 import type { TopicCleanup } from "./TopicCleanup.ts"
 
 /**
@@ -25,7 +26,9 @@ export class PluginService {
     private readonly available: PluginCatalog,
     private readonly cleanup: TopicCleanup,
     private readonly log: Logger,
-    private readonly logs: Pick<PluginLogs, "forget">
+    private readonly logs: Pick<PluginLogs, "forget">,
+    /** a watching instance's choice of signals goes with it */
+    private readonly selections?: Pick<SelectionService, "forget">
   ) {}
 
   /** builds the runtime from the database at boot; a broken signal row is logged and skipped */
@@ -137,6 +140,7 @@ export class PluginService {
     this.cleanup.forget(`${instance.plugin}/${instance.slug}/#`, by)
     this.cleanup.forget(`system/plugin/${instance.slug}/#`, by)
     this.logs.forget(id)
+    this.selections?.forget(id)
   }
 
   /** runtime only; `enabled` decides what happens at the next boot */
@@ -167,6 +171,11 @@ export class PluginService {
     const supervisor = this.manager.get(id)
     if (!supervisor) throw HttpError.conflict(`the plugin of instance "${id}" is not available`)
     return supervisor
+  }
+
+  /** whether the instance exists and its plugin watches signals (so it has a selection) */
+  watches(id: string) {
+    return this.manager.get(id)?.pkg.description.watches !== undefined
   }
 
   /** secret fields of a plugin's config; none when the plugin is unavailable */

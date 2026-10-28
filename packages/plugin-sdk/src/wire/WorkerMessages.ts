@@ -38,6 +38,8 @@ export const WorkerMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("signal.error"), signalId: z.string(), error: text }),
   /** the sensor works again without a value to send (an entity back as unavailable); clears signal.error */
   z.object({ type: z.literal("signal.recovered"), signalId: z.string() }),
+  /** a `watch.values` batch was handled (also when the plugin threw); the host sends more only after it */
+  z.object({ type: z.literal("watch.ack"), seq: z.int().nonnegative() }),
   /** answer to `ping`, echoing its `seq` */
   z.object({ type: z.literal("pong"), seq: z.int() }),
   /** shutdown finished */

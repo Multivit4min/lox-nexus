@@ -24,7 +24,7 @@ export class InitFailedError extends Error {}
 
 /** Events of a session: plugin messages for the supervisor, and its unexpected end. */
 export interface SessionEvents {
-  /** emit, log, status, store, signal.error and signal.recovered messages */
+  /** emit, log, status, store, signal.error, signal.recovered and watch.ack messages */
   message: [message: WorkerMessage]
   output: [stream: "stdout" | "stderr", line: string]
   /** the plugin is gone or broken (exit, out of memory, missed pings, invalid message); not sent for close() */
@@ -104,10 +104,15 @@ export class PluginSession extends Disposable {
     await this.dispose()
   }
 
+  /** a notification to the worker that expects no response (watched signals and values) */
+  notify(message: Extract<HostMessage, { type: "watch.signals" | "watch.values" }>) {
+    if (!this.closing && !this.over) this.connection.send(message)
+  }
+
   private receive(message: WorkerMessage) {
     if (message.type === "response") return this.requests.settle(message)
     if (message.type === "pong") return void (this.unanswered = 0)
-    if (["emit", "log", "status", "store.set", "store.delete", "signal.error", "signal.recovered"].includes(message.type)) this.events.emit("message", message)
+    if (["emit", "log", "status", "store.set", "store.delete", "signal.error", "signal.recovered", "watch.ack"].includes(message.type)) this.events.emit("message", message)
   }
 
   // a hung plugin can't answer; terminating it makes the exit report the reason

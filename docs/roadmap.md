@@ -242,7 +242,7 @@ whether every signal is recorded or exported, or only selected ones.
   separate `history.db`, retention.
 - **S2: API and UI** (done). Range queries that pick the resolution, a chart per signal, bulk "record",
   a settings page with retention and the growth estimate, selections in the config export.
-- **S3: plugins can watch signals.** A read-only SDK capability: a plugin declares `watches`, the
+- **S3: plugins can watch signals** (done). A read-only SDK capability: a plugin declares `watches`, the
   user picks per instance what it sees, the host delivers values in acknowledged batches with a
   bounded queue. Additions within wire version 1.
 - **S4: the `influxdb` plugin.** Line protocol to InfluxDB v2/v3 or v1, batched with retries and a

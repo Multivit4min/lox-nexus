@@ -5,7 +5,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AppContext } from "../AppContext.ts"
 import HistoryRecordingCard from "../components/history/HistoryRecordingCard.vue"
 import HistoryRetentionCard from "../components/history/HistoryRetentionCard.vue"
-import HistoryRulesCard, { type RuleOwner } from "../components/history/HistoryRulesCard.vue"
+import HistoryRulesCard from "../components/history/HistoryRulesCard.vue"
+import type { RuleOwner } from "../components/selection/OwnerRuleList.vue"
 
 /** What the value history records and keeps, and what it takes. Charts are on each signal (the chart button). */
 const context = AppContext.use()

@@ -1,5 +1,6 @@
 import { z } from "zod"
 import { ValueSchema } from "../values/ValueSchema.ts"
+import { WatchedSignalSchema, WatchedValueSchema } from "./WatchShapes.ts"
 
 /** bumped on any incompatible change; a worker announces its version in `hello` */
 export const WIRE_VERSION = 1
@@ -53,6 +54,13 @@ export const HostMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("panel"), requestId }),
   /** answered with a full HttpResponse */
   z.object({ type: z.literal("http.request"), requestId, request: HttpRequestSchema }),
+  /**
+   * The signals the user chose for a plugin that declares `watches`; replaces the previous list.
+   * Sent after `ready` and when the choice or a chosen signal changes; never to other plugins.
+   */
+  z.object({ type: z.literal("watch.signals"), signals: z.array(WatchedSignalSchema).max(100_000) }),
+  /** values of watched signals, oldest first; answered with `watch.ack` (seq). `dropped`: values left out since the last batch because the plugin was too slow */
+  z.object({ type: z.literal("watch.values"), seq: z.int().nonnegative(), values: z.array(WatchedValueSchema).max(5000), dropped: z.int().nonnegative().optional() }),
   /** liveness probe; the worker echoes `seq` in `pong` */
   z.object({ type: z.literal("ping"), seq: z.int() }),
   /** dispose everything, answer `stopped`; the host terminates the worker after a grace period */

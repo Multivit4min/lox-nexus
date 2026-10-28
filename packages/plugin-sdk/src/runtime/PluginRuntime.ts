@@ -10,6 +10,7 @@ import { MessageLimits } from "./MessageLimits.ts"
 import { RouteTable } from "./RouteTable.ts"
 import { RuntimeStore } from "./RuntimeStore.ts"
 import { SignalHost } from "./SignalHost.ts"
+import { WatchHost } from "./WatchHost.ts"
 
 type Request = Extract<HostMessage, { requestId: number }>
 
@@ -29,8 +30,11 @@ export class PluginRuntime {
   }
   private signals: SignalHost | undefined
   private readonly routes = new RouteTable()
+  private readonly watch: WatchHost
 
-  constructor(private readonly type: PluginClass, private readonly send: (message: WorkerMessage) => void) {}
+  constructor(private readonly type: PluginClass, private readonly send: (message: WorkerMessage) => void) {
+    this.watch = new WatchHost(send, error => this.log("error", `handling watched values failed: ${PluginRuntime.text(error)}`))
+  }
 
   /** announces the wire version; the host sends `init` (or `describe`) after it */
   hello() {
@@ -45,6 +49,8 @@ export class PluginRuntime {
     if (message.type === "init") return this.init(message)
     if (message.type === "ping") return this.send({ type: "pong", seq: message.seq })
     if (message.type === "shutdown") return this.shutdown()
+    if (message.type === "watch.signals") return this.watch.setSignals(message.signals, () => this.plugin)
+    if (message.type === "watch.values") return this.watch.values(message.seq, message.values, message.dropped ?? 0, () => this.plugin)
     return this.request(message)
   }
 
@@ -90,6 +96,8 @@ export class PluginRuntime {
 
   // dispose errors are logged, not thrown: the host terminates the worker after `stopped` anyway
   private async shutdown() {
+    // a batch being exported finishes first, so the plugin's last flush on dispose includes it
+    await this.watch.idle()
     await this.signals?.disposeAll()
     await this.plugin?.dispose().catch((error: unknown) => this.log("error", `stopping failed: ${PluginRuntime.text(error)}`))
     this.send({ type: "stopped" })
@@ -104,7 +112,7 @@ export class PluginRuntime {
     const log = Object.fromEntries((["debug", "info", "warn", "error"] as const).map(level =>
       [level, (message: string, data?: unknown) => this.log(level, message, data)])) as PluginLogger
     return {
-      instanceId, ...(slug === undefined ? {} : { slug }), config, log, http: this.routes,
+      instanceId, ...(slug === undefined ? {} : { slug }), config, log, http: this.routes, watch: this.watch,
       store: new RuntimeStore(store, this.send),
       status: { set: (status, message) => this.send({ type: "status", status, ...(message ? { message: PluginRuntime.clip(message) } : {}) }) }
     }

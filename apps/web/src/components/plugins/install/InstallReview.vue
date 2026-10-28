@@ -27,7 +27,7 @@ const plural = (count: number, word: string) => `${count} ${word}${count === 1 ?
       <span class="text-base font-semibold">{{ staged.name }}</span>
       <span class="font-mono">{{ staged.version }}</span>
       <Badge :variant="change === 'older' ? 'destructive' : 'secondary'">{{ changeText }}</Badge>
-      <span class="text-muted-foreground">id <code>{{ staged.id }}</code> · {{ plural(staged.sensors, "sensor") }} · {{ plural(staged.actuators, "actuator") }}</span>
+      <span class="text-muted-foreground">id <code>{{ staged.id }}</code> · {{ plural(staged.sensors, "sensor") }} · {{ plural(staged.actuators, "actuator") }}{{ staged.watches ? " · can watch signals you choose, also of other systems" : "" }}</span>
     </div>
     <dl class="grid grid-cols-[8rem_1fr] gap-x-3 gap-y-1">
       <template v-if="source.kind === 'git'">

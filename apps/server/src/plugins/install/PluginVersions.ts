@@ -1,5 +1,5 @@
 import type { PackageDescriber } from "@lox-nexus/core"
-import { PluginDescriptionSchema } from "@lox-nexus/plugin-sdk/wire"
+import { PluginDescriptionSchema, type PluginDescription } from "@lox-nexus/plugin-sdk/wire"
 import type { Logger } from "pino"
 import type { PluginPackageRepository, StoredVersion } from "../../db/repositories/PluginPackageRepository.ts"
 import type { CatalogEntry } from "../PluginCatalog.ts"
@@ -12,6 +12,9 @@ import { PluginDirectory } from "./PluginDirectory.ts"
  * missing or changed is unavailable, with the reason in `problem()`.
  */
 export class PluginVersions {
+  /** the description format stored descriptions were written in; raise it when the description gains fields (2: `watches`) */
+  static readonly FORMAT = 2
+
   /** why a version is unavailable, by "<id>@<version>" */
   private readonly problemsByVersion = new Map<string, string>()
 
@@ -38,7 +41,7 @@ export class PluginVersions {
     await this.directory.moveIn(staged.packageDir, id, version)
     const stored: StoredVersion = {
       pluginId: id, version, name, ...(icon ? { icon } : {}), entry, source: staged.origin, bundleSha256: staged.bundleSha256,
-      description: JSON.stringify(staged.description), installedAt: Date.now(), installedBy: by
+      description: PluginVersions.store(staged.description), installedAt: Date.now(), installedBy: by
     }
     try {
       this.repo.insert(stored)
@@ -118,8 +121,9 @@ export class PluginVersions {
   }
 
   /**
-   * The stored description; one a newer Nexus can't read is described again from the bundle and
-   * stored. @throws when it has to be described again and the bundle can't be
+   * The stored description; one that can't be read, or was stored by a Nexus that knew less of
+   * the description format (it dropped fields such as `watches` it didn't know), is described
+   * again from the bundle and stored. @throws when it has to be described again and the bundle can't be
    */
   async description(stored: StoredVersion) {
     let json: unknown
@@ -128,12 +132,17 @@ export class PluginVersions {
     } catch {
       json = undefined
     }
+    const current = typeof json === "object" && json !== null && (json as { format?: unknown }).format === PluginVersions.FORMAT
     const parsed = PluginDescriptionSchema.safeParse(json)
-    if (parsed.success) return parsed.data
+    if (parsed.success && current) return parsed.data
     this.log.info({ plugin: stored.pluginId, version: stored.version }, "describing an installed plugin again")
     const description = await this.describer.describe(this.directory.entryFile(stored.pluginId, stored.version, stored.entry))
-    this.repo.setDescription(stored.pluginId, stored.version, JSON.stringify(description))
+    this.repo.setDescription(stored.pluginId, stored.version, PluginVersions.store(description))
     return description
+  }
+
+  private static store(description: PluginDescription) {
+    return JSON.stringify({ ...description, format: PluginVersions.FORMAT })
   }
 
   private unavailable(key: string, problem: string) {
