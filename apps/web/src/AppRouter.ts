@@ -22,6 +22,7 @@ export class AppRouter {
         { path: "/plugins/:id", name: "plugin", component: () => import("./views/PluginInstanceView.vue"), props: true },
         { path: "/wires", name: "wires", component: () => import("./views/WiresView.vue") },
         { path: "/inspector", name: "inspector", component: () => import("./views/InspectorView.vue") },
+        { path: "/history", name: "history", component: () => import("./views/HistoryView.vue") },
         { path: "/:rest(.*)*", redirect: "/" }
       ]
     })

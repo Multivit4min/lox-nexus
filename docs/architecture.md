@@ -1760,6 +1760,44 @@ Plan and reasons: ADR 0012. Charts, API and the InfluxDB export follow in later 
   it records the first live values and, on shutdown, is disposed after the Miniservers and
   plugins and writes their last values before the file closes.
 
+## Implementation notes: history API and UI (statistics S2)
+
+- **Queries** (`apps/server/src/history/HistoryQuery.ts`): the resolution is chosen per request.
+  Raw while the raw tier still holds the range and it has at most 4 x `points` changes (a primary
+  key range count), else 5-minute buckets while the range has at most `points` of them and they
+  are kept, else 1-hour buckets; text is raw only. The bucket `from` falls into is included.
+  The raw tier counts as holding a range with an hour of tolerance (requests arrive a moment after
+  the client read its clock). Hourly buckets are merged on the server when a range has more hours
+  than points; the series says each point's `width`. `before` is the value just before the range
+  (the last raw value, or, once the raw tier no longer has one, the last bucket's `last`), so a
+  line starts at the left edge. Gaps are the times no run covers, with two minutes of slack
+  for the lag of a run's `seen`; the time before the first run is no gap unless Nexus ran before
+  the range.
+- **API**: `HistoryController` (`/api/history/signals/:id`, `/recorded`, `/stats`, `/settings`)
+  and `SelectionController` (`/api/selections/:consumer`, mode and bulk rules, all or none; a rule
+  on a target that doesn't exist is a 400). Both come from `HistoryAssembly.controllers`, so
+  NexusApp only spreads them into the controller list. Stats count only the rows written in the
+  last hour, per series along the primary key (a count of whole tables would block Nexus on a big
+  file), and project the size at that rate with measured bytes per row (a year for tiers kept
+  forever). Deleting a signal's history first drops what the recorder holds of it, then deletes in
+  rounds that yield to other work. `/recorded` lists what the selection takes also while recording
+  is off, so the record switches stay usable.
+- **Config export**: an optional `selections.history` (mode, and rules on the file's signals and
+  Miniservers; plugin instances aren't exported). An import sets the mode and the rules on ids the
+  file contains, after the Miniservers and signals; a file without the section keeps the current
+  mode and the current rules on its ids. While restoring a backup, rules are set one by one, so a
+  signal that didn't come back doesn't cost the others' rules.
+- **Web**: `HistoryApi`; `RecordedSignals` (in AppContext) holds the recorded ids for the marks,
+  loaded when a signal list mounts and after every change made in the UI; only the latest answer
+  applies. "Stop recording" removes a signal's rule and only writes an excluding one if the signal
+  is still taken (by "all" or its owner's rule). `SeriesChartGeometry` turns a series into steps
+  (raw values hold until the next change; a bucket draws its average over its width, and between
+  buckets the previous `last` holds), cut at gaps and at "no value", with a min/max band for
+  buckets; `TimeAxis` gives ticks on round local times from minutes to years. `SignalHistorySheet`
+  (chart, table, record switch, delete) opens from the chart button in `SignalActions`;
+  `RecordButtons` records ticked signals in bulk; `HistoryView` (`/history`) has recording, mode,
+  per-owner exceptions, the signal rules and retention.
+
 ## Dependencies (installed in the milestone that first needs them)
 
 | Where | Packages |

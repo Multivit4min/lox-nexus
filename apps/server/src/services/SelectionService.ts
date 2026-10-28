@@ -1,5 +1,7 @@
 import { SignalSelection, type SelectionMode, type SelectionTarget } from "@lox-nexus/core"
 import type { SelectionRepository } from "../db/repositories/SelectionRepository.ts"
+import { ErrorHandler } from "../http/ErrorHandler.ts"
+import { HttpError } from "../http/HttpError.ts"
 
 /**
  * Which signals each consumer takes ("history", or a watching plugin instance), built once from
@@ -29,6 +31,21 @@ export class SelectionService {
   setRule(consumer: string, target: SelectionTarget, include: boolean | null) {
     this.repo.setRule(consumer, target, include)
     this.cache.delete(consumer)
+  }
+
+  /**
+   * Sets several rules at once (`include` null removes one), all or none.
+   * @throws HttpError 400 when a target doesn't exist
+   */
+  setRules(consumer: string, rules: ReadonlyArray<{ target: SelectionTarget; include: boolean | null }>) {
+    try {
+      this.repo.setRules(consumer, rules)
+    } catch (error) {
+      if (ErrorHandler.isConstraint(error)) throw HttpError.badRequest("a rule names a signal, Miniserver or plugin instance that doesn't exist")
+      throw error
+    } finally {
+      this.cache.delete(consumer)
+    }
   }
 
   /** rebuilds every selection on next use; after a deletion removed rules through foreign keys */

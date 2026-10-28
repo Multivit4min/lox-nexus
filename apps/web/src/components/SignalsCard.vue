@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue"
+import { computed, onMounted, ref, watch } from "vue"
 import type { LoxoneSignalDto, LoxoneSignalInput, SignalLoadDto } from "@lox-nexus/api"
 import { Lock, Plus, Trash2 } from "@lucide/vue"
 import { Badge } from "@/components/ui/badge"
@@ -19,6 +19,8 @@ import ForceDialog from "./inspector/ForceDialog.vue"
 import SignalActions from "./SignalActions.vue"
 import VirtualTable from "./data/VirtualTable.vue"
 import SignalForm from "./SignalForm.vue"
+import RecordButtons from "./history/RecordButtons.vue"
+import SignalHistorySheet, { type HistorySubject } from "./history/SignalHistorySheet.vue"
 import ValueText from "./ValueText.vue"
 
 /**
@@ -38,7 +40,7 @@ const props = defineProps<{
   totalLoad?: number
 }>()
 const emit = defineEmits<{ wire: [signal: LoxoneSignalDto] }>()
-const { bus } = AppContext.use()
+const { bus, recorded } = AppContext.use()
 const adding = ref(false)
 const editing = ref<LoxoneSignalDto>()
 const forcing = ref<LoxoneSignalDto>()
@@ -46,6 +48,8 @@ const forceOpen = ref(false)
 const query = ref("")
 const direction = ref<"all" | "in" | "out">("all")
 const selection = new Selection()
+const historyFor = ref<HistorySubject>()
+onMounted(() => void recorded.load())
 const progress = ref<string>()
 
 const visible = computed(() => {
@@ -119,12 +123,13 @@ async function removeSelected() {
         <div class="flex gap-1">
           <Button v-for="option in (['all', 'in', 'out'] as const)" :key="option" size="sm" class="h-8" :variant="direction === option ? 'secondary' : 'ghost'" @click="direction = option">{{ option }}</Button>
         </div>
+        <RecordButtons v-if="selection.pick(visibleIds).length" :ids="selection.pick(visibleIds)" />
         <Button v-if="selection.size" size="sm" variant="destructive" class="h-8" :disabled="!!progress" @click="removeSelected">
           <Trash2 class="size-4" /> {{ progress ?? `Delete ${selection.pick(visibleIds).length}` }}
         </Button>
       </ListToolbar>
       <VirtualTable
-        :rows="visible" :row-key="s => s.id" columns="1.25rem minmax(8rem,1.4fr) minmax(7rem,1fr) 8rem minmax(10rem,2fr) minmax(7rem,1fr) 4rem 7.75rem"
+        :rows="visible" :row-key="s => s.id" columns="1.25rem minmax(8rem,1.4fr) minmax(7rem,1fr) 8rem minmax(10rem,2fr) minmax(7rem,1fr) 4rem 9.5rem"
         :empty="signals.length ? 'No signal matches.' : 'No signals. Add one, or adopt a discovered packet below.'"
       >
         <template #header>
@@ -144,7 +149,7 @@ async function removeSelected() {
           </span>
           <span class="text-right text-xs text-muted-foreground tabular-nums">{{ LoadShare.format(load?.[row.id]) }}</span>
           <SignalActions
-            :label="row.label" :forced="isForced(row)" :disabled="!!progress" wirable
+            :label="row.label" :forced="isForced(row)" :recorded="recorded.has(row.id)" :disabled="!!progress" wirable @history="historyFor = { id: row.id, label: row.label }"
             @edit="editing = row" @wire="emit('wire', row)" @force="force(row)" @release="release(row)" @remove="removeOne(row)"
           />
         </template>
@@ -166,6 +171,7 @@ async function removeSelected() {
         <SignalForm v-if="editing" :key="editing.id" :initial="editing" :submit="onUpdate" />
       </DialogContent>
     </Dialog>
+    <SignalHistorySheet v-model:subject="historyFor" />
     <ForceDialog
       v-if="forcing" v-model:open="forceOpen" :topic="forcing.topic"
       :current="live.get(forcing.topic)?.value" :value-type="forcing.valueType === 'any' ? undefined : forcing.valueType"

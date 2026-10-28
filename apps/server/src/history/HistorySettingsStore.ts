@@ -20,9 +20,10 @@ export class HistorySettingsStore {
     return this.settings
   }
 
-  /** fields left out keep their current value; @throws ZodError for invalid settings */
-  update(input: HistorySettingsInput): HistorySettings {
-    const parsed = HistorySettingsSchema.parse({ ...this.settings, ...input })
+  /** fields left out (or undefined) keep their current value; @throws ZodError for invalid settings */
+  update(input: Partial<HistorySettingsInput> | Record<string, unknown>): HistorySettings {
+    const given = Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined))
+    const parsed = HistorySettingsSchema.parse({ ...this.settings, ...given })
     this.repo.set(HistorySettingsStore.KEY, parsed)
     this.settings = parsed
     return parsed

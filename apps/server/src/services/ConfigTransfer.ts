@@ -7,6 +7,7 @@ import { HttpError } from "../http/HttpError.ts"
 import { ConfigCheck, type ConfigDocument } from "./ConfigCheck.ts"
 import type { LoxoneSignalService } from "./LoxoneSignalService.ts"
 import type { MiniserverService } from "./MiniserverService.ts"
+import type { SelectionService } from "./SelectionService.ts"
 import type { WireService } from "./WireService.ts"
 
 /** What an import needs from the services; narrow so it can be tested with fakes. */
@@ -14,11 +15,16 @@ export interface ConfigServices {
   miniservers: Pick<MiniserverService, "list" | "require" | "create" | "remove">
   signals: Pick<LoxoneSignalService, "list" | "add">
   wires: Pick<WireService, "list" | "restore">
+  /** absent in tests that don't cover selections */
+  selections?: Pick<SelectionService, "of" | "setMode" | "setRules">
 }
 
+/** the consumer whose selection travels with the file */
+const HISTORY = "history"
+
 /**
- * Export and import of the whole configuration: Miniservers, their signals and the wires
- * between them.
+ * Export and import of the whole configuration: Miniservers, their signals, the wires between
+ * them, and which of them the history records.
  *
  * An import replaces everything through the same services the API uses, so every rule applies.
  * Runtime and database can't share one transaction, so it takes an export first and, if any
@@ -46,10 +52,12 @@ export class ConfigTransfer {
     }))
     // a wire to a signal outside the file (a plugin's, later) could not be recreated by an import
     const ids = new Set(exported.flatMap(ms => ms.signals.map(signal => signal.id)))
+    const history = this.exportSelection(new Set([...ids, ...exported.map(ms => ms.id)]))
     return {
       format: "lox-nexus/config",
       version: 1,
       exportedAt: new Date().toISOString(),
+      ...(history ? { selections: { history } } : {}),
       miniservers: exported,
       wires: wires.list()
         .filter(wire => ids.has(wire.sourceId) && ids.has(wire.targetId))
@@ -77,7 +85,8 @@ export class ConfigTransfer {
       const backup = ConfigExportSchema.parse(this.export())
       try {
         await this.clear(by, false)
-        return await this.apply(doc, passwords, false)
+        // a file without selections keeps the current rules on its signals; they went with the clear
+        return await this.apply({ ...doc, selections: { history: doc.selections?.history ?? backup.selections?.history } }, passwords, false)
       } catch (error) {
         this.log.warn({ err: error }, "import failed, restoring the previous configuration")
         await this.restore(backup, passwords, by)
@@ -127,6 +136,8 @@ export class ConfigTransfer {
         if (await this.attempt(`miniservers[${i}].signals[${j}]`, bestEffort, () => signals.add(id, signal, signalId))) result.signals++
       }
     }
+    const history = doc.selections?.history
+    if (history) await this.importSelection(doc, history, bestEffort)
     for (const [i, wire] of doc.wires.entries()) {
       // transforms are only loosely typed by the file's schema; one the engine refuses is stored as inactive
       let active = true
@@ -135,6 +146,31 @@ export class ConfigTransfer {
       if (!active) result.inactiveWires++
     }
     return result
+  }
+
+  // only rules on what the file contains; plugin instances aren't exported
+  private exportSelection(ids: Set<string>): NonNullable<ConfigExport["selections"]>["history"] {
+    const selection = this.services.selections?.of(HISTORY)
+    if (!selection) return undefined
+    type Rule = NonNullable<NonNullable<ConfigExport["selections"]>["history"]>["rules"][number]
+    const rules = selection.rules.flatMap(({ target, include }): Rule[] => {
+      if ("signalId" in target && ids.has(target.signalId)) return [{ target: { signalId: target.signalId }, include }]
+      if ("miniserverId" in target && ids.has(target.miniserverId)) return [{ target: { miniserverId: target.miniserverId }, include }]
+      return []
+    })
+    return { mode: selection.mode, rules }
+  }
+
+  // the rules went with the removed signals; rules on ids the file doesn't have are skipped. While
+  // restoring, one at a time: a signal that didn't come back must not cost the others' rules.
+  private async importSelection(doc: ConfigDocument, history: NonNullable<NonNullable<ConfigDocument["selections"]>["history"]>, bestEffort: boolean) {
+    const selections = this.services.selections
+    if (!selections) return
+    const ids = new Set(doc.miniservers.flatMap(ms => [ms.id, ...ms.signals.map(signal => signal.id)]))
+    const known = history.rules.filter(({ target }) => ids.has("signalId" in target ? target.signalId : target.miniserverId))
+    await this.attempt("selections.history", bestEffort, () => selections.setMode(HISTORY, history.mode))
+    const batches = bestEffort ? known.map(rule => [rule]) : [known]
+    for (const batch of batches) if (batch.length > 0) await this.attempt("selections.history", bestEffort, () => selections.setRules(HISTORY, batch))
   }
 
   // best effort (restoring) logs a failure and goes on, so as much as possible comes back

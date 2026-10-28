@@ -2,19 +2,24 @@ import { HistoryRecorder, HistoryRetention, SelectedValues, SignalSelection, typ
 import { Disposable } from "@lox-nexus/plugin-sdk"
 import type { Logger } from "pino"
 import { HistoryDatabase } from "../db/history/HistoryDatabase.ts"
+import { HistoryReadRepository } from "../db/history/HistoryReadRepository.ts"
 import { HistoryRepository } from "../db/history/HistoryRepository.ts"
 import type { SettingsRepository } from "../db/repositories/SettingsRepository.ts"
+import type { Controller } from "../http/Controller.ts"
+import { HistoryController } from "../http/controllers/HistoryController.ts"
+import { SelectionController } from "../http/controllers/SelectionController.ts"
 import type { SelectionService } from "../services/SelectionService.ts"
+import { HistoryService } from "./HistoryService.ts"
 import { HistorySettingsStore } from "./HistorySettingsStore.ts"
 
 /** What the history needs from the app. */
 export interface HistoryDeps {
   bus: Pick<EventBus, "subscribe">
-  signals: Pick<SignalRegistry, "atTopic" | "on" | "off">
+  signals: Pick<SignalRegistry, "atTopic" | "get" | "list" | "on" | "off">
   settings: SettingsRepository
   /** whether a signal is in the configuration; history of one that isn't goes after a grace period */
   signalExists: (signalId: string) => boolean
-  selections: Pick<SelectionService, "of">
+  selections: Pick<SelectionService, "of" | "setMode" | "setRules">
   clock: Clock
   log: Logger
 }
@@ -32,6 +37,9 @@ export class HistoryAssembly extends Disposable {
   readonly database: HistoryDatabase
   readonly recorder: HistoryRecorder
   readonly retention: HistoryRetention
+  readonly service: HistoryService
+  /** the history API and the selections API (whose only consumer so far is the history) */
+  readonly controllers: Controller[]
 
   /** @param file history.db, or ":memory:" for tests */
   constructor(file: string, deps: HistoryDeps) {
@@ -48,5 +56,10 @@ export class HistoryAssembly extends Disposable {
     this.own(new SelectedValues(deps.bus, deps.signals, selection, (signal, message) => recorder.record(signal, message), signal => recorder.release(signal.id)))
     this.listen(deps.signals, "unregistered", (signal: Signal) => recorder.forget(signal.id))
     this.retention = this.own(new HistoryRetention(this.store, deps.clock, () => this.settings.current, deps.signalExists, report))
+    this.service = new HistoryService({
+      reader: new HistoryReadRepository(database.db), store: this.store, settings: this.settings, signals: deps.signals,
+      selection: () => deps.selections.of(HistoryAssembly.CONSUMER), forget: id => recorder.forget(id), dropped: () => recorder.dropped, clock: deps.clock, file
+    })
+    this.controllers = [new HistoryController(this.service, this.settings), new SelectionController(deps.selections, consumer => consumer === HistoryAssembly.CONSUMER)]
   }
 }

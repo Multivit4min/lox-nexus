@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue"
+import { computed, onMounted, ref, watch } from "vue"
 import type { PluginInstanceDto, PluginSignalDto, PluginSignalInput } from "@lox-nexus/api"
 import type { CatalogEntry, PluginDescription } from "@lox-nexus/plugin-sdk/wire"
 import { Cable, CircleAlert, FolderTree, Lock, Plus } from "@lucide/vue"
@@ -19,6 +19,8 @@ import ListToolbar from "../data/ListToolbar.vue"
 import VirtualTable from "../data/VirtualTable.vue"
 import ForceDialog from "../inspector/ForceDialog.vue"
 import SignalActions from "../SignalActions.vue"
+import RecordButtons from "../history/RecordButtons.vue"
+import SignalHistorySheet, { type HistorySubject } from "../history/SignalHistorySheet.vue"
 import ValueText from "../ValueText.vue"
 import BridgeDialog from "./BridgeDialog.vue"
 import CatalogBrowser from "./CatalogBrowser.vue"
@@ -31,13 +33,15 @@ import PluginSignalDialog, { type SignalDialogTarget } from "./PluginSignalDialo
  */
 const props = defineProps<{ instance: PluginInstanceDto; description: PluginDescription; signals: PluginSignalDto[]; live: LiveValues }>()
 const emit = defineEmits<{ changed: []; wire: [signal: PluginSignalDto] }>()
-const { plugins: api, bus } = AppContext.use()
+const { plugins: api, bus, recorded } = AppContext.use()
 const dialog = ref<SignalDialogTarget>()
 const browsing = ref(false)
 const forcing = ref<PluginSignalDto>()
 const forceOpen = ref(false)
 const query = ref("")
 const selection = new Selection()
+const historyFor = ref<HistorySubject>()
+onMounted(() => void recorded.load())
 const bridging = ref<BridgeCandidate[]>([])
 const bridgeOpen = ref(false)
 
@@ -120,12 +124,13 @@ const remove = (signal: PluginSignalDto) =>
     </CardHeader>
     <CardContent class="space-y-3">
       <ListToolbar v-model="query" :shown="visible.length" :total="signals.length" placeholder="Search name, what or topic">
+        <RecordButtons v-if="selection.pick(visibleIds).length" :ids="selection.pick(visibleIds)" />
         <Button v-if="selection.pick(visibleIds).length" size="sm" class="h-8" @click="bridgeSelected">
           <Cable class="size-4" /> Connect {{ selection.pick(visibleIds).length }} to a Miniserver…
         </Button>
       </ListToolbar>
       <VirtualTable
-        :rows="visible" :row-key="s => s.id" columns="1.25rem minmax(8rem,1.4fr) 5.5rem minmax(6rem,1fr) minmax(10rem,2fr) minmax(7rem,1fr) 7.75rem"
+        :rows="visible" :row-key="s => s.id" columns="1.25rem minmax(8rem,1.4fr) 5.5rem minmax(6rem,1fr) minmax(10rem,2fr) minmax(7rem,1fr) 9.5rem"
         :empty="signals.length ? 'Nothing matches.' : 'Nothing added yet. Add from the catalog, or add one manually.'"
       >
         <template #header>
@@ -146,7 +151,7 @@ const remove = (signal: PluginSignalDto) =>
             <span class="truncate"><ValueText :value="live.get(row.topic)?.value" /></span>
           </span>
           <SignalActions
-            :label="row.label" :forced="isForced(row)" wirable
+            :label="row.label" :forced="isForced(row)" :recorded="recorded.has(row.id)" wirable @history="historyFor = { id: row.id, label: row.label }"
             @edit="dialog = { initial: row }" @wire="emit('wire', row)" @force="force(row)" @release="act(() => bus.release(row.topic))" @remove="remove(row)"
           />
         </template>
@@ -168,6 +173,7 @@ const remove = (signal: PluginSignalDto) =>
       </DialogContent>
     </Dialog>
     <BridgeDialog v-model:open="bridgeOpen" :instance-id="instance.id" :candidates="bridging" @changed="bridged" />
+    <SignalHistorySheet v-model:subject="historyFor" />
     <ForceDialog
       v-if="forcing" v-model:open="forceOpen" :topic="forcing.topic" :current="live.get(forcing.topic)?.value"
       :value-type="forcing.valueType === 'any' ? undefined : forcing.valueType"

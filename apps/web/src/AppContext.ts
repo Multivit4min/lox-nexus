@@ -2,12 +2,14 @@ import { inject, type InjectionKey } from "vue"
 import { AuthApi } from "./api/AuthApi.ts"
 import { BusApi } from "./api/BusApi.ts"
 import { ConfigApi } from "./api/ConfigApi.ts"
+import { HistoryApi } from "./api/HistoryApi.ts"
 import { Http } from "./api/Http.ts"
 import { MiniserverApi } from "./api/MiniserverApi.ts"
 import { PluginApi } from "./api/PluginApi.ts"
 import { PluginPackageApi } from "./api/PluginPackageApi.ts"
 import { StreamConnection, type StreamHandlers } from "./api/StreamConnection.ts"
 import { WireApi } from "./api/WireApi.ts"
+import { RecordedSignals } from "./stores/RecordedSignals.ts"
 import { SessionStore } from "./stores/SessionStore.ts"
 
 /** Everything views need, built once in main.ts and provided to the component tree (no module globals). */
@@ -20,6 +22,9 @@ export class AppContext {
   readonly plugins = new PluginApi(this.http)
   readonly pluginPackages = new PluginPackageApi(this.http)
   readonly wires = new WireApi(this.http)
+  readonly history = new HistoryApi(this.http)
+  /** which signals the history records, shared by the signal lists */
+  readonly recorded = new RecordedSignals(this.history)
   readonly session = new SessionStore(this.auth)
   /** set by main.ts once the router exists: forget the user and go to the login page */
   onSessionEnded: () => void = () => {}

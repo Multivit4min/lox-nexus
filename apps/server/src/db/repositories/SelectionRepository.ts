@@ -41,6 +41,13 @@ export class SelectionRepository {
     })
   }
 
+  /** several rules in one transaction: all or none; @throws SQLite constraint error when a target doesn't exist */
+  setRules(consumer: string, rules: ReadonlyArray<{ target: SelectionTarget; include: boolean | null }>) {
+    this.db.transaction(() => {
+      for (const { target, include } of rules) this.setRule(consumer, target, include)
+    })
+  }
+
   /** for a consumer that is gone, e.g. a deleted plugin instance */
   forget(consumer: string) {
     this.db.transaction(() => {

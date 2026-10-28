@@ -1,5 +1,6 @@
 import { z } from "zod"
 import { LoxoneSignalInputSchema, MiniserverInputSchema } from "./miniservers.ts"
+import { SelectionModeSchema } from "./selections.ts"
 
 const id = z.string().min(1).max(200)
 
@@ -23,6 +24,12 @@ export const ExportedWireSchema = z.object({
   syncOnStart: z.boolean().default(false)
 })
 
+/** A selection as exported: rules on the file's signals and Miniservers (plugins aren't exported). */
+export const ExportedSelectionSchema = z.object({
+  mode: SelectionModeSchema,
+  rules: z.array(z.object({ target: z.union([z.strictObject({ signalId: id }), z.strictObject({ miniserverId: id })]), include: z.boolean() })).max(20_000)
+})
+
 /**
  * GET /api/config/export and the body of POST /api/config/import: the whole configuration of an
  * installation. Ids are kept, so wires still point at their signals after an import. Values,
@@ -34,7 +41,9 @@ export const ConfigExportSchema = z.object({
   /** ISO timestamp, informational */
   exportedAt: z.string().max(40).optional(),
   miniservers: z.array(ExportedMiniserverSchema).max(100),
-  wires: z.array(ExportedWireSchema).max(10_000)
+  wires: z.array(ExportedWireSchema).max(10_000),
+  /** which signals the history records; with older files without it, an import keeps the current rules on the file's ids */
+  selections: z.object({ history: ExportedSelectionSchema.optional() }).optional()
 })
 export type ConfigExport = z.input<typeof ConfigExportSchema>
 

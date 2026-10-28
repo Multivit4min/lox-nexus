@@ -240,7 +240,7 @@ whether every signal is recorded or exported, or only selected ones.
 - **S1: history core and storage** (done). Selection model (all / selected, rules per signal,
   Miniserver or plugin instance), recorder with time-weighted 5-minute and 1-hour buckets, a
   separate `history.db`, retention.
-- **S2: API and UI.** Range queries that pick the resolution, a chart per signal, bulk "record",
+- **S2: API and UI** (done). Range queries that pick the resolution, a chart per signal, bulk "record",
   a settings page with retention and the growth estimate, selections in the config export.
 - **S3: plugins can watch signals.** A read-only SDK capability: a plugin declares `watches`, the
   user picks per instance what it sees, the host delivers values in acknowledged batches with a

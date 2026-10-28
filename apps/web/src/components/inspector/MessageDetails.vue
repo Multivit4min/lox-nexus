@@ -35,7 +35,7 @@ const rows = (message: BusMessageDto): Array<[string, string]> => [
 
 <template>
   <Sheet v-model:open="open">
-    <SheetContent class="w-full overflow-y-auto sm:max-w-xl">
+    <SheetContent class="overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-xl">
       <template v-if="message">
         <SheetHeader>
           <SheetTitle class="break-all font-mono text-sm">{{ message.topic }}</SheetTitle>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Activity, BookOpen, Cable, LogOut, Puzzle, Server } from "@lucide/vue"
+import { Activity, BookOpen, Cable, ChartLine, LogOut, Puzzle, Server } from "@lucide/vue"
 import { useRoute, useRouter } from "vue-router"
 import { Button } from "@/components/ui/button"
 import { AppContext } from "../AppContext.ts"
@@ -14,7 +14,8 @@ const links = [
   { to: "/miniservers", label: "Miniservers", icon: Server },
   { to: "/plugins", label: "Plugins", icon: Puzzle },
   { to: "/wires", label: "Wires", icon: Cable },
-  { to: "/inspector", label: "Bus Inspector", icon: Activity }
+  { to: "/inspector", label: "Bus Inspector", icon: Activity },
+  { to: "/history", label: "History", icon: ChartLine }
 ]
 
 async function logout() {

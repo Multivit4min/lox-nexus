@@ -197,9 +197,10 @@ export class NexusApp extends Disposable {
         new MiniserverController(miniservers, loxoneSignals, new LoxoneProjectService(miniservers, this.options.projectReader ?? new ProjectReader(new MiniserverFtp()))),
         new SignalController(this.signals, this.bus, wires),
         new BusController(this.bus, this.recorder),
-        new ConfigController(new ConfigTransfer({ miniservers, signals: loxoneSignals, wires }, log)),
+        new ConfigController(new ConfigTransfer({ miniservers, signals: loxoneSignals, wires, selections: this.selections }, log)),
         new PluginController(plugins, pluginSignals, this.pluginLogs, new PluginBridgeService(pluginSignals, loxoneSignals, wires, log)),
         new PluginPackageController(this.pluginAssembly.packages(plugins)),
+        ...this.history.controllers,
         stream
       ],
       publicControllers: [new HookController(this.plugins)]
