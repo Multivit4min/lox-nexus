@@ -70,7 +70,7 @@ export class LoxoneSignalService {
     try {
       this.repo.update({ ...config, miniserverId })
     } catch (error) {
-      // wires the first update made inactive (e.g. a new direction) stay inactive until the next boot;
+      // putting the signal back also restarts wires the first update dropped (WireEngine.restartDropped);
       // storing only fails when runtime and database disagree, which is a bug of its own
       miniserver.updateSignal(previous)
       throw error

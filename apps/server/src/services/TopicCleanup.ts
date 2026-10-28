@@ -1,5 +1,11 @@
-import { Topic, type EventBus, type ForceRecord } from "@lox-nexus/core"
+import { Topic, type EventBus, type ForceRecord, type SnapshotEntry } from "@lox-nexus/core"
 import type { SnapshotRepository } from "../db/repositories/SnapshotRepository.ts"
+
+/** Forces and last real values taken before topics are removed, to bring back once they exist again. */
+export interface KeptState {
+  forces: ForceRecord[]
+  values: SnapshotEntry[]
+}
 
 /**
  * Removes what a deleted signal or Miniserver leaves on the bus: forces are released (which also
@@ -9,7 +15,7 @@ import type { SnapshotRepository } from "../db/repositories/SnapshotRepository.t
  */
 export class TopicCleanup {
   constructor(
-    private readonly bus: Pick<EventBus, "activeForces" | "release" | "forget" | "force" | "real" | "restoreSnapshot">,
+    private readonly bus: Pick<EventBus, "activeForces" | "release" | "forget" | "force" | "real" | "restoreSnapshot" | "currentMatching">,
     private readonly snapshot: SnapshotRepository
   ) {}
 
@@ -38,6 +44,28 @@ export class TopicCleanup {
     const entry = { topic: to, value: real.value, ts: real.ts }
     this.bus.restoreSnapshot([entry])
     this.snapshot.save([entry])
+  }
+
+  /** the forces and last real values on topics matching `pattern`, before they are removed and made again (a config import) */
+  keep(pattern: string): KeptState {
+    const forces = this.bus.activeForces().filter(force => Topic.matches(pattern, force.topic))
+    const values = this.bus.currentMatching(pattern).flatMap(({ topic }) => {
+      const real = this.bus.real(topic)
+      return real?.value ? [{ topic, value: real.value, ts: real.ts }] : []
+    })
+    return { forces, values }
+  }
+
+  /**
+   * Brings back what keep() took, on the topics that exist again; forces first, as at boot, so a
+   * value under a force arrives shadowed. A value comes back like a snapshot at boot.
+   */
+  bringBack(kept: KeptState, exists: (topic: string) => boolean, by: string) {
+    for (const force of kept.forces) if (exists(force.topic)) this.reapply(force, force.topic, by)
+    const values = kept.values.filter(entry => exists(entry.topic))
+    if (values.length === 0) return
+    this.bus.restoreSnapshot(values)
+    this.snapshot.save(values)
   }
 
   private reapply(force: ForceRecord, topic: string, by: string) {

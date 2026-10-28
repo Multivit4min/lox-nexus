@@ -9,9 +9,9 @@ import type { Controller } from "../Controller.ts"
  * - GET /api/config/export: 200, as a download named lox-nexus-config-<date>.json.
  * - POST /api/config/import: 200 with what was created. Replaces the current configuration.
  *   400 for a file that isn't a valid export (nothing changes); 409 when a step fails (the
- *   previous configuration is restored, but forces and last values on its topics are gone) or
- *   another import is running; 500 when the restore was incomplete too. Other changes made
- *   during an import are not blocked.
+ *   previous configuration is restored) or another import is running; 500 when the restore was
+ *   incomplete too. Forces and last values stay on topics that exist after it. While it runs,
+ *   other changing API requests get 503 with Retry-After.
  */
 export class ConfigController implements Controller {
   /** exports of a few thousand signals exceed the default 1 MB body limit */

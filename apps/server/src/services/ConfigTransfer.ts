@@ -3,11 +3,14 @@ import type { WireInput } from "@lox-nexus/core"
 import type { Logger } from "pino"
 import { z } from "zod"
 import { ErrorHandler } from "../http/ErrorHandler.ts"
+import { ChangeLock } from "../http/ChangeLock.ts"
 import { HttpError } from "../http/HttpError.ts"
 import { ConfigCheck, type ConfigDocument } from "./ConfigCheck.ts"
+import type { ImportJournal } from "./ImportJournal.ts"
 import type { LoxoneSignalService } from "./LoxoneSignalService.ts"
 import type { MiniserverService } from "./MiniserverService.ts"
 import type { SelectionService } from "./SelectionService.ts"
+import type { KeptState, TopicCleanup } from "./TopicCleanup.ts"
 import type { WireService } from "./WireService.ts"
 
 /** What an import needs from the services; narrow so it can be tested with fakes. */
@@ -19,6 +22,15 @@ export interface ConfigServices {
   selections?: Pick<SelectionService, "of" | "setMode" | "setRules">
 }
 
+/** Where an import keeps its safety copy and what it locks; both optional for tests. */
+export interface ConfigTransferOptions {
+  lock?: ChangeLock
+  /** the configuration before a running import, on disk, so a crash in the middle can be undone */
+  journal?: ImportJournal
+  /** carries forces and last values on Loxone topics over the import, to topics that exist after it */
+  runtime?: { cleanup: Pick<TopicCleanup, "keep" | "bringBack">; exists: (topic: string) => boolean }
+}
+
 /** the consumer whose selection travels with the file */
 const HISTORY = "history"
 
@@ -28,14 +40,40 @@ const HISTORY = "history"
  *
  * An import replaces everything through the same services the API uses, so every rule applies.
  * Runtime and database can't share one transaction, so it takes an export first and, if any
- * step fails, clears again and restores that export. Passwords are never exported; a Miniserver
+ * step fails, clears again and restores that export. The export also goes to the journal on disk
+ * until the import is over, so recover() can restore it after a crash. Passwords are never exported; a Miniserver
  * keeps the password stored for its id before the import. Forces and last values on Loxone
- * topics are dropped by the import, also when it is rolled back.
+ * topics that exist after the import (or its rollback) are carried over; the others are released.
  */
 export class ConfigTransfer {
-  private importing = false
+  private readonly lock: ChangeLock
 
-  constructor(private readonly services: ConfigServices, private readonly log: Logger) {}
+  constructor(private readonly services: ConfigServices, private readonly log: Logger, private readonly options: ConfigTransferOptions = {}) {
+    this.lock = options.lock ?? new ChangeLock()
+  }
+
+  /**
+   * Restores the configuration an import left in the journal when Nexus stopped in the middle of
+   * it. Called at boot, after the stored configuration is loaded and before the HTTP API starts.
+   * An unreadable journal is logged and left for a person to look at.
+   */
+  async recover() {
+    const journal = this.options.journal
+    let left: ReturnType<ImportJournal["read"]>
+    try {
+      left = journal?.read()
+    } catch (error) {
+      this.log.error({ err: error }, "an interrupted config import left a journal that can't be read; it was not restored")
+      return
+    }
+    if (!left) return
+    this.log.warn("a config import was interrupted; restoring the configuration from before it")
+    try {
+      await this.lock.hold("restoring an interrupted import", () => this.restore(left.backup, left.passwords, "nexus"))
+    } finally {
+      journal?.clear()
+    }
+  }
 
   /** the current configuration; wires that can't run are included, as stored */
   export(): ConfigExport {
@@ -71,18 +109,18 @@ export class ConfigTransfer {
 
   /**
    * Replaces the configuration with the file's. `by` is recorded on forces released on the way.
-   * Other API changes made while it runs are not blocked and may be lost.
+   * It holds the change lock, so other changing API requests are refused (503) meanwhile.
    * @throws HttpError 400 for an inconsistent file; 409 for a step that failed (the previous
    * configuration was restored) or when another import is running; 500 when restoring failed too
    */
   async import(doc: ConfigDocument, by: string): Promise<ConfigImportResultDto> {
-    if (this.importing) throw HttpError.conflict("another import is running")
     ConfigCheck.assertConsistent(doc)
-    this.importing = true
-    try {
+    return await this.lock.hold("a config import", async () => {
       const passwords = this.passwords()
       // parsed, so a backup that couldn't be read back fails before anything is deleted
       const backup = ConfigExportSchema.parse(this.export())
+      this.options.journal?.write({ backup, passwords })
+      const kept = this.options.runtime?.cleanup.keep("loxone/#")
       try {
         await this.clear(by, false)
         // a file without selections keeps the current rules on its signals; they went with the clear
@@ -91,10 +129,11 @@ export class ConfigTransfer {
         this.log.warn({ err: error }, "import failed, restoring the previous configuration")
         await this.restore(backup, passwords, by)
         throw error
+      } finally {
+        this.options.journal?.clear()
+        if (kept) this.bringBack(kept, by)
       }
-    } finally {
-      this.importing = false
-    }
+    })
   }
 
   // @throws HttpError 500 when not everything came back; the log says what is missing
@@ -105,6 +144,16 @@ export class ConfigTransfer {
     if (restored.miniservers === expected.miniservers && restored.signals === expected.signals && restored.wires === expected.wires) return
     this.log.error({ expected, restored }, "the previous configuration was not restored completely")
     throw new HttpError(500, "the import failed and the previous configuration could not be restored completely; see the server log")
+  }
+
+  // never fails the import: what can't come back is released, as before
+  private bringBack(kept: KeptState, by: string) {
+    const runtime = this.options.runtime
+    try {
+      runtime?.cleanup.bringBack(kept, runtime.exists, by)
+    } catch (error) {
+      this.log.warn({ err: error }, "forces and values from before the import could not be carried over")
+    }
   }
 
   private passwords() {

@@ -6,6 +6,7 @@ import fastifyWebsocket from "@fastify/websocket"
 import { Disposable } from "@lox-nexus/plugin-sdk"
 import Fastify, { LogController, type FastifyBaseLogger, type FastifyInstance } from "fastify"
 import type { AuthGuard } from "./AuthGuard.ts"
+import type { ChangeLock } from "./ChangeLock.ts"
 import type { Controller } from "./Controller.ts"
 import { DocsSite } from "./DocsSite.ts"
 import { ErrorHandler } from "./ErrorHandler.ts"
@@ -15,6 +16,8 @@ export interface HttpServerOptions {
   /** a pino logger; typed as Fastify's base logger so the app keeps its default type parameters */
   logger: FastifyBaseLogger
   guard: AuthGuard
+  /** refuses changing API requests while a config import runs; checked after the guard */
+  lock?: ChangeLock
   controllers: Controller[]
   /**
    * routes reachable without a session, outside the API (plugin webhooks); each gets its own
@@ -55,6 +58,7 @@ export class HttpServer extends Disposable {
     this.app.register(fastifyWebsocket, { options: { maxPayload: 65_536 } })
     this.app.register(async app => {
       app.addHook("onRequest", options.guard.check)
+      if (options.lock) app.addHook("onRequest", options.lock.check)
       app.get("/api/health", { config: { public: true } }, () => ({ ok: true }))
       for (const controller of options.controllers) controller.register(app)
     })

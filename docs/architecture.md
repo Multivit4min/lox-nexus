@@ -755,9 +755,15 @@ above:
     409 naming the failed entry, e.g. `miniservers[0].signals[3]: packet id "x" already has an in
     signal`. If the restore can't bring everything back the answer is 500 and the log says what
     is missing. SQL never reaches the client.
-  - Forces and last values on Loxone topics are dropped by an import, also by one that is rolled
-    back. Only one import runs at a time; other API changes during an import aren't blocked
-    (see the backlog).
+  - Before clearing, the import writes the backup with the Miniserver passwords to
+    `import-in-progress.json` next to the database (`ImportJournal`, 0600, atomic) and deletes it
+    when it is over. A file left behind means Nexus stopped in the middle; the next start restores
+    it (`ConfigTransfer.recover()`, after loading and before the API listens).
+  - Forces and last real values on Loxone topics are taken before clearing
+    (`TopicCleanup.keep`) and put back afterwards, also after a rollback, on the topics that exist
+    again (`bringBack`); the others are released.
+  - The import holds a `ChangeLock`: a second import gets 409, and every other changing API request
+    gets 503 with `Retry-After` until it is done. Reads go on.
   - The UI has Export and Import buttons on the Miniservers page. The import asks for
     confirmation and reports counts, kept passwords and inactive wires.
 - **UI fixes found on the way.** `VirtualTable` subtracted the header from

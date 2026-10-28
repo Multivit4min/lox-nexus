@@ -24,11 +24,13 @@ import { MiniserverController } from "./http/controllers/MiniserverController.ts
 import { PluginController } from "./http/controllers/PluginController.ts"
 import { PluginPackageController } from "./http/controllers/PluginPackageController.ts"
 import { SignalController } from "./http/controllers/SignalController.ts"
+import { ChangeLock } from "./http/ChangeLock.ts"
 import { HttpServer } from "./http/HttpServer.ts"
 import { SessionCookie } from "./http/SessionCookie.ts"
 import { PluginAssembly, type InstallOptions } from "./plugins/PluginAssembly.ts"
 import type { PluginCatalog } from "./plugins/PluginCatalog.ts"
 import { ConfigTransfer } from "./services/ConfigTransfer.ts"
+import { ImportJournal } from "./services/ImportJournal.ts"
 import { LoxoneProjectService } from "./services/LoxoneProjectService.ts"
 import { LoxoneSignalService } from "./services/LoxoneSignalService.ts"
 import { MiniserverService } from "./services/MiniserverService.ts"
@@ -72,6 +74,8 @@ interface Services {
   wires: WireService
   plugins: PluginService
   pluginSignals: PluginSignalService
+  transfer: ConfigTransfer
+  lock: ChangeLock
 }
 
 /**
@@ -102,6 +106,8 @@ export class NexusApp extends Disposable {
   readonly selections: SelectionService
   readonly history: HistoryAssembly
   private http: HttpServer | undefined
+  /** next to the database; none for an in-memory one */
+  private readonly journal: ImportJournal | undefined
   private stream: BusStream | undefined
 
   /** @throws when the database can't be opened or migrated */
@@ -111,6 +117,7 @@ export class NexusApp extends Disposable {
     const databaseFile = options.databaseFile ?? config.databaseFile
     if (databaseFile !== ":memory:") {
       fs.mkdirSync(path.dirname(databaseFile), { recursive: true, mode: 0o700 })
+      this.journal = ImportJournal.in(path.dirname(databaseFile))
       const lock = DatabaseLock.acquire(databaseFile)
       // registered first, so it is released last, after the database is closed
       this.onDispose(() => lock.release())
@@ -162,6 +169,9 @@ export class NexusApp extends Disposable {
     const wires = new WireService(db.wires, this.wires, this.signals, log)
     const plugins = new PluginService(db.pluginInstances, db.pluginSignals, this.plugins, this.pluginCatalog, cleanup, log, this.pluginLogs, this.selections)
     const pluginSignals = new PluginSignalService(db.pluginSignals, plugins, cleanup)
+    const lock = new ChangeLock()
+    const runtime = { cleanup, exists: (topic: string) => this.signals.atTopic(topic) !== undefined }
+    const transfer = new ConfigTransfer({ miniservers, signals: loxoneSignals, wires, selections: this.selections }, log, { lock, journal: this.journal, runtime })
     this.bus.restoreForces()
     miniservers.load()
     await this.pluginAssembly.load(plugins)
@@ -170,9 +180,10 @@ export class NexusApp extends Disposable {
     wires.load()
     this.snapshot.restore()
     for (const failure of await this.miniservers.startEnabled()) log.warn({ err: failure.error, miniserver: failure.id }, "miniserver failed to start")
+    await transfer.recover()
     if (this.isDisposed) return undefined
     this.own(new SystemEventLogger(this.bus, log.child({ component: "bus" })))
-    this.http = this.own(this.createHttp({ miniservers, loxoneSignals, wires, plugins, pluginSignals }))
+    this.http = this.own(this.createHttp({ miniservers, loxoneSignals, wires, plugins, pluginSignals, transfer, lock }))
     const address = await this.http.start(this.config.httpPort, this.config.httpHost)
     // failures show up as each instance's state; nothing to wait for here
     this.plugins.startEnabled().catch((error: unknown) => log.error({ err: error }, "starting the plugins failed"))
@@ -190,7 +201,7 @@ export class NexusApp extends Disposable {
   }
 
   /** Builds the auth stack and HTTP server. Called once from start(); everything created here is owned by the app. */
-  private createHttp({ miniservers, loxoneSignals, wires, plugins, pluginSignals }: Services) {
+  private createHttp({ miniservers, loxoneSignals, wires, plugins, pluginSignals, transfer, lock }: Services) {
     const { persistence: db, clock, config, log } = this
     const sessions = new SessionService(db.sessions, clock)
     this.every(60 * 60 * 1000, () => this.pruneSessions(sessions))
@@ -201,6 +212,7 @@ export class NexusApp extends Disposable {
     return new HttpServer({
       logger: log,
       guard: new AuthGuard(auth, cookie, config.publicOrigins),
+      lock,
       webDir: config.webDir,
       docsDir: config.docsDir,
       trustProxy: config.trustProxy,
@@ -209,7 +221,7 @@ export class NexusApp extends Disposable {
         new MiniserverController(miniservers, loxoneSignals, new LoxoneProjectService(miniservers, this.options.projectReader ?? new ProjectReader(new MiniserverFtp()))),
         new SignalController(this.signals, this.bus, wires),
         new BusController(this.bus, this.recorder),
-        new ConfigController(new ConfigTransfer({ miniservers, signals: loxoneSignals, wires, selections: this.selections }, log)),
+        new ConfigController(transfer),
         new PluginController(plugins, pluginSignals, this.pluginLogs, new PluginBridgeService(pluginSignals, loxoneSignals, wires, log)),
         new PluginPackageController(this.pluginAssembly.packages(plugins)),
         ...this.history.controllers(id => plugins.watches(id)),

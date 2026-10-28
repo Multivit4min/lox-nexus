@@ -18,7 +18,8 @@ const setup = (options: { force?: ForceRecord; real?: Partial<BusMessage> } = {}
       if (info.until !== undefined && info.until < 1000) throw new RangeError("a force must not expire in the past")
       calls.push(`force ${topic} ${JSON.stringify(value)}`)
     },
-    restoreSnapshot: (entries: Array<{ topic: string }>) => void calls.push(`restore ${entries[0]!.topic}`)
+    restoreSnapshot: (entries: Array<{ topic: string }>) => void calls.push(`restore ${entries[0]!.topic}`),
+    currentMatching: () => []
   }
   const snapshot = { save: (entries: unknown[]) => void saved.push(...entries), delete: () => {} } as unknown as SnapshotRepository
   return { calls, saved, cleanup: new TopicCleanup(bus, snapshot) }

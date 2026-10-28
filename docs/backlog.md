@@ -45,15 +45,6 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
 - **Plugins are left out.** The export has no plugin instances and no wires to plugin signals, and
   an import removes Loxone↔plugin wires. Export plugin instances (without secrets), their signals
   and those wires, so a backup is complete.
-- **Imports don't block other changes.** Only a second import is refused. A wire or signal created
-  through the API while an import runs is lost, or makes the import roll back. A lock (409/503 for
-  changing `/api/*` requests during an import) would close this. The backup lives in memory, so a
-  crash mid-import loses it; writing it to the data directory first would make recovery possible.
-- **Imports drop runtime state.** Forces and last values on Loxone topics are gone after an
-  import, also after a rollback. They could be carried over for topics that exist before and after.
-- **Rolled-back edits keep inactive wires.** If storing an edited signal fails after the runtime
-  change, the signal is put back, but wires the edit made inactive stay inactive until the next
-  boot. Storing only fails when runtime and database disagree, so this is rare.
 
 ## Plugin SDK
 
