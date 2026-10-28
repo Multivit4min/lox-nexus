@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import { test } from "node:test"
 import { StringToNumber } from "./StringToNumber.ts"
 
-/** golden expectations from old/loxone-nexus/tests/conversion/stringToNumber.spec.ts */
+/** golden expectations from tests/conversion/stringToNumber.spec.ts of the previous Nexus (github.com/Multivit4min/loxone-nexus) */
 const parse = (text: string) => new StringToNumber().parse(text)
 
 test("garbage becomes 0", () => {

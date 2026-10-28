@@ -30,7 +30,7 @@ project's vocabulary (Signal, Wire, Force, Miniserver, Sensor, Actuator, ...).
 - Keep existing comments that are correct. Fix the ones that are wrong or out of date.
 - Write in English, matching the existing style: `/** … */`, no type information duplicated in
   JSDoc (TypeScript already has it).
-- Never touch files under `old/`, generated files, tests' logic, or fixtures. Tests only get a
+- Never touch generated files, tests' logic, or fixtures. Tests only get a
   comment when the scenario isn't clear from the test name.
 
 ## Rules

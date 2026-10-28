@@ -53,7 +53,6 @@ list passes.
 - A test `import "@lox-nexus/core"` inside a plugin fails lint.
 - A 201-line file fails lint.
 - All 6 agent files exist in `.claude/agents/` and show up as agent types in Claude Code.
-- An Edit on `old/` is denied.
 
 ### M1: ICI implementation and protocol lab (`packages/ici`) (done)
 
@@ -201,7 +200,8 @@ first-party plugins load from the workspace until then.
 ### M6: hardening and release
 
 - Recorder to disk.
-- Importer for the old v1 export (on top of the config import added after M3).
+- Importer for the old v1 export (on top of the config import added after M3); the format and its
+  mapping are in `docs/legacy-nexus.md`, since the old code is no longer in this repository.
 - Backup of the whole data directory, including plugins, users and values (the config export
   covers only Miniservers, signals and wires).
 - A Dockerfile for amd64 and arm64.

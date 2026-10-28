@@ -1,19 +1,14 @@
 # Lox Nexus
 
 Bridges external systems (Home Assistant, Fronius, calendars, …) to **Loxone Miniservers** over the
-Loxone Intercommunication Interface (ICI, UDP). Clean rewrite of `old/loxone-nexus` +
-`old/loxone-nexus-frontend`.
+Loxone Intercommunication Interface (ICI, UDP). Clean rewrite of the previous Nexus
+(github.com/Multivit4min/loxone-nexus and loxone-nexus-frontend), designed fresh; its known bugs
+are listed in `docs/architecture.md` and `docs/loxone-ici-review.md`, and its export format and
+unported integrations in `docs/legacy-nexus.md`.
 
 - Architecture and vocabulary: `docs/architecture.md` (read it before larger changes)
 - Decisions: `docs/adr/`
 - Milestone plan: `docs/roadmap.md`
-
-## old/ is a read-only reference
-
-`old/` holds the previous implementation. **Never edit it** (also denied in `.claude/settings.json`).
-Use it to understand behaviour, but design fresh: don't carry over an old concept unless it fits the
-new architecture. Known bugs in old code are listed in `docs/architecture.md` and
-`docs/loxone-ici-review.md`.
 
 ## Layout
 
@@ -85,9 +80,8 @@ a task matches:
 | Agent | Use for |
 |---|---|
 | `architect` | design review before a security- or design-heavy milestone (M5e installer), boundary checks, ADRs (read-only for code) |
-| `plugin-dev` | building or porting plugins against the public SDK only; where it gets stuck, the SDK lacks something |
+| `plugin-dev` | building plugins against the public SDK only; where it gets stuck, the SDK lacks something |
 | `reviewer` | read-only review of a change against these conventions, plus running checks |
 | `doc-writer` | JSDoc for classes, methods and exported functions after a change; comments only |
 | `Explore` | broad read-only searches when only the conclusion is needed |
 
-Skill: `/port-integration <name>` walks through porting an old integration to a plugin.

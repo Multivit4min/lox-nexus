@@ -7,7 +7,6 @@ coverage/
 !.env.example
 .DS_Store
 *.tsbuildinfo
-old
 # the server's default data dir at the repo root only; a bare "data/" would also hide e.g. src/components/data
 /data/
 /apps/server/data/

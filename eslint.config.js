@@ -16,7 +16,7 @@ const restrictImports = (files, forbidden, message) => ({
 })
 
 export default tseslint.config(
-  { ignores: ["old/", "**/dist/", "**/node_modules/", "coverage/", "data/"] },
+  { ignores: ["**/dist/", "**/node_modules/", "coverage/", "data/"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   ...pluginVue.configs["flat/recommended"],

@@ -5,7 +5,7 @@ Review of the `loxone-ici` npm package (github.com/Multivit4min/loxone-intercomm
 replaced by `packages/ici`. **Each item below must have a regression test in `packages/ici`.**
 The items can also be filed as issues upstream.
 
-Line references point at the upstream repository. `old/…` references point at the previous Nexus.
+Line references point at the upstream repository. `loxone-nexus/…` references point at the previous Nexus (github.com/Multivit4min/loxone-nexus).
 
 **Bugs**
 1. **Payload length mismatch.** `toBuffer` in both `LoxoneInput` and `LoxoneOutput` writes the payload
@@ -16,7 +16,7 @@ Line references point at the upstream repository. `old/…` references point at 
    process.
 3. **`bind()` failures crash the process.** `bind()` never rejects and the socket has no `error`
    listener, so `EADDRINUSE` becomes an unhandled `error` event. Old Nexus also doesn't await
-   `bind` (`old/loxone-nexus/src/loxone/LoxoneInstance.ts:93`).
+   `bind` (`loxone-nexus/src/loxone/LoxoneInstance.ts:93`).
 4. **The server can't be restarted.** `LoxoneServer.server` is a socket created once as a `readonly`
    field, so it can't be rebound after `close()`. `close()` also strips every listener, and each
    `bind()` call adds another `message` handler.
@@ -52,7 +52,7 @@ Line references point at the upstream repository. `old/…` references point at 
 **API and packaging**
 
 18. **`createOutput(id, type: DATA_TYPE)` forces `@ts-ignore`.** Consumers need it
-    (`old/loxone-nexus/src/loxone/LoxoneInstance.ts:154`); a generic `OutputFor<T>` return type would fix that.
+    (`loxone-nexus/src/loxone/LoxoneInstance.ts:154`); a generic `OutputFor<T>` return type would fix that.
     `setValue()` already sends, so Nexus's extra `.send()` sends every value twice.
 19. **EventEmitter usage.** It is imported from `"stream"` instead of `node:events`. The typed
     `EventEmitter<Events>` generic would be cleaner.

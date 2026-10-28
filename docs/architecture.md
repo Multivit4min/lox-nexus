@@ -95,8 +95,8 @@ explains it.
 The `Value` class provides factories (`Value.boolean(true)`) and `Value.equals()`. A
 `Converter` class with one small `*Conversion` class per target type replaces the old 274-line
 converter. The old conversion rules are kept as behaviour (golden tests ported from
-`old/loxone-nexus/tests/conversion/*.spec.ts`), with these known bugs fixed deliberately, one test each:
-- RGBW→TunableWhite spreads `this.defaults` (`old/loxone-nexus/VariableConverter.ts:185`)
+`tests/conversion/*.spec.ts` of the previous Nexus, github.com/Multivit4min/loxone-nexus), with these known bugs fixed deliberately, one test each:
+- RGBW→TunableWhite spreads `this.defaults` (`VariableConverter.ts:185` in the previous Nexus)
 - `fallback || 0` swallows a fallback of 0
 - default fadeTime is inconsistent (0 in one place, 0.2 in another)
 - RGBW and TunableWhite are missing from the defaults
@@ -303,12 +303,12 @@ marked `@experimental` until a fixture confirms them.
 
 ### Old code used as behavioural reference only
 
-- **Home Assistant:** `old/loxone-nexus/src/integration/homeassistant/`, both the WS protocol and the list of
+- **Home Assistant:** the previous Nexus's `src/integration/homeassistant/`, both the WS protocol and the list of
   services. Fix two bugs on the way: `valve.set_valve_position`, and the scene trigger firing on
   `false`.
-- **Calendar:** `old/loxone-nexus/src/integration/calendar/` (iCal, show/hide events). Fix three bugs: the
+- **Calendar:** the previous Nexus's `src/integration/calendar/` (iCal, show/hide events). Fix three bugs: the
   event end time is ignored, there is a double fetch, and the ignore list grows forever.
-- **Fronius:** `old/loxone-nexus/src/integration/fronius/SolarApi.ts`.
+- **Fronius:** the previous Nexus's `src/integration/fronius/SolarApi.ts`.
 - **Old v1 export:** an importer comes in M6.
 
 

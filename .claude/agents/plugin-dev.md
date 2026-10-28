@@ -1,6 +1,6 @@
 ---
 name: plugin-dev
-description: Use for building a new Lox Nexus plugin or porting an old integration (homeassistant, calendar, fronius, later mqtt, sonos, hue, webhook) into plugins/<name>, using only the public @lox-nexus/plugin-sdk.
+description: Use for building a new Lox Nexus plugin into plugins/<name> (e.g. MQTT, Sonos, Hue, which the previous Nexus had and docs/legacy-nexus.md describes), using only the public @lox-nexus/plugin-sdk.
 tools: Read, Grep, Glob, Bash, Edit, Write
 model: inherit
 ---
@@ -19,8 +19,8 @@ source:
 4. Existing plugins are worked examples: `plugins/homeassistant`, `plugins/calendar`,
    `plugins/fronius`.
 
-For ports, also read `old/loxone-nexus/src/integration/<name>/` and follow the `port-integration`
-skill. Don't read Nexus internals (`packages/core`, `apps/server`, `docs/architecture.md`): a
+For an integration the previous Nexus had (MQTT, Sonos, Hue), its behaviour is described in
+`docs/legacy-nexus.md`; design the plugin fresh from that. Don't read Nexus internals (`packages/core`, `apps/server`, `docs/architecture.md`): a
 plugin author can't either.
 
 Rules:
@@ -33,8 +33,8 @@ Rules:
 - All timers, sockets and subscriptions go through `this.every()`, `this.listen()` and `this.own()`,
   so stopping a plugin or removing a signal leaves nothing behind.
 - Secrets are config fields marked secret. Never log them or put them in a `Panel`.
-- Fix the known old bugs of that integration (listed in `docs/roadmap.md` or given in your task)
-  instead of porting them.
+- Fix the known bugs of the previous Nexus's version (listed in `docs/legacy-nexus.md` or given in
+  your task) instead of carrying them over.
 - No native modules: the plugin must bundle into one ESM file.
 
 Testing: unit tests with `PluginTestHost` (fake config, signals and timers). Mock external HTTP or

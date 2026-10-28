@@ -19,6 +19,6 @@ Steps:
    - class-oriented, one class per file, files and functions near the 200/40 limits
    - `any`, unchecked casts, missing zod validation at boundaries, secrets in logs, DTOs or the bus
    - tests: do they cover the change, avoid sleeps and use 127.0.0.1 port 0?
-   - concepts copied from `old/` that don't fit the new architecture
+   - concepts carried over from the previous Nexus that don't fit the new architecture
 4. Report findings ordered by severity, each with `file:line`, what is wrong, and a concrete fix.
    Separate "must fix" from "suggestions". If everything is fine, say so plainly.

@@ -13,12 +13,6 @@
       "Bash(git status:*)",
       "Bash(git diff:*)",
       "Bash(git log:*)"
-    ],
-    "deny": [
-      "Edit(old/**)",
-      "Edit(/old/**)",
-      "Write(old/**)",
-      "Write(/old/**)"
     ]
   }
 }
