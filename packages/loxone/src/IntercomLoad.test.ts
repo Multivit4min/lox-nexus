@@ -41,7 +41,7 @@ describe("IntercomLoad", () => {
     const load = new IntercomLoad({ now: () => Date.now() }, sample => samples.push(sample))
     // 35/s for a full window in both directions together is exactly the limit
     for (let second = 0; second < IntercomLoad.WINDOW_SECONDS; second++) {
-      for (let i = 0; i < 20; i++) load.received()
+      for (let i = 0; i < 20; i++) load.receivedUnassigned("protocol")
       for (let i = 0; i < 15; i++) load.sent()
       mock.timers.tick(1000)
     }
@@ -70,7 +70,7 @@ describe("IntercomLoad", () => {
       load.received("light")
       load.sent("light")
       for (let i = 0; i < 7; i++) load.sent("pv")
-      load.received()
+      load.receivedUnassigned("unconfigured")
       mock.timers.tick(1000)
     }
     assert.ok(Math.abs(load.percentOf("out", "pv") - 20) < 0.5, "7 of 35 per second is 20%")
@@ -78,6 +78,39 @@ describe("IntercomLoad", () => {
     assert.equal(load.percentOf("in", "pv"), 0)
     mock.timers.tick(IntercomLoad.WINDOW_SECONDS * 1000)
     assert.equal(load.percentOf("out", "pv"), 0, "quiet for two minutes")
+    await load.dispose()
+  })
+
+  test("the breakdown counts traffic without a signal by kind and adds up to the total exactly", async () => {
+    const load = new IntercomLoad({ now: () => Date.now() })
+    const signals = [{ direction: "in" as const, packetId: "light" }, { direction: "out" as const, packetId: "pv" }]
+    for (let second = 0; second < IntercomLoad.WINDOW_SECONDS; second++) {
+      // odd counts, so rounding each signal's share would leave a remainder
+      for (let i = 0; i < 3; i++) load.received("light")
+      load.sent("pv")
+      for (let i = 0; i < 7; i++) load.receivedUnassigned("unconfigured")
+      load.receivedUnassigned("protocol")
+      mock.timers.tick(1000)
+    }
+    const parts = load.breakdown(signals)
+    assert.ok(Math.abs(parts.unconfigured - 20) < 0.5, "7 of 35 per second is 20%")
+    assert.deepEqual([parts.otherTargets, parts.encrypted, parts.recentlyChanged], [0, 0, 0], "nothing changed, so nothing is left over")
+    assert.ok(Math.abs(Object.values(parts).reduce((a, b) => a + b) - load.current().percent) < 1e-9)
+    await load.dispose()
+  })
+
+  test("a deleted signal's traffic stays in the window as recently changed, then ages out", async () => {
+    const load = new IntercomLoad({ now: () => Date.now() })
+    for (let second = 0; second < 10; second++) {
+      load.received("gone")
+      load.sent()
+      mock.timers.tick(1000)
+    }
+    const parts = load.breakdown([])
+    assert.ok(Math.abs(parts.recentlyChanged - load.percentOf("in", "gone")) < 1e-9)
+    assert.ok(parts.protocol > 0, "a send without a data packet id counts as protocol")
+    mock.timers.tick(IntercomLoad.WINDOW_SECONDS * 1000)
+    assert.equal(load.breakdown([]).recentlyChanged, 0)
     await load.dispose()
   })
 
@@ -114,9 +147,15 @@ describe("IntercomLoad on a running Miniserver", { timeout: 10_000 }, () => {
     const received = fake.received("out")
     bus.publish("loxone/haus/out/out", { type: "number", value: 2 }, { source: { kind: "user", id: "t" } })
     await received
+    const discovered = BusProbe.next(bus, "loxone/haus/discovered/nope")
+    await fake.send("nope", DataType.Analog, 1)
+    await discovered
     const { incomingPerSecond, outgoingPerSecond } = ms.load.current()
-    assert.deepEqual([incomingPerSecond * 120, outgoingPerSecond * 120], [1, 1], "the foreign heartbeat is not counted")
+    assert.deepEqual([incomingPerSecond * 120, outgoingPerSecond * 120], [2, 1], "the foreign heartbeat is not counted")
     const one = Math.round(100 / 120 / 35 * 1000) / 1000
     assert.deepEqual(Object.fromEntries(ms.signalLoad()), { in: one, out: one }, "each signal's share")
+    const parts = ms.loadNow().breakdown
+    assert.equal(Math.round(parts.unconfigured * 1000) / 1000, one, "a packet id without a signal counts apart")
+    assert.deepEqual([parts.protocol, parts.recentlyChanged], [0, 0])
   })
 })

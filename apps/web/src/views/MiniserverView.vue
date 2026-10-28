@@ -129,7 +129,7 @@ async function adopt(packets: DiscoveredPacketDto[], progress: (done: number) =>
       <AlertTitle>Start failed</AlertTitle>
       <AlertDescription>{{ ms.lastError }}</AlertDescription>
     </Alert>
-    <SignalsCard v-if="live" :signals="signals" :live="live" :add="addSignal" :update="updateSignal" :remove="removeSignals" :load="signalLoad" @wire="wire" />
+    <SignalsCard v-if="live" :signals="signals" :live="live" :add="addSignal" :update="updateSignal" :remove="removeSignals" :load="signalLoad" :total-load="ms.load" @wire="wire" />
     <WiresCard ref="wiresCard" :owner-id="ms.id" />
     <DiscoveredCard :packets="discovered" :adopt="adopt" />
     <ProjectImportDialog v-model:open="importing" :ms="ms" :signals="signals" @changed="load" />

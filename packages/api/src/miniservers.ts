@@ -105,6 +105,25 @@ export interface LoadSampleDto {
   percent: number
 }
 
+/**
+ * What the current load is made of, each in percent of the limit like `current.percent`, which
+ * they add up to. Only `signals` shows up in the signal list; the rest belongs to no signal.
+ */
+export interface LoadBreakdownDto {
+  /** the configured signals together (their shares in the signal list) */
+  signals: number
+  /** data the Miniserver sends for packet ids without a signal (see the discovered packets) */
+  unconfigured: number
+  /** the Miniserver's packets for other targets that arrive on this port */
+  otherTargets: number
+  /** encrypted packets Nexus can't read without the password */
+  encrypted: number
+  /** the status heartbeat and encryption handshakes */
+  protocol: number
+  /** the rest: signals deleted, or given a new packet id, within the last windowSeconds */
+  recentlyChanged: number
+}
+
 /** GET /api/miniservers/:id/load */
 export interface MiniserverLoadDto {
   /** Loxone's documented limit: messages per second, averaged over windowSeconds */
@@ -113,6 +132,7 @@ export interface MiniserverLoadDto {
   /** how often a sample is taken */
   sampleMs: number
   current: LoadSampleDto
+  breakdown: LoadBreakdownDto
   /** up to the last hour, oldest first; stored by the server, so it survives restarts (downtime shows as a gap) */
   history: LoadSampleDto[]
 }

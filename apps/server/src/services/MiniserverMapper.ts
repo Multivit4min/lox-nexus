@@ -1,5 +1,5 @@
-import type { DiscoveredPacketDto, LoxoneSignalDto, MiniserverDto, MiniserverLoadDto } from "@lox-nexus/api"
-import { IciValueMapper, IntercomLoad, type DiscoveredPacket, type LoxoneSignalConfig, type Miniserver } from "@lox-nexus/loxone"
+import type { DiscoveredPacketDto, LoadBreakdownDto, LoxoneSignalDto, MiniserverDto, MiniserverLoadDto } from "@lox-nexus/api"
+import { IciValueMapper, IntercomLoad, type DiscoveredPacket, type LoadBreakdown, type LoxoneSignalConfig, type Miniserver } from "@lox-nexus/loxone"
 
 /** Runtime objects to API DTOs. The only place that decides what of a Miniserver leaves the server. */
 export class MiniserverMapper {
@@ -22,12 +22,23 @@ export class MiniserverMapper {
 
   /** the current intercommunication load with its documented limits and the stored history */
   static loadToDto(miniserver: Miniserver): MiniserverLoadDto {
+    const { current, breakdown } = miniserver.loadNow()
     return {
       limitPerSecond: IntercomLoad.LIMIT_PER_SECOND,
       windowSeconds: IntercomLoad.WINDOW_SECONDS,
       sampleMs: IntercomLoad.SAMPLE_MS,
-      current: miniserver.load.current(),
+      current,
+      breakdown: MiniserverMapper.round(breakdown),
       history: miniserver.load.history()
+    }
+  }
+
+  // computed unrounded by the Miniserver, so the parts add up to `current.percent`; rounded only here
+  private static round(parts: LoadBreakdown): LoadBreakdownDto {
+    const round = (percent: number) => Math.round(percent * 1000) / 1000
+    return {
+      signals: round(parts.signals), unconfigured: round(parts.unconfigured), otherTargets: round(parts.otherTargets),
+      encrypted: round(parts.encrypted), protocol: round(parts.protocol), recentlyChanged: round(parts.recentlyChanged)
     }
   }
 

@@ -103,8 +103,21 @@ Loxone documents a limit of an average of **35 messages per second over 2 minute
 intercommunication. Above that, delivery is no longer guaranteed and the Miniserver reports a
 system message. Nexus shows the current load as a percentage on every Miniserver, with the last
 hour as a chart. Re-sends add up: 100 outputs with the default 10 s interval are 10 messages per
-second, 29 % of the limit. Nexus cannot see traffic between the Miniserver and other peers, so the
-number is a lower bound. Raise the re-send interval or turn it off if you are close.
+second, 29 % of the limit. Nexus cannot see traffic between the Miniserver and other peers, nor
+read encrypted packets with a wrong password (they are dropped uncounted), so the number is a
+lower bound. Raise the re-send interval or turn it off if you are close.
+
+The signal list shows each signal's share, and below it the share of all signals together. That is
+usually less than the total, because the total also counts packets that belong to no signal. The
+load figure at the top lists them:
+
+- **packets without a signal**: the Miniserver sends values for packet ids Nexus has no signal for
+  (they are under Discovered). Adopt them, or remove the outputs in Loxone Config if nothing needs them.
+- **packets for other targets** that the Miniserver sends to the same port
+- **encrypted packets** Nexus can't read because no password is set
+- **the status heartbeat and encryption handshakes**
+- **signals deleted or given another packet id in the last 2 minutes**: their packets are still
+  in the 2-minute average
 
 ## Troubleshooting
 

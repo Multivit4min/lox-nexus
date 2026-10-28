@@ -34,6 +34,8 @@ const props = defineProps<{
   remove: (signals: LoxoneSignalDto[], progress: (done: number) => void) => Promise<void>
   /** each signal's share of the intercommunication limit in percent, by id */
   load?: SignalLoadDto
+  /** the Miniserver's whole load in percent, to say how much of it the signals are */
+  totalLoad?: number
 }>()
 const emit = defineEmits<{ wire: [signal: LoxoneSignalDto] }>()
 const { bus } = AppContext.use()
@@ -50,6 +52,9 @@ const visible = computed(() => {
   const filter = new TextFilter(query.value)
   return props.signals.filter(s => (direction.value === "all" || s.direction === direction.value) && filter.matches(s.label, s.packetId, s.topic))
 })
+// the shares cover only signals; the rest of the total is explained in the header's load details.
+// Both come from separate requests, a moment apart, so the signals may not exceed the total shown.
+const signalsLoad = computed(() => Math.min(Object.values(props.load ?? {}).reduce((sum, share) => sum + share, 0), props.totalLoad ?? Infinity))
 const visibleIds = computed(() => visible.value.map(s => s.id))
 watch(() => props.signals, signals => {
   selection.retain(signals.map(s => s.id))
@@ -144,6 +149,10 @@ async function removeSelected() {
           />
         </template>
       </VirtualTable>
+      <p v-if="totalLoad" class="text-xs text-muted-foreground">
+        Load of all signals together: {{ LoadShare.format(signalsLoad) }} of {{ LoadShare.format(totalLoad) }}.
+        <template v-if="totalLoad - signalsLoad >= 0.1">The rest belongs to no signal; the load figure at the top shows what it is.</template>
+      </p>
     </CardContent>
     <Dialog v-model:open="adding">
       <DialogContent class="sm:max-w-xl">

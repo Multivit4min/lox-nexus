@@ -4,10 +4,11 @@ import type { MiniserverLoadDto } from "@lox-nexus/api"
 import { LoadLevel } from "../../lib/LoadLevel.ts"
 import { MessageText } from "../../lib/MessageText.ts"
 import VirtualTable from "../data/VirtualTable.vue"
+import LoadBreakdown from "./LoadBreakdown.vue"
 import LoadHistoryChart from "./LoadHistoryChart.vue"
 import LoadMeter from "./LoadMeter.vue"
 
-/** What's behind the header's load figure: the limit, rates by direction, and the server's history as a chart or a table. */
+/** What's behind the header's load figure: the limit, rates by direction, what it's made of, and the server's history as a chart or a table. */
 const props = defineProps<{ load: MiniserverLoadDto }>()
 const view = ref<"chart" | "table">("chart")
 const total = computed(() => props.load.current.incomingPerSecond + props.load.current.outgoingPerSecond)
@@ -30,6 +31,7 @@ const newestFirst = computed(() => props.load.history.slice().reverse())
       <div><dt class="inline text-muted-foreground">From Miniserver </dt><dd class="inline">{{ load.current.incomingPerSecond.toFixed(1) }}/s</dd></div>
       <div><dt class="inline text-muted-foreground">To Miniserver </dt><dd class="inline">{{ load.current.outgoingPerSecond.toFixed(1) }}/s</dd></div>
     </dl>
+    <LoadBreakdown :breakdown="load.breakdown" :window-seconds="load.windowSeconds" />
     <div class="flex items-center justify-between">
       <span class="text-xs text-muted-foreground">History, up to one hour (recorded by the server, also while this is closed)</span>
       <div class="flex gap-1 text-xs">

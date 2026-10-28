@@ -197,6 +197,12 @@ export class Miniserver extends Disposable {
     return new Map(shares.filter(([, percent]) => percent > 0))
   }
 
+  /** the load right now and what it is made of, from one clock reading so the parts add up to it */
+  loadNow() {
+    const now = this.clock.now()
+    return { current: this.load.current(now), breakdown: this.load.breakdown(this.entries.list().map(({ config }) => config), now) }
+  }
+
   /** the bus topic of a configured signal; undefined for unknown ids */
   topicOf(id: string) {
     return this.entries.get(id)?.topic

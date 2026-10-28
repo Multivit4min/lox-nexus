@@ -28,9 +28,12 @@ export class TrafficMeter {
     this.outgoing[this.slot()]!++
   }
 
-  /** messages per direction within the window, the current second included */
-  totals(): { incoming: number; outgoing: number } {
-    const oldest = Math.floor(this.clock.now() / 1000) - this.windowSeconds
+  /**
+   * messages per direction within the window, the current second included
+   * @param nowMs the moment to count back from; pass one reading to several meters so they agree
+   */
+  totals(nowMs = this.clock.now()): { incoming: number; outgoing: number } {
+    const oldest = Math.floor(nowMs / 1000) - this.windowSeconds
     let incoming = 0
     let outgoing = 0
     for (let slot = 0; slot < this.windowSeconds; slot++) {

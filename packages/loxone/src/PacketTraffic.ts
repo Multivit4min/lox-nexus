@@ -8,7 +8,8 @@ export type PacketDirection = "in" | "out"
  * Messages per packet id and direction over the load window, so each signal's share of the
  * Miniserver's intercommunication limit can be shown. One TrafficMeter (about 2 KB) per packet id
  * that had traffic; idle ones are dropped by prune(), and at most MAX_PACKETS are tracked at once
- * so a flood of made-up packet ids can't grow memory.
+ * so a flood of made-up packet ids can't grow memory. Beyond that a packet id's traffic still
+ * counts in IntercomLoad's total but in no share, so a breakdown lists it as recently changed.
  */
 export class PacketTraffic {
   static readonly MAX_PACKETS = 4096
@@ -28,9 +29,9 @@ export class PacketTraffic {
     else meter.sent()
   }
 
-  /** messages within the window */
-  total(direction: PacketDirection, packetId: string) {
-    const totals = this.meters.get(PacketTraffic.key(direction, packetId))?.totals()
+  /** messages within the window, counted back from `nowMs` */
+  total(direction: PacketDirection, packetId: string, nowMs = this.clock.now()) {
+    const totals = this.meters.get(PacketTraffic.key(direction, packetId))?.totals(nowMs)
     return totals ? totals.incoming + totals.outgoing : 0
   }
 

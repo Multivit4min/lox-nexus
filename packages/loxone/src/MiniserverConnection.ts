@@ -5,7 +5,7 @@ import { Value } from "@lox-nexus/plugin-sdk/values"
 import type { DiscoveryList } from "./DiscoveryList.ts"
 import { CountingSender } from "./CountingSender.ts"
 import { HealthMonitor, type MiniserverHealth } from "./HealthMonitor.ts"
-import type { IntercomLoad } from "./IntercomLoad.ts"
+import type { IntercomLoad, UnassignedTraffic } from "./IntercomLoad.ts"
 import { InboundRouter } from "./InboundRouter.ts"
 import type { LoxoneSignalEntry } from "./LoxoneSignals.ts"
 import type { LoxoneTopics } from "./LoxoneTopics.ts"
@@ -39,7 +39,7 @@ export class MiniserverConnection extends Disposable {
     private readonly signals: SignalLookup,
     private readonly discovery: DiscoveryList,
     private readonly clock: Clock,
-    private readonly load: Pick<IntercomLoad, "received" | "sent">,
+    private readonly load: Pick<IntercomLoad, "received" | "receivedUnassigned" | "sent">,
     private readonly sockets: Pick<SocketPool, "acquire">
   ) {
     super()
@@ -89,17 +89,23 @@ export class MiniserverConnection extends Disposable {
   }
 
   // everything the Miniserver sends counts against its limit, including packets for other targets
-  // that arrive on our port; packets from anyone else don't
+  // that arrive on our port; packets from anyone else don't. What belongs to no signal is counted by
+  // kind, so the total can be explained next to the signals' shares.
   private countIncoming(receiver: IciReceiver, remoteId: string) {
-    const fromMiniserver = (packet: { sourceId: string }) => {
-      if (packet.sourceId === remoteId) this.load.received()
+    const unassigned = (kind: UnassignedTraffic) => (packet: { sourceId: string }) => {
+      if (packet.sourceId === remoteId) this.load.receivedUnassigned(kind)
     }
     // per signal only for configured inputs: made-up packet ids must not fill PacketTraffic's slots
-    this.listen(receiver, "data", (event: DataEvent) => this.load.received(this.signals.inputFor(event.packet.packetId) ? event.packet.packetId : undefined))
-    this.listen(receiver, "status", fromMiniserver)
-    this.listen(receiver, "foreign", fromMiniserver)
-    this.listen(receiver, "encrypted", fromMiniserver)
-    this.listen(receiver, "handshake", (_kind: string, packet: { sourceId: string }) => fromMiniserver(packet))
+    this.listen(receiver, "data", (event: DataEvent) => {
+      const { packetId } = event.packet
+      if (this.signals.inputFor(packetId)) this.load.received(packetId)
+      else this.load.receivedUnassigned("unconfigured")
+    })
+    this.listen(receiver, "status", unassigned("protocol"))
+    this.listen(receiver, "foreign", unassigned("otherTargets"))
+    this.listen(receiver, "encrypted", unassigned("encrypted"))
+    const handshake = unassigned("protocol")
+    this.listen(receiver, "handshake", (_kind: string, packet: { sourceId: string }) => handshake(packet))
   }
 
   // a wrong password shows up as "decryption failed"; without these the UI would only show "waiting"

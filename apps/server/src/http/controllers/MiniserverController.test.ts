@@ -100,6 +100,10 @@ describe("miniserver API", { timeout: 10_000 }, () => {
     assert.ok(Object.keys(shares).every(id => signals.some(s => s.id === id)), "only signals of this Miniserver")
     assert.ok(Object.values(shares).length > 0 && Object.values(shares).every(percent => percent > 0), "only signals with traffic")
     assert.equal((await admin.get("/api/miniservers/nope/signal-load")).statusCode, 404)
+    // the breakdown explains the total; the signals' part is what the signal list shows
+    const parts = Object.values(load.breakdown).reduce((sum, part) => sum + part, 0)
+    assert.ok(Math.abs(parts - load.current.percent) < 0.005, `${JSON.stringify(load.breakdown)} adds up to ${load.current.percent}`)
+    assert.ok(load.breakdown.unconfigured > 0, "the packets discovered above had no signal then")
   })
 
   test("renaming keeps signals, updating keeps the password, stop and start work", async () => {
