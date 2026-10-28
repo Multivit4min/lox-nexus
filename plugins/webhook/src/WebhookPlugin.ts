@@ -32,6 +32,6 @@ export class WebhookPlugin extends Plugin<WebhookConfig> {
   }
 
   override panel() {
-    return new WebhookPanel(this.hooks, this.stats).build()
+    return new WebhookPanel(this.hooks, this.stats, this.slug).build()
   }
 }

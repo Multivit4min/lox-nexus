@@ -76,14 +76,18 @@ export class SignalHost {
       emit: (value: Value) => this.send({ type: "emit", signalId: spec.id, value, ...SignalHost.cause() }),
       fail: (message: string) => this.send({ type: "signal.error", signalId: spec.id, error: message })
     }
-    return { kind: "sensor", instance: new type(this.plugin as never, params as never, output) }
+    return { kind: "sensor", instance: new type(this.plugin as never, params as never, output, SignalHost.info(spec)) }
   }
 
   private actuator(spec: SignalSpec): Entry {
     const type = Declarations.actuators(this.type).find(candidate => candidate.id === spec.capability)
     if (!type) throw new Error(`${this.type.name} has no actuator "${spec.capability}"`)
-    const instance = new type(this.plugin as never, SignalHost.parse(Declarations.params(type), spec.params) as never) as unknown as Actuator<Plugin, unknown, Value>
+    const instance = new type(this.plugin as never, SignalHost.parse(Declarations.params(type), spec.params) as never, SignalHost.info(spec)) as unknown as Actuator<Plugin, unknown, Value>
     return { kind: "actuator", instance, runner: new ActuatorRunner(instance, Declarations.concurrency(type)), accepts: Declarations.accepts(type) }
+  }
+
+  private static info(spec: SignalSpec) {
+    return { id: spec.id, label: spec.label ?? "" }
   }
 
   private static cause() {

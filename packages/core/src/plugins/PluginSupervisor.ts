@@ -143,7 +143,7 @@ export class PluginSupervisor extends Disposable {
     try {
       session = new PluginSession(this.deps.transport.open(this.currentPkg.entry), this.timings)
       this.wire(session)
-      await session.open({ instanceId: this.instance.id, config: this.instance.config, store: this.deps.store.load(this.instance.id) })
+      await session.open({ instanceId: this.instance.id, slug: this.instance.slug, config: this.instance.config, store: this.deps.store.load(this.instance.id) })
     } catch (error) {
       await session?.dispose().catch(() => undefined)
       return error instanceof InitFailedError ? this.refused(error.message) : this.crashed(PluginSupervisor.message(error))

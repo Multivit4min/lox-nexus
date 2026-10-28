@@ -48,7 +48,7 @@ export class PluginRuntime {
       PluginDescriber.assertValid(this.type)
       const config = Declarations.config(this.type).safeParse(message.config)
       if (!config.success) throw new Error(`invalid config: ${z.prettifyError(config.error)}`)
-      const plugin = this.plugin = new this.type(this.context(message.instanceId, config.data, message.store))
+      const plugin = this.plugin = new this.type(this.context(message.instanceId, message.slug, config.data, message.store))
       this.signals = new SignalHost(this.type, plugin, this.send)
       await plugin.start()
       this.send({ type: "ready" })
@@ -92,11 +92,11 @@ export class PluginRuntime {
     return { plugin: this.plugin, signals: this.signals }
   }
 
-  private context(instanceId: string, config: unknown, store: Record<string, unknown>): PluginContext {
+  private context(instanceId: string, slug: string | undefined, config: unknown, store: Record<string, unknown>): PluginContext {
     const log = Object.fromEntries((["debug", "info", "warn", "error"] as const).map(level =>
       [level, (message: string, data?: unknown) => this.log(level, message, data)])) as PluginLogger
     return {
-      instanceId, config, log, http: this.routes,
+      instanceId, ...(slug === undefined ? {} : { slug }), config, log, http: this.routes,
       store: new RuntimeStore(store, this.send),
       status: { set: (status, message) => this.send({ type: "status", status, ...(message ? { message: PluginRuntime.clip(message) } : {}) }) }
     }

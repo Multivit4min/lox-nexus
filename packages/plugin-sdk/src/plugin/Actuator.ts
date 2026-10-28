@@ -2,6 +2,7 @@ import type { z } from "zod"
 import { Disposable } from "../lifecycle/Disposable.ts"
 import type { Value, ValueType } from "../values/Value.ts"
 import type { Plugin } from "./Plugin.ts"
+import type { SignalInfo } from "./SignalInfo.ts"
 
 /**
  * How commands that arrive while one is running are handled:
@@ -17,8 +18,12 @@ export type ActuatorConcurrency = "queue" | "latest"
  * declares itself with static fields (see ActuatorClass; only `id` is required).
  */
 export abstract class Actuator<P extends Plugin = Plugin, Params = unknown, V extends Value = Value> extends Disposable {
-  /** `params` are validated against the static `params` schema before construction. */
-  constructor(readonly plugin: P, readonly params: Params) {
+  /**
+   * `params` are validated against the static `params` schema before construction. `signal` names
+   * the configured signal this actuator is (for panels and log lines); a subclass that declares its
+   * own constructor must pass it on to super().
+   */
+  constructor(readonly plugin: P, readonly params: Params, readonly signal: SignalInfo = { id: "", label: "" }) {
     super()
   }
 
@@ -35,7 +40,7 @@ export abstract class Actuator<P extends Plugin = Plugin, Params = unknown, V ex
 }
 
 /** The static side of an actuator class, as the runtime sees it. */
-export type ActuatorClass = (new (plugin: never, params: never) => Actuator<Plugin, unknown, never>) & {
+export type ActuatorClass = (new (plugin: never, params: never, signal?: SignalInfo) => Actuator<Plugin, unknown, never>) & {
   /** unique within the plugin; part of the stored signal, so don't rename it */
   readonly id: string
   /** shown in UIs; default: the id */

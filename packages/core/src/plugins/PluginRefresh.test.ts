@@ -18,6 +18,7 @@ const settle = async () => {
 let bus: EventBus
 let registry: SignalRegistry
 let manager: PluginManager
+let transport: FakePluginTransport
 let v1: PluginPackage
 
 beforeEach(async () => {
@@ -25,7 +26,7 @@ beforeEach(async () => {
   bus = new EventBus({ topicKinds: (registry = new SignalRegistry()) })
   v1 = { id: "counter", name: "Counter", entry: "counter.ts", version: "1.0.0", description: await PluginTestHost.describe(CounterPlugin) }
   manager = new PluginManager({
-    bus, registry, transport: new FakePluginTransport().add("counter.ts", CounterPlugin),
+    bus, registry, transport: (transport = new FakePluginTransport().add("counter.ts", CounterPlugin)),
     store: { load: () => ({}), set: () => undefined, delete: () => undefined }, logs: { log: () => undefined },
     timings: { pingMs: 100, missedPings: 3, backoffInitialMs: 1000, backoffMaxMs: 8000, stableMs: 60_000 }
   })
@@ -59,6 +60,8 @@ test("an update orphans signals whose capability is gone and retypes the rest; a
   supervisor.signals.add({ id: "s", kind: "actuator", capability: "set", params: {}, label: "Set", slug: "set" })
   await step(supervisor.start())
   assert.equal(supervisor.state, "running")
+  const sent = transport.last.received.map(message => message.type === "init" ? message.slug : message.type === "signal.add" ? message.signal.label : undefined)
+  assert.deepEqual(sent.filter(Boolean), ["home", "Value", "Set"], "the plugin learns its slug and each signal's label")
 
   const description = { ...v1.description, actuators: [], sensors: v1.description.sensors.map(sensor => ({ ...sensor, valueType: "string" as const })) }
   await step(manager.replacePackage({ ...v1, version: "2.0.0", description }))

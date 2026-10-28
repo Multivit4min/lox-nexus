@@ -23,7 +23,8 @@ export abstract class ValueSensor extends Sensor<WebhookPlugin, ValueParams> imp
   private readonly source = new ValueSource(this.params.source, this.params.source === "json" ? this.params.path : this.params.name)
 
   get summary() {
-    return `${this.kind} from ${this.source.summary}`
+    const what = `${this.kind} from ${this.source.summary}`
+    return this.signal.label ? `"${this.signal.label}": ${what}` : what
   }
 
   override start() {

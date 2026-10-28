@@ -16,6 +16,7 @@ abstract class Plugin<Config = unknown> extends Disposable {
   get store(): PluginStore
   get status(): PluginStatus
   get http(): PluginHttp
+  get slug(): string | undefined
   start(): void | Promise<void>
   catalog(): CatalogNode[] | Promise<CatalogNode[]>
   panel(): Panel | undefined | Promise<Panel | undefined>
@@ -30,6 +31,7 @@ abstract class Plugin<Config = unknown> extends Disposable {
 | `panel()` | Asked on demand; `undefined` shows nothing. Never put secrets in it. |
 | `unhandledRejection(reason)` | Called for a promise in the worker that was rejected without a handler (a forgotten `.catch`). The worker keeps running; the default logs an error with the stack. Override to say more or to set a degraded status; it must not throw. `PluginTestHost.unhandledRejection(reason)` calls it in tests. |
 | `config` | Already validated against the static `config` schema, defaults applied. Available in field initializers of subclasses. |
+| `slug` | The instance's slug: its topic segment and webhook path (`/hook/<slug>/…`). Undefined with hosts that don't send it. Fixed for one run (a slug change restarts the instance). |
 
 Static declarations on the subclass ([`PluginClass`](../reference/sdk/@lox-nexus/plugin-sdk.md#pluginclass)); all optional:
 
@@ -43,7 +45,7 @@ static readonly actuators?: readonly ActuatorClass[]  // ids unique among actuat
 
 ```ts
 abstract class Sensor<P extends Plugin = Plugin, Params = unknown> extends Disposable {
-  constructor(readonly plugin: P, readonly params: Params, private readonly output: SensorOutput)
+  constructor(readonly plugin: P, readonly params: Params, private readonly output: SensorOutput, readonly signal: SignalInfo = { id: "", label: "" })
   start(): void | Promise<void>
   protected emit(value: Value): void
   protected fail(message: string): void
@@ -71,7 +73,7 @@ static readonly valueType?: ValueType | "any"    // what emit() sends; default "
 
 ```ts
 abstract class Actuator<P extends Plugin = Plugin, Params = unknown, V extends Value = Value> extends Disposable {
-  constructor(readonly plugin: P, readonly params: Params)
+  constructor(readonly plugin: P, readonly params: Params, readonly signal: SignalInfo = { id: "", label: "" })
   start(): void | Promise<void>
   abstract run(value: V): void | Promise<void>
 }
@@ -123,8 +125,11 @@ Related types: `Teardown = () => void | Promise<void>`, `DisposableLike { dispos
 ### Context objects
 
 ```ts
+/** which configured signal a sensor or actuator is; label "" with hosts that don't send it */
+interface SignalInfo { id: string; label: string }
 interface PluginContext {
   readonly instanceId: string
+  readonly slug?: string
   readonly config: unknown
   readonly log: PluginLogger
   readonly store: PluginStore
@@ -230,8 +235,8 @@ class PluginTestHost {
   readonly store: Record<string, unknown>
   static start(type: PluginClass, options?: TestHostOptions): Promise<PluginTestHost>
   static describe(type: PluginClass): Promise<PluginDescription>
-  addSensor(capability: string, params?: unknown): Promise<string>
-  addActuator(capability: string, params?: unknown): Promise<string>
+  addSensor(capability: string, params?: unknown, label?: string): Promise<string>
+  addActuator(capability: string, params?: unknown, label?: string): Promise<string>
   remove(id: string): Promise<void>
   values(id: string): Value[]
   next(id: string, timeoutMs?: number): Promise<Value>
@@ -242,7 +247,7 @@ class PluginTestHost {
   get status(): { status: "running" | "degraded"; message?: string }
   stop(): Promise<void>
 }
-interface TestHostOptions { config?: unknown; store?: Record<string, unknown>; instanceId?: string }
+interface TestHostOptions { config?: unknown; store?: Record<string, unknown>; instanceId?: string; slug?: string /* default "test" */ }
 ```
 
 | Member | Notes |

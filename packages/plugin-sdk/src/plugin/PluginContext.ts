@@ -48,6 +48,8 @@ export interface PluginHttp {
 export interface PluginContext {
   /** stable for the life of the configured instance (webhook URLs use the instance's slug instead) */
   readonly instanceId: string
+  /** the instance's slug: its topic segment and webhook path (/hook/<slug>/…); undefined with older hosts */
+  readonly slug?: string
   /** already validated against the plugin's static `config` schema */
   readonly config: unknown
   readonly log: PluginLogger

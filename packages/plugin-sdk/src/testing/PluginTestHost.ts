@@ -13,6 +13,8 @@ export interface TestHostOptions {
   store?: Record<string, unknown>
   /** default "test" */
   instanceId?: string
+  /** the instance's slug (Plugin.slug); default "test" */
+  slug?: string
 }
 
 type Waiter = { match: (message: WorkerMessage) => boolean; resolve: (message: WorkerMessage) => void }
@@ -50,7 +52,7 @@ export class PluginTestHost {
   static async start(type: PluginClass, options: TestHostOptions = {}) {
     const host = new PluginTestHost(type, options.store ?? {})
     const done = host.waitFor(message => message.type === "ready" || message.type === "failed")
-    await host.runtime.handle({ type: "init", instanceId: options.instanceId ?? "test", config: options.config ?? {}, store: host.store })
+    await host.runtime.handle({ type: "init", instanceId: options.instanceId ?? "test", slug: options.slug ?? "test", config: options.config ?? {}, store: host.store })
     const outcome = await done
     if (outcome.type === "failed") throw new Error(outcome.error)
     return host
@@ -61,14 +63,17 @@ export class PluginTestHost {
     return await new PluginTestHost(type, {}).request({ type: "describe", requestId: 0 }) as PluginDescription
   }
 
-  /** @returns the new signal's id; @throws Error for unknown capabilities, invalid params or a failing start */
-  async addSensor(capability: string, params: unknown = {}) {
-    return this.add("sensor", capability, params)
+  /**
+   * @param label the signal's name (`this.signal.label`); default "" like an older host
+   * @returns the new signal's id; @throws Error for unknown capabilities, invalid params or a failing start
+   */
+  async addSensor(capability: string, params: unknown = {}, label?: string) {
+    return this.add("sensor", capability, params, label)
   }
 
   /** @returns the new signal's id; throws like addSensor() */
-  async addActuator(capability: string, params: unknown = {}) {
-    return this.add("actuator", capability, params)
+  async addActuator(capability: string, params: unknown = {}, label?: string) {
+    return this.add("actuator", capability, params, label)
   }
 
   /** removes the signal; unknown ids are ignored */
@@ -132,9 +137,9 @@ export class PluginTestHost {
     await stopped
   }
 
-  private async add(kind: "sensor" | "actuator", capability: string, params: unknown) {
+  private async add(kind: "sensor" | "actuator", capability: string, params: unknown, label: string | undefined) {
     const id = `${kind}-${this.nextSignal++}`
-    await this.request({ type: "signal.add", requestId: this.nextRequest++, signal: { id, kind, capability, params } })
+    await this.request({ type: "signal.add", requestId: this.nextRequest++, signal: { id, kind, capability, params, ...(label === undefined ? {} : { label }) } })
     return id
   }
 

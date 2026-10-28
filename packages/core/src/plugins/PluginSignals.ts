@@ -125,8 +125,12 @@ export class PluginSignals extends Disposable {
 
   /** what the worker needs to recreate every signal after a (re)start; orphaned ones are left out, the plugin wouldn't know them */
   specs(): Array<SignalSpec & { id: string }> {
-    return [...this.entries.values()].filter(entry => !entry.orphaned)
-      .map(({ config }) => ({ id: config.id, kind: config.kind, capability: config.capability, params: config.params }))
+    return [...this.entries.values()].filter(entry => !entry.orphaned).map(({ config }) => PluginSignals.spec(config))
+  }
+
+  /** what the worker gets to create one signal; the label lets the plugin name it in panels and logs */
+  static spec(config: PluginSignalConfig): SignalSpec & { id: string } {
+    return { id: config.id, kind: config.kind, capability: config.capability, params: config.params, label: config.label }
   }
 
   /**

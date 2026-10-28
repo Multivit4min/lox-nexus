@@ -15,7 +15,10 @@ const host = [
   { type: "panel", requestId: 6 },
   { type: "http.request", requestId: 7, request: { method: "POST", path: "/x", query: {}, headers: {}, body: "" } },
   { type: "ping", seq: 1 },
-  { type: "shutdown" }
+  { type: "shutdown" },
+  // optional additions within version 1: older plugins ignore them, older hosts don't send them
+  { type: "init", instanceId: "i", slug: "home", config: {}, store: {} },
+  { type: "signal.add", requestId: 8, signal: { id: "s", kind: "sensor", capability: "c", params: {}, label: "Kitchen" } }
 ]
 const worker = [
   { type: "hello", version: 1 },

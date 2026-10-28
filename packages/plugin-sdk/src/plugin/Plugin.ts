@@ -49,6 +49,14 @@ export abstract class Plugin<Config = unknown> extends Disposable {
     return this.context.status
   }
 
+  /**
+   * The instance's slug, e.g. to show its webhook URL (`/hook/<slug>/…`); undefined with hosts that
+   * don't send it. A slug change restarts the instance, so it is fixed for one run.
+   */
+  get slug() {
+    return this.context.slug
+  }
+
   /** Shortcut for `context.http`; routes are unauthenticated, see PluginHttp. */
   get http() {
     return this.context.http

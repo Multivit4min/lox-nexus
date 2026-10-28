@@ -26,7 +26,7 @@ describe("WebhookPanel", () => {
     mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-10-28T10:00:00Z") })
     const host = await harness.start()
     await host.addSensor("trigger", { hook: "door", pulseMs: 500 })
-    await host.addSensor("number", { hook: "door", source: "query", name: "v" })
+    await host.addSensor("number", { hook: "door", source: "query", name: "v" }, "Door level")
     await host.addSensor("text", { hook: "alarm", method: "PUT", source: "body" })
     await call(host, { hook: "door", query: { v: "1" } })
     mock.timers.tick(60_000)
@@ -37,24 +37,24 @@ describe("WebhookPanel", () => {
     await call(host, { hook: "nope" })
     const [alarm, door, token, unknown] = await rows(host)
     assert.deepEqual(alarm, {
-      Hook: "alarm", URL: "/hook/<slug>/alarm", Methods: "PUT", Signals: "text from body", Calls: "0", "Last call": "never", "Last result": ""
+      Hook: "alarm", URL: "/hook/test/alarm", Methods: "PUT", Signals: "text from body", Calls: "0", "Last call": "never", "Last result": ""
     })
     assert.deepEqual(door, {
       Hook: "door",
-      URL: "/hook/<slug>/door",
+      URL: "/hook/test/door",
       Methods: "POST, any",
-      Signals: "number from query v; trigger, 500 ms pulse",
+      Signals: "\"Door level\": number from query v; trigger, 500 ms pulse",
       // the call without the token counts only in the instance-wide row
       Calls: "3",
       "Last call": "2026-10-28T10:01:00.000Z",
       "Last result": "ok"
     })
     assert.deepEqual(token, {
-      Hook: "(wrong or missing token)", URL: "/hook/<slug>/…", Methods: "", Signals: "", Calls: "2",
+      Hook: "(wrong or missing token)", URL: "/hook/test/…", Methods: "", Signals: "", Calls: "2",
       "Last call": "2026-10-28T10:01:00.000Z", "Last result": "401: wrong token 1, missing token 1"
     })
     assert.deepEqual(unknown, {
-      Hook: "(unknown hook)", URL: "/hook/<slug>/…", Methods: "", Signals: "", Calls: "1", "Last call": "2026-10-28T10:01:00.000Z", "Last result": "404"
+      Hook: "(unknown hook)", URL: "/hook/test/…", Methods: "", Signals: "", Calls: "1", "Last call": "2026-10-28T10:01:00.000Z", "Last result": "404"
     })
   })
 

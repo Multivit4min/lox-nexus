@@ -26,7 +26,12 @@ export class TriggerSensor extends Sensor<WebhookPlugin, z.infer<typeof params>>
 
   readonly hook = this.params.hook
   readonly method = this.params.method
-  readonly summary = `trigger, ${this.params.pulseMs} ms pulse`
+  get summary() {
+    const what = `trigger, ${this.params.pulseMs} ms pulse`
+    return this.signal.label ? `"${this.signal.label}": ${what}` : what
+  }
+
+
   private cancelReset: (() => void) | undefined
 
   override start() {

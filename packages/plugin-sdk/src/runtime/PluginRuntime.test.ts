@@ -3,7 +3,9 @@ import { describe, test } from "node:test"
 import { PluginTestHost } from "../testing/PluginTestHost.ts"
 import { EchoPlugin } from "../testing/fixtures/EchoPlugin.ts"
 import { Value } from "../values/Value.ts"
+import { Actuator } from "../plugin/Actuator.ts"
 import { Plugin, type PluginClass } from "../plugin/Plugin.ts"
+import { Sensor } from "../plugin/Sensor.ts"
 
 describe("PluginRuntime through PluginTestHost", () => {
   test("init validates the config and applies its defaults; failures are reported", async () => {
@@ -112,4 +114,32 @@ test("unhandled rejections go to the plugin, which logs them by default; a throw
   assert.deepEqual(await logs(Quiet, new Error("boom")), ["error unhandled promise rejection: boom"])
   assert.deepEqual(await logs(Loud, "plain"), ["warn script failed: plain"])
   assert.deepEqual(await logs(Broken, "x"), ["error unhandled promise rejection: override broke"])
+})
+
+test("the plugin knows its slug, and each sensor and actuator its signal's id and label", async () => {
+  const seen: string[] = []
+  class Named extends Sensor<Plugin, object> {
+    static readonly id = "named"
+    override start() {
+      seen.push(`${this.plugin.slug} ${this.signal.id} "${this.signal.label}"`)
+    }
+  }
+  class Acting extends Actuator<Plugin, object> {
+    static readonly id = "acting"
+    override start() {
+      seen.push(`actuator ${this.signal.id} "${this.signal.label}"`)
+    }
+
+    run() {}
+  }
+  class Labelled extends Plugin {
+    static readonly sensors = [Named]
+    static readonly actuators = [Acting]
+  }
+  const host = await PluginTestHost.start(Labelled, { slug: "home" })
+  const sensor = await host.addSensor("named", {}, "Kitchen light")
+  const unnamed = await host.addSensor("named")
+  const actuator = await host.addActuator("acting", {}, "Blinds")
+  await host.stop()
+  assert.deepEqual(seen, [`home ${sensor} "Kitchen light"`, `home ${unnamed} ""`, `actuator ${actuator} "Blinds"`])
 })

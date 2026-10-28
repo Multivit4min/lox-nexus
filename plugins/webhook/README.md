@@ -126,8 +126,8 @@ curl -X PUT -H "Authorization: Bearer $TOKEN" --data-binary "Garage left open" h
 
 ## Panel
 
-One table with a row per hook: its name, URL (`/hook/<slug>/<name>`: the plugin doesn't know its
-instance's slug), the methods and signals using it, the number of calls, the time of the last call
+One table with a row per hook: its name, URL (`/hook/<instance slug>/<name>`), the methods and the
+signals using it (by their names), the number of calls, the time of the last call
 and its result (`ok`, `method … not allowed`, `bad request: <reason>`). Calls without a valid
 token never change a hook's row, so a caller who guesses a name can't hide the real calls. Two
 more rows count calls refused before reaching a hook: wrong or missing tokens (with the split),

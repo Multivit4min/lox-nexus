@@ -2,7 +2,7 @@ import type { Value } from "@lox-nexus/plugin-sdk/values"
 import { CatalogNodeSchema, HttpResponseSchema, PanelSchema, type HttpRequest, type SignalSpec } from "@lox-nexus/plugin-sdk/wire"
 import type { BusMessage } from "../bus/BusMessage.ts"
 import type { PluginSession } from "./PluginSession.ts"
-import type { PluginBus, PluginSignals } from "./PluginSignals.ts"
+import { PluginSignals, type PluginBus } from "./PluginSignals.ts"
 import type { PluginSignalConfig } from "./PluginTypes.ts"
 
 /** Thrown for calls that need the plugin running. */
@@ -123,7 +123,7 @@ export class PluginCalls {
   }
 
   private spec(config: PluginSignalConfig): SignalSpec {
-    return { id: config.id, kind: config.kind, capability: config.capability, params: config.params }
+    return PluginSignals.spec(config)
   }
 
   private running() {

@@ -71,16 +71,6 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
 
 ## Plugin SDK
 
-- **Instance slug and signal names in plugins** (started, nothing changed yet). A plugin only knows
-  its `instanceId`, so the webhook panel can't show its real URL (`/hook/<slug>/<name>`), and
-  sensors and actuators don't know their signal's id or label, so panels describe signals by kind
-  and params. Plan, all optional on the wire so older plugins and hosts keep working:
-  - `slug` in the `init` message and in `PluginContext`, with a `Plugin.slug` getter
-  - `label` in `SignalSpecSchema`; `Sensor`/`Actuator` get `this.signal: { id, label }` as an
-    optional last constructor argument, filled by `SignalHost`
-  - core sends both (`PluginSession.open`, `PluginSignals.specs`); `PluginTestHost` takes a slug and
-    labels; wire contract tests for messages without them
-  - the webhook (and script) panel show real URLs and signal labels
 - **Panels with sections.** A panel is one type (keyValue, table or json). Calendar squeezes facts
   and its upcoming events into keyValue rows; webhook and script put instance-wide counters into
   extra table rows. Allow a list of panels or titled sections (SDK shape plus the web PanelCard).

@@ -2,6 +2,7 @@ import type { z } from "zod"
 import { Disposable } from "../lifecycle/Disposable.ts"
 import type { Value, ValueType } from "../values/Value.ts"
 import type { Plugin } from "./Plugin.ts"
+import type { SignalInfo } from "./SignalInfo.ts"
 
 /** Where a sensor's values go; the runtime forwards them to the bus. */
 export interface SensorOutput {
@@ -27,8 +28,12 @@ export interface SensorOutput {
  * ```
  */
 export abstract class Sensor<P extends Plugin = Plugin, Params = unknown> extends Disposable {
-  /** `params` are validated against the static `params` schema before construction. */
-  constructor(readonly plugin: P, readonly params: Params, private readonly output: SensorOutput) {
+  /**
+   * `params` are validated against the static `params` schema before construction. `signal` names
+   * the configured signal this sensor is (for panels and log lines); a subclass that declares its
+   * own constructor must pass it on to super().
+   */
+  constructor(readonly plugin: P, readonly params: Params, private readonly output: SensorOutput, readonly signal: SignalInfo = { id: "", label: "" }) {
     super()
   }
 
@@ -47,7 +52,7 @@ export abstract class Sensor<P extends Plugin = Plugin, Params = unknown> extend
 }
 
 /** The static side of a sensor class, as the runtime sees it. */
-export type SensorClass = (new (plugin: never, params: never, output: SensorOutput) => Sensor<Plugin, unknown>) & {
+export type SensorClass = (new (plugin: never, params: never, output: SensorOutput, signal?: SignalInfo) => Sensor<Plugin, unknown>) & {
   /** unique within the plugin; part of the stored signal, so don't rename it */
   readonly id: string
   /** shown in UIs; default: the id */

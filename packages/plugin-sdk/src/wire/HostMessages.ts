@@ -13,7 +13,9 @@ export const SignalSpecSchema = z.object({
   kind: z.enum(["sensor", "actuator"]),
   /** the Sensor or Actuator class id, e.g. "powerflow" */
   capability: z.string().min(1),
-  params: z.unknown()
+  params: z.unknown(),
+  /** the name the user gave the signal; optional so older hosts still work */
+  label: z.string().optional()
 })
 export type SignalSpec = z.infer<typeof SignalSpecSchema>
 
@@ -36,7 +38,8 @@ export type HttpRequest = z.infer<typeof HttpRequestSchema>
  */
 export const HostMessageSchema = z.discriminatedUnion("type", [
   /** the instance's config (validated in the worker) and its persisted store */
-  z.object({ type: z.literal("init"), instanceId: z.string(), config: z.unknown(), store: z.record(z.string(), z.unknown()) }),
+  // slug: the instance's topic segment and webhook path (/hook/<slug>/…); optional for older hosts
+  z.object({ type: z.literal("init"), instanceId: z.string(), slug: z.string().optional(), config: z.unknown(), store: z.record(z.string(), z.unknown()) }),
   /** what the plugin offers: config schema, sensors and actuators with their params (JSON Schema) */
   z.object({ type: z.literal("describe"), requestId }),
   /** adds and starts a sensor or actuator; the response is ok once its start() resolved */

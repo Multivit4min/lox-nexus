@@ -13,6 +13,7 @@ export type { DisposableLike, Listenable, Listener, Teardown } from "./lifecycle
 export { Plugin, type PluginClass } from "./plugin/Plugin.ts"
 export { Sensor, type SensorClass, type SensorOutput } from "./plugin/Sensor.ts"
 export { Actuator, type ActuatorClass, type ActuatorConcurrency } from "./plugin/Actuator.ts"
+export type { SignalInfo } from "./plugin/SignalInfo.ts"
 export type { HttpHandler, PluginContext, PluginHttp, PluginLogger, PluginStatus, PluginStore } from "./plugin/PluginContext.ts"
 export { secret } from "./plugin/Secret.ts"
 export { code, type CodeLanguage } from "./plugin/Code.ts"
