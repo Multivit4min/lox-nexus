@@ -165,3 +165,18 @@ export interface DiscoveredPacketDto {
   /** epoch ms */
   lastSeen: number
 }
+
+/**
+ * GET /api/miniservers/unloadable: a stored Miniserver or Loxone signal that couldn't be loaded at
+ * boot (e.g. written by a newer version). It doesn't run; DELETE on its usual route removes it.
+ */
+export interface UnloadableRowDto {
+  kind: "miniserver" | "signal"
+  id: string
+  /** for a signal: the Miniserver it belongs to */
+  miniserverId?: string
+  /** as stored, so the user can tell which one it is */
+  label: string
+  /** why it couldn't be loaded */
+  error: string
+}

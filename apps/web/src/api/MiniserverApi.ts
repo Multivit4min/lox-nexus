@@ -1,4 +1,4 @@
-import type { AdoptPacket, DiscoveredPacketDto, LoxoneProjectDto, LoxoneSignalDto, LoxoneSignalInput, MiniserverDto, MiniserverInput, MiniserverLoadDto, ProjectRead, SignalLoadDto } from "@lox-nexus/api"
+import type { AdoptPacket, DiscoveredPacketDto, LoxoneProjectDto, LoxoneSignalDto, LoxoneSignalInput, MiniserverDto, MiniserverInput, MiniserverLoadDto, ProjectRead, SignalLoadDto, UnloadableRowDto } from "@lox-nexus/api"
 import type { Http } from "./Http.ts"
 
 /** /api/miniservers and their signals and discovered packets */
@@ -7,6 +7,11 @@ export class MiniserverApi {
 
   list() {
     return this.http.get<MiniserverDto[]>("/api/miniservers")
+  }
+
+  /** stored Miniservers and signals the server couldn't load at boot */
+  unloadable() {
+    return this.http.get<UnloadableRowDto[]>("/api/miniservers/unloadable")
   }
 
   get(id: string) {

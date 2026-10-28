@@ -23,6 +23,8 @@ const FileQuery = z.object({ name: z.string().min(1).max(255).regex(/^[^\p{Cc}]+
  * - POST /: 201 with the created Miniserver; a failed start is not an error, see `lastError`.
  * - PUT :id: 200 with the updated Miniserver.
  * - DELETE :id: 204, removes its signals, wires, forces and retained values too.
+ * - GET unloadable: 200 with the stored Miniservers and signals that couldn't be loaded at boot;
+ *   DELETE on their usual routes removes them.
  * - GET :id/load: 200 with the intercommunication load and the last hour of samples.
  * - GET :id/signal-load: 200 with each signal's share of that load, by signal id.
  * - POST :id/start, :id/stop: 200 with the Miniserver; start failures show up as `lastError`.
@@ -47,6 +49,7 @@ export class MiniserverController implements Controller {
 
   register(app: FastifyInstance) {
     app.get("/api/miniservers", () => this.miniservers.list())
+    app.get("/api/miniservers/unloadable", () => this.miniservers.unloadableRows())
     app.post("/api/miniservers", async (request, reply) => reply.code(201).send(await this.miniservers.create(MiniserverInputSchema.parse(request.body))))
     app.get("/api/miniservers/:id", request => this.miniservers.get(MiniserverController.id(request)))
     app.put("/api/miniservers/:id", request => this.miniservers.update(MiniserverController.id(request), MiniserverInputSchema.parse(request.body)))

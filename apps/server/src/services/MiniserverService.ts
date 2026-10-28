@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto"
-import type { MiniserverDto, MiniserverInput, SignalLoadDto } from "@lox-nexus/api"
+import type { MiniserverDto, MiniserverInput, SignalLoadDto, UnloadableRowDto } from "@lox-nexus/api"
 import { MiniserverConfigSchema, type Miniserver, type MiniserverManager } from "@lox-nexus/loxone"
 import type { Logger } from "pino"
 import type { MiniserverRepository } from "../db/repositories/MiniserverRepository.ts"
@@ -7,6 +7,7 @@ import { HttpError } from "../http/HttpError.ts"
 import { MiniserverMapper } from "./MiniserverMapper.ts"
 import type { LoxoneSignalService } from "./LoxoneSignalService.ts"
 import type { TopicCleanup } from "./TopicCleanup.ts"
+import type { UnloadableRows } from "./UnloadableRows.ts"
 
 /**
  * Miniserver configs: the database is the source of truth, MiniserverManager the running
@@ -19,10 +20,11 @@ export class MiniserverService {
     private readonly manager: MiniserverManager,
     private readonly signals: LoxoneSignalService,
     private readonly cleanup: TopicCleanup,
+    private readonly unloadable: UnloadableRows,
     private readonly log: Logger
   ) {}
 
-  /** builds the runtime from the database at boot; a broken row is logged and skipped, never fatal */
+  /** builds the runtime from the database at boot; a broken row is logged and listed as unloadable, never fatal */
   load() {
     for (const config of this.repo.list()) {
       try {
@@ -30,8 +32,14 @@ export class MiniserverService {
         this.signals.load(config.id)
       } catch (error) {
         this.log.error({ err: error, miniserver: config.id }, "skipping miniserver that can't be loaded")
+        this.unloadable.add({ kind: "miniserver", id: config.id, label: String(config.label), error: error instanceof Error ? error.message : String(error) })
       }
     }
+  }
+
+  /** stored Miniservers and signals that couldn't be loaded at boot; deleting them works as usual */
+  unloadableRows(): UnloadableRowDto[] {
+    return this.unloadable.list()
   }
 
   /** all Miniservers with their live state */
@@ -88,8 +96,9 @@ export class MiniserverService {
 
   /** Deletes the Miniserver, its signals and their wires, and everything left on its topics. `by` is recorded on released forces. */
   async remove(id: string, by: string) {
-    const { slug } = this.require(id).config
+    const { slug } = this.unloadable.miniserver(id) ? this.stored(id) : this.require(id).config
     this.repo.delete(id)
+    this.unloadable.forget(id)
     await this.manager.remove(id)
     this.cleanup.forget(`loxone/${slug}/#`, by)
     this.cleanup.forget(`system/loxone/${slug}/#`, by)
@@ -117,6 +126,13 @@ export class MiniserverService {
     const miniserver = this.require(id)
     await miniserver.stop()
     return MiniserverMapper.toDto(miniserver)
+  }
+
+  /** an unloadable Miniserver's row, which the manager doesn't have */
+  private stored(id: string) {
+    const config = this.repo.get(id)
+    if (!config) throw HttpError.notFound(`miniserver "${id}"`)
+    return config
   }
 
   /** the running Miniserver, for callers that need the object rather than a DTO

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from "vue"
-import type { MiniserverDto, MiniserverInput } from "@lox-nexus/api"
+import type { MiniserverDto, MiniserverInput, UnloadableRowDto } from "@lox-nexus/api"
 import { Plus } from "@lucide/vue"
 import { useRouter } from "vue-router"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -12,12 +12,14 @@ import ConfigTransferButtons from "../components/ConfigTransferButtons.vue"
 import HealthBadge from "../components/HealthBadge.vue"
 import LoadMeter from "../components/load/LoadMeter.vue"
 import MiniserverForm from "../components/MiniserverForm.vue"
+import UnloadableRows from "../components/UnloadableRows.vue"
 import { LiveValues } from "../stores/LiveValues.ts"
 
 const context = AppContext.use()
 const api = context.miniservers
 const router = useRouter()
 const list = ref<MiniserverDto[]>([])
+const unloadable = ref<UnloadableRowDto[]>([])
 const adding = ref(false)
 const notice = ref<{ ok: boolean; text: string }>()
 // health and load arrive live; the list itself only changes through this UI
@@ -35,7 +37,7 @@ const loadOf = (ms: MiniserverDto) => {
 }
 
 async function load() {
-  list.value = await api.list()
+  ;[list.value, unloadable.value] = await Promise.all([api.list(), api.unloadable()])
 }
 
 async function create(input: MiniserverInput) {
@@ -63,6 +65,7 @@ onUnmounted(() => live.close())
         <button type="button" class="text-xs underline" @click="notice = undefined">Dismiss</button>
       </AlertDescription>
     </Alert>
+    <UnloadableRows v-if="unloadable.length" :rows="unloadable" :api="api" @changed="load" />
     <Table>
       <TableHeader>
         <TableRow>

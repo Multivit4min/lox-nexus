@@ -30,10 +30,6 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
 
 ## Server
 
-- **Broken rows are invisible.** A stored Miniserver or signal that can't be loaded (e.g. written
-  by a newer version) is logged and skipped. It doesn't show up in the API and can't be deleted
-  there. Wires in that state are listed as `active: false`. Do the same for Miniservers and
-  signals.
 - **Domain errors.** Rule violations are recognised as plain `Error`s. A `DomainError` class (or
   error codes) in core and loxone would make the 409 mapping explicit, and allow machine-readable
   codes instead of messages with UUIDs.

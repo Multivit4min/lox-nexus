@@ -6,6 +6,7 @@ import type { LoxoneSignalRepository } from "../db/repositories/LoxoneSignalRepo
 import { HttpError } from "../http/HttpError.ts"
 import { MiniserverMapper } from "./MiniserverMapper.ts"
 import type { TopicCleanup } from "./TopicCleanup.ts"
+import type { UnloadableRows } from "./UnloadableRows.ts"
 
 /** The signals of a Miniserver and adoption of discovered packet ids. Signal ids are UUIDs, because SignalRegistry ids are global. */
 export class LoxoneSignalService {
@@ -13,10 +14,11 @@ export class LoxoneSignalService {
     private readonly repo: LoxoneSignalRepository,
     private readonly manager: MiniserverManager,
     private readonly cleanup: TopicCleanup,
+    private readonly unloadable: UnloadableRows,
     private readonly log: Logger
   ) {}
 
-  /** registers the stored signals of a Miniserver at boot; a broken row is logged and skipped */
+  /** registers the stored signals of a Miniserver at boot; a broken row is logged and listed as unloadable */
   load(miniserverId: string) {
     const miniserver = this.require(miniserverId)
     for (const stored of this.repo.listFor(miniserverId)) {
@@ -25,6 +27,7 @@ export class LoxoneSignalService {
         miniserver.addSignal(LoxoneSignalConfigSchema.parse(stored))
       } catch (error) {
         this.log.error({ err: error, signal: stored.id }, "skipping loxone signal that can't be loaded")
+        this.unloadable.add({ kind: "signal", id: stored.id, miniserverId, label: String(stored.label), error: error instanceof Error ? error.message : String(error) })
       }
     }
   }
@@ -83,12 +86,19 @@ export class LoxoneSignalService {
    * @throws HttpError 404
    */
   remove(miniserverId: string, signalId: string, by: string) {
+    // it never got a topic, so there is nothing to clean up on one
+    if (this.unloadable.signal(miniserverId, signalId)) return this.forgetUnloadable(signalId)
     const miniserver = this.require(miniserverId)
     const topic = miniserver.topicOf(signalId)
     if (!topic) throw HttpError.notFound(`signal "${signalId}"`)
     this.repo.delete(signalId)
     miniserver.removeSignal(signalId)
     this.cleanup.forget(topic, by)
+  }
+
+  private forgetUnloadable(signalId: string) {
+    this.repo.delete(signalId)
+    this.unloadable.forget(signalId)
   }
 
   /** packet ids seen on the wire but not configured, including those already adopted */

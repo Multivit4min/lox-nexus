@@ -502,8 +502,9 @@ above:
   database is the source of truth and the runtime is a projection of it:
   - `MiniserverService`, `LoxoneSignalService` and `WireService` validate every change with the
     domain schema, store it, then apply it. A failing store undoes the runtime change.
-  - A stored row that can't be loaded is logged and skipped. A wire that can't start stays stored
-    and is listed as `active: false`.
+  - A stored Miniserver or Loxone signal that can't be loaded is logged, doesn't run, and is listed
+    by `GET /api/miniservers/unloadable` (`UnloadableRows`) and on the Miniservers page, where it can be
+    deleted. A wire that can't start stays stored and is listed as `active: false`.
 - **Deleting.** Deleting a signal or Miniserver also releases forces on its topics, forgets
   their retained values (`EventBus.forget`) and deletes their snapshot rows (`TopicCleanup`). At
   boot, snapshot rows whose topic no longer belongs to a signal are deleted. Renaming a

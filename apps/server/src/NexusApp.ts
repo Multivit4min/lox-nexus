@@ -44,6 +44,7 @@ import { PluginSignalService } from "./services/PluginSignalService.ts"
 import { SnapshotWriter } from "./services/SnapshotWriter.ts"
 import { SystemEventLogger } from "./services/SystemEventLogger.ts"
 import { TopicCleanup } from "./services/TopicCleanup.ts"
+import { UnloadableRows } from "./services/UnloadableRows.ts"
 import { WireService } from "./services/WireService.ts"
 import { BusStream } from "./stream/BusStream.ts"
 
@@ -155,8 +156,9 @@ export class NexusApp extends Disposable {
     const { persistence: db, log } = this
     if (db.applied.length > 0) log.info({ migrations: db.applied }, "database migrated")
     const cleanup = new TopicCleanup(this.bus, db.snapshot)
-    const loxoneSignals = new LoxoneSignalService(db.loxoneSignals, this.miniservers, cleanup, log)
-    const miniservers = new MiniserverService(db.miniservers, this.miniservers, loxoneSignals, cleanup, log)
+    const unloadable = new UnloadableRows()
+    const loxoneSignals = new LoxoneSignalService(db.loxoneSignals, this.miniservers, cleanup, unloadable, log)
+    const miniservers = new MiniserverService(db.miniservers, this.miniservers, loxoneSignals, cleanup, unloadable, log)
     const wires = new WireService(db.wires, this.wires, this.signals, log)
     const plugins = new PluginService(db.pluginInstances, db.pluginSignals, this.plugins, this.pluginCatalog, cleanup, log, this.pluginLogs, this.selections)
     const pluginSignals = new PluginSignalService(db.pluginSignals, plugins, cleanup)
