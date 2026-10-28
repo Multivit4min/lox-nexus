@@ -45,7 +45,7 @@ export class PluginPackageService {
 
   list(): InstalledPluginDto[] {
     const instances = this.deps.plugins.list()
-    return this.deps.repo.list().map(stored => this.dtos.installed(stored, instances.filter(instance => instance.plugin === stored.id).length))
+    return this.deps.repo.list().map(stored => this.dtos.installed(stored, instances.filter(instance => instance.plugin === stored.id)))
   }
 
   /** the plugins in the server's local repository folder, with the installed version of each */
@@ -168,6 +168,6 @@ export class PluginPackageService {
     const stored = this.deps.repo.get(id)
     if (!stored) throw new InstallError("not-found", `no installed plugin "${id}"`)
     const instances = this.deps.switcher.instances(id)
-    return { plugin: this.dtos.installed(stored, instances.length), instances }
+    return { plugin: this.dtos.installed(stored, instances), instances }
   }
 }

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PluginSourceText } from "../../../lib/PluginSourceText.ts"
+import PluginIcon from "../PluginIcon.vue"
 
 /** One installed plugin: its active version and where it came from, with update, rollback and uninstall. */
 const props = defineProps<{ plugin: InstalledPluginDto }>()
@@ -13,9 +14,11 @@ const emit = defineEmits<{ update: []; rollback: []; uninstall: [] }>()
 
 const active = computed(() => props.plugin.active)
 const when = computed(() => new Date(active.value.installedAt).toLocaleString())
-const inUse = computed(() => props.plugin.instances
-  ? `Used by ${props.plugin.instances} instance${props.plugin.instances === 1 ? "" : "s"}; delete them on the Instances tab to uninstall.`
-  : "")
+const inUse = computed(() => {
+  const names = props.plugin.instanceNames
+  if (names.length === 0) return ""
+  return `Used by ${names.map(name => `"${name}"`).join(", ")}; delete ${names.length === 1 ? "it" : "them"} on the Instances tab to uninstall.`
+})
 // the clipboard API exists only in secure contexts (https, localhost); elsewhere the button is hidden
 const canCopy = typeof window !== "undefined" && window.isSecureContext && navigator.clipboard !== undefined
 const copied = ref(false)
@@ -34,6 +37,7 @@ async function copy() {
   <Card>
     <CardHeader class="flex flex-row flex-wrap items-baseline justify-between gap-2">
       <CardTitle class="flex flex-wrap items-baseline gap-2">
+        <PluginIcon :name="plugin.icon" class="size-4 self-center text-muted-foreground" />
         {{ plugin.name }} <span class="font-mono text-sm font-normal">{{ active.version }}</span>
         <Badge v-if="plugin.shadowedByDevelopment" variant="secondary" title="NEXUS_DEV_PLUGINS_DIR provides a copy with the same id">development copy runs instead</Badge>
         <Badge v-if="!active.available" variant="destructive" :title="active.problem">unavailable</Badge>

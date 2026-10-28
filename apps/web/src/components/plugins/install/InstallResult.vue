@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import type { InstallOutcomeDto } from "@lox-nexus/api"
-import { CircleCheck } from "@lucide/vue"
+import { CircleCheck, Undo2 } from "@lucide/vue"
+import { Button } from "@/components/ui/button"
 import PluginStateBadge from "../PluginStateBadge.vue"
 
-/** After an install, update or rollback: the active version and each instance's state. */
+/** After an install, update or rollback: the active version and each instance's state, and a way back to the version before. */
 defineProps<{ outcome: InstallOutcomeDto }>()
+const emit = defineEmits<{ rollback: [] }>()
 </script>
 
 <template>
@@ -22,5 +24,10 @@ defineProps<{ outcome: InstallOutcomeDto }>()
       </li>
     </ul>
     <p v-else class="text-muted-foreground">No instance uses it yet; add one on the Instances tab.</p>
+    <div v-if="outcome.plugin.previous">
+      <Button size="sm" variant="outline" :disabled="!outcome.plugin.previous.available" :title="outcome.plugin.previous.problem" @click="emit('rollback')">
+        <Undo2 class="size-4" /> Roll back to {{ outcome.plugin.previous.version }}
+      </Button>
+    </div>
   </div>
 </template>

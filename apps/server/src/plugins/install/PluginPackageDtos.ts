@@ -9,15 +9,16 @@ import type { PluginVersions } from "./PluginVersions.ts"
 export class PluginPackageDtos {
   constructor(private readonly versions: Pick<PluginVersions, "problem">, private readonly catalog: Pick<PluginCatalog, "installed" | "shadowed">) {}
 
-  /** @param instances how many stored instances use this plugin */
-  installed(stored: StoredPackage, instances: number): InstalledPluginDto {
+  /** @param instances the stored instances that use this plugin */
+  installed(stored: StoredPackage, instances: ReadonlyArray<{ id: string; label: string }>): InstalledPluginDto {
     const { active, previous } = stored
     const loaded = this.catalog.installed(stored.id)?.version === active.version
     return {
       id: stored.id, name: active.name, ...(active.icon ? { icon: active.icon } : {}),
       active: this.version(active, loaded),
       ...(previous ? { previous: this.version(previous, this.versions.problem(stored.id, previous.version) === undefined) } : {}),
-      instances,
+      instances: instances.length,
+      instanceNames: instances.map(instance => instance.label || instance.id),
       shadowedByDevelopment: this.catalog.shadowed(stored.id)
     }
   }

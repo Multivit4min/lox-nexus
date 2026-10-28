@@ -54,9 +54,6 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
 
 ## Plugin installer and UI (M5e leftovers)
 
-- **Not built from the UI design:** a "roll back" button on the install result step (the card has
-  one), plugin icons on the cards, and the names of the instances that block an uninstall
-  (`InstalledPluginDto` only has a count).
 - **Left out on purpose** (see `architecture.md`, "Left out on purpose"): ZIPs from URLs, private
   repositories with tokens, update checks, commit SHAs as refs, signatures.
 

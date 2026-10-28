@@ -231,14 +231,15 @@ Click **Install plugin**. A dialog with three steps opens.
    Choose **Install**, or **Back**, which discards what was fetched. A checked plugin that you
    don't install within 15 minutes is discarded too, and checking another plugin discards the
    previous one.
-3. **Result.** The active version and the state of each instance.
+3. **Result.** The active version and the state of each instance. After an update, **Roll back
+   to** goes back to the version before, as on the card.
 
 Each card on the **Installed** tab shows:
 
 - the active version;
 - the source in one line: the git URL and ref with the short commit, the ZIP's name with the short
   sha256 of the archive, or the local folder. A copy button gives the full commit or sha256;
-- when and by whom it was installed, and how many instances use it;
+- the plugin's icon, when and by whom it was installed, and how many instances use it;
 - the badge **development copy runs instead** when a development plugin with the same id takes
   precedence (see above), and **unavailable** when the installed files can't be loaded;
 - the buttons **Update**, **Roll back to** the previous version, and **Uninstall**.
@@ -254,7 +255,7 @@ switches. The two versions swap, so you can go forward again the same way. Only 
 previous version are kept.
 
 **Uninstalling** removes the plugin with all its files. The button is disabled while instances of
-the plugin exist (its tooltip says so): delete those first, which also deletes their signals and
+the plugin exist, and the card names them: delete those first, which also deletes their signals and
 wires.
 
 Installing the same version again with the same bundle changes nothing (or repairs its files when

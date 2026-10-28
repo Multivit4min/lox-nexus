@@ -39,7 +39,7 @@ A plugin is an npm package whose `package.json` has a `loxNexus` block:
 | `id` | The plugin's topic segment and stable reference (`example/<instance>/sensor/...`). Lowercase letters, digits, `.`, `_` and `-`, starting with a letter or digit. `loxone` and `system` are **reserved** for Nexus. Never change it after release: instances and topics refer to it. |
 | `name` | Display name, not empty. |
 | `entry` | The built bundle, relative to the package. In development `src/index.ts` runs instead. To install: a relative path such as `dist/plugin.js` (no leading `/` or `./`, no `..`, backslashes or empty segments), at most 512 characters, ending in `.js` or `.mjs`. |
-| `icon` | Optional icon name shown in the UI. |
+| `icon` | Optional icon shown in the UI: `bell`, `calendar`, `camera`, `cloud`, `code`, `database`, `gauge`, `home`, `lightbulb`, `music`, `plug`, `solar` (or `sun`), `thermometer`, `webhook`, `wifi` or `zap`. Other names, or none, show a plug. |
 | `version` (top level) | Defaults to `0.0.0` when absent. To install: required, a strict [semantic version](https://semver.org) such as `1.2.0` or `1.3.0-beta.1`, at most 64 characters. |
 | `type` (top level) | To install: `"module"`, unless the entry ends in `.mjs`. A plugin is an ES module. |
 

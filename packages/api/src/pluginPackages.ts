@@ -33,6 +33,8 @@ export interface InstalledPluginDto {
   previous?: PluginVersionDto
   /** stored instances of this plugin, running or not */
   instances: number
+  /** their names (the label, or the id without one), e.g. to say which block an uninstall */
+  instanceNames: string[]
   /** a development copy with the same id runs instead (NEXUS_DEV_PLUGINS_DIR) */
   shadowedByDevelopment: boolean
 }

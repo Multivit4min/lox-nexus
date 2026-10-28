@@ -68,6 +68,7 @@ test("installs survive a restart, and the instance starts again", async t => {
   const [installed] = (await again.get("/api/plugin-packages")).json<InstalledPluginDto[]>()
   assert.equal(installed?.active.version, "1.0.0")
   assert.equal(installed?.instances, 1)
+  assert.deepEqual(installed?.instanceNames, ["Fixture"])
   assert.equal(installed?.shadowedByDevelopment, false)
   await second.until(() => second.app.plugins.get(instance.id)?.state === "running")
 })

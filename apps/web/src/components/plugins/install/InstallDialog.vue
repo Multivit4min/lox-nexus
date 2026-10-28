@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
-import type { InstallOutcomeDto, RepositoryPluginDto, StagedInstallDto } from "@lox-nexus/api"
+import type { InstalledPluginDto, InstallOutcomeDto, RepositoryPluginDto, StagedInstallDto } from "@lox-nexus/api"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -15,10 +15,11 @@ import InstallSourceForm from "./InstallSourceForm.vue"
  * Install or update a plugin in three steps: source (with the trust warning), review (exact
  * source, hashes, impact on instances), result (each instance's state). Closing before confirming
  * discards the staged files on the server; while a request runs the dialog can't be closed, so a
- * late answer never lands in a closed or reopened dialog. Emits `changed` after an install.
+ * late answer never lands in a closed or reopened dialog. Emits `changed` after an install, and
+ * `rollback` when the result step's roll-back button is used (the page opens the rollback dialog).
  */
 const props = defineProps<{ initial?: InstallSource; repository: RepositoryPluginDto[] }>()
-const emit = defineEmits<{ changed: [] }>()
+const emit = defineEmits<{ changed: []; rollback: [plugin: InstalledPluginDto] }>()
 const open = defineModel<boolean>("open", { required: true })
 const api = AppContext.use().pluginPackages
 
@@ -85,7 +86,7 @@ async function confirm() {
         </div>
       </template>
       <template v-if="outcome">
-        <InstallResult :outcome="outcome" />
+        <InstallResult :outcome="outcome" @rollback="emit('rollback', outcome.plugin); open = false" />
         <div class="flex justify-end"><Button @click="open = false">Close</Button></div>
       </template>
     </DialogContent>

@@ -8,6 +8,7 @@ import { AppContext } from "../AppContext.ts"
 import InstallDialog from "../components/plugins/install/InstallDialog.vue"
 import InstalledPluginCard from "../components/plugins/install/InstalledPluginCard.vue"
 import RollbackDialog from "../components/plugins/install/RollbackDialog.vue"
+import PluginIcon from "../components/plugins/PluginIcon.vue"
 import PluginTabs from "../components/plugins/PluginTabs.vue"
 import { InstallSources, type InstallSource } from "../lib/InstallSource.ts"
 import { VersionChange } from "../lib/VersionChange.ts"
@@ -86,7 +87,8 @@ onMounted(refresh)
       <h2 class="text-sm font-medium">In the local plugin repository</h2>
       <ul class="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
         <li v-for="plugin in offered" :key="plugin.folder" class="flex items-center justify-between gap-2 rounded-md border p-3 text-sm">
-          <span>
+          <span class="flex flex-wrap items-center gap-1">
+            <PluginIcon :name="plugin.icon" class="size-4 text-muted-foreground" />
             {{ plugin.name }} <span class="font-mono">{{ plugin.version }}</span>
             <span v-if="plugin.installedVersion" class="text-muted-foreground"> (installed: {{ plugin.installedVersion }})</span>
           </span>
@@ -96,7 +98,7 @@ onMounted(refresh)
         </li>
       </ul>
     </section>
-    <InstallDialog v-model:open="installing" :initial="installFrom" :repository="repository" @changed="refresh" />
+    <InstallDialog v-model:open="installing" :initial="installFrom" :repository="repository" @changed="refresh" @rollback="plugin => (rollingBack = plugin)" />
     <RollbackDialog v-if="rollingBack" :open="rollingBack !== undefined" :plugin="rollingBack" @update:open="rollbackClosed" @changed="refresh" />
   </div>
 </template>
