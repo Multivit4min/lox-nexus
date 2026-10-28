@@ -1,5 +1,6 @@
 import type { ValueOf } from "@lox-nexus/plugin-sdk/values"
 import type { EntityState } from "../entities/EntityStore.ts"
+import { EntityId } from "../entities/EntityId.ts"
 import { EntityActuator } from "./EntityActuator.ts"
 import { StateValue } from "../entities/StateValue.ts"
 
@@ -26,6 +27,7 @@ export class OnOffActuator extends EntityActuator<ValueOf<"boolean">> {
     "switch", "light", "input_boolean", "fan", "automation", "siren", "humidifier", "media_player", "remote",
     "climate", "water_heater", "cover", "valve", "lock"
   ] as const
+  static readonly params = EntityId.paramsFor("switch.garden_pump or cover.living_room")
 
   static supports(entity: EntityState, domain: string) {
     const needed = FEATURES[domain]

@@ -6,7 +6,7 @@ import { CatalogFields, type CatalogField } from "./CatalogFields.ts"
 
 /**
  * The browsable tree of ready-to-add value sensors, built from the latest poll, so it lists only
- * what this installation actually reports: Site, then one node per inverter, meter, storage and
+ * what this installation actually reports: Site, then one node per inverter, meter, battery (storage) and
  * Ohm Pilot. Empty before the first successful poll.
  */
 export class FroniusCatalog {
@@ -19,7 +19,7 @@ export class FroniusCatalog {
       this.node("Site", this.entries(["powerflow", "Site"], CatalogFields.site, "")),
       this.devices("Inverters", "Inverter", ["powerflow", "Inverters"], [], CatalogFields.inverter),
       this.devices("Meters", "Meter", ["meter"], [], CatalogFields.meter),
-      this.devices("Storages", "Storage", ["storage"], ["Controller"], CatalogFields.storage),
+      this.devices("Batteries", "Battery", ["storage"], ["Controller"], CatalogFields.storage),
       this.devices("Ohm Pilots", "Ohm Pilot", ["powerflow", "Smartloads", "Ohmpilots"], [], CatalogFields.ohmpilot)
     ]
     return nodes.filter(node => node !== undefined)

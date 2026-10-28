@@ -2,10 +2,11 @@ import type { CatalogNode } from "@lox-nexus/plugin-sdk"
 import { EntityId } from "../entities/EntityId.ts"
 import type { EntityStore } from "../entities/EntityStore.ts"
 import { EntityOffers } from "./EntityOffers.ts"
+import { Humanize } from "./Humanize.ts"
 import type { Registries } from "./Registries.ts"
 
 /**
- * The browsable tree of ready-to-add sensors and actuators: area ▸ domain ▸ entity, with
+ * The browsable tree of ready-to-add sensors and actuators: area ▸ domain ("Binary sensor") ▸ entity, with
  * entities without an area under "No area" at the end. Hidden and disabled entities are left out.
  */
 export class HassCatalog {
@@ -21,7 +22,7 @@ export class HassCatalog {
       const area = this.registries.areaOf(entityId) ?? HassCatalog.NO_AREA
       const domains = areas.get(area) ?? new Map<string, CatalogNode[]>()
       areas.set(area, domains)
-      const domain = EntityId.domain(entityId)
+      const domain = Humanize.domain(EntityId.domain(entityId))
       domains.set(domain, [...domains.get(domain) ?? [], { label: `${offers.name} (${entityId})`, entries: offers.entries() }])
     }
     return [...areas.entries()].sort(([a], [b]) => HassCatalog.order(a, b)).map(([label, domains]) => ({

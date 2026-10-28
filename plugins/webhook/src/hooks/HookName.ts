@@ -8,7 +8,10 @@ export class HookName {
   static readonly schema = z.string()
     .max(HookName.MAX_LENGTH)
     .regex(HookName.pattern, "lowercase letters, digits, '.', '_' and '-', starting with a letter or digit")
-    .describe("Hook name, the last part of the URL /hook/<instance>/<name>; signals with the same name share a call")
+    .meta({
+      title: "Hook name",
+      description: "The last part of the URL /hook/<instance>/<name>; signals with the same hook name share each call"
+    })
 
   static isValid(name: string) {
     return name.length <= HookName.MAX_LENGTH && HookName.pattern.test(name)

@@ -1,7 +1,9 @@
 import { z } from "@lox-nexus/plugin-sdk"
 
-/** which text of an event `match` looks at */
+/** which text of an event `match` looks at; `summary` is what calendars show as the title */
 export const fieldSchema = z.enum(["summary", "description", "location", "any"])
+
+const fieldLabels = { summary: "Title", description: "Description", location: "Location", any: "Title, description or location" }
 
 /** The filter every sensor and the dismiss actuator share: which events count, and when. */
 export class FilterParams {
@@ -10,14 +12,21 @@ export class FilterParams {
   static readonly MAX_LEAD_MINUTES = 43_200
 
   static readonly shape = {
-    match: z.string().min(1).optional()
-      .describe("Only events whose text contains this (ignoring case); empty: every event"),
-    field: fieldSchema.default("summary").describe("Where to look for `match`"),
-    regex: z.boolean().default(false).describe("Treat `match` as a regular expression (ignoring case)"),
-    leadMinutes: z.number().min(0).max(FilterParams.MAX_LEAD_MINUTES).default(0)
-      .describe("An event counts as active this many minutes before it starts"),
-    lagMinutes: z.number().min(0).max(FilterParams.MAX_LAG_MINUTES).default(0)
-      .describe("An event stays active this many minutes after it ends (at most a day)")
+    match: z.string().min(1).optional().meta({
+      title: "Text to look for", description: "Only events whose text contains this, ignoring case. Empty: every event"
+    }),
+    field: fieldSchema.default("summary").meta({
+      title: "Look in", description: "Which text of the event to search", enumLabels: fieldLabels
+    }),
+    regex: z.boolean().default(false).meta({
+      title: "Regular expression", description: "Read the text to look for as a regular expression (ignoring case), e.g. ^(Paper|Plastic)$"
+    }),
+    leadMinutes: z.number().min(0).max(FilterParams.MAX_LEAD_MINUTES).default(0).meta({
+      title: "Minutes before the start", description: "The event counts as active this many minutes before it starts (up to 30 days)"
+    }),
+    lagMinutes: z.number().min(0).max(FilterParams.MAX_LAG_MINUTES).default(0).meta({
+      title: "Minutes after the end", description: "The event stays active this many minutes after it ends (up to a day)"
+    })
   }
 
   /** the filter params plus a capability's own, refusing a regular expression that doesn't compile */
@@ -25,7 +34,7 @@ export class FilterParams {
     return z.object({ ...FilterParams.shape, ...extra }).refine(
       // zod can't see the shared fields through the generic spread, so the check names them itself
       params => FilterParams.valid(params as Pick<Filter, "regex" | "match">),
-      { message: "`match` is not a valid regular expression", path: ["match"] }
+      { message: "the text to look for is not a valid regular expression", path: ["match"] }
     )
   }
 

@@ -6,6 +6,7 @@ import type { EntityState } from "../entities/EntityStore.ts"
 import { LightState } from "../entities/LightState.ts"
 import { StateValue } from "../entities/StateValue.ts"
 import { Value } from "@lox-nexus/plugin-sdk/values"
+import { Humanize } from "./Humanize.ts"
 
 /** attributes that describe the entity rather than measure something */
 const DESCRIPTIVE = new Set([
@@ -31,7 +32,7 @@ export class EntityOffers {
     const entries: CatalogEntry[] = [{ kind: "sensor", capability: "state", params: { entityId }, label: `${this.name} state`, ...StateValue.current(this.entity) }]
     for (const [attribute, raw] of Object.entries(this.entity.attributes)) {
       const value = DESCRIPTIVE.has(attribute) ? undefined : StateValue.fromAttribute(raw)
-      if (value) entries.push({ kind: "sensor", capability: "state", params: { entityId, attribute }, label: `${this.name} ${attribute}`, value })
+      if (value) entries.push({ kind: "sensor", capability: "state", params: { entityId, attribute }, label: `${this.name} ${Humanize.attribute(attribute)}`, value })
     }
     if (EntityId.domain(entityId) === "light") entries.push(...this.lightSensors())
     return entries

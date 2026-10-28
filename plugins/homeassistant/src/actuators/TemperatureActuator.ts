@@ -1,5 +1,6 @@
 import type { ValueOf } from "@lox-nexus/plugin-sdk/values"
 import type { EntityState } from "../entities/EntityStore.ts"
+import { EntityId } from "../entities/EntityId.ts"
 import { EntityActuator } from "./EntityActuator.ts"
 import { StateValue } from "../entities/StateValue.ts"
 
@@ -16,6 +17,7 @@ export class TemperatureActuator extends EntityActuator<ValueOf<"number">> {
   static readonly description = "Sets the target temperature of a thermostat or water heater"
   static readonly accepts = "number"
   static readonly domains = ["climate", "water_heater"]
+  static readonly params = EntityId.paramsFor("climate.living_room")
   static readonly concurrency = "latest"
 
   static supports(entity: EntityState) {

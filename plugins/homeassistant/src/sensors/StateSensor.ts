@@ -4,8 +4,11 @@ import type { EntityState } from "../entities/EntityStore.ts"
 import { StateValue } from "../entities/StateValue.ts"
 import { EntitySensor } from "./EntitySensor.ts"
 
-const params = EntityId.params.extend({
-  attribute: z.string().min(1).optional().describe("Attribute to read instead of the state, e.g. current_temperature")
+const params = EntityId.paramsFor("sensor.outdoor_temperature").extend({
+  attribute: z.string().min(1).optional().meta({
+    title: "Attribute",
+    description: "Attribute to read instead of the state, e.g. current_temperature. Leave empty to read the state"
+  })
 })
 
 /**

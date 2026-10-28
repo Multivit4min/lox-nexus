@@ -1,4 +1,5 @@
 import type { ValueOf } from "@lox-nexus/plugin-sdk/values"
+import { EntityId } from "../entities/EntityId.ts"
 import { EntityActuator } from "./EntityActuator.ts"
 import type { EntityState } from "../entities/EntityStore.ts"
 import { StateValue } from "../entities/StateValue.ts"
@@ -19,6 +20,7 @@ export class TextActuator extends EntityActuator<ValueOf<"string">> {
   static readonly description = "Sets a text, picks an option of a select, or sets a thermostat's mode"
   static readonly accepts = "string"
   static readonly domains = Object.keys(SERVICES)
+  static readonly params = EntityId.paramsFor("input_select.house_mode or climate.living_room")
   static readonly concurrency = "latest"
 
   static current(entity: EntityState) {

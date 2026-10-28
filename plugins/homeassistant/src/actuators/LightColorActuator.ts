@@ -1,6 +1,7 @@
 import type { Rgbw, ValueOf } from "@lox-nexus/plugin-sdk/values"
 import type { EntityState } from "../entities/EntityStore.ts"
 import { LightState } from "../entities/LightState.ts"
+import { EntityId } from "../entities/EntityId.ts"
 import { EntityActuator } from "./EntityActuator.ts"
 
 const COLOR_MODES = ["rgb", "rgbw", "rgbww", "hs", "xy"]
@@ -17,6 +18,7 @@ export class LightColorActuator extends EntityActuator<ValueOf<"rgbw">> {
   static readonly description = "Sets a light's colour from an RGBW value"
   static readonly accepts = "rgbw"
   static readonly domains = ["light"]
+  static readonly params = EntityId.paramsFor("light.kitchen")
   static readonly concurrency = "latest"
 
   static supports(entity: EntityState) {

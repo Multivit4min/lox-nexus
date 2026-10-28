@@ -20,14 +20,16 @@ start and title, so dismissals keep working across reads.
 
 ## Config
 
-| Field | | |
-|---|---|---|
-| `url` | required, secret | Link to the feed: `http`, `https` or `webcal` (read over https). Private links carry their access token in the URL, so the link is secret: it is never shown again, logged or put in the panel. Messages name the host only. `https://user:pass@host/…` works too; the credentials become basic auth (percent-encoded: `%40` for `@`, `%25` for `%`). |
-| `username` | optional | For feeds behind HTTP basic auth, e.g. a Nextcloud calendar's CalDAV export. |
-| `password` | optional, secret | The password or app password for `username`; refused without a `username`. |
-| `refreshMinutes` | default 15 | Minutes between two reads, 1 to 10 080 (a week). |
-| `timeout` | default 30 | Seconds one read may take, 1 to 120. |
-| `timeZone` | optional | IANA zone such as `Europe/Vienna`, used for all-day events, times without a zone, the `loxone` time format and the panel. Default: the server's zone. **Set it when Nexus runs in a container**, which usually runs in UTC: otherwise all-day events start at 01:00 or 02:00 Vienna time. |
+"Shown as" is the field's label in the Nexus form; the key is what the API and exports use.
+
+| Field | Shown as | | |
+|---|---|---|---|
+| `url` | Calendar link (iCal) | required, secret | Link to the feed: `http`, `https` or `webcal` (read over https). Private links carry their access token in the URL, so the link is secret: it is never shown again, logged or put in the panel. Messages name the host only. `https://user:pass@host/…` works too; the credentials become basic auth (percent-encoded: `%40` for `@`, `%25` for `%`). |
+| `username` | User name | optional | For feeds behind HTTP basic auth, e.g. a Nextcloud calendar's CalDAV export. |
+| `password` | Password | optional, secret | The password or app password for `username`; refused without a `username`. |
+| `refreshMinutes` | Read every (minutes) | default 15 | Minutes between two reads, 1 to 10 080 (a week). |
+| `timeout` | Timeout (seconds) | default 30 | Seconds one read may take, 1 to 120. |
+| `timeZone` | Time zone | optional | IANA zone such as `Europe/Vienna`, used for all-day events, times without a zone, the `loxone` time format and the panel. Default: the server's zone. **Set it when Nexus runs in a container**, which usually runs in UTC: otherwise all-day events start at 01:00 or 02:00 Vienna time. |
 
 **Failures.** A feed that can't be read leaves the instance degraded with the reason, and the
 sensors carry on with the last calendar read successfully. 401 and 403 say to check the
@@ -37,13 +39,13 @@ fail the start. Only an invalid config does (a wrong URL scheme, an unknown time
 
 ## Filter params (all sensors and `dismiss`)
 
-| Param | Default | |
-|---|---|---|
-| `match` | none: every event | Text the event must contain, ignoring case. |
-| `field` | `summary` | Where to look: `summary`, `description`, `location` or `any`. |
-| `regex` | `false` | Treat `match` as a regular expression (ignoring case), e.g. `^(Paper\|Plastic)$`. One that doesn't compile is refused when the signal is added. |
-| `leadMinutes` | 0 | The event counts as active this many minutes before its start (up to 30 days). |
-| `lagMinutes` | 0 | It stays active this many minutes after its end (up to a day). |
+| Param | Shown as | Default | |
+|---|---|---|---|
+| `match` | Text to look for | none: every event | Text the event must contain, ignoring case. |
+| `field` | Look in | `summary` | Where to look: `summary` (Title), `description`, `location` or `any` (Title, description or location). |
+| `regex` | Regular expression | `false` | Treat `match` as a regular expression (ignoring case), e.g. `^(Paper\|Plastic)$`. One that doesn't compile is refused when the signal is added. |
+| `leadMinutes` | Minutes before the start | 0 | The event counts as active this many minutes before its start (up to 30 days). |
+| `lagMinutes` | Minutes after the end | 0 | It stays active this many minutes after its end (up to a day). |
 
 An occurrence is **active** from start − lead until end + lag. The end counts: the old integration
 ignored it and treated an event as over at "start + time after", whatever its length. An all-day
@@ -64,16 +66,16 @@ store.
 | Id | Value | Params | |
 |---|---|---|---|
 | `active` | boolean | filter | True while a matching occurrence is active. |
-| `title` | string | filter, `which`: `current` (default) \| `next`, `show`: `summary` (default) \| `description` \| `location` | The text of the current or next matching occurrence; `""` without one. |
-| `time` | number | filter, `which`: `currentStart` \| `currentEnd` \| `nextStart` (default) \| `nextEnd`, `format`: `minutesUntil` (default) \| `unix` \| `loxone` | The start or end of the current or next matching occurrence (the event's own times, without lead or lag). With a lead, an occurrence turns *current* at start − lead, so `nextStart` in `minutesUntil` never goes below lead + 1; use `currentStart` to count down the last stretch. |
+| `title` | string | filter, `which` (Event): `current` (default) \| `next`, `show` (Text to send): `summary` (Title, default) \| `description` \| `location` | The text of the current or next matching occurrence; `""` without one. |
+| `time` | number | filter, `which` (Time): `currentStart` \| `currentEnd` \| `nextStart` (default) \| `nextEnd`, `format` (Send as): `minutesUntil` (default) \| `unix` \| `loxone` | The start or end of the current or next matching occurrence (the event's own times, without lead or lag). With a lead, an occurrence turns *current* at start − lead, so `nextStart` in `minutesUntil` never goes below lead + 1; use `currentStart` to count down the last stretch. |
 
 **`time` formats:**
 
-| Format | Value | Without an event |
-|---|---|---|
-| `minutesUntil` | Whole minutes from now, rounded up: `1` in the last minute before, `0` in the first minute after, negative once passed. Updated every minute. | `1000000` |
-| `unix` | Seconds since 1970-01-01 UTC. | `0` |
-| `loxone` | Seconds since 2009-01-01 00:00 **local time**, the way a Miniserver counts date and time. Feed it to a block that expects a Loxone date/time and it shows the right local time, also across DST. | `0` |
+| Format | Shown as | Value | Without an event |
+|---|---|---|---|
+| `minutesUntil` | Minutes from now | Whole minutes from now, rounded up: `1` in the last minute before, `0` in the first minute after, negative once passed. Updated every minute. | `1000000` |
+| `unix` | Unix time | Seconds since 1970-01-01 UTC. | `0` |
+| `loxone` | Loxone date and time | Seconds since 2009-01-01 00:00 **local time**, the way a Miniserver counts date and time. Feed it to a block that expects a Loxone date/time and it shows the right local time, also across DST. | `0` |
 
 `1000000` minutes (about 694 days) is beyond any real value, as the plugin reads 400 days ahead.
 So a comparison such as "minutes until next start < 30" stays false when there is no next event,

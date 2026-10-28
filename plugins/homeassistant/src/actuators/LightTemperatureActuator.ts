@@ -1,6 +1,7 @@
 import type { ValueOf } from "@lox-nexus/plugin-sdk/values"
 import type { EntityState } from "../entities/EntityStore.ts"
 import { LightState } from "../entities/LightState.ts"
+import { EntityId } from "../entities/EntityId.ts"
 import { EntityActuator } from "./EntityActuator.ts"
 
 /** Sets a light's colour temperature and brightness from tunable white; brightness 0 turns it off. */
@@ -10,6 +11,7 @@ export class LightTemperatureActuator extends EntityActuator<ValueOf<"tunableWhi
   static readonly description = "Sets a light's colour temperature and brightness from a tunable white value"
   static readonly accepts = "tunableWhite"
   static readonly domains = ["light"]
+  static readonly params = EntityId.paramsFor("light.kitchen")
   static readonly concurrency = "latest"
 
   static supports(entity: EntityState) {

@@ -125,6 +125,23 @@ describe("CalendarPlugin", { timeout: 20_000 }, () => {
     assert.deepEqual(description.actuators.map(actuator => [actuator.id, actuator.valueType]), [["dismiss", "boolean"]])
   })
 
+  test("names every field and every choice for the form", async () => {
+    type Field = { title?: string; description?: string; enum?: string[]; enumLabels?: Record<string, string> }
+    const description = await PluginTestHost.describe(CalendarPlugin)
+    const fieldsOf = (schema: unknown) => Object.values((schema as { properties: Record<string, Field> }).properties)
+    const fields = [description.config, ...description.sensors.map(sensor => sensor.params)].flatMap(fieldsOf)
+    assert.deepEqual(fields.filter(field => !field.title || !field.description), [], "each field has a title and a hint")
+    for (const field of fields.filter(field => field.enum)) {
+      assert.deepEqual(Object.keys(field.enumLabels ?? {}), field.enum, `${field.title}: every option has a name`)
+    }
+    const time = Object.fromEntries(fieldsOf(description.sensors[2]?.params).map(field => [field.title, field]))
+    assert.deepEqual(Object.keys(time), [
+      "Text to look for", "Look in", "Regular expression", "Minutes before the start", "Minutes after the end", "Time", "Send as"
+    ])
+    assert.equal(time["Send as"]?.enumLabels?.minutesUntil, "Minutes from now")
+    assert.ok(fieldsOf(description.config).some(field => field.title === "Timeout (seconds)"))
+  })
+
   test("accepts webcal:// links and reads them over https", async () => {
     const host = await h.started("/w.ics", { config: { url: h.server.url("/weekly.ics").replace("http:", "webcal:") } })
     // the fixture server speaks plain http, so the TLS handshake is what fails

@@ -5,9 +5,15 @@ import type { Occurrence } from "../ics/Occurrence.ts"
 import { CalendarSensor } from "./CalendarSensor.ts"
 
 const titleParams = FilterParams.schema({
-  which: z.enum(["current", "next"]).default("current")
-    .describe("current: the active event (the one that started first); next: the first one not active yet"),
-  show: z.enum(["summary", "description", "location"]).default("summary").describe("Which text to send")
+  which: z.enum(["current", "next"]).default("current").meta({
+    title: "Event",
+    description: "The current event is the active one (the one that started first), the next one is the first not active yet",
+    enumLabels: { current: "Current event", next: "Next event" }
+  }),
+  show: z.enum(["summary", "description", "location"]).default("summary").meta({
+    title: "Text to send", description: "Which text of the event to send",
+    enumLabels: { summary: "Title", description: "Description", location: "Location" }
+  })
 })
 
 /** A text of the current or next matching occurrence; "" when there is none. */

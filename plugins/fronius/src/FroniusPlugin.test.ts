@@ -100,26 +100,26 @@ describe("FroniusPlugin", () => {
     server.gen24()
     const host = await started()
     const catalog = await host.catalog()
-    assert.deepEqual(catalog.map(node => node.label), ["Site", "Inverters", "Meters", "Storages"])
+    assert.deepEqual(catalog.map(node => node.label), ["Site", "Inverters", "Meters", "Batteries"])
     const site = catalog[0]?.entries ?? []
     assert.deepEqual(site.map(entry => (entry.params as { path: string }).path.replace("powerflow.Site.", "")), [
       "P_PV", "P_Grid", "P_Load", "P_Akku", "rel_Autonomy", "rel_SelfConsumption", "E_Total", "Mode", "BackupMode", "BatteryStandby"
     ])
     assert.deepEqual(site[0], {
-      kind: "sensor", capability: "value", params: { path: "powerflow.Site.P_PV" }, label: "Photovoltaics power", value: Value.number(3080.4), unit: "W"
+      kind: "sensor", capability: "value", params: { path: "powerflow.Site.P_PV" }, label: "PV power", value: Value.number(3080.4), unit: "W"
     }, "with the current value and its unit")
     const storage = catalog[3]?.children?.[0]
-    assert.equal(storage?.label, "Storage 0 (BYD Battery-Box Premium HV)")
+    assert.equal(storage?.label, "Battery 0 (BYD Battery-Box Premium HV)")
     assert.deepEqual(storage?.entries?.[0], {
-      kind: "sensor", capability: "value", params: { path: "storage.0.Controller.StateOfCharge_Relative" }, label: "Storage 0 state of charge",
+      kind: "sensor", capability: "value", params: { path: "storage.0.Controller.StateOfCharge_Relative" }, label: "Battery 0 state of charge",
       value: Value.number(63.2), unit: "%"
     })
-    const modeEntry = site.find(entry => entry.label === "Mode")
+    const modeEntry = site.find(entry => entry.label === "System mode")
     assert.deepEqual([modeEntry?.value?.type, modeEntry?.unit], ["string", undefined], "no unit for texts")
     const meter = catalog[2]?.children?.[0]
     assert.equal(meter?.entries?.length, 22)
     assert.deepEqual(catalog[1]?.children?.[0]?.entries?.map(entry => entry.label), [
-      "Inverter 1 power", "Inverter 1 battery state of charge", "Inverter 1 battery mode", "Inverter 1 energy total"
+      "Inverter 1 AC power", "Inverter 1 battery state of charge", "Inverter 1 battery mode", "Inverter 1 energy produced in total"
     ])
     await host.stop()
   })
@@ -129,7 +129,7 @@ describe("FroniusPlugin", () => {
     const host = await started()
     const catalog = await host.catalog()
     assert.deepEqual(catalog.map(node => node.label), ["Site", "Inverters"])
-    assert.deepEqual(catalog[0]?.entries?.map(entry => entry.label), ["Photovoltaics power", "Energy today", "Energy this year", "Energy total", "Mode"])
+    assert.deepEqual(catalog[0]?.entries?.map(entry => entry.label), ["PV power", "Energy produced today", "Energy produced this year", "Energy produced in total", "System mode"])
     await host.stop()
   })
 
@@ -160,7 +160,12 @@ describe("FroniusPlugin", () => {
     await assert.rejects(PluginTestHost.start(FroniusPlugin, { config: { host: "ftp://inverter" } }), /invalid config/)
     await assert.rejects(PluginTestHost.start(FroniusPlugin, { config: { host: server.url, timeout: 90 } }), /invalid config/)
     const description = await PluginTestHost.describe(FroniusPlugin)
-    assert.deepEqual(Object.keys(description.config.properties as object), ["host", "pollInterval", "timeout"])
+    const fields = description.config.properties as Record<string, { title?: string; description?: string }>
+    assert.deepEqual(Object.values(fields).map(field => field.title), ["Address", "Poll every (seconds)", "Timeout (seconds)"])
+    assert.ok(Object.values(fields).every(field => field.description), "descriptions survive .meta()")
+    const path = (description.sensors[0]?.params as { properties: Record<string, { title?: string; description?: string }> }).properties.path
+    assert.equal(path?.title, "Data path")
+    assert.match(path?.description ?? "", /catalog/)
     assert.deepEqual(description.sensors.map(sensor => [sensor.id, sensor.valueType]), [["value", "any"]])
   })
 

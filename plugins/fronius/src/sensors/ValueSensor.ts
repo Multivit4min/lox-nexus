@@ -6,7 +6,11 @@ import type { FroniusSnapshot } from "../SolarApiTypes.ts"
 
 const params = z.object({
   path: z.string().regex(SnapshotPath.pattern, "a dot path starting with powerflow, meter or storage")
-    .describe(`Dot path into the poll data, e.g. ${SnapshotPath.example}`)
+    .meta({
+      title: "Data path",
+      description: `Dot path into the poll data, e.g. ${SnapshotPath.example}. ` +
+        "Easier: add the value from the catalog, which fills in the path for you."
+    })
 })
 
 /**

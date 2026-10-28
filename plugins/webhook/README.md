@@ -28,7 +28,7 @@ plus a value from the same body. A hook exists while at least one signal uses it
 
 | Field | | |
 |---|---|---|
-| `token` | required, secret, 16 to 512 visible ASCII characters (no spaces) | The shared secret every call must carry. Generate one with `openssl rand -hex 24`. |
+| `token` (*Secret token*) | required, secret, 16 to 512 visible ASCII characters (no spaces) | The shared secret every call must carry. Generate one with `openssl rand -hex 24`. |
 
 One token per instance. Different callers that shouldn't share a secret get their own instance.
 
@@ -65,25 +65,28 @@ because many devices send JSON without saying so.
 
 ## Sensors
 
-All sensors take `hook` (the hook name) and `method`: `any`, `GET`, `POST` or `PUT`.
+All sensors take `hook` (*Hook name* in the form) and `method` (*HTTP method*): `any` (*Any method*),
+`GET`, `POST` or `PUT`.
 
 ### `trigger`: a pulse per call (value type `boolean`)
 
-Params: `{ hook, method = "any", pulseMs = 1000 }`, `pulseMs` from 50 to 3 600 000.
+Params: `{ hook, method = "any", pulseMs = 1000 }`, `pulseMs` (*Pulse length (ms)*) from 50 to
+3 600 000.
 
 Starts `false`. A call emits `true`, and `false` follows `pulseMs` after the **last** call: a call
 during the pulse extends it. Wire it to a Loxone digital input to start a block on a call.
 
 ### `number`, `text`, `switch`: a value from the call
 
-Params: `{ hook, method = "POST", source = "json", path?, name? }`
+Params: `{ hook, method = "POST", source = "json", path?, name? }`. The form calls them *Value from*,
+*JSON path* and *Field name*; the choices of `source` are named in the table.
 
 | `source` | Reads | Needs |
 |---|---|---|
-| `json` | a value in the JSON body | `path`, e.g. `temp`, `rooms[1].temp`, `data.items.0.state` |
-| `query` | a query parameter | `name` (not `token`, which carries the secret) |
-| `form` | a field of a form-urlencoded body | `name` |
-| `body` | the whole body text | |
+| `json` (*JSON body*) | a value in the JSON body | `path`, e.g. `temp`, `rooms[1].temp`, `data.items.0.state` |
+| `query` (*Query parameter*) | a query parameter | `name` (not `token`, which carries the secret) |
+| `form` (*Form field*) | a field of a form-urlencoded body | `name` |
+| `body` (*Whole body*) | the whole body text | |
 
 The value is emitted as it is and stays until the next call changes it. Each sensor converts to
 its type and refuses (400) what doesn't fit, instead of sending a made-up 0 or false:

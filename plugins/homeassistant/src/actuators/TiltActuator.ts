@@ -1,5 +1,6 @@
 import type { ValueOf } from "@lox-nexus/plugin-sdk/values"
 import type { EntityState } from "../entities/EntityStore.ts"
+import { EntityId } from "../entities/EntityId.ts"
 import { EntityActuator } from "./EntityActuator.ts"
 import { StateValue } from "../entities/StateValue.ts"
 
@@ -13,6 +14,7 @@ export class TiltActuator extends EntityActuator<ValueOf<"number">> {
   static readonly description = "Tilts a cover's slats, 0 (closed) to 100 (open)"
   static readonly accepts = "number"
   static readonly domains = ["cover"]
+  static readonly params = EntityId.paramsFor("cover.living_room")
   static readonly concurrency = "latest"
 
   static supports(entity: EntityState) {

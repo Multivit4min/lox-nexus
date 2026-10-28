@@ -10,10 +10,19 @@ import { HookName } from "../hooks/HookName.ts"
 export const valueParams = z.object({
   hook: HookName.schema,
   method: HookMethods.schema("POST"),
-  source: z.enum(["json", "query", "form", "body"]).default("json")
-    .describe("Where the value comes from: a JSON path in the body, a query parameter, a form field, or the whole body text"),
-  path: z.string().max(JsonPath.MAX_LENGTH).optional().describe("For source json: path into the body, e.g. sensor.values[0].temp"),
-  name: z.string().min(1).max(100).optional().meta({ title: "Field name", description: "For source query or form: the parameter name" })
+  source: z.enum(["json", "query", "form", "body"]).default("json").meta({
+    title: "Value from",
+    description: "Which part of the call holds the value",
+    enumLabels: { json: "JSON body", query: "Query parameter", form: "Form field", body: "Whole body" }
+  }),
+  path: z.string().max(JsonPath.MAX_LENGTH).optional().meta({
+    title: "JSON path",
+    description: "For JSON body: where the value sits, e.g. sensor.values[0].temp"
+  }),
+  name: z.string().min(1).max(100).optional().meta({
+    title: "Field name",
+    description: "For Query parameter or Form field: the name of the parameter or field to read"
+  })
 }).superRefine((params, context) => {
   const issue = (path: string, message: string) => context.addIssue({ code: "custom", path: [path], message })
   if (params.source === "json") {

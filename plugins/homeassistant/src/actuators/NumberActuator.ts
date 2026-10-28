@@ -1,4 +1,5 @@
 import type { ValueOf } from "@lox-nexus/plugin-sdk/values"
+import { EntityId } from "../entities/EntityId.ts"
 import { EntityActuator } from "./EntityActuator.ts"
 import type { EntityState } from "../entities/EntityStore.ts"
 import { StateValue } from "../entities/StateValue.ts"
@@ -10,6 +11,7 @@ export class NumberActuator extends EntityActuator<ValueOf<"number">> {
   static readonly description = "Sets a number entity (number or input_number)"
   static readonly accepts = "number"
   static readonly domains = ["number", "input_number"]
+  static readonly params = EntityId.paramsFor("input_number.target_level")
   static readonly concurrency = "latest"
 
   static current(entity: EntityState) {

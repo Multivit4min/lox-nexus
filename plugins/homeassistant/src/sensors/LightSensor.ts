@@ -6,10 +6,14 @@ import { LightState } from "../entities/LightState.ts"
 import { StateValue } from "../entities/StateValue.ts"
 import { EntitySensor } from "./EntitySensor.ts"
 
-const params = EntityId.params.extend({
-  entityId: EntityId.params.shape.entityId.refine(id => EntityId.domain(id) === "light", "a light entity, e.g. light.kitchen"),
-  part: z.enum(["brightness", "color"]).default("brightness")
-    .describe("brightness: a dimmer value (0–100 %); color: RGBW, or a colour temperature while the light is in that mode")
+const params = z.object({
+  entityId: EntityId.schema.refine(id => EntityId.domain(id) === "light", "a light entity, e.g. light.kitchen")
+    .meta(EntityId.meta("light.kitchen")),
+  part: z.enum(["brightness", "color"]).default("brightness").meta({
+    title: "What to send",
+    description: "Brightness: a dimmer value (0–100 %). Colour: RGBW, or a colour temperature while the light is in that mode",
+    enumLabels: { brightness: "Brightness (0–100 %)", color: "Colour (RGBW or tunable white)" }
+  })
 })
 
 /**

@@ -13,10 +13,10 @@ If that list arrives unreadable, the plugin logs it and reconnects for a fresh o
 
 ## Config
 
-| Field | | |
-|---|---|---|
-| `url` | required | Address of Home Assistant, e.g. `http://homeassistant.local:8123`. `http(s)` becomes `ws(s)`, and `/api/websocket` is appended. A `ws(s)://…/api/websocket` URL works as it is. |
-| `token` | required, secret | A long-lived access token. Create one in your Home Assistant profile under **Security**. |
+| Field | Shown as | | |
+|---|---|---|---|
+| `url` | URL | required | Address of Home Assistant, e.g. `http://homeassistant.local:8123`. `http(s)` becomes `ws(s)`, and `/api/websocket` is appended. A `ws(s)://…/api/websocket` URL works as it is. |
+| `token` | Access token | required, secret | A long-lived access token. Create one in your Home Assistant profile under **Security**. |
 
 **A rejected token is never retried.** Home Assistant can ban an address after failed logins
 (`ip_ban_enabled`). So a wrong token at start puts the instance in the error state. A token
@@ -45,7 +45,7 @@ the entity is back and sends a value.
 
 ### `light`: a light as a Loxone Smart Actuator value (value type `any`)
 
-Params: `{ entityId, part }`, where the entity is a `light.*`.
+Params: `{ entityId, part }`, where the entity is a `light.*`. The form shows `part` as **What to send**.
 - `part: "brightness"` sends the brightness as single channel, 0–100 %. Off sends 0. A light that
   is on sends at least 1 %, so a very dim light doesn't read as off. An on/off light that is on
   sends 100.
@@ -85,14 +85,17 @@ The light, position, tilt and value actuators run only the newest command when s
 
 ### `service`: any service call
 
-Params: `{ domain, service, entityId?, field?, data? }`. The value goes into `field`, e.g.
-`media_player.volume_set` with `field: "volume_level"`. Structured values (RGBW, …) go in as
-their object. `data` is sent with every call. Without a `field`, the actuator is a trigger: it
+Params: `{ domain, service, entityId?, field?, data? }`, shown in the form as **Service domain**,
+**Service**, **Target entity**, **Value goes into field** and **Extra service data**. The value
+goes into `field`, e.g. `media_player.volume_set` with `field: "volume_level"`. Structured values
+(RGBW, …) go in as their object. `data` is sent with every call. Without a `field`, the actuator is a trigger: it
 calls the service when the value is true or non-zero, and ignores false, 0 and empty text.
 
 ## Catalog
 
-Area ▸ domain ▸ entity, with entities without an area under **No area** at the end. An entity's
+Area ▸ domain ▸ entity, with entities without an area under **No area** at the end. Domains are
+named in words (`binary_sensor` becomes **Binary sensor**), and attributes in entry labels too
+("Blind current position"); the entity's own node still shows its ID. An entity's
 area is its own, or its device's. Hidden and disabled entities are left out.
 
 Each entity offers:

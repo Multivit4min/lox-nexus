@@ -9,7 +9,7 @@ const params = z.object({
   hook: HookName.schema,
   method: HookMethods.schema("any"),
   pulseMs: z.number().int().min(50).max(3_600_000).default(1000)
-    .describe("How long the signal stays true after a call, in milliseconds (50 to 3 600 000)")
+    .meta({ title: "Pulse length (ms)", description: "How long the signal stays on after each call, 50 to 3 600 000 ms" })
 })
 
 /**

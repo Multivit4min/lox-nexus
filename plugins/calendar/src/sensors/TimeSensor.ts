@@ -6,11 +6,22 @@ import { TimeFormat } from "../time/TimeFormat.ts"
 import { CalendarSensor } from "./CalendarSensor.ts"
 
 const timeParams = FilterParams.schema({
-  which: z.enum(["currentStart", "currentEnd", "nextStart", "nextEnd"]).default("nextStart")
-    .describe("The start or end of the current (active) or the next matching event"),
-  format: z.enum(["minutesUntil", "unix", "loxone"]).default("minutesUntil")
-    .describe("minutesUntil: whole minutes from now (negative once passed, 1000000 without an event); "
-      + "unix: seconds since 1970 (0 without an event); loxone: seconds since 2009-01-01 local time (0 without an event)")
+  which: z.enum(["currentStart", "currentEnd", "nextStart", "nextEnd"]).default("nextStart").meta({
+    title: "Time",
+    description: "The start or end of the current (active) or the next matching event, without the minutes before or after",
+    enumLabels: {
+      currentStart: "Start of the current event", currentEnd: "End of the current event",
+      nextStart: "Start of the next event", nextEnd: "End of the next event"
+    }
+  }),
+  format: z.enum(["minutesUntil", "unix", "loxone"]).default("minutesUntil").meta({
+    title: "Send as",
+    description: "Minutes from now turn negative once passed and are 1000000 without an event; the two dates are 0 without one",
+    enumLabels: {
+      minutesUntil: "Minutes from now", unix: "Unix time (seconds since 1970)",
+      loxone: "Loxone date and time (seconds since 2009, local time)"
+    }
+  })
 })
 
 /**

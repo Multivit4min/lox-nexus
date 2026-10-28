@@ -1,4 +1,4 @@
-import { Actuator } from "@lox-nexus/plugin-sdk"
+import { Actuator, type z } from "@lox-nexus/plugin-sdk"
 import type { Value } from "@lox-nexus/plugin-sdk/values"
 import { EntityId } from "../entities/EntityId.ts"
 import type { EntityState } from "../entities/EntityStore.ts"
@@ -8,6 +8,8 @@ import type { HomeAssistantPlugin } from "../HomeAssistantPlugin.ts"
 export interface EntityActuatorClass {
   readonly id: string
   readonly label: string
+  /** `EntityId.paramsFor(example)`, with an example entity this actuator can command */
+  readonly params: z.ZodType<{ entityId: string }>
   /** the entity domains it can command */
   readonly domains: readonly string[]
   /** whether this entity supports it, e.g. a cover that can be set to a position; default: every entity of the domains */
@@ -27,8 +29,6 @@ export interface CurrentValue {
  * another domain; a call while disconnected or one Home Assistant refuses fails the command.
  */
 export abstract class EntityActuator<V extends Value> extends Actuator<HomeAssistantPlugin, { entityId: string }, V> {
-  static readonly params = EntityId.params
-
   override start() {
     const type = this.constructor as unknown as EntityActuatorClass
     if (!type.domains.includes(this.domain)) {

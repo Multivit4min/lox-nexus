@@ -1,4 +1,5 @@
 import type { ValueOf } from "@lox-nexus/plugin-sdk/values"
+import { EntityId } from "../entities/EntityId.ts"
 import { EntityActuator } from "./EntityActuator.ts"
 
 const SERVICES: Record<string, string> = {
@@ -20,6 +21,7 @@ export class TriggerActuator extends EntityActuator<ValueOf<"boolean">> {
   static readonly description = "On a pulse, activates a scene, runs a script or automation, or presses a button"
   static readonly accepts = "boolean"
   static readonly domains = Object.keys(SERVICES)
+  static readonly params = EntityId.paramsFor("scene.movie_night or script.good_night")
 
   async run(value: ValueOf<"boolean">) {
     if (value.value) await this.call(SERVICES[this.domain]!)

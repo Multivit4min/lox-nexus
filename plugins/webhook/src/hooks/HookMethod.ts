@@ -7,7 +7,11 @@ export class HookMethods {
   static readonly values = ["any", "GET", "POST", "PUT"] as const
 
   static schema(fallback: HookMethod) {
-    return z.enum(HookMethods.values).default(fallback).describe("HTTP method the signal reacts to")
+    return z.enum(HookMethods.values).default(fallback).meta({
+      title: "HTTP method",
+      description: "The HTTP method this signal reacts to",
+      enumLabels: { any: "Any method", GET: "GET", POST: "POST", PUT: "PUT" }
+    })
   }
 
   static accepts(method: HookMethod, requestMethod: string) {

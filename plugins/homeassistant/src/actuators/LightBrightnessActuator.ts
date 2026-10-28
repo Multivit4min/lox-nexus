@@ -1,6 +1,7 @@
 import { Value, type ValueOf } from "@lox-nexus/plugin-sdk/values"
 import type { EntityState } from "../entities/EntityStore.ts"
 import { LightState } from "../entities/LightState.ts"
+import { EntityId } from "../entities/EntityId.ts"
 import { EntityActuator } from "./EntityActuator.ts"
 import { StateValue } from "../entities/StateValue.ts"
 
@@ -11,6 +12,7 @@ export class LightBrightnessActuator extends EntityActuator<ValueOf<"singleChann
   static readonly description = "Dims a light; 0 % turns it off"
   static readonly accepts = "singleChannel"
   static readonly domains = ["light"]
+  static readonly params = EntityId.paramsFor("light.kitchen")
   static readonly concurrency = "latest"
 
   /** lights that can only switch on and off get the on/off actuator instead */

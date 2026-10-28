@@ -15,11 +15,11 @@ Every poll reads three endpoints in parallel:
 
 ## Config
 
-| Field | Default | |
-|---|---|---|
-| `host` | (required) | `http://` or `https://` URL of the inverter, e.g. `http://192.168.1.50`. A path is kept, so a reverse proxy prefix works. |
-| `pollInterval` | `5` | seconds between polls (1 to 86400) |
-| `timeout` | `5` | seconds a single request may take (1 to 60) |
+| Field | Shown as | Default | |
+|---|---|---|---|
+| `host` | Address | (required) | `http://` or `https://` URL of the inverter, e.g. `http://192.168.1.50`. A path is kept, so a reverse proxy prefix works. |
+| `pollInterval` | Poll every (seconds) | `5` | seconds between polls (1 to 86400) |
+| `timeout` | Timeout (seconds) | `5` | seconds a single request may take (1 to 60) |
 
 Nothing is secret: the Solar API has no authentication.
 
@@ -27,7 +27,8 @@ Nothing is secret: the Solar API has no authentication.
 
 ### `value`: one value of the poll data (value type `any`)
 
-Params: `{ path }`, a dot path into the snapshot. Numbers, strings, booleans and `null` pass through
+Params: `{ path }` (shown as *Data path*), a dot path into the snapshot. Most users never type it:
+adding a value from the catalog fills it in. Numbers, strings, booleans and `null` pass through
 as the matching value. `null` means the component is inactive, e.g. PV power at night. The sensor
 emits after every successful poll (the bus drops repeats) and once when it is added if data is
 already there. A path that doesn't resolve, or that points to an object, emits nothing. The device
@@ -68,13 +69,14 @@ reports:
 - **Site**
 - **Inverters**: one node per inverter
 - **Meters**: one per meter, with its model
-- **Storages**: one per battery, with its model
+- **Batteries**: one per battery (the Solar API's `storage`), with its model
 - **Ohm Pilots**
 
-Each entry is a ready-to-add `value` sensor with a suggested name. Fields that are `null` are left
-out, because they mean the component is missing (no meter, no battery). The exceptions are PV and
-inverter power, which are only `null` while the inverter sleeps. Before the first successful poll
-the catalog is empty.
+Each entry is a ready-to-add `value` sensor with a readable suggested name (`P_PV` is *PV power*,
+meter phases are *L1* to *L3*) and, where the field has one, its unit (W, Wh, V, A, Hz, %, °C).
+Fields that are `null` are left out, because they mean the component is missing (no meter, no
+battery). The exceptions are PV and inverter power, which are only `null` while the inverter
+sleeps. Before the first successful poll the catalog is empty.
 
 ## Panel
 
