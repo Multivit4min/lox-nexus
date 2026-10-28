@@ -21,6 +21,9 @@ abstract class Plugin<Config = unknown> extends Disposable {
   catalog(): CatalogNode[] | Promise<CatalogNode[]>
   panel(): Panel | undefined | Promise<Panel | undefined>
   unhandledRejection(reason: unknown): void
+  get watch(): WatchView                                   // the chosen signals (watching plugins)
+  watched?(values: readonly WatchedValue[], dropped: number): void | Promise<void>
+  watchChanged(): void
 }
 ```
 
@@ -263,6 +266,8 @@ class PluginTestHost<T extends PluginClass = PluginClass> {
   panel(): Promise<Panel | undefined>
   http(request: Partial<HttpRequest> & Pick<HttpRequest, "path">): Promise<Required<HttpResponse>>
   get status(): { status: "running" | "degraded"; message?: string }
+  watchSignals(signals: WatchedSignal[]): Promise<void>
+  pushValues(values: Array<Omit<WatchedValue, "ts" | "kind"> & Partial<Pick<WatchedValue, "ts" | "kind">>>, dropped?: number): Promise<void>
   stop(): Promise<void>
 }
 interface TestHostOptions { config?: unknown; store?: Record<string, unknown>; instanceId?: string; slug?: string /* default "test" */ }

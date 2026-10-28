@@ -62,3 +62,11 @@ How much it takes depends on how often values change. A typical installation, wh
 change a few times an hour, needs a few MB a year. 500 signals that change every 10 seconds need
 about 130 MB a day with all signals recorded. The History page shows what is stored and an estimate
 at the last hour's rate; on a Raspberry Pi with an SD card, prefer "selected signals" or an SSD.
+
+## Exporting to InfluxDB
+
+For Grafana dashboards or keeping values for years at full detail, add an instance of the
+[InfluxDB plugin](../plugins/influxdb.md) and choose its signals on its page, the same way as
+here: all or chosen ones, per Miniserver, plugin instance or signal. It is independent of the
+history: a signal can be exported without being recorded in Nexus, and the other way round.
+

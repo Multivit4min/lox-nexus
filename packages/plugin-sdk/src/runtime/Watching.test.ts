@@ -71,3 +71,9 @@ test("an invalid declaration is refused, not silently ignored", () => {
   assert.throws(() => PluginDescriber.describe(Unnamed), /watches needs a label/)
 })
 
+test("the test host refuses an invalid watched value with the reason instead of waiting for an ack", async () => {
+  const host = await PluginTestHost.start(Exporter)
+  await assert.rejects(host.pushValues([{ signalId: "t", value: Value.number(Number.NaN) }]), /invalid watched values/)
+  await host.stop()
+})
+

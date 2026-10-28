@@ -40,6 +40,8 @@ let unmounted = false
 const wire = (signal: PluginSignalDto) => wiresCard.value?.startNew(signal.kind === "sensor" ? { sourceId: signal.id } : { targetId: signal.id })
 
 const pkg = computed(() => packages.value.find(p => p.id === instance.value?.plugin))
+// an exporter without sensors or actuators has nothing to list (signals of an older version still show)
+const offersSignals = computed(() => !!pkg.value && (pkg.value.description.sensors.length + pkg.value.description.actuators.length > 0 || signals.value.length > 0))
 const running = computed(() => ["running", "degraded"].includes(instance.value?.state ?? ""))
 const stopped = computed(() => ["stopped", "error"].includes(instance.value?.state ?? ""))
 const topics = () => `${instance.value!.plugin}/${instance.value!.slug}/#`
@@ -154,8 +156,8 @@ onUnmounted(() => {
       <AlertDescription>{{ instance.statusMessage }}</AlertDescription>
     </Alert>
     <PanelCard v-if="panel" :panel="panel" :loading="panelLoading" @refresh="refreshPanel" />
-    <PluginSignalsCard v-if="pkg && live" :instance="instance" :description="pkg.description" :signals="signals" :live="live" @changed="loadSignals" @wire="wire" />
     <WatchSelectionCard v-if="pkg?.description.watches" :instance-id="instance.id" :declaration="pkg.description.watches" />
+    <PluginSignalsCard v-if="pkg && live && offersSignals" :instance="instance" :description="pkg.description" :signals="signals" :live="live" @changed="loadSignals" @wire="wire" />
     <WiresCard ref="wiresCard" :owner-id="instance.id" />
     <PluginLogsCard :lines="logs" />
     <Dialog v-model:open="editing">

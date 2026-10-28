@@ -114,7 +114,9 @@ long-lived class, or stop leaves things running. Registering after dispose throw
 
 **Stop order.** When an instance stops, its sensors and actuators are disposed first, then the
 plugin itself (so a plugin's `own()` children, such as a poller, are still alive while signals shut
-down). Teardowns of one object run in reverse registration order.
+down). Teardowns of one object run in reverse registration order. The whole stop, a running
+`watched()` included, has 5 seconds; then the worker is terminated, so keep a last flush on
+dispose shorter than that (the InfluxDB plugin gives its last write 3 seconds).
 
 `after()` and `every()` count elapsed time, not wall-clock time, so a clock step (an NTP sync after
 boot) is not noticed. For a deadline given as a wall-clock time, wait in shorter slices (the

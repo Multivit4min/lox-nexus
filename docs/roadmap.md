@@ -245,7 +245,7 @@ whether every signal is recorded or exported, or only selected ones.
 - **S3: plugins can watch signals** (done). A read-only SDK capability: a plugin declares `watches`, the
   user picks per instance what it sees, the host delivers values in acknowledged batches with a
   bounded queue. Additions within wire version 1.
-- **S4: the `influxdb` plugin.** Line protocol to InfluxDB v2/v3 or v1, batched with retries and a
+- **S4: the `influxdb` plugin** (done). Line protocol to InfluxDB v2/v3 or v1, batched with retries and a
   bounded buffer, a status panel, a Grafana example in the docs.
 
 ## Top risks

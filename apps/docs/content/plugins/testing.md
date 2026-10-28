@@ -127,18 +127,20 @@ The first-party Calendar plugin has a working harness for all of this in
 
 ## Reaching the plugin instance
 
-There is **no supported way** yet to get at the plugin object inside a `PluginTestHost`; an SDK
-accessor is on the backlog. The first-party tests cast to the host's internal runtime, which works
-today but may break when the SDK changes:
+`host.plugin` is the plugin object, typed as your class, for state that signals, `catalog()`,
+`panel()`, `http()` and `status` can't show. Prefer those where you can.
+
+## Watching signals
+
+For a plugin that declares `watches`: `await host.watchSignals([...])` sets the chosen signals
+(calls `watchChanged()`), and `await host.pushValues([...], dropped?)` delivers one batch and
+resolves once `watched()` finished. `ts` defaults to now and `kind` to `"state"`. Values are
+checked like the host's: numbers must be finite, so an invalid value throws with the reason.
 
 ```ts
-function pluginOf(host: PluginTestHost) {
-  return (host as unknown as { runtime: { plugin: MyPlugin } }).runtime.plugin
-}
+await host.watchSignals([{ id: "t", topic: "loxone/home/in/t", label: "Temperature", valueType: "number" }])
+await host.pushValues([{ signalId: "t", value: Value.number(21.5) }])
 ```
-
-Prefer testing through signals, `catalog()`, `panel()`, `http()` and `status` where you can, and
-use the cast only for state those cannot show.
 
 ## Webhooks
 
