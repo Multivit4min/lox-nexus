@@ -200,8 +200,8 @@ first-party plugins load from the workspace until then.
 ### M6: hardening and release
 
 - Recorder to disk.
-- Importer for the old v1 export (on top of the config import added after M3); the format and its
-  mapping are in `docs/legacy-nexus.md`, since the old code is no longer in this repository.
+- ~~Importer for the old v1 export~~: dropped (2026-10-28). Nexus starts fresh; old installations
+  are set up again.
 - Backup of the whole data directory, including plugins, users and values (the config export
   covers only Miniservers, signals and wires) (done, ADR 0014).
 - A Dockerfile for amd64 and arm64 (written; `Dockerfile` and `compose.yaml` at the root, the
@@ -209,8 +209,7 @@ first-party plugins load from the workspace until then.
 - A publish pipeline for the SDK, and a plugin template repo.
 
 **Verify:**
-- A real old export imports.
-- A 24 h soak run keeps the heap flat.
+- A 24 h soak run keeps the heap flat (the user sets it up once everything else is done).
 - An out-of-repo plugin built against the published SDK installs from git.
 
 ### Statistics (S1–S4)

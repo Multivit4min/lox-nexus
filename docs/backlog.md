@@ -58,9 +58,6 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
 - **Rolled-back edits keep inactive wires.** If storing an edited signal fails after the runtime
   change, the signal is put back, but wires the edit made inactive stay inactive until the next
   boot. Storing only fails when runtime and database disagree, so this is rare.
-- **Old v1 exports (M6).** Format and mapping: `legacy-nexus.md`. Open decisions: argon2 hashes
-  (verify them, or ask for new passwords) and per-hook webhook tokens (the webhook plugin has one
-  token per instance).
 
 ## Plugin SDK
 

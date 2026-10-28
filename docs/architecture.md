@@ -308,7 +308,7 @@ marked `@experimental` until a fixture confirms them.
 - **Calendar:** the previous Nexus's `src/integration/calendar/` (iCal, show/hide events). Fix three bugs: the
   event end time is ignored, there is a double fetch, and the ignore list grows forever.
 - **Fronius:** the previous Nexus's `src/integration/fronius/SolarApi.ts`.
-- **Old v1 export:** an importer comes in M6.
+- **Old v1 export:** not imported (decided 2026-10-28); Nexus starts fresh.
 
 
 ## Implementation notes: values, bus and wires (M2)

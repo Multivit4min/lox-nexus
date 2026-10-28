@@ -3,8 +3,8 @@
 Bridges external systems (Home Assistant, Fronius, calendars, …) to **Loxone Miniservers** over the
 Loxone Intercommunication Interface (ICI, UDP). Clean rewrite of the previous Nexus
 (github.com/Multivit4min/loxone-nexus and loxone-nexus-frontend), designed fresh; its known bugs
-are listed in `docs/architecture.md` and `docs/loxone-ici-review.md`, and its export format and
-unported integrations in `docs/legacy-nexus.md`.
+are listed in `docs/architecture.md` and `docs/loxone-ici-review.md`, and its unported
+integrations in `docs/legacy-nexus.md`.
 
 - Architecture and vocabulary: `docs/architecture.md` (read it before larger changes)
 - Decisions: `docs/adr/`
