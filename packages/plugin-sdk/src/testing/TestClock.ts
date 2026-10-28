@@ -28,6 +28,8 @@ interface Timer {
  */
 export class TestClock implements Clock {
   private time: number
+  /** the end of the running advance(); a jump() during it moves the end along */
+  private end: number | undefined
   private seq = 0
   private readonly timers = new Map<number, Timer>()
 
@@ -49,7 +51,7 @@ export class TestClock implements Clock {
   }
 
   setInterval(fn: () => void, ms: number) {
-    const every = Math.max(1, TestClock.delay(ms))
+    const every = TestClock.delay(ms)
     return this.add({ due: this.time + every, seq: 0, fn, every })
   }
 
@@ -66,17 +68,25 @@ export class TestClock implements Clock {
    * Moves the time forward by `ms`, running every timer that comes due on the way at its due time,
    * in order, including timers those callbacks set. After each callback it lets pending promise
    * callbacks and I/O events run once, so async work started by a timer can continue at that time.
-   * @throws RangeError for a negative or non-finite `ms`
+   *
+   * A callback that throws ends the advance: it rejects with that error, the time stays at that
+   * timer's due time and later timers don't run (in production it would be an uncaught exception).
+   * @throws RangeError for a negative or non-finite `ms`; Error while another advance() runs
    */
   async advance(ms: number) {
     if (!Number.isFinite(ms) || ms < 0) throw new RangeError(`advance needs a finite number >= 0, got ${ms}`)
-    const end = this.time + ms
-    for (let timer = this.nextDue(end); timer; timer = this.nextDue(end)) {
-      this.time = Math.max(this.time, timer.due)
-      this.fire(timer)
-      await new Promise(resolve => realSetImmediate(resolve))
+    if (this.end !== undefined) throw new Error("advance() is already running; await it before advancing again")
+    this.end = this.time + ms
+    try {
+      for (let timer = this.nextDue(this.end); timer; timer = this.nextDue(this.end)) {
+        this.time = Math.max(this.time, timer.due)
+        this.fire(timer)
+        await new Promise(resolve => realSetImmediate(resolve))
+      }
+      this.time = this.end
+    } finally {
+      this.end = undefined
     }
-    this.time = end
   }
 
   /**
@@ -86,6 +96,7 @@ export class TestClock implements Clock {
   jump(ms: number) {
     if (!Number.isFinite(ms)) throw new RangeError(`jump needs a finite number, got ${ms}`)
     this.time += ms
+    if (this.end !== undefined) this.end += ms
     for (const timer of this.timers.values()) timer.due += ms
   }
 
@@ -115,8 +126,9 @@ export class TestClock implements Clock {
     timer.fn()
   }
 
+  // like Node: below 1 ms, not a number or beyond the largest timer delay means 1 ms
   private static delay(ms: number) {
-    return Number.isFinite(ms) && ms > 0 ? ms : 0
+    return Number.isFinite(ms) && ms >= 1 && ms <= 2_147_483_647 ? ms : 1
   }
 
   private static ms(time: number | string | Date) {

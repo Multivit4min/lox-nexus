@@ -1,5 +1,5 @@
 import { z } from "zod"
-import type { Clock } from "../lifecycle/Clock.ts"
+import { SystemClock, type Clock } from "../lifecycle/Clock.ts"
 import type { PluginClass } from "../plugin/Plugin.ts"
 import { PluginRuntime } from "../runtime/PluginRuntime.ts"
 import type { Value } from "../values/Value.ts"
@@ -58,7 +58,7 @@ export class PluginTestHost<T extends PluginClass = PluginClass> {
   private nextRequest = 1
   private nextSignal = 1
 
-  private constructor(type: T, store: Record<string, unknown>, clock?: Clock) {
+  private constructor(type: T, store: Record<string, unknown>, private readonly clock: Clock = SystemClock.instance) {
     this.store = { ...store }
     this.runtime = new PluginRuntime(type, message => this.receive(message), clock)
   }
@@ -70,14 +70,19 @@ export class PluginTestHost<T extends PluginClass = PluginClass> {
   static async start<T extends PluginClass>(type: T, options: TestHostOptions = {}): Promise<PluginTestHost<T>> {
     const host = new PluginTestHost(type, options.store ?? {}, options.clock)
     if (options.forwardRejections) host.rejections = new RejectionForwarder(reason => host.unhandledRejection(reason))
-    const done = host.waitFor(message => message.type === "ready" || message.type === "failed")
-    await host.runtime.handle({ type: "init", instanceId: options.instanceId ?? "test", slug: options.slug ?? "test", config: options.config ?? {}, store: host.store })
-    const outcome = await done
-    if (outcome.type === "failed") {
+    try {
+      const done = host.waitFor(message => message.type === "ready" || message.type === "failed")
+      // awaited together, so a timeout of `done` while init still runs is never unhandled
+      const [, outcome] = await Promise.all([
+        host.runtime.handle({ type: "init", instanceId: options.instanceId ?? "test", slug: options.slug ?? "test", config: options.config ?? {}, store: host.store }),
+        done
+      ])
+      if (outcome.type === "failed") throw new Error(outcome.error)
+      return host
+    } catch (error) {
       await host.rejections?.restore()
-      throw new Error(outcome.error)
+      throw error
     }
-    return host
   }
 
   /** describes the class without starting it */
@@ -169,7 +174,7 @@ export class PluginTestHost<T extends PluginClass = PluginClass> {
    * the batch, i.e. its watched() finished. `ts` and `kind` default to now and "state".
    */
   async pushValues(values: Array<Omit<WatchedValue, "ts" | "kind"> & Partial<Pick<WatchedValue, "ts" | "kind">>>, dropped = 0) {
-    const complete = values.map(value => ({ ts: Date.now(), kind: "state" as const, ...value }))
+    const complete = values.map(value => ({ ts: this.clock.now(), kind: "state" as const, ...value }))
     // the worker would ignore an invalid message, and the ack would never come
     const checked = z.array(WatchedValueSchema).safeParse(complete)
     if (!checked.success) throw new Error(`invalid watched values: ${z.prettifyError(checked.error)}`)

@@ -37,7 +37,8 @@ export abstract class Sensor<P extends Plugin = Plugin, Params = unknown> extend
    */
   constructor(readonly plugin: P, readonly params: Params, private readonly output: SensorOutput, readonly signal: SignalInfo = { id: "", label: "" }) {
     super()
-    this.useClock(plugin.clock)
+    // tests may build a sensor without a plugin
+    this.useClock(plugin?.clock)
   }
 
   /** the plugin's clock: `this.clock.now()` instead of `Date.now()`; every() and after() run on it */

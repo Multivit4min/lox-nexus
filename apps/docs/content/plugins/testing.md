@@ -93,7 +93,11 @@ in its sensors and actuators.
   when `advance()` returns. Wait for it the way your plugin lets you (an awaited `refresh()`, or
   polling with `setImmediate`).
 - **`clock.jump(ms)`** steps the time without running anything, like an NTP correction: pending
-  timers keep their remaining delay. Use it to test that a plugin catches a wall-clock step.
+  timers keep their remaining delay. Use it to test that a plugin catches a wall-clock step. (An
+  `after()` longer than about 24.8 days is the exception: it re-measures its rest against the
+  clock in steps, so a jump shortens or lengthens it.)
+- **A timer callback that throws** makes `advance()` reject with that error; the time stays at
+  that timer's due time. Like in Node, a 0 ms timer waits 1 ms.
 - The host's own waits (`next()`, `stop()`) use real timers, so they work with any clock.
 
 The first-party Calendar plugin is tested this way: see

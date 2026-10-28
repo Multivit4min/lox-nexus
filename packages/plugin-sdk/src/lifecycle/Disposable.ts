@@ -36,6 +36,8 @@ export abstract class Disposable implements DisposableLike {
   private disposing: Promise<void> | undefined
   // ES-private, so subclasses can keep their own `clock` fields
   #clock: Clock | undefined
+  // the first Disposable that own()ed this one; the clock is looked up through it when needed
+  #owner: Disposable | undefined
 
   /** true from the moment dispose() starts, not when it finishes */
   get isDisposed() {
@@ -89,17 +91,19 @@ export abstract class Disposable implements DisposableLike {
    * plugin, sensor or actuator reads the time from it (`this.currentClock().now()`).
    */
   protected currentClock(): Clock {
-    return this.#clock ?? SystemClock.instance
+    return this.#clock ?? this.#owner?.currentClock() ?? SystemClock.instance
   }
 
   /**
    * ties the lifetime of a child resource to this object; returns it so construction and
-   * registration fit in one expression. A Disposable child without a clock of its own inherits
-   * this one's (timers it started in its constructor stay on the system clock).
+   * registration fit in one expression. A Disposable child without a clock of its own runs on
+   * this one's, looked up when a timer starts, so a chain of owners (plugin → client → poller)
+   * shares the plugin's clock. Timers a child starts in its constructor, before it is owned, run
+   * on the system clock.
    */
   protected own<T extends DisposableLike>(resource: T): T {
     this.onDispose(() => resource.dispose())
-    if (resource instanceof Disposable) resource.useClock(this.#clock)
+    if (resource instanceof Disposable && (resource as Disposable) !== this) resource.#owner ??= this
     return resource
   }
 

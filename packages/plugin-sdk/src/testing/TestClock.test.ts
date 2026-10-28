@@ -49,6 +49,30 @@ describe("TestClock", () => {
     assert.deepEqual(seen, [3_601_000])
   })
 
+  test("a jump from a callback moves the end of the running advance with it", async () => {
+    const clock = new TestClock(0)
+    clock.setTimeout(() => clock.jump(3_600_000), 100)
+    await clock.advance(1000)
+    assert.equal(clock.now(), 3_601_000)
+  })
+
+  test("like Node, a 0 ms timer waits 1 ms, so a timer that keeps resetting itself can't stall advance()", async () => {
+    const clock = new TestClock(0)
+    let runs = 0
+    const again = () => { runs++; clock.setTimeout(again, 0) }
+    clock.setTimeout(again, 0)
+    await clock.advance(5)
+    assert.equal(runs, 5)
+  })
+
+  test("refuses a second advance while one runs", async () => {
+    const clock = new TestClock(0)
+    clock.setTimeout(() => {}, 10)
+    const first = clock.advance(20)
+    await assert.rejects(clock.advance(5), /already running/)
+    await first
+  })
+
   test("refuses to go backwards or to non-times", async () => {
     const clock = new TestClock(5000)
     await assert.rejects(clock.advance(-1), RangeError)
@@ -87,6 +111,27 @@ class ClockPlugin extends Plugin {
   }
 }
 
+class Poller extends Disposable {
+  readonly fired: number[] = []
+
+  poll() {
+    this.after(10, () => this.fired.push(this.currentClock().now()))
+  }
+}
+
+class Client extends Disposable {
+  // owned while the client has no owner yet: field initializers run before the plugin own()s it
+  readonly poller = this.own(new Poller())
+}
+
+class ChainPlugin extends Plugin {
+  readonly client = this.own(new Client())
+
+  override start() {
+    this.client.poller.poll()
+  }
+}
+
 describe("a plugin on a TestClock", () => {
   test("the plugin, its sensors and its owned children run on the clock it was given", async () => {
     const clock = new TestClock(10_000)
@@ -98,6 +143,25 @@ describe("a plugin on a TestClock", () => {
     assert.deepEqual(emitted, [Value.number(11_000), Value.number(12_000)])
     await host.stop()
     assert.equal(clock.pending, 0, "stopping cleared every timer")
+  })
+
+  test("a chain of owners shares the clock, also when the middle one owned its child before it was owned", async () => {
+    const clock = new TestClock(0)
+    const host = await PluginTestHost.start(ChainPlugin, { clock })
+    await clock.advance(10)
+    assert.deepEqual(host.plugin.client.poller.fired, [10])
+    await host.stop()
+  })
+
+  test("only one host forwards rejections at a time", async () => {
+    const first = await PluginTestHost.start(ClockPlugin, { forwardRejections: true })
+    try {
+      await assert.rejects(PluginTestHost.start(ClockPlugin, { forwardRejections: true }), /forwards rejections already/)
+    } finally {
+      await first.stop()
+    }
+    const second = await PluginTestHost.start(ClockPlugin, { forwardRejections: true })
+    await second.stop()
   })
 
   test("without a clock everything uses the system clock", async () => {
