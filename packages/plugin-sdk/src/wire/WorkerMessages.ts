@@ -36,6 +36,8 @@ export const WorkerMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("response"), requestId: z.int(), ok: z.boolean(), result: z.unknown().optional(), error: text.optional() }),
   /** a sensor or actuator stopped working on its own (its start rejected later, its stream ended) */
   z.object({ type: z.literal("signal.error"), signalId: z.string(), error: text }),
+  /** the sensor works again without a value to send (an entity back as unavailable); clears signal.error */
+  z.object({ type: z.literal("signal.recovered"), signalId: z.string() }),
   /** answer to `ping`, echoing its `seq` */
   z.object({ type: z.literal("pong"), seq: z.int() }),
   /** shutdown finished */

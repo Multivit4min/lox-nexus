@@ -143,3 +143,23 @@ test("the plugin knows its slug, and each sensor and actuator its signal's id an
   await host.stop()
   assert.deepEqual(seen, [`home ${sensor} "Kitchen light"`, `home ${unnamed} ""`, `actuator ${actuator} "Blinds"`])
 })
+
+test("recover() clears a failure once, and only after a fail()", async () => {
+  class Flaky extends Sensor<FlakyPlugin, object> {
+    static readonly id = "flaky"
+    override start() {
+      this.plugin.next = step => (step === "fail" ? this.fail("gone") : step === "recover" ? this.recover() : this.emit(Value.number(1)))
+    }
+  }
+  class FlakyPlugin extends Plugin {
+    static readonly sensors = [Flaky]
+    next: (step: "fail" | "recover" | "emit") => void = () => {}
+  }
+  const host = await PluginTestHost.start(FlakyPlugin)
+  await host.addSensor("flaky")
+  const plugin = (host as unknown as { runtime: { plugin: FlakyPlugin } }).runtime.plugin
+  for (const step of ["recover", "fail", "recover", "recover", "fail", "emit", "recover"] as const) plugin.next(step)
+  await host.stop()
+  const kinds = host.sent.filter(message => ["signal.error", "signal.recovered", "emit"].includes(message.type)).map(message => message.type)
+  assert.deepEqual(kinds, ["signal.error", "signal.recovered", "signal.error", "emit"])
+})

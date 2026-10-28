@@ -49,6 +49,7 @@ abstract class Sensor<P extends Plugin = Plugin, Params = unknown> extends Dispo
   start(): void | Promise<void>
   protected emit(value: Value): void
   protected fail(message: string): void
+  protected recover(): void
 }
 ```
 
@@ -56,7 +57,9 @@ abstract class Sensor<P extends Plugin = Plugin, Params = unknown> extends Dispo
 |---|---|
 | `start()` | A rejection makes adding the signal fail and disposes the sensor. |
 | `emit(value)` | Sends a value to the bus; equal consecutive values are deduped there. No-op after dispose. |
-| `fail(message)` | The sensor can't deliver any more; shown on the signal until the next `emit()`. |
+| `fail(message)` | The sensor can't deliver any more; shown on the signal until the next `emit()` or `recover()`. |
+| `recover()` | The failure is over although there is no value to send (an entity back as "unavailable"). Only tells the host after a `fail()`, so it is cheap to call on every change. |
+| `signal` | `{ id, label }` of the configured signal this sensor is; label `""` with hosts that don't send it. |
 
 Static declarations ([`SensorClass`](../reference/sdk/@lox-nexus/plugin-sdk.md#sensorclass)):
 
@@ -67,7 +70,7 @@ static readonly params?: z.ZodType               // default: empty object; valid
 static readonly valueType?: ValueType | "any"    // what emit() sends; default "any"
 ```
 
-`SensorOutput`: `{ emit(value: Value): void; fail(message: string): void }`, the runtime's side, not used by plugin code.
+`SensorOutput`: `{ emit(value: Value): void; fail(message: string): void; recover?(): void }`, the runtime's side, not used by plugin code.
 
 ### Actuator ([reference](../reference/sdk/@lox-nexus/plugin-sdk.md#abstract-actuator))
 

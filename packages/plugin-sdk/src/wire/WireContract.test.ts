@@ -31,6 +31,7 @@ const worker = [
   { type: "store.delete", key: "k" },
   { type: "response", requestId: 1, ok: false, error: "e" },
   { type: "signal.error", signalId: "s", error: "e" },
+  { type: "signal.recovered", signalId: "s" },
   { type: "pong", seq: 1 },
   { type: "stopped" }
 ]

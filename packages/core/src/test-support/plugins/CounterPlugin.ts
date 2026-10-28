@@ -2,7 +2,7 @@ import { EventEmitter } from "node:events"
 import { Actuator, Plugin, Sensor, z } from "@lox-nexus/plugin-sdk"
 import { Value } from "@lox-nexus/plugin-sdk/values"
 
-/** emits its start value, then whatever the "set" actuator receives; 404 (also as the start value) makes it report a failure */
+/** emits its start value, then whatever the "set" actuator receives; 404 (also as the start value) makes it report a failure, 410 recover from it */
 class ValueSensor extends Sensor<CounterPlugin, { start: number }> {
   static readonly id = "value"
   static readonly params = z.object({ start: z.number() })
@@ -15,6 +15,7 @@ class ValueSensor extends Sensor<CounterPlugin, { start: number }> {
 
   private report(n: number) {
     if (n === 404) this.fail("not found")
+    else if (n === 410) this.recover()
     else this.emit(Value.number(n))
   }
 }

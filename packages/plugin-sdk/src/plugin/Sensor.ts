@@ -8,8 +8,10 @@ import type { SignalInfo } from "./SignalInfo.ts"
 export interface SensorOutput {
   /** sends a value to the bus, tagged with the cause of the work that is running (see Actuator) */
   emit(value: Value): void
-  /** the sensor stopped working after it started; shown on the signal until it emits again */
+  /** the sensor stopped working after it started; shown on the signal until it emits or recovers */
   fail(message: string): void
+  /** the failure is over although there is no value to send; optional for outputs made elsewhere */
+  recover?(): void
 }
 
 /**
@@ -37,17 +39,34 @@ export abstract class Sensor<P extends Plugin = Plugin, Params = unknown> extend
     super()
   }
 
+  // whether a fail() is still showing, so recover() only tells the host when there is something to clear
+  private failed = false
+
   /** Starts producing values; a rejection makes adding the signal fail and disposes the sensor. */
   start(): void | Promise<void> {}
 
-  /** sends a value to the bus; equal consecutive values are deduped there */
+  /** sends a value to the bus (equal consecutive values are deduped there); clears a reported failure */
   protected emit(value: Value) {
-    if (!this.isDisposed) this.output.emit(value)
+    if (this.isDisposed) return
+    this.failed = false
+    this.output.emit(value)
   }
 
-  /** reports that the sensor can't deliver values anymore, e.g. the entity it follows was deleted; the next emit() clears it */
+  /** reports that the sensor can't deliver values anymore, e.g. the entity it follows was deleted; the next emit() or recover() clears it */
   protected fail(message: string) {
-    if (!this.isDisposed) this.output.fail(message)
+    if (this.isDisposed) return
+    this.failed = true
+    this.output.fail(message)
+  }
+
+  /**
+   * Clears a failure reported with fail() when the sensor works again but has no value to send
+   * (an entity back as "unavailable"). Cheap to call often: it only tells the host after a fail().
+   */
+  protected recover() {
+    if (this.isDisposed || !this.failed) return
+    this.failed = false
+    this.output.recover?.()
   }
 }
 

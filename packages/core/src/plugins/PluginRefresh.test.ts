@@ -100,3 +100,14 @@ test("an orphan stored before a restart is restored (typed any), moves with the 
   assert.equal(supervisor.signals.get("s")?.orphaned, undefined)
   assert.equal(registry.get("s")?.valueType, v1.description.actuators[0]?.valueType)
 })
+
+test("a sensor's failure clears when it recovers without a value", async () => {
+  const supervisor = manager.add({ id: "i1", plugin: "counter", slug: "home", label: "Home", config: {}, enabled: true }, v1)
+  supervisor.signals.add({ id: "v", kind: "sensor", capability: "value", params: { start: 404 }, label: "Value", slug: "value" })
+  supervisor.signals.add({ id: "s", kind: "actuator", capability: "set", params: {}, label: "Set", slug: "set" })
+  await step(supervisor.start())
+  assert.equal(supervisor.signals.get("v")?.error, "not found")
+  await command(410)
+  assert.equal(supervisor.signals.get("v")?.error, undefined)
+  assert.equal(bus.current("counter/home/sensor/value"), undefined, "recovering sends no value")
+})

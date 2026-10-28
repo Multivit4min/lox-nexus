@@ -74,8 +74,6 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
 - **Panels with sections.** A panel is one type (keyValue, table or json). Calendar squeezes facts
   and its upcoming events into keyValue rows; webhook and script put instance-wide counters into
   extra table rows. Allow a list of panels or titled sections (SDK shape plus the web PanelCard).
-- **Sensor `recover()`.** Errors from `fail()` clear on the next `emit()`. A sensor that recovers
-  without a value to send (an entity back as `unavailable`) has no way to clear its error.
 - **Testing host.**
   - Its waits use real timers, so a plugin test that mocks `setTimeout` hangs instead of failing.
     Take a clock, or wait with `setImmediate` loops.

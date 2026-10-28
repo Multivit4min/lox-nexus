@@ -24,7 +24,7 @@ export class InitFailedError extends Error {}
 
 /** Events of a session: plugin messages for the supervisor, and its unexpected end. */
 export interface SessionEvents {
-  /** emit, log, status, store and signal.error messages */
+  /** emit, log, status, store, signal.error and signal.recovered messages */
   message: [message: WorkerMessage]
   output: [stream: "stdout" | "stderr", line: string]
   /** the plugin is gone or broken (exit, out of memory, missed pings, invalid message); not sent for close() */
@@ -107,7 +107,7 @@ export class PluginSession extends Disposable {
   private receive(message: WorkerMessage) {
     if (message.type === "response") return this.requests.settle(message)
     if (message.type === "pong") return void (this.unanswered = 0)
-    if (["emit", "log", "status", "store.set", "store.delete", "signal.error"].includes(message.type)) this.events.emit("message", message)
+    if (["emit", "log", "status", "store.set", "store.delete", "signal.error", "signal.recovered"].includes(message.type)) this.events.emit("message", message)
   }
 
   // a hung plugin can't answer; terminating it makes the exit report the reason

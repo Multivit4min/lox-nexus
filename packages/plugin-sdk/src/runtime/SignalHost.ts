@@ -74,7 +74,8 @@ export class SignalHost {
     const params = SignalHost.parse(Declarations.params(type), spec.params)
     const output = {
       emit: (value: Value) => this.send({ type: "emit", signalId: spec.id, value, ...SignalHost.cause() }),
-      fail: (message: string) => this.send({ type: "signal.error", signalId: spec.id, error: message })
+      fail: (message: string) => this.send({ type: "signal.error", signalId: spec.id, error: message }),
+      recover: () => this.send({ type: "signal.recovered", signalId: spec.id })
     }
     return { kind: "sensor", instance: new type(this.plugin as never, params as never, output, SignalHost.info(spec)) }
   }

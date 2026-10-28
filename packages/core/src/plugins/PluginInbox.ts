@@ -61,6 +61,7 @@ export class PluginInbox {
       case "signal.error":
         signals.setError(message.signalId, message.error)
         return this.target.report(`signal "${message.signalId}" failed: ${message.error}`)
+      case "signal.recovered": return signals.setError(message.signalId, undefined)
       case "status":
         this.current = message.status
         this.note = message.status === "degraded" ? message.message ?? "degraded" : undefined
