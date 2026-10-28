@@ -124,6 +124,8 @@ Each class below lives in its own file under `packages/core/src/bus/`:
     topic means everything wired to it sees the forced value.
   - Optional `until` gives an automatic release. Forces are persisted in a `forces` table and
     survive restarts.
+  - A force on a plugin actuator reaches the device as one command, so it is sent again
+    (`EventBus.replayForce`, unchanged) whenever the plugin (re)starts and has created its signals.
 - **`CausalChain`**: every message carries `id`, `causedBy` and `traceId`. IDs are minted only by
   the host. A wire's command carries its cause into the worker, where the SDK uses
   `AsyncLocalStorage` so that anything a handler emits or logs inherits the cause. The worker's

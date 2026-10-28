@@ -111,3 +111,15 @@ test("a sensor's failure clears when it recovers without a value", async () => {
   assert.equal(supervisor.signals.get("v")?.error, undefined)
   assert.equal(bus.current("counter/home/sensor/value"), undefined, "recovering sends no value")
 })
+
+test("a forced actuator gets its forced command again when the plugin restarts", async () => {
+  const supervisor = manager.add({ id: "i1", plugin: "counter", slug: "home", label: "Home", config: {}, enabled: true }, v1)
+  supervisor.signals.add({ id: "s", kind: "actuator", capability: "set", params: {}, label: "Set", slug: "set" })
+  await step(supervisor.start())
+  bus.force("counter/home/actuator/set", Value.number(7), { by: "david" })
+  await settle()
+  await step(supervisor.stop())
+  await step(supervisor.start())
+  const actuated = transport.last.received.flatMap(message => message.type === "actuate" ? [message.value] : [])
+  assert.deepEqual(actuated, [Value.number(7)], "the new worker got the forced value without anyone sending it")
+})

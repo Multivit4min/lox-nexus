@@ -10,7 +10,7 @@ import { PluginTopics } from "./PluginTopics.ts"
 import type { PluginInstanceConfig, PluginPackage, PluginSignalConfig, SignalValueType } from "./PluginTypes.ts"
 
 /** The slice of EventBus the plugin side needs. */
-export type PluginBus = Pick<EventBus, "publish" | "subscribe" | "result" | "event">
+export type PluginBus = Pick<EventBus, "publish" | "subscribe" | "result" | "event" | "replayForce">
 
 /** A configured signal with its topic and, when the plugin refused it, why. */
 export interface PluginSignalEntry {

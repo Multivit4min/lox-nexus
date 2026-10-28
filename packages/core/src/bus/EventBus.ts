@@ -87,6 +87,20 @@ export class EventBus extends Disposable {
     this.enqueue({ kind: "force", topic, value, options: { source }, extra: { force: info } })
   }
 
+  /**
+   * Delivers an active force again, as when it was set (same value, author, reason, expiry and start
+   * time), e.g. to an actuator whose plugin restarted and may have lost the forced command.
+   * @returns false when the topic isn't forced (or its force has expired)
+   */
+  replayForce(topic: string, source: MessageSource = SYSTEM) {
+    const record = this.forces.get(topic)
+    if (!record || (record.until !== undefined && record.until <= this.clock.now())) return false
+    const { value, by, reason, until, at, kind } = record
+    const info = { by, at, kind, ...(reason === undefined ? {} : { reason }), ...(until === undefined ? {} : { until }) }
+    this.enqueue({ kind: "force", topic, value, options: { source }, extra: { force: info } })
+    return true
+  }
+
   /** Lifts a force and restores the last real value. Does nothing if the topic is not forced. @param reason shown in the inspector, e.g. "expired" */
   release(topic: string, by: string, reason?: string, source: MessageSource = { kind: "user", id: by }) {
     this.enqueue({ kind: "release", topic, options: { source }, extra: reason === undefined ? undefined : { text: reason } })

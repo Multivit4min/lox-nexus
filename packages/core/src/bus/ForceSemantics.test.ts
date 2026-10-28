@@ -92,4 +92,20 @@ describe("forces", () => {
     bus.command(actuator, Value.number(20), plugin)
     assert.deepEqual(delivered.map(m => [m.kind, m.value]), [["command", Value.number(10)], ["command", Value.number(0)]])
   })
+
+  test("replayForce delivers an active force again, unchanged; unforced or expired topics are left alone", () => {
+    const { bus, delivered, clock } = setup()
+    const actuator = "homeassistant/zuhause/actuator/light"
+    const record = () => bus.activeForces().find(force => force.topic === actuator)
+    // the bus learns that the topic carries commands from the first one (in Nexus, from the signal registry)
+    bus.command(actuator, Value.number(10), plugin)
+    bus.force(actuator, Value.number(0), { by: "david", reason: "maintenance", until: clock.now() + 60_000 })
+    const before = record()
+    assert.equal(bus.replayForce(actuator), true)
+    assert.deepEqual(delivered.filter(m => m.kind === "command").map(m => m.value), [Value.number(10), Value.number(0), Value.number(0)])
+    assert.deepEqual(record(), before, "author, reason, expiry and start time stay")
+    assert.equal(bus.replayForce("homeassistant/zuhause/actuator/other"), false)
+    clock.advance(60_000)
+    assert.equal(bus.replayForce(actuator), false, "an expired force isn't sent again")
+  })
 })

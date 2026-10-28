@@ -21,12 +21,19 @@ export class PluginCalls {
   constructor(
     private readonly session: () => PluginSession | undefined,
     private readonly signals: () => PluginSignals,
-    private readonly bus: Pick<PluginBus, "result">
+    private readonly bus: Pick<PluginBus, "result" | "replayForce">
   ) {}
 
-  /** creates every configured signal in a freshly started plugin; a refusal is kept on the signal */
+  /**
+   * Creates every configured signal in a freshly started plugin (a refusal is kept on the signal),
+   * then replays forces on its actuators: a force reached the device once, as a command, and a
+   * restarted plugin (or a device that rebooted with it) may no longer match it.
+   */
   async addAll() {
     for (const spec of this.signals().specs()) await this.create(spec).catch(() => undefined)
+    for (const entry of this.signals().list()) {
+      if (entry.config.kind === "actuator" && !entry.orphaned && !entry.error) this.bus.replayForce(entry.topic, this.signals().source)
+    }
   }
 
   /**

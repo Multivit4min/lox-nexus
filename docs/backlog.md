@@ -29,9 +29,6 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
 
 - **Narrow interfaces everywhere.** `Recorder` and `ActiveWire`/`WireEngine` take `Pick<EventBus, ...>`.
   Do the same for services added since.
-- **Forces on actuators after a restart.** A force on an actuator topic is delivered once, as a
-  command. After the plugin crashes and restarts, the device may no longer match the force. Replay
-  active forces on an instance's actuator topics once it is running again.
 - **Message size limits.** Text in worker messages is capped, but `store.set` values, log data and
   responses are not. Plugins are trusted code (ADR 0001), so this is about mistakes, not attacks.
 
