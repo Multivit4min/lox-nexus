@@ -10,6 +10,8 @@ export interface FeedOptions {
 /**
  * Downloads an iCalendar feed. Private feed links carry their token in the URL, so neither the
  * URL nor its path appear in errors: messages name the host only, and are fit for a status line.
+ * Requests are conditional (ETag, Last-Modified) once the server sent validators, so an unchanged
+ * feed costs a 304 instead of a download and a parse.
  */
 export class FeedClient {
   /**
@@ -21,6 +23,8 @@ export class FeedClient {
   readonly host: string
   private readonly url: URL
   private readonly authorization: string | undefined
+  /** validators of the last 200, sent back as If-None-Match / If-Modified-Since */
+  private validators: { etag?: string; lastModified?: string } = {}
 
   constructor(private readonly options: FeedOptions) {
     const url = new URL(options.url.replace(/^webcals?:/i, "https:"))
@@ -35,6 +39,11 @@ export class FeedClient {
     this.authorization = username ? `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}` : undefined
   }
 
+  /** the next request is unconditional again, e.g. after the text it gave couldn't be used */
+  forget() {
+    this.validators = {}
+  }
+
   /** false when the user name or password in a link is broken percent-encoding (https://a%zz@host) */
   static credentialsReadable(link: string) {
     const url = URL.parse(link)
@@ -46,8 +55,12 @@ export class FeedClient {
     }
   }
 
-  /** @returns the feed's text; @throws Error with a message that names the host, never the URL */
-  async fetch(signal?: AbortSignal): Promise<string> {
+  /**
+   * @returns the feed's text, or undefined when it hasn't changed since the last text this client
+   *   returned (HTTP 304)
+   * @throws Error with a message that names the host, never the URL
+   */
+  async fetch(signal?: AbortSignal): Promise<string | undefined> {
     try {
       return await this.request(signal)
     } catch (error) {
@@ -62,14 +75,25 @@ export class FeedClient {
       // refreshes are minutes apart; a pooled keep-alive socket would outlive the plugin's stop
       headers: {
         accept: "text/calendar, */*;q=0.5", connection: "close",
-        ...(this.authorization ? { authorization: this.authorization } : {})
+        ...(this.authorization ? { authorization: this.authorization } : {}),
+        ...(this.validators.etag ? { "if-none-match": this.validators.etag } : {}),
+        ...(this.validators.lastModified ? { "if-modified-since": this.validators.lastModified } : {})
       }
     })
+    if (response.status === 304 && (this.validators.etag || this.validators.lastModified)) {
+      await response.body?.cancel()
+      return undefined
+    }
     if (response.status !== 200) {
       await response.body?.cancel()
       throw new Error(FeedClient.statusMessage(response.status))
     }
-    return await FeedClient.text(response)
+    const text = await FeedClient.text(response)
+    // remembered only once the whole text was read: a 304 must mean "the text you have"
+    const etag = response.headers.get("etag")
+    const lastModified = response.headers.get("last-modified")
+    this.validators = { ...(etag ? { etag } : {}), ...(lastModified ? { lastModified } : {}) }
+    return text
   }
 
   private static statusMessage(status: number) {

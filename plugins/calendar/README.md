@@ -4,7 +4,9 @@ Reads an **iCal feed** (an `.ics` link from Google Calendar, Nextcloud, Outlook,
 calendar) and tells Loxone whether a matching event is on, what it is called and when it starts
 or ends. A `dismiss` actuator hides an occurrence that has been dealt with, e.g. "bins are out".
 
-The plugin reads the feed at start and then once per refresh interval. It expands recurring events
+The plugin reads the feed at start and then once per refresh interval. When the server sends an
+ETag or Last-Modified header, later reads are conditional: an unchanged feed is answered with 304
+and isn't downloaded or parsed again, only expanded for the new time. It expands recurring events
 (RRULE, EXDATE, moved or retitled occurrences via RECURRENCE-ID, cancelled occurrences), all-day
 events and time zones, from a day ago to 400 days ahead. Sensors don't poll: each one sets a
 timer for the exact moment its next event becomes active or ends, and checks again at least every

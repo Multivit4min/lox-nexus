@@ -61,6 +61,7 @@ describe("miniserver API", { timeout: 10_000 }, () => {
     const adopted = await admin.post(`/api/miniservers/${ms.id}/discovered/adopt`, { packetId: "temp", label: "Temperature" })
     assert.equal(adopted.statusCode, 201, adopted.body)
     assert.equal(adopted.json<LoxoneSignalDto>().topic, "loxone/haus/in/temp")
+    assert.equal(app.app.bus.current("loxone/haus/discovered/temp"), undefined, "the discovered value goes with the adoption")
     const arrived = new Promise(resolve => app.app.bus.subscribe("loxone/haus/in/temp", resolve))
     await peer.output("temp", DataType.Analog).resend()
     await arrived

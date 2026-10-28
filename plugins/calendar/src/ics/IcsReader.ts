@@ -1,6 +1,6 @@
 import ical, { type EventInstance, type VEvent } from "node-ical"
 import { Zone } from "../time/Zone.ts"
-import { IcsParser } from "./IcsParser.ts"
+import { IcsParser, type ParseResult } from "./IcsParser.ts"
 import type { Occurrence } from "./Occurrence.ts"
 
 /** What one read of a feed gives: the occurrences in the window, sorted by start, and what was left out. */
@@ -36,7 +36,19 @@ export class IcsReader {
 
   /** @throws Error when the text is not an iCalendar feed */
   read(text: string, now: Date): ReadResult {
-    const { events, skipped } = this.parser.parse(text)
+    return this.occurrences(this.parse(text), now)
+  }
+
+  /** the slow half of read(): it only depends on the text, so an unchanged feed is parsed once */
+  parse(text: string): ParseResult {
+    return this.parser.parse(text)
+  }
+
+  /** the occurrences of a parsed feed in the window around `now` */
+  occurrences(feed: ParseResult, now: Date): ReadResult {
+    const { events } = feed
+    // a copy: the parsed feed is kept for the next expansion
+    const skipped = [...feed.skipped]
     const occurrences: Occurrence[] = []
     const truncated: string[] = []
     for (const event of events) {

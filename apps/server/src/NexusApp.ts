@@ -1,5 +1,8 @@
+import { randomUUID } from "node:crypto"
+import fs from "node:fs"
+import path from "node:path"
 import {
-  EventBus, PluginManager, Recorder, SignalRegistry, SystemClock, WireEngine, WorkerTransport,
+  CausalChain, EventBus, PluginManager, Recorder, SignalRegistry, SystemClock, WireEngine, WorkerTransport,
   type Clock, type PluginTransport, type SupervisorTimings
 } from "@lox-nexus/core"
 import { MiniserverFtp, MiniserverManager, ProjectReader } from "@lox-nexus/loxone"
@@ -10,6 +13,7 @@ import { LoginThrottle } from "./auth/LoginThrottle.ts"
 import { PasswordHasher } from "./auth/PasswordHasher.ts"
 import { SessionService } from "./auth/SessionService.ts"
 import type { Config } from "./config/Config.ts"
+import { DatabaseLock } from "./db/DatabaseLock.ts"
 import { Persistence } from "./db/Persistence.ts"
 import { AuthGuard } from "./http/AuthGuard.ts"
 import { AuthController } from "./http/controllers/AuthController.ts"
@@ -92,9 +96,16 @@ export class NexusApp extends Disposable {
   constructor(private readonly config: Config, private readonly log: Logger, private readonly options: NexusAppOptions = {}) {
     super()
     this.clock = options.clock ?? new SystemClock()
-    this.persistence = new Persistence(options.databaseFile ?? config.databaseFile, message => log.warn(message))
+    const databaseFile = options.databaseFile ?? config.databaseFile
+    if (databaseFile !== ":memory:") {
+      fs.mkdirSync(path.dirname(databaseFile), { recursive: true, mode: 0o700 })
+      const lock = DatabaseLock.acquire(databaseFile)
+      // registered first, so it is released last, after the database is closed
+      this.onDispose(() => lock.release())
+    }
+    this.persistence = new Persistence(databaseFile, message => log.warn(message))
     this.onDispose(() => this.persistence.close())
-    this.bus = this.own(new EventBus({ clock: this.clock, forces: this.persistence.forces, topicKinds: this.signals }))
+    this.bus = this.own(new EventBus({ clock: this.clock, chain: new CausalChain(randomUUID().slice(0, 8)), forces: this.persistence.forces, topicKinds: this.signals }))
     this.recorder = this.own(new Recorder(this.bus))
     this.wires = this.own(new WireEngine(this.bus, this.signals))
     // owned before the Miniservers, so it is disposed after them and saves their last values

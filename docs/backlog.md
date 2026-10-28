@@ -29,11 +29,6 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
 
 - **Narrow interfaces everywhere.** `Recorder` and `ActiveWire`/`WireEngine` take `Pick<EventBus, ...>`.
   Do the same for services added in M3+.
-- **Topics left behind.** A Miniserver slug change leaves forces and snapshot values on the old
-  topics, and an adopted packet's `discovered/<packet>` value stays in the bus until restart.
-  Both are harmless but visible in the inspector. A `RetainedState.forget(topic)` would clean them up.
-- **`node:crypto` in core.** `CausalChain` uses `randomUUID` for its boot id. It's harmless, but
-  the boot id could be injected to keep core strictly IO-free.
 
 ## Server (from the M3b review)
 
@@ -47,10 +42,6 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
 - **Wire input schema in `packages/api`.** `WireBodySchema` lives in the server because the
   transform schemas live in core. The wire editor (M5) needs them in the browser. Move the
   transform schemas to plugin-sdk, or to a dependency-free module.
-- **`SignalDto` has no owner** (Miniserver or plugin instance), which a wire editor needs for
-  grouping.
-- **One process per data dir.** Nothing stops two servers from using the same database. Add an
-  exclusive lock file.
 
 ## Signal editing and config transfer (from the review)
 
@@ -81,11 +72,6 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
 - **Config export and plugins.** The export leaves out plugin instances and wires to plugin
   signals; an import removes Loxone↔plugin wires. Export plugin instances (without secrets) and
   those wires, so a backup is complete.
-- **`export { z }` from the SDK** ties the SDK's public API to zod's major version. Record that in an
-  ADR before the SDK is published.
-- **Test-support classes.** `FakePluginTransport.ts` holds two classes, and a few small error
-  classes live next to the class that throws them. Fine for now; split if they grow.
-
 
 ## Plugin SDK (found while building Home Assistant and Calendar, M5c/M5d)
 
@@ -112,8 +98,6 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
 
 ## First-party plugins
 
-- **Calendar: conditional GET.** Send `If-None-Match`/`If-Modified-Since`, so an unchanged feed
-  isn't downloaded and parsed (seconds of blocking work for big feeds) every 15 minutes.
 - **Home Assistant: live actuator test.** Service calls are only tested against the simulated
   server; run them against the real instance once the user names entities that may be switched.
 - **Home Assistant: events.** No `subscribe_events` (e.g. `zha_event` buttons), `input_datetime`,

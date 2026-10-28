@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto"
 import { BoundedIndex } from "./BoundedIndex.ts"
 import type { Cause } from "./BusMessage.ts"
 
@@ -21,10 +20,12 @@ export class CausalChain {
   private readonly recent: BoundedIndex<Cause>
 
   /**
-   * @param bootId prefix that keeps ids unique across restarts; random by default
+   * @param bootId prefix that keeps ids unique across restarts. The server passes a
+   *   cryptographically random one; the default (Math.random) is enough for tests and keeps core
+   *   free of node:crypto.
    * @param capacity how many recent causes stay resolvable (see resolve())
    */
-  constructor(private readonly bootId = randomUUID().slice(0, 8), capacity = 50_000) {
+  constructor(private readonly bootId = Math.random().toString(36).slice(2, 10).padEnd(8, "0"), capacity = 50_000) {
     this.recent = new BoundedIndex(capacity)
   }
 

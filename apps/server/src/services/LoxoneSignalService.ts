@@ -100,17 +100,21 @@ export class LoxoneSignalService {
    * Turns a discovered packet id into an input signal of the data type it was seen with.
    * @throws HttpError 404 for a packet that was not discovered, 400 for a data type the bridge can't map
    */
-  adopt(miniserverId: string, input: AdoptPacket): LoxoneSignalDto {
-    const packet = this.require(miniserverId).discovery.list().find(entry => entry.packetId === input.packetId)
+  adopt(miniserverId: string, input: AdoptPacket, by: string): LoxoneSignalDto {
+    const miniserver = this.require(miniserverId)
+    const packet = miniserver.discovery.list().find(entry => entry.packetId === input.packetId)
     if (!packet) throw HttpError.notFound(`discovered packet "${input.packetId}"`)
     if (!LoxoneSignalInputSchema.shape.dataType.safeParse(packet.dataType).success) throw HttpError.badRequest(`data type ${packet.dataType} is not supported`)
     // an RGBW packet that discovery decoded as a colour temperature came from a Lumitech output:
     // adopted without the option, the temperature it showed would be lost
     const lumitech = packet.dataType === 4 && packet.value?.type === "tunableWhite"
-    return this.add(miniserverId, LoxoneSignalInputSchema.parse({
+    const signal = this.add(miniserverId, LoxoneSignalInputSchema.parse({
       packetId: packet.packetId, direction: "in", dataType: packet.dataType, label: input.label ?? packet.packetId, slug: input.slug,
       ...(lumitech ? { lumitech } : {})
     }))
+    // the signal's own topic shows the values now; the discovered one would linger until restart
+    this.cleanup.forget(miniserver.topics.discovered(packet.packetId), by)
+    return signal
   }
 
   // @throws HttpError 404

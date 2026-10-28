@@ -92,3 +92,14 @@ describe("IcsReader", () => {
     assert.throws(() => vienna.read("<html><body>Login</body></html>", NOW), /not an iCalendar feed \(starts with "<html>/)
   })
 })
+
+test("a parsed feed can be expanded again later: the window moves, the skipped list doesn't grow", () => {
+  const text = calendar(["UID:daily", "SUMMARY:Daily", "DTSTART:20261001T090000Z", "DTEND:20261001T100000Z", "RRULE:FREQ=DAILY"], ["UID:broken", "SUMMARY:Broken"])
+  const feed = vienna.parse(text)
+  const now = vienna.occurrences(feed, NOW)
+  const later = vienna.occurrences(feed, new Date(NOW.getTime() + 30 * 24 * 3_600_000))
+  assert.deepEqual(now.occurrences, vienna.read(text, NOW).occurrences)
+  assert.ok(later.occurrences[0]!.start.getTime() > now.occurrences[0]!.start.getTime(), "a month later starts later")
+  assert.deepEqual(later.skipped, now.skipped)
+  assert.deepEqual(feed.skipped, vienna.parse(text).skipped)
+})

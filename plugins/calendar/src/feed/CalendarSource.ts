@@ -1,5 +1,6 @@
 import { Disposable, type PluginLogger } from "@lox-nexus/plugin-sdk"
 import type { Agenda } from "../agenda/Agenda.ts"
+import type { ParseResult } from "../ics/IcsParser.ts"
 import type { IcsReader, ReadResult } from "../ics/IcsReader.ts"
 import type { FeedClient } from "./FeedClient.ts"
 
@@ -22,6 +23,8 @@ export class CalendarSource extends Disposable {
   truncated: string[] = []
   private inFlight: Promise<void> | undefined
   private readonly abort = new AbortController()
+  /** the last feed parsed, reused while the server answers 304 */
+  private parsed: ParseResult | undefined
 
   constructor(
     private readonly client: FeedClient,
@@ -71,13 +74,28 @@ export class CalendarSource extends Disposable {
     try {
       const text = await this.client.fetch(this.abort.signal)
       const at = new Date()
-      const result = this.reader.read(text, at)
+      const feed = this.parse(text)
+      const result = this.reader.occurrences(feed, at)
       this.noteLeftOut(result)
       return { ok: true, result, at }
     } catch (error) {
       const problem = error instanceof Error ? error.message : String(error)
       // a feed that answers but isn't a calendar is named by host too: the message may not carry it
       return { ok: false, problem: problem.startsWith(`${this.client.host}:`) ? problem : `${this.client.host}: ${problem}` }
+    }
+  }
+
+  // unchanged since the last read (304): the parsed events are still right, only "now" moved
+  private parse(text: string | undefined) {
+    if (text === undefined && this.parsed) return this.parsed
+    try {
+      this.parsed = this.reader.parse(text ?? "")
+      return this.parsed
+    } catch (error) {
+      // the next request asks for the whole feed again, or a 304 would keep pointing at this text
+      this.client.forget()
+      this.parsed = undefined
+      throw error
     }
   }
 

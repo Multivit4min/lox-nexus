@@ -87,7 +87,7 @@ Everything is configured through environment variables. Empty variables count as
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `NEXUS_DATA_DIR` | `./data` | Where everything persistent lives: the SQLite database `nexus.db` (Miniservers, signals, wires, users, forces, plugin state). Back this directory up. |
+| `NEXUS_DATA_DIR` | `./data` | Where everything persistent lives: the SQLite database `nexus.db` (Miniservers, signals, wires, users, forces, plugin state) and the installed plugins. Back this directory up. Only one Nexus can use it at a time: a second one refuses to start (`nexus.db.lock` names the running process). |
 | `NEXUS_HTTP_HOST` | `0.0.0.0` | Address the web server binds to. |
 | `NEXUS_HTTP_PORT` | `8080` | Port of the web server. |
 | `NEXUS_LOG_LEVEL` | `info` | `fatal`, `error`, `warn`, `info`, `debug`, `trace` or `silent`. |

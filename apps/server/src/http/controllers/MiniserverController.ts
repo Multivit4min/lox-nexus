@@ -88,7 +88,7 @@ export class MiniserverController implements Controller {
     })
     app.get("/api/miniservers/:id/discovered", request => this.signals.discovered(MiniserverController.id(request)))
     app.post("/api/miniservers/:id/discovered/adopt", (request, reply) =>
-      reply.code(201).send(this.signals.adopt(MiniserverController.id(request), AdoptPacketSchema.parse(request.body))))
+      reply.code(201).send(this.signals.adopt(MiniserverController.id(request), AdoptPacketSchema.parse(request.body), request.user!.username)))
   }
 
   private static id(request: FastifyRequest) {
