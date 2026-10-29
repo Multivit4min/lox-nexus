@@ -95,8 +95,9 @@ export class StreamClient extends Disposable {
   // the full snapshot is sent before subscribing; both run synchronously, so no change can fall between them
   private subscribeState(pattern: string) {
     this.send({ type: "state", messages: this.bus.currentMatching(pattern), full: true })
+    // a forced command (a plugin actuator) is the topic's current value until released, as a state is
     const states = this.bus.subscribe(pattern, message => {
-      if (message.kind === "state") this.states.set(message.topic, message)
+      if (message.kind === "state" || message.flags?.forced) this.states.set(message.topic, message)
     })
     // subscribe() doesn't deliver releases; they matter when no value is restored
     const releases = this.bus.tap(message => {
