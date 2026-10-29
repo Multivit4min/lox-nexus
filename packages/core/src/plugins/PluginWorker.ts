@@ -1,9 +1,10 @@
 import { EventEmitter } from "node:events"
 import { createInterface } from "node:readline"
 import { pathToFileURL } from "node:url"
+import type { EventLoopUtilization } from "node:perf_hooks"
 import { Worker } from "node:worker_threads"
 import { WIRE_VERSION, WorkerMessageSchema, type HostMessage, type PluginWorkerData } from "@lox-nexus/plugin-sdk/wire"
-import type { PluginConnection, PluginConnectionEvents } from "./PluginTransport.ts"
+import type { ConnectionStats, PluginConnection, PluginConnectionEvents } from "./PluginTransport.ts"
 
 /** Options for the worker of each plugin. */
 export interface WorkerOptions {
@@ -24,6 +25,7 @@ export class PluginWorker extends EventEmitter<PluginConnectionEvents> implement
   private readonly worker: Worker
   private failure: string | undefined
   private gone = false
+  private lastLoop: EventLoopUtilization | undefined
 
   /** Starts the worker at once; it inherits the host's execArgv, so `--import tsx` runs TypeScript entries in development. */
   constructor(entry: string, options: WorkerOptions = {}) {
@@ -53,6 +55,24 @@ export class PluginWorker extends EventEmitter<PluginConnectionEvents> implement
 
   async terminate() {
     if (!this.gone) await this.worker.terminate()
+  }
+
+  async stats(): Promise<ConnectionStats | undefined> {
+    if (this.gone) return undefined
+    try {
+      const heap = await this.worker.getHeapStatistics()
+      const loop = this.worker.performance.eventLoopUtilization()
+      // from the raw totals, clamped: a worker's "active" comes from two clocks and jitters by
+      // fractions of a millisecond, so readings close together can give a delta below zero
+      const active = loop.active - (this.lastLoop?.active ?? 0)
+      const idle = loop.idle - (this.lastLoop?.idle ?? 0)
+      this.lastLoop = loop
+      const utilization = active + idle > 0 ? Math.min(1, Math.max(0, active / (active + idle))) : 0
+      return { heapUsed: heap.used_heap_size, heapTotal: heap.total_heap_size, utilization }
+    } catch {
+      // the worker ended while it was asked
+      return undefined
+    }
   }
 
   // a type this host doesn't know comes from a newer SDK and is skipped; a known type with a wrong shape means the plugin is broken

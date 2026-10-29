@@ -13,11 +13,22 @@ export interface PluginConnectionEvents {
   exit: [reason: string]
 }
 
+/** What a running plugin uses, for the diagnostics page. */
+export interface ConnectionStats {
+  /** bytes of its own JavaScript heap */
+  heapUsed: number
+  heapTotal: number
+  /** share of the time its event loop was busy since the previous call (since its start for the first), 0 to 1 */
+  utilization: number
+}
+
 /** One running plugin, however it is isolated (a worker thread today, a process later). */
 export interface PluginConnection extends Listenable {
   send(message: HostMessage): void
   /** ends it at once, e.g. after the shutdown grace period; resolves once it is gone */
   terminate(): Promise<void>
+  /** undefined once it is gone, or where the transport can't measure it */
+  stats?(): Promise<ConnectionStats | undefined>
 }
 
 /** Starts plugins. The seam that keeps a later switch to child processes open (ADR 0001). */

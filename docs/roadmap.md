@@ -211,7 +211,9 @@ first-party plugins load from the workspace until then.
   (done, ADR 0015).
 
 **Verify:**
-- A 24 h soak run keeps the heap flat (the user sets it up once everything else is done).
+- A 24 h soak run keeps the heap flat (the user sets it up once everything else is done). The
+  System page (user menu, `/#/system`, guide: diagnostics) samples memory, event loop, plugin workers,
+  traffic and disk for 48 h and gives a flat or growing verdict per heap.
 - An out-of-repo plugin built against the published SDK installs from git.
 
 ### Statistics (S1–S4)

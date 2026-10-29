@@ -1901,6 +1901,39 @@ Plan and reasons: ADR 0014; the user guide is `apps/docs/content/guide/backup.md
   frame and is shown) and `BackupRestoreCard` (check, then restore and restart, or at the next
   start when Nexus can't restart itself).
 
+## Implementation notes: system diagnostics (M6)
+
+For the 24 h soak run and for finding out what a live installation does. The page (`/#/system`) is
+in the user menu; the API is behind the login like the rest.
+
+- **`DiagnosticsSampler`** (server, `diagnostics/`) takes a sample every 30 s and keeps 48 h in a
+  `RingBuffer` (5760 samples, about 6 MB), in memory only. A sample is the process
+  (`ProcessSampler`: `memoryUsage`, CPU from `cpuUsage` deltas, event-loop delay from a
+  `monitorEventLoopDelay` histogram at 20 ms resolution, reset per sample, with the timer period
+  subtracted because the histogram records the whole time between ticks, utilization from
+  `eventLoopUtilization` deltas), the bus rate (a `tap` counter), retained topics, live
+  connections, wires, disk use (`StorageSizes`), each running plugin worker and each Miniserver's
+  ICI rate. The first sample comes one interval after the app starts (`startedAt` is the app's
+  start: a restore restarts Nexus within the process). A sample still being taken makes the next
+  one skip; a worker gets 5 s to answer (`DiagnosticsAssembly`), so one blocked in a native call
+  can't hold up sampling; a failing source logs and leaves a gap. `?since=` keeps the page's polls
+  small.
+- **Plugin workers** report through `PluginConnection.stats()` (optional, so other transports may
+  leave it out): `Worker.getHeapStatistics()` and the worker's `eventLoopUtilization`, as a delta
+  of the raw totals, clamped to 0 to 1 because a worker's "active" comes from two clocks and
+  jitters.
+- **API.** `GET /api/diagnostics` (`DiagnosticsDto`) and `GET /api/diagnostics/samples.csv`
+  (`DiagnosticsCsv`: a row per sample, columns per worker and Miniserver by label; labels that
+  look like spreadsheet formulas get a leading `'`).
+- **UI** (`SystemView`, in the user menu): figures of the latest sample, the heap verdicts
+  (`HeapTrend`: 10 minutes of warm-up after the start and after every gap, the lowest value per
+  complete 10-minute window (80% of its samples), a least-squares line through them; flat while a
+  day at that rate adds less than 5% of the floor, at least 2 MiB), and charts per unit
+  (`SystemCharts`, `MetricChartGeometry`: the average per two pixels is drawn, the highest for
+  peak lines such as the loop delay's p99 and max, the pointer reads raw samples, gaps of more
+  than 2.5 intervals break the line; up to eight lines in the categorical palette
+  `--viz-cat-1…8`). The page polls with `since` and drops what is older than 48 h.
+
 ## Dependencies (installed in the milestone that first needs them)
 
 | Where | Packages |

@@ -14,8 +14,12 @@ export class Database {
   private readonly statements = new Map<string, StatementSync>()
   private depth = 0
 
+  /** where it is stored; undefined in memory */
+  readonly file: string | undefined
+
   /** @param file a path, or ":memory:" for tests. The directory is created with mode 0700 since the file holds password hashes and Miniserver passwords. */
   constructor(file: string) {
+    this.file = file === ":memory:" ? undefined : file
     if (file !== ":memory:") fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 })
     this.db = new DatabaseSync(file)
     if (file !== ":memory:") fs.chmodSync(file, 0o600)

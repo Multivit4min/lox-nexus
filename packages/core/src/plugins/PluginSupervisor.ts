@@ -91,6 +91,11 @@ export class PluginSupervisor extends Disposable {
     return this.current
   }
 
+  /** what the running plugin uses, for diagnostics; undefined while it doesn't run */
+  stats() {
+    return this.session?.stats() ?? Promise.resolve(undefined)
+  }
+
   /** why it last failed to start or crashed; cleared by a successful start */
   get lastError() {
     return this.failure

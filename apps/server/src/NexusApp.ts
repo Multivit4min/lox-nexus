@@ -11,6 +11,7 @@ import type { Logger } from "pino"
 import { AuthService } from "./auth/AuthService.ts"
 import { LoginThrottle } from "./auth/LoginThrottle.ts"
 import { PasswordHasher } from "./auth/PasswordHasher.ts"
+import { SessionPruner } from "./auth/SessionPruner.ts"
 import { SessionService } from "./auth/SessionService.ts"
 import type { Config } from "./config/Config.ts"
 import { DatabaseLock } from "./db/DatabaseLock.ts"
@@ -29,6 +30,7 @@ import { HttpServer } from "./http/HttpServer.ts"
 import { SessionCookie } from "./http/SessionCookie.ts"
 import { PluginAssembly, type InstallOptions } from "./plugins/PluginAssembly.ts"
 import type { PluginCatalog } from "./plugins/PluginCatalog.ts"
+import { DiagnosticsAssembly } from "./diagnostics/DiagnosticsAssembly.ts"
 import { ConfigTransfer } from "./services/ConfigTransfer.ts"
 import { ImportJournal } from "./services/ImportJournal.ts"
 import { LoxoneProjectService } from "./services/LoxoneProjectService.ts"
@@ -208,7 +210,7 @@ export class NexusApp extends Disposable {
   private createHttp({ miniservers, loxoneSignals, wires, plugins, pluginSignals, transfer, lock }: Services) {
     const { persistence: db, clock, config, log } = this
     const sessions = new SessionService(db.sessions, clock)
-    this.every(60 * 60 * 1000, () => this.pruneSessions(sessions))
+    this.own(new SessionPruner(sessions, log))
     const auth = new AuthService(db.db, db.users, sessions, new PasswordHasher(this.options.hasherCost), clock)
     const cookie = new SessionCookie(config.secureCookies)
     const stream = this.own(new BusStream(this.bus, auth, sessions, cookie))
@@ -230,18 +232,10 @@ export class NexusApp extends Disposable {
         new PluginPackageController(this.pluginAssembly.packages(plugins)),
         ...this.history.controllers(id => plugins.watches(id)),
         BackupAssembly.controller(config, { main: db.db, history: this.history.database.db }, this.options.restart, log),
+        this.own(new DiagnosticsAssembly(this, config, clock, log)).controller(),
         stream
       ],
       publicControllers: [new HookController(this.plugins)]
     })
-  }
-
-  // a timer callback must not throw: a busy database here would otherwise crash the process
-  private pruneSessions(sessions: SessionService) {
-    try {
-      sessions.prune()
-    } catch (error) {
-      this.log.warn({ err: error }, "removing expired sessions failed")
-    }
   }
 }

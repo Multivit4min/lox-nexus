@@ -1,4 +1,5 @@
 // Public surface of @lox-nexus/core: the bus, its supporting types, and the wire engine.
+export { RingBuffer } from "./bus/RingBuffer.ts"
 export type { BusMessage, Cause, ForceInfo, MessageFlags, MessageKind, MessageSource } from "./bus/BusMessage.ts"
 export { BUS_ERROR_TOPIC, EventBus, type EventBusOptions } from "./bus/EventBus.ts"
 export type { PublishOptions } from "./bus/Pending.ts"
@@ -22,7 +23,7 @@ export { WirePreview, type PreviewStep, type WirePreviewResult } from "./wires/W
 export { TransformSchema, WireSchema, type TransformConfig, type WireConfig, type WireInput } from "./wires/WireSchema.ts"
 
 export type { PluginInstanceConfig, PluginLogSink, PluginPackage, PluginSignalConfig, PluginState, PluginStateStore, SignalValueType } from "./plugins/PluginTypes.ts"
-export type { PluginConnection, PluginConnectionEvents, PluginTransport } from "./plugins/PluginTransport.ts"
+export type { ConnectionStats, PluginConnection, PluginConnectionEvents, PluginTransport } from "./plugins/PluginTransport.ts"
 export { PluginWorker, type WorkerOptions } from "./plugins/PluginWorker.ts"
 export { WorkerTransport } from "./plugins/WorkerTransport.ts"
 export { PluginInbox, type InboxTarget } from "./plugins/PluginInbox.ts"

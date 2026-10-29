@@ -40,6 +40,18 @@ describe("plugins in real worker threads (chaos fixtures)", { timeout: 60_000 },
   })
   afterEach(() => manager.dispose())
 
+  test("a running worker reports its heap and event loop use; a stopped one nothing", async () => {
+    const counter = { id: "counter", name: "Counter", entry: entry("counter"), description: await PluginTestHost.describe(CounterPlugin) }
+    const running = manager.add(instance("measured", "counter"), counter)
+    await running.start()
+    const first = await running.stats()
+    assert.ok(first && first.heapUsed > 0 && first.heapTotal >= first.heapUsed, JSON.stringify(first))
+    const second = await running.stats()
+    assert.ok(second && second.utilization >= 0 && second.utilization <= 1, JSON.stringify(second))
+    await running.stop()
+    assert.equal(await running.stats(), undefined)
+  })
+
   test("a plugin that throws in start ends in error; one that never says hello is reported", async () => {
     const counter = { id: "counter", name: "Counter", entry: entry("counter"), description: await PluginTestHost.describe(CounterPlugin) }
     const refusing = manager.add({ ...instance("refusing", "counter"), config: { refuse: true } }, counter)

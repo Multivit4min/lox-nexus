@@ -94,6 +94,11 @@ export class PluginSession extends Disposable {
     return result
   }
 
+  /** what the plugin uses (heap, event loop); undefined where the transport can't tell */
+  stats() {
+    return this.connection.stats?.() ?? Promise.resolve(undefined)
+  }
+
   /** asks the plugin to stop, waits up to the grace period, then terminates it */
   async close() {
     if (this.over) return this.dispose()

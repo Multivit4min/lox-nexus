@@ -10,7 +10,8 @@
         "guide/loxone.md",
         "guide/wires.md",
         "guide/history.md",
-        "guide/backup.md"
+        "guide/backup.md",
+        "guide/diagnostics.md"
       ]
     },
     {
