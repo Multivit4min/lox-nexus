@@ -6,3 +6,4 @@ manifest in its package.json.
 
 - Integrations of the previous Nexus that aren't plugins yet are described in `docs/legacy-nexus.md`. Design fresh classes from that.
 - Test with `PluginTestHost` from `@lox-nexus/plugin-sdk/testing`.
+- Documentation: a short `README.md` and a `REFERENCE.md` in the format of `plugins/README-FORMAT.md`.

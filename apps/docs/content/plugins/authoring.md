@@ -733,7 +733,7 @@ export default class InfluxPlugin extends Plugin<InfluxConfig> {
   (chosen, left out, renamed). It is optional to override.
 - **`watched(values, dropped)`** gets batches of up to 1000 values, **oldest first**. The first
   batch holds the current value of each chosen signal (`initial: true`; actuators have none unless
-  forced). After that come the changes as the bus shows them: forced values are marked `forced`, and
+  forced), and a signal added to the choice later also starts with its current value. After that come the changes as the bus shows them: forced values are marked `forced`, and
   commands to actuators have `kind: "command"`. `ts` is epoch milliseconds.
 - **Callbacks never overlap**, and a batch always meets the list it was sent with. On shutdown, a
   running `watched()` finishes before the plugin is disposed.
@@ -766,6 +766,7 @@ Everything numeric in one place. Keep these in mind and you will rarely meet the
 | Answer of `catalog()`, `panel()` or a webhook | 16 MiB as JSON |
 | Panel sections, catalog unit | 20, 32 characters |
 | Webhook calls in flight per instance | 8 (429 beyond) |
+| Body of a webhook call | 1 MiB (the server answers 413 beyond) |
 | Watch batch, queue | 1000 values, 20 000 values |
 
 ## Rules

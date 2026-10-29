@@ -1,197 +1,65 @@
 # Webhook plugin
 
 Lets other systems push to Loxone over plain HTTP: a doorbell, a NAS, a weather station, an
-automation service, a script with `curl`. Each call to a hook can fire a short **pulse** (a
-trigger) and hand **values** from the call to the bus (a number, a text, an on/off state), read
-from the JSON body, a query parameter, a form field or the raw body.
+automation service or a script with `curl` calls a URL on Nexus. Each call can fire a short pulse
+and hand values from the call to the bus. Values only flow in; the plugin sends nothing back.
 
-The plugin has no actuators, no catalog (hook names are yours to choose, there is nothing to
-browse) and no connection to keep, so it is always **running**.
+## What it does
 
-## URLs
+- **Sensors:** a pulse for each call to a hook, and a number, text or on/off value read from the
+  call (JSON body, query parameter, form field or the whole body).
+- **Panel:** the token and how callers send it, a row per hook with its signals, call count and
+  last result, and the calls that were refused.
 
-Every hook of an instance is reachable at
+## Before you start
 
-```
-https://<nexus>/hook/<instance slug>/<hook name>
-```
+- A caller that can make an HTTP request to Nexus: `GET`, `POST` or `PUT` to
+  `https://<nexus>/hook/<instance slug>/<hook name>`, with the token in a header or in the URL.
+- Network access from the caller to Nexus. Hook URLs need no Nexus login, so put HTTPS in front of
+  Nexus when callers reach it over a network you don't trust.
+- A hook name for each thing that calls: lowercase letters, digits, `.`, `_` and `-`, up to 64
+  characters, e.g. `doorbell` or `pv.export`. You choose it in the signal; there is nothing to
+  browse.
 
-`<instance slug>` is the slug you gave the instance; `<hook name>` is the `hook` param of its
-signals. Hook names are lowercase letters, digits, `.`, `_` and `-`, start with a letter or digit,
-and are at most 64 characters (`doorbell`, `pv.export`, `garage-door_2`). A trailing slash is
-ignored.
+## Configuration
 
-Several signals may share a hook name: one call then reaches all of them, for example a trigger
-plus a value from the same body. A hook exists while at least one signal uses it.
-
-## Config
-
-| Field | | |
+| Field | | Description |
 |---|---|---|
-| `token` (*Token*) | optional, 16 to 512 visible ASCII characters (no spaces) | The shared token every call must carry. **Generate** next to the field in the instance form fills in a random one (48 hex characters); save to use it, and callers with the old one are refused from then on. Shown in the form and the panel, so it can be copied into the caller. |
+| **Token** (`token`) | optional; no default; not secret (shown in the form and the panel for copying) | The shared token every call must carry. 16 to 512 visible ASCII characters, no spaces. **Generate** next to the field fills in a random one (48 hex characters, e.g. `3f6c0a…`); save to use it. Empty: every call is accepted. One token per instance; callers that shouldn't share one get their own instance. |
 
-One token per instance. Different callers that shouldn't share a token get their own instance.
+## Sensors and actuators
 
-**Without a token every call is accepted**: anyone who can reach Nexus can trigger the hooks and
-set their values. The instance then runs as *degraded* with that warning, logs it at start, and the
-panel says so too. Only leave it empty on a network where every device is trusted.
+| Kind | Name (id) | Value | What it is |
+|---|---|---|---|
+| sensor | Trigger (pulse) (`trigger`) | boolean | `true` for each call, `false` again `pulseMs` (default 1000 ms) after the last call |
+| sensor | Number (`number`) | number | A number from each call, e.g. a temperature in a JSON body |
+| sensor | Text (`text`) | string | A text from each call, up to 4096 characters |
+| sensor | Switch (on/off) (`switch`) | boolean | An on/off state from each call (`true`/`false`, `on`/`off`, `yes`/`no`, `1`/`0`) |
 
-## Authentication
+The plugin has no actuators and no catalog.
 
-A call is accepted when it carries the token in any of these places. The **body is never read for
-the token**: a token only in the body is answered 401.
+## Good to know
 
-| Where | Example |
-|---|---|
-| `Authorization` header, Bearer scheme | `Authorization: Bearer 3f6c…` |
-| `X-Webhook-Token` header | `X-Webhook-Token: 3f6c…` |
-| `token` query parameter | `…/hook/home/doorbell?token=3f6c…` |
+- **Where the token goes:** the `Authorization: Bearer <token>` header, the
+  `X-Webhook-Token: <token>` header, or `?token=<token>` in the URL for callers that can only be
+  given a URL. The body is never read for it: a token only in the body is answered `401`. Prefer a
+  header, because URLs end up in the logs of proxies and of the caller.
+- **No token means no protection:** anyone who can reach Nexus can trigger the hooks and set their
+  values. The instance then shows *degraded* with that warning. Only leave it empty on a network
+  where every device is trusted.
+- Signals with the same hook name share each call, e.g. a trigger and a value from the same body.
+  A hook exists while at least one signal uses it; other names answer `404`.
+- A value that can't be read (missing field, not a number) is answered `400` with the reason;
+  it is never turned into `0` or `false`. Values stay until the next call changes them.
+- A trigger on hook `doorbell` of the instance `home`:
 
-The query parameter exists because many devices and services can only be given a URL. Prefer a
-header where you can: **URLs, with their query, end up in the access logs of proxies and web
-servers** and in the caller's own logs and history.
+  ```sh
+  curl -X POST -H "Authorization: Bearer $TOKEN" https://nexus.example/hook/home/doorbell
+  ```
 
-## Answers
+## More
 
-Checked in this order:
-
-| Status | When |
-|---|---|
-| `401` + `WWW-Authenticate: Bearer` | the token is missing or wrong. Checked first, so a caller without the token can't find out which hooks exist: unknown hooks answer 401 too. |
-| `404` | no signal uses this hook name |
-| `405` + `Allow` | none of the hook's signals accepts the method (`Allow` lists the methods they do accept) |
-| `400` + reasons (text, one per line) | a value couldn't be read: the body isn't JSON, the path or field is missing, or the value doesn't fit the sensor's type. Triggers, and value signals that could read their value, still fire. |
-| `204` | every signal handled the call |
-
-The body may be at most 1 MiB (enforced by Nexus). Bodies are parsed by content type: an
-`application/x-www-form-urlencoded` body is form data and a `…/json` body is JSON. A body without
-a content type, or with another one such as `text/plain`, is read as whatever the signal expects,
-because many devices send JSON without saying so.
-
-## Sensors
-
-All sensors take `hook` (*Hook name* in the form) and `method` (*HTTP method*): `any` (*Any method*),
-`GET`, `POST` or `PUT`.
-
-A new sensor is named after its hook as you type it, so its topic is the hook name too
-(`webhook/<instance>/sensor/motion-entrance`); a second sensor on the same hook gets `-2`. Type a
-name of your own to change that.
-
-### `trigger`: a pulse per call (value type `boolean`)
-
-Params: `{ hook, method = "any", pulseMs = 1000 }`, `pulseMs` (*Pulse length (ms)*) from 50 to
-3 600 000.
-
-Starts `false`. A call emits `true`, and `false` follows `pulseMs` after the **last** call: a call
-during the pulse extends it. Wire it to a Loxone digital input to start a block on a call.
-
-### `number`, `text`, `switch`: a value from the call
-
-Params: `{ hook, method = "POST", source = "json", path?, name? }`. The form calls them *Value from*,
-*JSON path* and *Field name*; the choices of `source` are named in the table.
-
-| `source` | Reads | Needs |
-|---|---|---|
-| `json` (*JSON body*) | a value in the JSON body | `path`, e.g. `temp`, `rooms[1].temp`, `data.items.0.state` |
-| `query` (*Query parameter*) | a query parameter | `name` (not `token`, which carries the secret) |
-| `form` (*Form field*) | a field of a form-urlencoded body | `name` |
-| `body` (*Whole body*) | the whole body text | |
-
-The value is emitted as it is and stays until the next call changes it. Each sensor converts to
-its type and refuses (400) what doesn't fit, instead of sending a made-up 0 or false:
-
-| Sensor | Value type | Accepts |
-|---|---|---|
-| `number` | `number` | JSON numbers; text like `21.5`, `-3`, `1e3`, `.5`, `21,5` (decimal comma); `true`/`false` as 1/0 |
-| `text` | `string` | text; numbers and booleans written out; objects and arrays as their JSON text. Not `null`, and at most 4096 characters (one value travels to the bus, the recorder and the Miniserver). |
-| `switch` | `boolean` | JSON booleans; numbers (non-zero is on); `true`/`false`, `on`/`off`, `yes`/`no`, `1`/`0` in any case |
-
-**JSON paths** are names separated by dots and array indexes in brackets: `a.b[0].c`. A number as a
-name also indexes an array (`items.0`). Names may contain anything except `.`, `[` and `]`. Only
-the object's own keys are followed, and `__proto__`, `constructor` and `prototype` are refused when
-the signal is added. Paths are at most 200 characters.
-
-## Examples
-
-With an instance `home` and the token in `$TOKEN`:
-
-```sh
-# a trigger on "doorbell" (method any)
-curl -X POST -H "Authorization: Bearer $TOKEN" https://nexus.example/hook/home/doorbell
-
-# the same from a device that only takes a URL
-curl "https://nexus.example/hook/home/doorbell?token=$TOKEN"
-
-# number sensor { hook: "weather", source: "json", path: "outdoor.temp" }
-curl -H "X-Webhook-Token: $TOKEN" -H "Content-Type: application/json" \
-  -d '{"outdoor":{"temp":21.5,"humidity":48}}' https://nexus.example/hook/home/weather
-
-# switch sensor { hook: "alarm", source: "form", name: "armed" }
-curl -H "Authorization: Bearer $TOKEN" -d "armed=on" https://nexus.example/hook/home/alarm
-
-# number sensor { hook: "level", method: "GET", source: "query", name: "percent" }
-curl -H "Authorization: Bearer $TOKEN" "https://nexus.example/hook/home/level?percent=72"
-
-# text sensor { hook: "message", method: "PUT", source: "body" }
-curl -X PUT -H "Authorization: Bearer $TOKEN" --data-binary "Garage left open" https://nexus.example/hook/home/message
-```
-
-## Panel
-
-Three sections. **Token**: the token and where callers put it (as a header, or in the URL), or the
-warning when there is none. **Hooks**: a table with a row per hook: its name, URL (`/hook/<instance slug>/<name>`),
-the methods and the signals using it (by their names), the number of calls, the time of the last
-call and its result (`ok`, `method … not allowed`, `bad request: <reason>`). Calls without a valid
-token never change a hook's row, so a caller who guesses a name can't hide the real calls.
-**Refused calls**: those that didn't reach a hook, with wrong or missing tokens (and the split) and
-unknown hook names, each with the time of the last one.
-
-The counters live in memory and start at zero with every start of the instance.
-
-## Security notes
-
-- Webhook URLs are reachable **without a Nexus login**; the token is the only protection. Use a
-  long random token (the form's **Generate** button) and HTTPS in front of Nexus. Without a token there is
-  no protection at all.
-- The token is compared in constant time: both sides are hashed with SHA-256 and compared with
-  `timingSafeEqual`, so neither the content nor the length of the token leaks through timing.
-- The token is a plain config field, visible in the instance form, the panel and the config export
-  to whoever is logged in to Nexus: the caller has to keep it in plain text anyway. It is never
-  logged.
-- Calls with a wrong or missing token are logged at `warn`: the first right away, then at most one
-  line a minute with the count, so a brute force can't flood the log. The status stays running.
-  The line says whether the hook exists, never the path, which may hold a token typed into it by
-  mistake (`/hook/home/door&token=…`).
-- Prefer headers over the `token` query parameter (see [Authentication](#authentication)).
-- Nexus limits a plugin instance to 8 calls in flight (429 beyond that).
-
-## Fixed compared to the old integration
-
-1. A JSON value was overwritten with `false` right after it was set (a reset timer with an
-   undefined duration). Values now stay.
-2. Overlapping calls each started their own reset timer, so a second call within the pulse was cut
-   short by the first call's timer, and timers survived the variable's removal. Now each trigger
-   has one timer that a call restarts, and removing the signal clears it.
-3. A wrong or missing token, and any error, were answered 200. Now 401, 404, 405 and 400 tell the
-   caller what went wrong.
-4. The token was compared with `===` and stored as a plain parameter per variable. Now there is
-   one token per instance, compared in constant time.
-5. Every call wrote its counter and time to the database. Counters are now in memory.
-
-Also new: query, form and raw-body sources, typed number/text/switch sensors with strict
-conversion, the `X-Webhook-Token` header and `token` query parameter, and method filters with 405.
-
-## Known limitations
-
-- One token per instance; there are no per-hook tokens. Use several instances to separate callers.
-- No request signatures (e.g. GitHub's or Stripe's HMAC headers); the token is a bearer secret.
-- The panel can't show the full URL, because a plugin doesn't learn its instance's slug.
-- Responses carry no body on success, so callers that expect `200 OK` with content may complain
-  about `204`.
-
-## Development
-
-```
-npm test                                      # from the repo root; tests live next to the code in src/
-npm run build -w @lox-nexus/plugin-webhook    # dist/plugin.js, one ESM bundle (esbuild)
-```
+The full reference (URLs and hook names, authentication, answers and status codes, the params and
+value sources of every sensor, more `curl` examples, the panel, security notes, what was fixed
+compared to the old integration, and limits) is in `REFERENCE.md` next to this file, and on the
+plugin's page in the Nexus documentation.
