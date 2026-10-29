@@ -99,6 +99,8 @@ there. The same goes for the default data directory (`./data` becomes `apps/serv
 
 For development, `npm run dev` does the same in watch mode with `NEXUS_WEB_DIR`, `NEXUS_DOCS_DIR`
 and `NEXUS_DEV_PLUGINS_DIR` preset, and reads a `.env` file at the repository root if there is one.
+If port 8080 is taken, set `NEXUS_HTTP_PORT=8090` (or another port) in that `.env`: `npm run dev`
+listens there, and the Vite dev UI (`npm run dev:web`) sends its API calls there too.
 
 ## First run
 
