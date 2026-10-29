@@ -76,7 +76,7 @@ export class DevPluginLoader extends Disposable {
       const manifest = PluginManifestSchema.parse(JSON.parse(fs.readFileSync(manifestFile, "utf8")))
       const { id, name, icon } = manifest.loxNexus
       const pkg: PluginPackage = { id, name, entry, description: await this.describer.describe(entry) }
-      this.catalog.setDevelopment({ pkg, version: manifest.version, ...(icon ? { icon } : {}) })
+      this.catalog.setDevelopment({ pkg, version: manifest.version, dir: root, ...(icon ? { icon } : {}) })
       return pkg
     } catch (error) {
       this.log.warn({ err: error, plugin: path.basename(root) }, "skipping a development plugin that can't be loaded")

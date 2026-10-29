@@ -34,7 +34,7 @@ async function refused(data: Buffer, pattern: RegExp, limits = new InstallLimits
 
 const manifest = FixtureBundle.manifest()
 
-test("installs package.json and the bundle, at the root or in one top-level folder", async () => {
+test("installs package.json, the bundle and the README, at the root or in one top-level folder", async () => {
   for (const prefix of ["", "fixture-1.0.0/"]) {
     const target = packageDir()
     const data = ZipFixture.zip({ [`${prefix}package.json`]: manifest, [`${prefix}dist/plugin.js`]: await FixtureBundle.bundle(), [`${prefix}dist/plugin.js.map`]: "{}", [`${prefix}README.md`]: "x", [`${prefix}src/index.ts`]: "x" })
@@ -42,8 +42,8 @@ test("installs package.json and the bundle, at the root or in one top-level fold
     assert.equal(fetched.manifest.id, "fixture")
     assert.equal(fetched.origin.kind, "zip")
     assert.match(fetched.origin.kind === "zip" ? fetched.origin.archiveSha256 : "", /^[0-9a-f]{64}$/)
-    // only the three files, never the rest of the archive
-    assert.deepEqual(fs.readdirSync(target, { recursive: true }).map(String).sort(), ["dist", "dist/plugin.js", "dist/plugin.js.map", "package.json"])
+    // only package.json, the bundle, its map and the README, never the rest of the archive (src/)
+    assert.deepEqual(fs.readdirSync(target, { recursive: true }).map(String).sort(), ["README.md", "dist", "dist/plugin.js", "dist/plugin.js.map", "package.json"])
   }
 })
 

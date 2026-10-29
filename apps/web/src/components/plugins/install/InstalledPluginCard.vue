@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { computed, ref } from "vue"
 import type { InstalledPluginDto } from "@lox-nexus/api"
-import { Check, Copy, RefreshCw, Trash2, Undo2 } from "@lucide/vue"
+import { BookOpen, Check, Copy, RefreshCw, Trash2, Undo2 } from "@lucide/vue"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PluginSourceText } from "../../../lib/PluginSourceText.ts"
 import PluginIcon from "../PluginIcon.vue"
+import PluginReadmeDialog from "./PluginReadmeDialog.vue"
 
-/** One installed plugin: its active version and where it came from, with update, rollback and uninstall. */
+/** One installed plugin: its active version and where it came from, its README, update, rollback and uninstall. */
 const props = defineProps<{ plugin: InstalledPluginDto }>()
 const emit = defineEmits<{ update: []; rollback: []; uninstall: [] }>()
 
@@ -22,6 +23,7 @@ const inUse = computed(() => {
 // the clipboard API exists only in secure contexts (https, localhost); elsewhere the button is hidden
 const canCopy = typeof window !== "undefined" && window.isSecureContext && navigator.clipboard !== undefined
 const copied = ref(false)
+const reading = ref(false)
 async function copy() {
   try {
     await navigator.clipboard.writeText(PluginSourceText.fingerprint(active.value.source))
@@ -58,6 +60,7 @@ async function copy() {
       </p>
       <p class="text-xs text-muted-foreground">installed {{ when }} by {{ active.installedBy }} · id <code>{{ plugin.id }}</code></p>
       <div class="flex flex-wrap gap-2">
+        <Button size="sm" variant="outline" @click="reading = true"><BookOpen class="size-4" /> Read me</Button>
         <Button size="sm" variant="outline" @click="emit('update')"><RefreshCw class="size-4" /> Update</Button>
         <Button v-if="plugin.previous" size="sm" variant="outline" :disabled="!plugin.previous.available" :title="plugin.previous.problem" @click="emit('rollback')">
           <Undo2 class="size-4" /> Roll back to {{ plugin.previous.version }}
@@ -68,5 +71,6 @@ async function copy() {
       </div>
       <p v-if="inUse" :id="`in-use-${plugin.id}`" class="text-xs text-muted-foreground">{{ inUse }}</p>
     </CardContent>
+    <PluginReadmeDialog :id="plugin.id" v-model:open="reading" :name="plugin.name" :version="active.version" />
   </Card>
 </template>

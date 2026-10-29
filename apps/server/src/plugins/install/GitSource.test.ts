@@ -37,12 +37,12 @@ async function refused(work: Promise<unknown>, reason: InstallError["reason"], p
   await assert.rejects(work, (error: unknown) => error instanceof InstallError && error.reason === reason && pattern.test(error.message) || assert.fail(String(error)))
 }
 
-test("fetches package.json, the bundle and its map from a tag, without a checkout", async () => {
+test("fetches package.json, the bundle, its map and the README from a tag, without a checkout", async () => {
   const target = staging()
   const fetched = await source("v1.0.0").fetch(target)
   assert.deepEqual(fetched.origin, { kind: "git", url: repo.url, ref: "v1.0.0", commit })
   assert.equal(fetched.manifest.version, "1.0.0")
-  assert.deepEqual(fs.readdirSync(target, { recursive: true }).map(String).sort(), ["dist", "dist/plugin.js", "dist/plugin.js.map", "package.json"])
+  assert.deepEqual(fs.readdirSync(target, { recursive: true }).map(String).sort(), ["README.md", "dist", "dist/plugin.js", "dist/plugin.js.map", "package.json"])
   assert.deepEqual(fs.readFileSync(path.join(target, "dist/plugin.js")), await FixtureBundle.bundle())
   // the clone is gone once the files are read
   assert.equal(fs.existsSync(path.join(path.dirname(target), "git")), false)

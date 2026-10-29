@@ -12,6 +12,8 @@ export class InstallLimits {
   readonly bundleBytes: number = 20 * MIB
   /** package.json */
   readonly manifestBytes: number = 256 * 1024
+  /** README.md; a larger one is left out, the install goes on */
+  readonly readmeBytes: number = 512 * 1024
   /** a name inside a ZIP */
   readonly nameLength: number = 512
   /** what a git clone may download */

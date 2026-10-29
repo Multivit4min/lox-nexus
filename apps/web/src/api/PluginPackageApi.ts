@@ -14,6 +14,11 @@ export class PluginPackageApi {
     return this.http.get<InstalledPluginDto[]>("/api/plugin-packages")
   }
 
+  /** the README of the version in use, as Markdown; 404 when the plugin has none */
+  readme(id: string) {
+    return this.http.get<{ markdown: string }>(`/api/plugin-packages/${encodeURIComponent(id)}/readme`)
+  }
+
   /** the plugins in the server's local plugin repository folder */
   repository() {
     return this.http.get<RepositoryPluginDto[]>("/api/plugin-packages/repository")

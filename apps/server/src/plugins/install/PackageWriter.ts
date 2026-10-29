@@ -10,10 +10,17 @@ export interface PackageFiles {
   bundle: Buffer
   /** the bundle's source map, `<entry>.map`, if the source has one */
   map?: Buffer
+  /** README.md, if the source has one within the limit; shown on the Installed page */
+  readme?: Buffer
 }
 
 /** Writes a fetched package into a staging folder, at paths built from the validated manifest only. */
 export class PackageWriter {
+  /** the name a README is installed under, whatever its case in the source */
+  static readonly README = "README.md"
+  /** the names a source's README may have */
+  static readonly README_NAMES = ["README.md", "readme.md", "Readme.md"]
+
   /** @throws InstallError no-space when the disk is full */
   static async write(packageDir: string, manifest: InstallManifest, files: PackageFiles) {
     try {
@@ -23,6 +30,7 @@ export class PackageWriter {
       await fs.promises.mkdir(path.dirname(entry), { recursive: true, mode: 0o700 })
       await fs.promises.writeFile(entry, files.bundle, { mode: 0o600 })
       if (files.map) await fs.promises.writeFile(`${entry}.map`, files.map, { mode: 0o600 })
+      if (files.readme) await fs.promises.writeFile(path.join(packageDir, PackageWriter.README), files.readme, { mode: 0o600 })
     } catch (error) {
       throw error instanceof InstallError ? error : InstallError.fromFileSystem(error)
     }

@@ -248,7 +248,12 @@ Each card on the **Installed** tab shows:
 - the plugin's icon, when and by whom it was installed, and how many instances use it;
 - the badge **development copy runs instead** when a development plugin with the same id takes
   precedence (see above), and **unavailable** when the installed files can't be loaded;
-- the buttons **Update**, **Roll back to** the previous version, and **Uninstall**.
+- the buttons **Read me**, **Update**, **Roll back to** the previous version, and **Uninstall**.
+
+**Read me** shows the README of the version in use: what the plugin does, its settings, sensors and
+actuators. The installer keeps a package's `README.md` (up to 512 KiB) from every source; a plugin
+without one says so. The plugin's icon also marks its instances on the **Instances** tab and on
+each instance's page.
 
 **Updating.** **Update** opens the same dialog, prefilled with where the plugin came from: the same
 git URL and ref, the same local folder, or the ZIP tab. Check the impact on the review step, then

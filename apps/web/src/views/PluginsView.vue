@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { AppContext } from "../AppContext.ts"
 import InstanceForm from "../components/plugins/InstanceForm.vue"
+import PluginIcon from "../components/plugins/PluginIcon.vue"
 import PluginStateBadge from "../components/plugins/PluginStateBadge.vue"
 import PluginTabs from "../components/plugins/PluginTabs.vue"
 import { LiveValues } from "../stores/LiveValues.ts"
@@ -27,6 +28,7 @@ const stateOf = (instance: PluginInstanceDto) => {
   return instance.state === "unavailable" || status?.type !== "string" ? instance.state : status.value
 }
 const nameOf = (id: string) => packages.value.find(p => p.id === id)?.name ?? id
+const iconOf = (id: string) => packages.value.find(p => p.id === id)?.icon
 const detail = (instance: PluginInstanceDto) => instance.statusMessage ?? instance.lastError ?? ""
 
 async function load() {
@@ -77,7 +79,9 @@ onUnmounted(() => live.close())
       </TableHeader>
       <TableBody>
         <TableRow v-for="instance in instances" :key="instance.id" class="cursor-pointer" @click="router.push({ name: 'plugin', params: { id: instance.id } })">
-          <TableCell class="font-medium">{{ instance.label }}</TableCell>
+          <TableCell class="font-medium">
+            <span class="flex items-center gap-2"><PluginIcon :name="iconOf(instance.plugin)" class="size-4 shrink-0 text-muted-foreground" />{{ instance.label }}</span>
+          </TableCell>
           <TableCell>{{ nameOf(instance.plugin) }}</TableCell>
           <TableCell class="font-mono text-xs">{{ instance.plugin }}/{{ instance.slug }}</TableCell>
           <TableCell>

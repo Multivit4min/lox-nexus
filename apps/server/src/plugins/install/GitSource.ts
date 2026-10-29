@@ -40,7 +40,8 @@ export class GitSource implements PluginSource {
       }
       const map = await this.mode(call, `${manifest.entry}.map`) ? await this.blob(call, `${manifest.entry}.map`, this.limits.bundleBytes) : undefined
       await this.checkStoreSize(clone)
-      await PackageWriter.write(packageDir, manifest, { manifest: manifestBytes, bundle, ...(map ? { map } : {}) })
+      const readme = await this.readme(call)
+      await PackageWriter.write(packageDir, manifest, { manifest: manifestBytes, bundle, ...(map ? { map } : {}), ...(readme ? { readme } : {}) })
       return { origin: { kind: "git", url, ref, commit }, manifest }
     } finally {
       await fs.promises.rm(clone, { recursive: true, force: true })
@@ -48,6 +49,14 @@ export class GitSource implements PluginSource {
   }
 
   /** the tree mode of `file` at HEAD, undefined when it isn't there */
+  // optional: one that is too large or not a plain file is left out, and the install goes on
+  private async readme(call: GitCall): Promise<Buffer | undefined> {
+    for (const name of PackageWriter.README_NAMES) {
+      if (await this.mode(call, name)) return this.blob(call, name, this.limits.readmeBytes).catch(() => undefined)
+    }
+    return undefined
+  }
+
   private async mode(call: GitCall, file: string) {
     const line = (await this.git.run(["ls-tree", "HEAD", "--", file], call)).toString().split("\n")[0]
     return line ? line.split(/\s/)[0] : undefined

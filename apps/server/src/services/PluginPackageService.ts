@@ -10,6 +10,7 @@ import type { PluginSources } from "../plugins/install/PluginSources.ts"
 import type { PluginSwitch } from "../plugins/install/PluginSwitch.ts"
 import type { PluginVersions } from "../plugins/install/PluginVersions.ts"
 import type { PluginCatalog } from "../plugins/PluginCatalog.ts"
+import { PluginReadme } from "../plugins/PluginReadme.ts"
 import type { PluginService } from "./PluginService.ts"
 
 /** What the package service works with; built by PluginAssembly. */
@@ -46,6 +47,11 @@ export class PluginPackageService {
   list(): InstalledPluginDto[] {
     const instances = this.deps.plugins.list()
     return this.deps.repo.list().map(stored => this.dtos.installed(stored, instances.filter(instance => instance.plugin === stored.id)))
+  }
+
+  /** the README of the version in use, else of a development copy; undefined when it has none */
+  readme(id: string): string | undefined {
+    return PluginReadme.read(this.deps.catalog.installed(id) ?? this.deps.catalog.get(id))
   }
 
   /** the plugins in the server's local repository folder, with the installed version of each */

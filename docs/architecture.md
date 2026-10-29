@@ -1253,6 +1253,10 @@ data/plugins/                       0700, created at boot
   <id>/<version>/package.json       copied verbatim
   <id>/<version>/<entry>            the bundle, at the manifest's relative path (e.g. dist/plugin.js)
   <id>/<version>/<entry>.map        only if the source has it
+  <id>/<version>/README.md          only if the source has one (README.md, readme.md or Readme.md,
+                                    at most 512 KiB; a larger one is left out, the install goes on);
+                                    GET /api/plugin-packages/:id/readme serves it (PluginReadme),
+                                    from a development copy's folder when no version is installed
 ```
 
 - **Only `package.json`, the bundle and its source map are installed.** Nothing else from a ZIP or

@@ -27,8 +27,15 @@ export class LocalSource implements PluginSource {
     const manifestBytes = BuildStamp.manifest(authoredBytes, BuildStamp.version(authored.version, bundle))
     const manifest = ManifestValidator.parse(manifestBytes)
     const map = fs.existsSync(PluginDirectory.inside(dir, `${manifest.entry}.map`)) ? await this.read(`${manifest.entry}.map`, this.limits.bundleBytes) : undefined
-    await PackageWriter.write(packageDir, manifest, { manifest: manifestBytes, bundle, ...(map ? { map } : {}) })
+    const readme = await this.readme()
+    await PackageWriter.write(packageDir, manifest, { manifest: manifestBytes, bundle, ...(map ? { map } : {}), ...(readme ? { readme } : {}) })
     return { origin: { kind: "local", folder: dir }, manifest }
+  }
+
+  // optional: one that is too large or not a plain file is left out, and the install goes on
+  private async readme(): Promise<Buffer | undefined> {
+    const name = PackageWriter.README_NAMES.find(candidate => fs.existsSync(PluginDirectory.inside(this.plugin.dir, candidate)))
+    return name === undefined ? undefined : this.read(name, this.limits.readmeBytes).catch(() => undefined)
   }
 
   private async read(file: string, maxBytes: number) {

@@ -12,6 +12,7 @@ import { AppContext } from "../AppContext.ts"
 import { ApiError } from "../api/ApiError.ts"
 import InstanceForm from "../components/plugins/InstanceForm.vue"
 import PanelCard from "../components/plugins/PanelCard.vue"
+import PluginIcon from "../components/plugins/PluginIcon.vue"
 import PluginLogsCard from "../components/plugins/PluginLogsCard.vue"
 import PluginSignalsCard from "../components/plugins/PluginSignalsCard.vue"
 import PluginStateBadge from "../components/plugins/PluginStateBadge.vue"
@@ -125,7 +126,7 @@ onUnmounted(() => {
   <div v-else-if="instance" class="mx-auto max-w-[96rem] space-y-4 p-6">
     <div>
       <div class="flex flex-wrap items-center gap-3">
-        <h1 class="text-xl font-semibold">{{ instance.label }}</h1>
+        <h1 class="flex items-center gap-2 text-xl font-semibold"><PluginIcon :name="pkg?.icon" class="size-5 text-muted-foreground" />{{ instance.label }}</h1>
         <PluginStateBadge :state="instance.state" />
         <span v-if="instance.restarts" class="text-sm text-muted-foreground" title="automatic restarts after crashes">restarted {{ instance.restarts }}×</span>
         <div class="ml-auto flex flex-wrap gap-2">

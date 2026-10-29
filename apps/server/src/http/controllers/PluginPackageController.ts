@@ -17,6 +17,7 @@ const ZipQuery = z.object({ name: z.string().min(1).max(255).regex(/^[^\p{Cc}]+$
  *
  * - GET /api/plugin-packages: 200 with the installed plugins.
  * - GET /api/plugin-packages/repository: 200 with the plugins in the server's local repository.
+ * - GET /api/plugin-packages/:id/readme: 200 with { markdown } of the version in use; 404 without one.
  * - POST …/stage/git `{ url, ref }`, …/stage/local `{ folder }`, …/stage/zip?name= (the archive as
  *   application/zip, x-zip-compressed or octet-stream, up to 50 MiB): 201 with the staged install.
  * - POST …/stage/:stagingId/confirm `{ expectedActive }`: 200 with the plugin and its instances.
@@ -39,6 +40,10 @@ export class PluginPackageController implements Controller {
   register(app: FastifyInstance) {
     app.get("/api/plugin-packages", () => this.packages.list())
     app.get("/api/plugin-packages/repository", () => this.packages.repository())
+    app.get("/api/plugin-packages/:id/readme", (request, reply) => {
+      const markdown = this.packages.readme((request.params as { id: string }).id)
+      return markdown === undefined ? reply.code(404).send({ error: "this plugin has no README" }) : { markdown }
+    })
     app.post("/api/plugin-packages/stage/git", async (request, reply) =>
       reply.code(201).send(await this.packages.stageGit(GitInstallInputSchema.parse(request.body), request.user!.username)))
     app.post("/api/plugin-packages/stage/local", async (request, reply) =>

@@ -68,7 +68,7 @@ export class PluginVersions {
       if (sha !== stored.bundleSha256) return this.unavailable(key, "its bundle changed on disk since it was installed")
       const description = await this.description(stored)
       this.problemsByVersion.delete(key)
-      return { pkg: { id, name: stored.name, entry, version, description }, version, ...(stored.icon ? { icon: stored.icon } : {}) }
+      return { pkg: { id, name: stored.name, entry, version, description }, version, dir: this.directory.versionDir(id, version), ...(stored.icon ? { icon: stored.icon } : {}) }
     } catch (error) {
       this.log.warn({ err: error, plugin: id, version }, "installed plugin can't be loaded")
       return this.unavailable(key, `it can't be loaded: ${error instanceof Error ? error.message.slice(0, 300) : String(error)}`)

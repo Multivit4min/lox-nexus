@@ -25,7 +25,10 @@ export class ZipSource implements PluginSource {
       if (!archive.has(entry)) throw new InstallError("invalid-package", `the bundle "${manifest.entry}" is not in the archive; build the plugin before packing it`)
       const bundle = await archive.read(entry, this.limits.bundleBytes)
       const map = archive.has(`${entry}.map`) ? await archive.read(`${entry}.map`, this.limits.bundleBytes) : undefined
-      await PackageWriter.write(packageDir, manifest, { manifest: manifestBytes, bundle, ...(map ? { map } : {}) })
+      // optional: one that is too large is left out, and the install goes on
+      const readmeName = PackageWriter.README_NAMES.map(name => `${root}${name}`).find(name => archive.has(name))
+      const readme = readmeName === undefined ? undefined : await archive.read(readmeName, this.limits.readmeBytes).catch(() => undefined)
+      await PackageWriter.write(packageDir, manifest, { manifest: manifestBytes, bundle, ...(map ? { map } : {}), ...(readme ? { readme } : {}) })
       const archiveSha256 = createHash("sha256").update(this.data).digest("hex")
       return { origin: { kind: "zip", fileName: this.fileName, archiveSha256 }, manifest }
     } finally {

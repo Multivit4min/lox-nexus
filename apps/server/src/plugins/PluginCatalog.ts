@@ -9,6 +9,8 @@ export interface CatalogEntry {
   icon?: string
   /** development: the workspace's plugins/ from source (DevPluginLoader); installed: through the installer */
   source: "development" | "installed"
+  /** the package's folder (package.json, the bundle or sources, README.md) */
+  dir?: string
 }
 
 /**
