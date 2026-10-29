@@ -24,6 +24,16 @@ export class ZoneOffsets {
     this.names = new Intl.DateTimeFormat("en-US", { timeZone: zone, timeZoneName: "long" })
   }
 
+  /** whether the runtime knows the zone, e.g. "Europe/Vienna" */
+  static isValid(zone: string): boolean {
+    try {
+      new Intl.DateTimeFormat("en-US", { timeZone: zone })
+      return zone.length > 0
+    } catch {
+      return false
+    }
+  }
+
   /** milliseconds to add to a UTC time for the zone's wall time; NaN for NaN */
   offsetAt(utc: number): number {
     if (!Number.isFinite(utc)) return NaN

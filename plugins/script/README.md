@@ -14,6 +14,7 @@ HTTP API that has no plugin of its own, or keep a small state machine.
 | Field | | |
 |---|---|---|
 | `script` | JavaScript, up to 200 000 characters; edited in a code editor | The code. A new instance starts with a commented example (below). |
+| `timeZone` (*Time zone*) | optional, an IANA zone such as `Europe/Vienna` | The zone the script's `Date` works in. Empty: the zone of the Loxone project Nexus read last, otherwise the server's. |
 
 Saving the instance restarts it, and the restart loads the new code. Every start runs the script
 from the top in a fresh context: variables, timers and handlers of the previous run are gone.
@@ -157,10 +158,10 @@ nexus.store.set("state", state)
 Not available: `require`, `import()`, `process`, `Buffer` and Node's modules. A script talks to
 Nexus through `nexus` and to the network through `fetch`.
 
-`Date` works in the time zone of the Loxone project: Nexus takes it from the project whenever it
-reads one (importing signals from the Miniserver or from a project file), and the script gets it at
-its next start. Without a project read yet it is the zone of the Nexus process (`TZ`), usually UTC
-in a container. The panel shows which zone the script uses. Local getters and setters
+`Date` works in the instance's *Time zone* setting, or without one in the time zone of the Loxone
+project: Nexus takes it from the project whenever it reads one (importing signals from the
+Miniserver or from a project file), and the script gets it at its next start. Without a project read yet it is the zone of the Nexus process (`TZ`), usually UTC
+in a container. The panel shows which zone the script uses, with "(set in the instance)" when it comes from the setting. Local getters and setters
 (`getHours()`, `setDate()`), `toString()`, `getTimezoneOffset()`, the local forms of
 `new Date(2026, 9, 29, 10, 0)`, `new Date("2026-10-29T10:00")` and `Date.parse`, and the default of
 `toLocaleString()` follow it; across a clock change a time that occurs twice is the earlier one and

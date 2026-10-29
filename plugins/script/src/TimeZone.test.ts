@@ -23,3 +23,15 @@ test("without one from the host it is the server's zone", async () => {
   host = await PluginTestHost.start(ScriptPlugin, { config: { script: "console.info(String(new Date(0).getTimezoneOffset()))" } })
   assert.ok(ScriptHarness.logs(host).includes(String(new Date(0).getTimezoneOffset())), ScriptHarness.logs(host).join("\n"))
 })
+
+test("the instance's own zone wins over the host's; an unknown one is refused", async () => {
+  host = await PluginTestHost.start(ScriptPlugin, {
+    timeZone: "Europe/Vienna",
+    config: { timeZone: "America/New_York", script: "console.info(String(new Date(\"2026-07-04T16:00:00Z\").getHours()))" }
+  })
+  assert.ok(ScriptHarness.logs(host).includes("12"), ScriptHarness.logs(host).join("\n"))
+  const panel = await host.panel() as Extract<Panel, { type: "sections" }>
+  const items = panel.sections[0]?.panel.type === "keyValue" ? panel.sections[0].panel.items : []
+  assert.equal(items.find(item => item.label === "Time zone")?.value, "America/New_York (set in the instance)")
+  await assert.rejects(PluginTestHost.start(ScriptPlugin, { config: { timeZone: "Mars/Olympus_Mons" } }), /unknown time zone/)
+})

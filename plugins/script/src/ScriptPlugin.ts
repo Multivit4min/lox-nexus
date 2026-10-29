@@ -35,12 +35,14 @@ export class ScriptPlugin extends Plugin<ScriptConfig> {
     : `the script used more than ${limit} names with nexus.on and nexus.get; further new names are refused`))
   readonly state = new ScriptState()
   readonly outbox = this.own(new Outbox(this.variables))
+  /** the instance's own zone, else the installation's (Plugin.timeZone) */
+  readonly zone = this.config.timeZone ?? this.timeZone
   // registered after the outbox, so stopping ends the script before its throttle
   private readonly runner: ScriptRunner = this.own(new ScriptRunner({
     log: new ScriptLog(this.log),
     status: this.status,
     state: this.state,
-    timeZone: this.timeZone,
+    timeZone: this.zone,
     nexus: realm => this.nexus(realm)
   }))
   readonly inbox: Inbox = this.own(new Inbox(this.variables, (origin, error) => this.runner.guard.report(origin, error), value => this.runner.adopt(value)))
@@ -59,7 +61,7 @@ export class ScriptPlugin extends Plugin<ScriptConfig> {
   }
 
   override panel() {
-    return new ScriptPanel(this.state, this.variables, () => this.runner.activeTimers, this.timeZone).build()
+    return new ScriptPanel(this.state, this.variables, () => this.runner.activeTimers, this.config.timeZone ? `${this.zone} (set in the instance)` : this.zone).build()
   }
 
   private nexus(realm: ScriptRealm): unknown {

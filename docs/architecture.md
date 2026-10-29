@@ -1050,8 +1050,9 @@ expects), but the Loxone Config project on the Miniserver lists all of them. So 
   IANA name, as the installation's zone (`TimeZoneSetting`, the `timeZone` key in `settings`).
   The last read wins: one installation has one zone, even with several Miniservers, so there is no
   zone per Miniserver. Plugins get it in `init` at their next start (`Plugin.timeZone`, the
-  server's zone without one): the Script plugin's `Date` and the Calendar plugin's default zone
-  use it, since the server often runs in UTC in a container. The Script panel shows the zone.
+  server's zone without one): the Script plugin's `Date` and the Calendar plugin use it, since the
+  server often runs in UTC in a container. Both have their own *Time zone* setting that wins over
+  it. The Script panel shows the zone.
 - **API and UI.** `POST /api/miniservers/:id/project` with `{ username, password }` reads from
   the Miniserver's configured host. It answers `LoxoneProjectDto` (all peers), or 502 with a
   message the user can act on (`ProjectReadError`: refused login, FTP off, no project, corrupt
