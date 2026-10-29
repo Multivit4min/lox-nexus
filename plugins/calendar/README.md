@@ -29,7 +29,7 @@ start and title, so dismissals keep working across reads.
 | `password` | Password | optional, secret | The password or app password for `username`; refused without a `username`. |
 | `refreshMinutes` | Read every (minutes) | default 15 | Minutes between two reads, 1 to 10 080 (a week). |
 | `timeout` | Timeout (seconds) | default 30 | Seconds one read may take, 1 to 120. |
-| `timeZone` | Time zone | optional | IANA zone such as `Europe/Vienna`, used for all-day events, times without a zone, the `loxone` time format and the panel. Default: the server's zone. **Set it when Nexus runs in a container**, which usually runs in UTC: otherwise all-day events start at 01:00 or 02:00 Vienna time. |
+| `timeZone` | Time zone | optional | IANA zone such as `Europe/Vienna`, used for all-day events, times without a zone, the `loxone` time format and the panel. Default: the zone of the Loxone project Nexus read last (when signals were imported from it), otherwise the server's. **Set it when Nexus runs in a container and has read no project**, since containers usually run in UTC: otherwise all-day events start at 01:00 or 02:00 Vienna time. |
 
 **Failures.** A feed that can't be read leaves the instance degraded with the reason, and the
 sensors carry on with the last calendar read successfully. 401 and 403 say to check the

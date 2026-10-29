@@ -44,5 +44,7 @@ export interface LoxoneProjectDto {
   title: string
   /** as Loxone Config wrote it, in the Miniserver's local time */
   savedAt?: string
+  /** the project's time zone (IANA, e.g. "Europe/Vienna"); Nexus keeps it for the plugins */
+  timeZone?: string
   peers: LoxoneProjectPeerDto[]
 }

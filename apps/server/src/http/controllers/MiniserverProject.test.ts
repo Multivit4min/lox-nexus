@@ -3,12 +3,13 @@ import { after, before, describe, test } from "node:test"
 import type { LoxoneProjectDto, MiniserverDto } from "@lox-nexus/api"
 import { ProjectReadError, ProjectReader, type ReadProject } from "@lox-nexus/loxone"
 import type { ApiClient } from "../../test-support/ApiClient.ts"
+import { TimeZoneSetting } from "../../services/TimeZoneSetting.ts"
 import { TestApp } from "../../test-support/TestApp.ts"
 
 const project: ReadProject = {
   file: "sps_0274_20261024142743.zip",
   project: {
-    title: "Test house", savedAt: "2026-10-24 14:27:35",
+    title: "Test house", savedAt: "2026-10-24 14:27:35", timeZone: "Europe/Vienna",
     peers: [{
       miniserverId: "ms", miniserverPort: 61263, label: "nexus-dev", id: "nexus", host: "10.0.0.5", port: 61263, encrypted: false,
       signals: [{ packetId: "pv", direction: "out", dataType: 1, label: "PV power" }]
@@ -47,6 +48,7 @@ describe("reading a Miniserver's project over the API", { timeout: 10_000 }, () 
     assert.equal(response.statusCode, 200, response.body)
     assert.deepEqual(response.json<LoxoneProjectDto>(), { file: project.file, ...project.project })
     assert.deepEqual(calls.at(-1), { host: "192.0.2.7", username: "claude", password: "pw" })
+    assert.equal(new TimeZoneSetting(app.app.persistence.settings).get(), "Europe/Vienna", "kept for the plugins")
   })
 
   test("a read failure is a 502 with its message; anything else stays a 500 without details", async () => {

@@ -12,7 +12,12 @@ export class ScriptPanel {
   private static readonly directions = { set: "from script (set)", receive: "to script (on, get)" }
   private readonly formatter = new ValueFormatter()
 
-  constructor(private readonly state: ScriptState, private readonly table: VariableTable, private readonly timers: () => number) {}
+  constructor(
+    private readonly state: ScriptState,
+    private readonly table: VariableTable,
+    private readonly timers: () => number,
+    private readonly timeZone: string
+  ) {}
 
   build(): Panel {
     const rows = this.table.all().map(record => this.variableRow(record))
@@ -33,6 +38,7 @@ export class ScriptPanel {
     return [
       { label: "State", value: state },
       { label: "Started", value: ScriptPanel.time(this.state.startedAt) },
+      { label: "Time zone", value: this.timeZone },
       { label: "Uncaught errors", value: String(this.state.errors) },
       ...(lastError ? [{ label: "Last error", value: `${lastError.text} (${ScriptPanel.time(lastError.at)})` }] : [])
     ]

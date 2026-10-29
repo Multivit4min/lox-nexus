@@ -17,6 +17,7 @@ abstract class Plugin<Config = unknown> extends Disposable {
   get status(): PluginStatus
   get http(): PluginHttp
   get slug(): string | undefined
+  get timeZone(): string                                   // IANA, e.g. "Europe/Vienna"
   start(): void | Promise<void>
   catalog(): CatalogNode[] | Promise<CatalogNode[]>
   panel(): Panel | undefined | Promise<Panel | undefined>
@@ -35,6 +36,7 @@ abstract class Plugin<Config = unknown> extends Disposable {
 | `unhandledRejection(reason)` | Called for a promise in the worker that was rejected without a handler (a forgotten `.catch`). The worker keeps running; the default logs an error with the stack. Override to say more or to set a degraded status; it must not throw. `PluginTestHost.unhandledRejection(reason)` calls it in tests. |
 | `config` | Already validated against the static `config` schema, defaults applied. Available in field initializers of subclasses. |
 | `slug` | The instance's slug: its topic segment and webhook path (`/hook/<slug>/…`). Undefined with hosts that don't send it. Fixed for one run (a slug change restarts the instance). |
+| `timeZone` | The installation's IANA time zone, for anything that depends on the local time. Nexus takes it from the Loxone project it read last; without one (and with older hosts) it is the server's zone, which in a container is often UTC. Fixed for one run. |
 
 Static declarations on the subclass ([`PluginClass`](../reference/sdk/@lox-nexus/plugin-sdk.md#pluginclass)); all optional:
 
@@ -154,6 +156,7 @@ interface SignalInfo { id: string; label: string }
 interface PluginContext {
   readonly instanceId: string
   readonly slug?: string
+  readonly timeZone?: string
   readonly config: unknown
   readonly log: PluginLogger
   readonly store: PluginStore
@@ -187,6 +190,7 @@ type HttpHandler = (request: HttpRequest) => HttpResponse | Promise<HttpResponse
 | [`PluginEntry`](../reference/sdk/@lox-nexus/plugin-sdk.md#pluginentry) | `static define<T extends PluginClass>(type: T): T` | `export default PluginEntry.define(MyPlugin)` in `src/index.ts`. Starts the worker runtime only when loaded by Nexus. |
 | [`secret`](../reference/sdk/@lox-nexus/plugin-sdk.md#secret) | `secret<T extends z.ZodType>(schema: T): T` | Marks a field `writeOnly`: never sent back to the UI, kept when an update omits it. Top-level fields only. |
 | [`code`](../reference/sdk/@lox-nexus/plugin-sdk.md#code) | `code<T extends z.ZodType>(schema: T, language?: CodeLanguage): T` | Marks a string field as source code (`format: "code"` plus the language's `contentMediaType`), so the UI edits it in a code editor. `CodeLanguage` is `"javascript"` (default), `"json"` or `"text"`. Validating the code stays the plugin's job. |
+| [`token`](../reference/sdk/@lox-nexus/plugin-sdk.md#token) | `token<T extends z.ZodType>(schema: T): T` | Marks a string field as a random token (`format: "token"`), so the form shows a Generate button that fills in 48 hex characters. Leave it visible for copying, or add `secret()` to hide it. |
 | `z` | zod | Use this one, not your own copy. |
 | [`SupersededError`](../reference/sdk/@lox-nexus/plugin-sdk.md#supersedederror) | `class extends Error` | See `concurrency: "latest"`. |
 | `CatalogNode`, `CatalogEntry`, `Panel`, `PanelPart`, `HttpRequest`, `HttpResponse` | types, see [wire](#lox-nexusplugin-sdkwire) | Return values of `catalog()`, `panel()` and webhook handlers. |
@@ -274,7 +278,7 @@ class PluginTestHost<T extends PluginClass = PluginClass> {
   pushValues(values: Array<Omit<WatchedValue, "ts" | "kind"> & Partial<Pick<WatchedValue, "ts" | "kind">>>, dropped?: number): Promise<void>
   stop(): Promise<void>
 }
-interface TestHostOptions { config?: unknown; store?: Record<string, unknown>; instanceId?: string; slug?: string /* default "test" */; clock?: Clock /* e.g. a TestClock */; forwardRejections?: boolean }
+interface TestHostOptions { config?: unknown; store?: Record<string, unknown>; instanceId?: string; slug?: string /* default "test" */; clock?: Clock /* e.g. a TestClock */; timeZone?: string; forwardRejections?: boolean }
 
 class TestClock implements Clock {
   constructor(start?: number | string | Date)
@@ -330,7 +334,7 @@ sends them itself; the runtime does. Requests carry a `requestId` and are answer
 
 | Host → worker (`HostMessage`) | Fields | Answer |
 |---|---|---|
-| `init` | `instanceId`, `slug?`, `config`, `store` | `ready` or `failed` |
+| `init` | `instanceId`, `slug?`, `config`, `store`, `timeZone?` | `ready` or `failed` |
 | `describe` | `requestId` | the `PluginDescription` |
 | `signal.add` | `requestId`, `signal` (`SignalSpec`) | ok once the sensor's or actuator's `start()` resolved |
 | `signal.remove` | `requestId`, `id` | ok once disposed |

@@ -8,7 +8,7 @@ import { zipSync } from "fflate"
 export class ProjectFixtures {
   static readonly XML = `\uFEFF<?xml version="1.0" encoding="utf-8"?>
 <ControlList Version="274">
-  <C Type="Document" Title="Test house" Date="2026-10-24 14:27:35">
+  <C Type="Document" Title="Test house" Date="2026-10-24 14:27:35" Timezone="Europe/Vienna">
     <C Type="LanInt" Title="Network Intercommunication" Pt="61263" MId="server">
       <C Type="HItcDev" Title="nexus-dev" sid="nexus" enc="false" dP="61264" dAd="10.0.0.5" At="900">
         <C Type="Online" IName="S0" Title="Online Status nexus-dev"/>

@@ -28,11 +28,6 @@ export class Zone {
     })
   }
 
-  /** the zone the server runs in; in a container without TZ this is UTC */
-  static server() {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone
-  }
-
   /** asked for every occurrence while reading a feed, so the answers are remembered */
   static isValid(id: string) {
     let valid = Zone.known.get(id)

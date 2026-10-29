@@ -70,6 +70,8 @@ describe("catalog and panel", () => {
     const { state, rows: variables } = await sections(host)
     assert.deepEqual(state, {
       State: "running, 1 timer active", Started: "2026-10-28T10:00:00.000Z", "Uncaught errors": "1",
+      // the host sends none, so the server's
+      "Time zone": Intl.DateTimeFormat().resolvedOptions().timeZone,
       "Last error": "line 9, column 32: nope (2026-10-28T10:01:00.000Z)"
     })
     assert.deepEqual(variables.map(row => [row.Variable, row.Direction, row.Signals, row["Last value"], row.Calls]), [

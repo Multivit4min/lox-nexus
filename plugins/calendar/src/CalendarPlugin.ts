@@ -24,7 +24,8 @@ export class CalendarPlugin extends Plugin<CalendarConfig> {
   static readonly sensors = [ActiveSensor, TitleSensor, TimeSensor]
   static readonly actuators = [DismissActuator]
 
-  readonly zone = new Zone(this.config.timeZone ?? Zone.server())
+  // Plugin.timeZone is the Loxone project's, or the server's without one
+  readonly zone = new Zone(this.config.timeZone ?? this.timeZone)
   readonly agenda = new Agenda(new Dismissals(this.store), error => this.log.error("a sensor failed to update", { error: String(error) }))
   readonly shown = new ShownFilters()
   readonly client = new FeedClient({

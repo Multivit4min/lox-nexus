@@ -34,6 +34,8 @@ export interface SupervisorDeps {
   timings?: Partial<SupervisorTimings>
   /** for plugins that declare `watches`; without it they get no values */
   watch?: WatchDeps
+  /** the installation's IANA time zone, read at every start; plugins use the server's without one */
+  timeZone?: () => string | undefined
 }
 
 /**
@@ -148,7 +150,11 @@ export class PluginSupervisor extends Disposable {
     try {
       session = new PluginSession(this.deps.transport.open(this.currentPkg.entry), this.timings)
       this.wire(session)
-      await session.open({ instanceId: this.instance.id, slug: this.instance.slug, config: this.instance.config, store: this.deps.store.load(this.instance.id) })
+      const timeZone = this.deps.timeZone?.()
+      await session.open({
+        instanceId: this.instance.id, slug: this.instance.slug, config: this.instance.config, store: this.deps.store.load(this.instance.id),
+        ...(timeZone === undefined ? {} : { timeZone })
+      })
     } catch (error) {
       await session?.dispose().catch(() => undefined)
       return error instanceof InitFailedError ? this.refused(error.message) : this.crashed(PluginSupervisor.message(error))

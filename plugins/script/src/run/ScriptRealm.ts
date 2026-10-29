@@ -10,15 +10,21 @@ import vm from "node:vm"
  */
 export class ScriptRealm {
   readonly context: vm.Context = vm.createContext({}, { name: "script" })
-  private readonly intrinsics = vm.runInContext("({ Promise, TypeError, JSON })", this.context) as {
+  private readonly intrinsics = vm.runInContext("({ Promise, TypeError, JSON, Date })", this.context) as {
     Promise: PromiseConstructor
     TypeError: TypeErrorConstructor
     JSON: JSON
+    Date: DateConstructor
   }
 
   /** the context's Promise; promises of this class were created by the script */
   get Promise(): PromiseConstructor {
     return this.intrinsics.Promise
+  }
+
+  /** the context's own Date, before ZonedDate changes it */
+  get Date(): DateConstructor {
+    return this.intrinsics.Date
   }
 
   typeError(message: string): Error {

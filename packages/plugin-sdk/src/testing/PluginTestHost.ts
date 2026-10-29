@@ -26,6 +26,8 @@ export interface TestHostOptions {
   slug?: string
   /** the plugin's clock, usually a TestClock; default the system clock */
   clock?: Clock
+  /** the installation's time zone the host sends (Plugin.timeZone); default none, so the server's */
+  timeZone?: string
   /**
    * Hands this process's unhandled promise rejections to the plugin (Plugin.unhandledRejection) as
    * the worker would, from start until stop() returns, instead of letting node:test fail the test
@@ -74,7 +76,8 @@ export class PluginTestHost<T extends PluginClass = PluginClass> {
       const done = host.waitFor(message => message.type === "ready" || message.type === "failed")
       // awaited together, so a timeout of `done` while init still runs is never unhandled
       const [, outcome] = await Promise.all([
-        host.runtime.handle({ type: "init", instanceId: options.instanceId ?? "test", slug: options.slug ?? "test", config: options.config ?? {}, store: host.store }),
+        host.runtime.handle({ type: "init", instanceId: options.instanceId ?? "test", slug: options.slug ?? "test", config: options.config ?? {}, store: host.store,
+          ...(options.timeZone === undefined ? {} : { timeZone: options.timeZone }) }),
         done
       ])
       if (outcome.type === "failed") throw new Error(outcome.error)

@@ -40,6 +40,7 @@ export class ScriptPlugin extends Plugin<ScriptConfig> {
     log: new ScriptLog(this.log),
     status: this.status,
     state: this.state,
+    timeZone: this.timeZone,
     nexus: realm => this.nexus(realm)
   }))
   readonly inbox: Inbox = this.own(new Inbox(this.variables, (origin, error) => this.runner.guard.report(origin, error), value => this.runner.adopt(value)))
@@ -58,7 +59,7 @@ export class ScriptPlugin extends Plugin<ScriptConfig> {
   }
 
   override panel() {
-    return new ScriptPanel(this.state, this.variables, () => this.runner.activeTimers).build()
+    return new ScriptPanel(this.state, this.variables, () => this.runner.activeTimers, this.timeZone).build()
   }
 
   private nexus(realm: ScriptRealm): unknown {

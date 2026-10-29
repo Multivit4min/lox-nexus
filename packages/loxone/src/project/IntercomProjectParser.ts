@@ -41,6 +41,7 @@ export class IntercomProjectParser {
     if (type === "Document") {
       this.project.title = attr("Title") ?? ""
       if (attr("Date")) this.project.savedAt = attr("Date")
+      if (attr("Timezone")) this.project.timeZone = attr("Timezone")
     } else if (type === "LanInt") {
       this.lanInt = { id: attr("MId") ?? "", port: IntercomProjectParser.int(attr("Pt")) ?? 0 }
     } else if (type === "HItcDev" && this.lanInt) {

@@ -69,4 +69,6 @@ export interface PluginContext {
   readonly watch?: WatchView
   /** the time and timers the plugin runs on (Plugin.clock); the system clock in production, absent with older runtimes */
   readonly clock?: Clock
+  /** IANA name of the installation's time zone (Plugin.timeZone); absent when unknown and with older hosts */
+  readonly timeZone?: string
 }

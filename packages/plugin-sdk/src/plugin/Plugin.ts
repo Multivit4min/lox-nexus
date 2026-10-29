@@ -45,6 +45,24 @@ export abstract class Plugin<Config = unknown> extends Disposable {
     return this.context.clock ?? SystemClock.instance
   }
 
+  /**
+   * The IANA time zone of the installation, e.g. "Europe/Vienna", for anything that depends on the
+   * local time (opening hours, "today"). Nexus takes it from the Loxone project; without one it is
+   * the server's zone, which in a container is often UTC; so is a zone this runtime doesn't know.
+   * Fixed for one run of the instance.
+   */
+  get timeZone(): string {
+    const given = this.context.timeZone
+    if (given) {
+      try {
+        return new Intl.DateTimeFormat("en-US", { timeZone: given }).resolvedOptions().timeZone
+      } catch {
+        // an unknown zone from the host must not fail the plugin's start; the server's zone is the fallback
+      }
+    }
+    return Intl.DateTimeFormat().resolvedOptions().timeZone
+  }
+
   /** Shortcut for `context.log`. */
   get log() {
     return this.context.log

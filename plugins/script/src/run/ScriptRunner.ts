@@ -11,12 +11,15 @@ import type { ScriptLog } from "./ScriptLog.ts"
 import { ScriptRealm } from "./ScriptRealm.ts"
 import type { ScriptState } from "./ScriptState.ts"
 import { ScriptTimers } from "./ScriptTimers.ts"
+import { ZonedDate } from "./ZonedDate.ts"
 
 /** What the runner needs from the plugin. */
 export interface ScriptHost {
   readonly log: ScriptLog
   readonly status: PluginStatus
   readonly state: ScriptState
+  /** IANA zone the script's Date works in (Plugin.timeZone) */
+  readonly timeZone: string
   /** builds the script's `nexus` object for its realm */
   nexus(realm: ScriptRealm): unknown
 }
@@ -73,7 +76,8 @@ export class ScriptRunner extends Disposable {
     const timers = this.timers = this.own(new ScriptTimers(this.guard, message => realm.typeError(message), fn => root(fn)))
     const fetcher = this.own(new ScriptFetch(realm.Promise))
     const scriptConsole = new ScriptConsole(this.host.log, () => this.errors).build()
-    realm.expose(ScriptGlobals.build({ nexus: this.host.nexus(realm), console: scriptConsole, timers: timers.globals(), fetch: fetcher.fetch }))
+    const date = new ZonedDate(this.host.timeZone).install(realm.Date)
+    realm.expose(ScriptGlobals.build({ nexus: this.host.nexus(realm), console: scriptConsole, timers: timers.globals(), fetch: fetcher.fetch, Date: date }))
     this.host.state.started()
     this.runTopLevel(script, realm).then(() => this.host.state.finished(), (error: unknown) => this.topLevelFailed(error))
   }

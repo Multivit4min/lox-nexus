@@ -28,10 +28,12 @@ export interface IntercomPeer {
   signals: IntercomProjectSignal[]
 }
 
-/** What a Loxone Config project says about intercommunication; nothing else is kept. */
+/** What a Loxone Config project says about intercommunication, plus its time zone; nothing else is kept. */
 export interface IntercomProject {
   title: string
   /** when Loxone Config saved it, as written there ("2026-10-24 14:27:35", Miniserver local time) */
   savedAt?: string
+  /** the time zone set in the project (Document's `Timezone`, an IANA name such as "Europe/Vienna") */
+  timeZone?: string
   peers: IntercomPeer[]
 }

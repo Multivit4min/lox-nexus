@@ -40,7 +40,11 @@ export type HttpRequest = z.infer<typeof HttpRequestSchema>
 export const HostMessageSchema = z.discriminatedUnion("type", [
   /** the instance's config (validated in the worker) and its persisted store */
   // slug: the instance's topic segment and webhook path (/hook/<slug>/…); optional for older hosts
-  z.object({ type: z.literal("init"), instanceId: z.string(), slug: z.string().optional(), config: z.unknown(), store: z.record(z.string(), z.unknown()) }),
+  z.object({
+    type: z.literal("init"), instanceId: z.string(), slug: z.string().optional(), config: z.unknown(), store: z.record(z.string(), z.unknown()),
+    /** IANA name of the installation's time zone; absent when the host doesn't know it */
+    timeZone: z.string().optional()
+  }),
   /** what the plugin offers: config schema, sensors and actuators with their params (JSON Schema) */
   z.object({ type: z.literal("describe"), requestId }),
   /** adds and starts a sensor or actuator; the response is ok once its start() resolved */

@@ -20,14 +20,16 @@ let registry: SignalRegistry
 let manager: PluginManager
 let transport: FakePluginTransport
 let v1: PluginPackage
+let zone: string | undefined
 
 beforeEach(async () => {
   mock.timers.enable({ apis: ["setTimeout", "setInterval"] })
+  zone = undefined
   bus = new EventBus({ topicKinds: (registry = new SignalRegistry()) })
   v1 = { id: "counter", name: "Counter", entry: "counter.ts", version: "1.0.0", description: await PluginTestHost.describe(CounterPlugin) }
   manager = new PluginManager({
     bus, registry, transport: (transport = new FakePluginTransport().add("counter.ts", CounterPlugin)),
-    store: { load: () => ({}), set: () => undefined, delete: () => undefined }, logs: { log: () => undefined },
+    store: { load: () => ({}), set: () => undefined, delete: () => undefined }, logs: { log: () => undefined }, timeZone: () => zone,
     timings: { pingMs: 100, missedPings: 3, backoffInitialMs: 1000, backoffMaxMs: 8000, stableMs: 60_000 }
   })
 })
@@ -122,4 +124,15 @@ test("a forced actuator gets its forced command again when the plugin restarts",
   await step(supervisor.start())
   const actuated = transport.last.received.flatMap(message => message.type === "actuate" ? [message.value] : [])
   assert.deepEqual(actuated, [Value.number(7)], "the new worker got the forced value without anyone sending it")
+})
+
+test("each start tells the plugin the installation's time zone, as it is then", async () => {
+  const supervisor = manager.add({ id: "i1", plugin: "counter", slug: "home", label: "Home", config: {}, enabled: true }, v1)
+  const zoneSent = () => transport.last.received.flatMap(message => (message.type === "init" ? [message.timeZone] : []))
+  await step(supervisor.start())
+  assert.deepEqual(zoneSent(), [undefined])
+  zone = "Europe/Vienna"
+  await step(supervisor.stop())
+  await step(supervisor.start())
+  assert.deepEqual(zoneSent(), ["Europe/Vienna"])
 })

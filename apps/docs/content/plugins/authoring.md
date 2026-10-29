@@ -83,11 +83,11 @@ export class MyPlugin extends Plugin<z.infer<typeof config>> {
   `.superRefine()` keeps the JSON Schema an object with its `properties`, so the form looks the
   same; the check is simply not run by the form, and a failing value is refused by the worker at
   start (the instance goes to *error* with your message). The same holds for params.
-- **Time zone.** The worker has an empty environment but runs in the **Nexus process's time
-  zone**, which the host's `TZ` environment variable decides (the zone is process-wide). In a
-  container that is usually UTC. A time-based plugin should offer its own IANA `timeZone` setting
-  (as the [Calendar plugin](calendar.md) does) instead of relying on the server's zone; tell users
-  to set `TZ` for the Nexus process only as a fallback.
+- **Time zone.** The worker runs in the **Nexus process's time zone** (`Date`, `Intl` without a
+  `timeZone`), which in a container is usually UTC. Use **`this.timeZone`** instead: the IANA zone
+  of the installation, which Nexus takes from the Loxone project, or the server's zone while it has
+  none. Pass it to `Intl.DateTimeFormat` and friends. A time-based plugin can still offer its own
+  `timeZone` setting that overrides it (as the [Calendar plugin](calendar.md) does).
 
 ### Starting, failing and degrading
 

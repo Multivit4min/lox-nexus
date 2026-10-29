@@ -18,6 +18,7 @@ const host = [
   { type: "shutdown" },
   // optional additions within version 1: older plugins ignore them, older hosts don't send them
   { type: "init", instanceId: "i", slug: "home", config: {}, store: {} },
+  { type: "init", instanceId: "i", slug: "home", config: {}, store: {}, timeZone: "Europe/Vienna" },
   { type: "signal.add", requestId: 8, signal: { id: "s", kind: "sensor", capability: "c", params: {}, label: "Kitchen" } },
   // only sent to plugins that declare `watches`, so older plugins never see them
   { type: "watch.signals", signals: [{ id: "s", topic: "loxone/home/in/t", label: "T", valueType: "number", owner: { kind: "miniserver", id: "m" } }] },

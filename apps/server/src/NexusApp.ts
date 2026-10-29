@@ -32,6 +32,7 @@ import type { PluginCatalog } from "./plugins/PluginCatalog.ts"
 import { ConfigTransfer } from "./services/ConfigTransfer.ts"
 import { ImportJournal } from "./services/ImportJournal.ts"
 import { LoxoneProjectService } from "./services/LoxoneProjectService.ts"
+import { TimeZoneSetting } from "./services/TimeZoneSetting.ts"
 import { LoxoneSignalService } from "./services/LoxoneSignalService.ts"
 import { MiniserverService } from "./services/MiniserverService.ts"
 import { PluginLogs } from "./services/PluginLogs.ts"
@@ -145,8 +146,10 @@ export class NexusApp extends Disposable {
     this.miniservers = this.own(new MiniserverManager({ bus: this.bus, signals: this.signals, clock: this.clock, loadHistory: this.persistence.loadSamples }))
     const transport = options.pluginTransport ?? new WorkerTransport()
     this.pluginLogs = new PluginLogs(log.child({ component: "plugin" }), this.clock)
+    // the Loxone project's, kept by LoxoneProjectService; stateless, so each user makes its own
+    const timeZone = new TimeZoneSetting(this.persistence.settings)
     this.plugins = this.own(new PluginManager({
-      bus: this.bus, registry: this.signals, transport, store: this.persistence.pluginStore,
+      bus: this.bus, registry: this.signals, transport, store: this.persistence.pluginStore, timeZone: () => timeZone.get(),
       watch: { bus: this.bus, signals: this.signals, selection: id => this.selections.of(id), changes: this.selections },
       logs: this.pluginLogs, ...(options.pluginTimings ? { timings: options.pluginTimings } : {})
     }))
@@ -219,7 +222,7 @@ export class NexusApp extends Disposable {
       trustProxy: config.trustProxy,
       controllers: [
         new AuthController(auth, new LoginThrottle(clock), cookie),
-        new MiniserverController(miniservers, loxoneSignals, new LoxoneProjectService(miniservers, this.options.projectReader ?? new ProjectReader(new MiniserverFtp()))),
+        new MiniserverController(miniservers, loxoneSignals, new LoxoneProjectService(miniservers, this.options.projectReader ?? new ProjectReader(new MiniserverFtp()), new TimeZoneSetting(db.settings))),
         new SignalController(this.signals, this.bus, wires),
         new BusController(this.bus, this.recorder),
         new ConfigController(transfer),

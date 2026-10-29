@@ -1029,8 +1029,8 @@ expects), but the Loxone Config project on the Miniserver lists all of them. So 
   login says that repeated failures make the Miniserver block Nexus' address, which would also
   cut its ICI traffic. The login fields refuse line breaks (400), because FTP commands are
   lines. `FakeFtpServer` covers these paths offline.
-- **What is read** (`IntercomProjectParser`, streaming with saxes): the document's `Title` and
-  `Date`, and under each `LanInt` (a Miniserver's Network Intercommunication):
+- **What is read** (`IntercomProjectParser`, streaming with saxes): the document's `Title`,
+  `Date` and `Timezone`, and under each `LanInt` (a Miniserver's Network Intercommunication):
 
   | Object | Attribute | Becomes |
   |---|---|---|
@@ -1046,6 +1046,12 @@ expects), but the Loxone Config project on the Miniserver lists all of them. So 
   The signal's label is its `Title`, plus `Desc` as description. `tp` is the ICI data type byte,
   which Loxone Config leaves out for digital. Nothing else from the project (owner, address,
   users, other objects) leaves the package.
+- **Time zone.** Reading a project (from the Miniserver or a file) also stores its `Timezone`, an
+  IANA name, as the installation's zone (`TimeZoneSetting`, the `timeZone` key in `settings`).
+  The last read wins: one installation has one zone, even with several Miniservers, so there is no
+  zone per Miniserver. Plugins get it in `init` at their next start (`Plugin.timeZone`, the
+  server's zone without one): the Script plugin's `Date` and the Calendar plugin's default zone
+  use it, since the server often runs in UTC in a container. The Script panel shows the zone.
 - **API and UI.** `POST /api/miniservers/:id/project` with `{ username, password }` reads from
   the Miniserver's configured host. It answers `LoxoneProjectDto` (all peers), or 502 with a
   message the user can act on (`ProjectReadError`: refused login, FTP off, no project, corrupt

@@ -6,9 +6,10 @@ import { IntercomProjectParser } from "./IntercomProjectParser.ts"
 describe("IntercomProjectParser", () => {
   const project = IntercomProjectParser.parse(ProjectFixtures.XML)
 
-  test("reads the document title and save time", () => {
+  test("reads the document title, save time and time zone", () => {
     assert.equal(project.title, "Test house")
     assert.equal(project.savedAt, "2026-10-24 14:27:35")
+    assert.equal(project.timeZone, "Europe/Vienna")
   })
 
   test("each peer carries its Miniserver's id and port, its own id, address and encryption", () => {

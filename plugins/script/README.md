@@ -157,7 +157,16 @@ nexus.store.set("state", state)
 Not available: `require`, `import()`, `process`, `Buffer` and Node's modules. A script talks to
 Nexus through `nexus` and to the network through `fetch`.
 
-Times use the time zone of the Nexus process (`TZ`), usually UTC in a container.
+`Date` works in the time zone of the Loxone project: Nexus takes it from the project whenever it
+reads one (importing signals from the Miniserver or from a project file), and the script gets it at
+its next start. Without a project read yet it is the zone of the Nexus process (`TZ`), usually UTC
+in a container. The panel shows which zone the script uses. Local getters and setters
+(`getHours()`, `setDate()`), `toString()`, `getTimezoneOffset()`, the local forms of
+`new Date(2026, 9, 29, 10, 0)`, `new Date("2026-10-29T10:00")` and `Date.parse`, and the default of
+`toLocaleString()` follow it; across a clock change a time that occurs twice is the earlier one and
+a skipped one moves forward, as JavaScript does for the local zone. `Intl.DateTimeFormat` without a
+`timeZone` option still uses the process's zone; pass `timeZone` there. So does a Date copied with
+`structuredClone()`; copy one with `new Date(date)` instead.
 
 ## Sensors
 
@@ -198,8 +207,8 @@ it. Add those signals by hand.
 ## Panel
 
 Two sections. **Script**: `running` with the number of active timers (and the error if the top level
-failed), the start time, the number of uncaught errors since the start, and the last one with its
-line and time. **Variables**: a table with a row per variable and direction:
+failed), the start time, the time zone its `Date` works in, the number of uncaught errors since
+the start, and the last one with its line and time. **Variables**: a table with a row per variable and direction:
 its name, `from script (set)` or `to script (on, get)`, the number of signals using it, the last
 value, the number of `set` calls or values received, and the time of the last one.
 

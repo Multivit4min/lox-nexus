@@ -24,7 +24,7 @@ export const calendarConfigSchema = z.object({
   timeZone: z.string().refine(Zone.isValid, "unknown time zone").optional().meta({
     title: "Time zone",
     description: "IANA zone such as Europe/Vienna, for all-day events, times without a zone and Loxone date and time. "
-      + "Empty: the server's zone (in a container usually UTC)"
+      + "Empty: the zone of the Loxone project Nexus read last, otherwise the server's (in a container usually UTC)"
   })
 })
   .refine(config => config.password === undefined || config.username !== undefined, {
