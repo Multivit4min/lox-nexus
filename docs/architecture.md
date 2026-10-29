@@ -815,8 +815,10 @@ above:
 - **Core** (`packages/core/src/plugins/`), behind the `PluginTransport` interface:
   - `PluginWorker`: a worker thread with `env: {}`, a 128 MB old-generation heap and piped
     stdout/stderr (logged per line). Every message from it is validated; an invalid one counts as
-    a crash. In development the worker inherits the host's `--import tsx`, so TypeScript entries
-    run unbuilt.
+    a crash. A TypeScript entry (development) inherits the host's `--import tsx` and runs unbuilt.
+    A bundle gets no loader, only a few harmless flags (`PluginWorker.execArgv`): tsx would
+    transform it again in every worker, which took about half again the heap for the first-party
+    plugins and over 256 MB for a 6 MB bundle (matter.js).
   - `PluginSession`: one running worker. Hello (with the wire version), init, ready or failed,
     then pings every 10 s; 3 unanswered pings terminate it. Requests are matched to responses by
     id with a timeout. close() sends shutdown, waits up to 5 s for `stopped`, then terminates.
