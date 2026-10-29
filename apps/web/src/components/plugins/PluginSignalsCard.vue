@@ -22,6 +22,7 @@ import SignalActions from "../SignalActions.vue"
 import RecordButtons from "../history/RecordButtons.vue"
 import SignalHistorySheet, { type HistorySubject } from "../history/SignalHistorySheet.vue"
 import ValueText from "../ValueText.vue"
+import WiredMark from "../WiredMark.vue"
 import BridgeDialog from "./BridgeDialog.vue"
 import CatalogBrowser from "./CatalogBrowser.vue"
 import PluginSignalDialog, { type SignalDialogTarget } from "./PluginSignalDialog.vue"
@@ -33,7 +34,7 @@ import PluginSignalDialog, { type SignalDialogTarget } from "./PluginSignalDialo
  */
 const props = defineProps<{ instance: PluginInstanceDto; description: PluginDescription; signals: PluginSignalDto[]; live: LiveValues }>()
 const emit = defineEmits<{ changed: []; wire: [signal: PluginSignalDto] }>()
-const { plugins: api, bus, recorded } = AppContext.use()
+const { plugins: api, bus, recorded, wired } = AppContext.use()
 const dialog = ref<SignalDialogTarget>()
 const browsing = ref(false)
 const forcing = ref<PluginSignalDto>()
@@ -42,6 +43,8 @@ const query = ref("")
 const selection = new Selection()
 const historyFor = ref<HistorySubject>()
 onMounted(() => void recorded.load())
+// also after a deletion or connecting to a Miniserver: both change the signals and their wires
+watch(() => props.signals, () => void wired.load(), { immediate: true })
 const bridging = ref<BridgeCandidate[]>([])
 const bridgeOpen = ref(false)
 
@@ -142,6 +145,7 @@ const remove = (signal: PluginSignalDto) =>
           <span class="flex min-w-0 items-center gap-1.5">
             <CircleAlert v-if="row.error" class="size-4 shrink-0 text-destructive" :title="row.error" />
             <span class="truncate font-medium" :title="row.error ?? row.label">{{ row.label }}</span>
+            <WiredMark :wires="wired.of(row.id)" />
           </span>
           <span><Badge variant="outline" :title="row.kind === 'sensor' ? 'reads from the device' : 'controls the device'">{{ row.kind }}</Badge></span>
           <span class="truncate text-muted-foreground" :title="`${row.capability} ${JSON.stringify(row.params)}`">{{ capabilityOf(row) }}</span>

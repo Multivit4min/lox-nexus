@@ -8,7 +8,10 @@ the way. Typical wires:
 - a calendar sensor ("event active") to a Miniserver digital output
 
 The **Wires** page lists every wire. Miniserver and plugin pages show the wires of their own
-signals, and each signal row has a button that starts a new wire at that signal.
+signals, and each signal row has a button that starts a new wire at that signal. In signal lists,
+a cable next to a signal's name means it has wires: blue while one of them runs, grey when all are
+switched off or can't run, with their number when there are several. Hover it to see which wires
+feed the signal and which it feeds.
 
 ## Connecting plugin signals to a Miniserver
 

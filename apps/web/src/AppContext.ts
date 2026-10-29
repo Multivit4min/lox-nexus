@@ -13,6 +13,7 @@ import { StreamConnection, type StreamHandlers } from "./api/StreamConnection.ts
 import { WireApi } from "./api/WireApi.ts"
 import { SelectionApi } from "./api/SelectionApi.ts"
 import { RecordedSignals } from "./stores/RecordedSignals.ts"
+import { WiredSignals } from "./stores/WiredSignals.ts"
 import { SessionStore } from "./stores/SessionStore.ts"
 
 /** Everything views need, built once in main.ts and provided to the component tree (no module globals). */
@@ -31,6 +32,7 @@ export class AppContext {
   readonly backup = new BackupApi(this.http)
   /** which signals the history records, shared by the signal lists */
   readonly recorded = new RecordedSignals(this.history)
+  readonly wired = new WiredSignals(this.wires)
   readonly session = new SessionStore(this.auth)
   /** set by main.ts once the router exists: forget the user and go to the login page */
   onSessionEnded: () => void = () => {}

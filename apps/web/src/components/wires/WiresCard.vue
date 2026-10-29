@@ -22,6 +22,7 @@ import WiresTable from "./WiresTable.vue"
  */
 const props = defineProps<{ ownerId?: string; title?: string }>()
 const context = AppContext.use()
+const { wired } = context
 const board = new WireBoard(context)
 const query = ref("")
 const failure = ref<string>()
@@ -45,7 +46,8 @@ async function attempt(work: () => Promise<unknown>) {
   }
 }
 
-const load = () => attempt(() => board.load())
+// the marks in the signal lists follow every change made here
+const load = () => attempt(() => Promise.all([board.load(), wired.load()]))
 
 async function create(input: WireInputDto) {
   await context.wires.create(input)
@@ -66,7 +68,7 @@ async function toggle(row: WireRow, enabled: boolean) {
   busy.value = true
   await attempt(async () => {
     await context.wires.update(id, { label, sourceId, targetId, transforms, syncOnStart, enabled })
-    await board.load()
+    await load()
   })
   busy.value = false
 }
@@ -75,7 +77,7 @@ async function remove(row: WireRow) {
   if (!confirm(`Delete the wire "${row.wire.label}"?`)) return
   await attempt(async () => {
     await context.wires.remove(row.wire.id)
-    await board.load()
+    await load()
   })
 }
 

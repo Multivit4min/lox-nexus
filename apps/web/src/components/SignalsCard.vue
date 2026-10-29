@@ -22,6 +22,7 @@ import SignalForm from "./SignalForm.vue"
 import RecordButtons from "./history/RecordButtons.vue"
 import SignalHistorySheet, { type HistorySubject } from "./history/SignalHistorySheet.vue"
 import ValueText from "./ValueText.vue"
+import WiredMark from "./WiredMark.vue"
 
 /**
  * The configured signals of a Miniserver with live values; searchable, filterable and
@@ -40,7 +41,7 @@ const props = defineProps<{
   totalLoad?: number
 }>()
 const emit = defineEmits<{ wire: [signal: LoxoneSignalDto] }>()
-const { bus, recorded } = AppContext.use()
+const { bus, recorded, wired } = AppContext.use()
 const adding = ref(false)
 const editing = ref<LoxoneSignalDto>()
 const forcing = ref<LoxoneSignalDto>()
@@ -50,6 +51,8 @@ const direction = ref<"all" | "in" | "out">("all")
 const selection = new Selection()
 const historyFor = ref<HistorySubject>()
 onMounted(() => void recorded.load())
+// also after a deletion or an import: deleting a signal deletes its wires
+watch(() => props.signals, () => void wired.load(), { immediate: true })
 const progress = ref<string>()
 
 const visible = computed(() => {
@@ -139,7 +142,10 @@ async function removeSelected() {
         </template>
         <template #row="{ row }">
           <Checkbox :model-value="selection.has(row.id)" :aria-label="`Select ${row.label}`" @update:model-value="v => selection.toggle(row.id, v === true)" />
-          <span class="truncate font-medium" :title="row.label">{{ row.label }}</span>
+          <span class="flex min-w-0 items-center gap-1.5">
+            <span class="truncate font-medium" :title="row.label">{{ row.label }}</span>
+            <WiredMark :wires="wired.of(row.id)" />
+          </span>
           <span class="flex min-w-0 items-center gap-1.5"><Badge variant="outline">{{ row.direction }}</Badge><span class="truncate font-mono text-xs">{{ row.packetId }}</span></span>
           <span class="truncate text-muted-foreground">{{ DataTypes.nameOf(row.dataType) }}{{ row.lumitech ? " · Lumitech" : "" }}</span>
           <span class="truncate font-mono text-xs" :title="row.topic">{{ row.topic }}</span>
