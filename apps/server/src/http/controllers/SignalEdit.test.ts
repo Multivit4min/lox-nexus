@@ -128,4 +128,34 @@ describe("editing a forced output of a running Miniserver", { timeout: 10_000 },
     assert.equal(await released, 1)
     assert.deepEqual(sent.filter(p => p.packetId === "pump2").map(p => p.value), [5, 1], "the real value never went out while forced")
   })
+
+  test("a new data type (as a project import sends it) changes the packets at once, and the wire keeps running", async () => {
+    const created = await admin.post("/api/miniservers", {
+      slug: "keller", label: "Keller", host: "127.0.0.1", port: loxone.address()!.port, listenPort: await freePort(), listenAddress: "127.0.0.1",
+      ownId: "nexus", remoteId: "ms", resendInterval: 0
+    })
+    const ms = created.json<MiniserverDto>()
+    const base = `/api/miniservers/${ms.id}/signals`
+    const level = (await admin.post(base, { packetId: "level", direction: "in", dataType: 1, label: "Level" })).json<LoxoneSignalDto>()
+    const lamp = (await admin.post(base, { packetId: "lamp", direction: "out", dataType: 1, label: "Lamp" })).json<LoxoneSignalDto>()
+    assert.equal((await admin.post("/api/wires", { label: "level → lamp", sourceId: level.id, targetId: lamp.id })).statusCode, 201)
+    const analog = next("lamp")
+    await admin.post("/api/bus/inject", { topic: level.topic, value: Value.number(0.7) })
+    assert.equal(await analog, 0.7)
+
+    const types: number[] = []
+    receiver.on("data", event => event.packet.packetId === "lamp" && types.push(event.packet.dataType))
+    const digital = next("lamp")
+    const edited = await admin.put(`${base}/${lamp.id}`, { packetId: "lamp", direction: "out", dataType: 0, label: "Lamp", slug: lamp.slug })
+    assert.equal(edited.statusCode, 200, edited.body)
+    assert.equal(edited.json<LoxoneSignalDto>().topic, lamp.topic, "name and topic stay")
+    await digital
+    assert.deepEqual(types, [0], "resent as Digital")
+    const [wire] = (await admin.get("/api/wires")).json<Array<{ active: boolean }>>()
+    assert.equal(wire?.active, true)
+    const later = next("lamp")
+    await admin.post("/api/bus/inject", { topic: level.topic, value: Value.number(0) })
+    await later
+    assert.deepEqual(types, [0, 0], "values through the wire go out as Digital too")
+  })
 })

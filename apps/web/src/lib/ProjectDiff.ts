@@ -1,10 +1,16 @@
 import { LumitechRule, type LoxoneProjectDto, type LoxoneProjectPeerDto, type LoxoneProjectSignalDto, type LoxoneSignalDto, type LoxoneSignalInput, type MiniserverDto } from "@lox-nexus/api"
 import { DataTypes } from "./DataTypes.ts"
 
-/** new: not configured; same: configured with this type; differs: configured with another type; unsupported: a type Nexus can't map */
-export type ProjectRowStatus = "new" | "same" | "differs" | "unsupported"
+/**
+ * new: not configured; same: configured with this type; differs: configured with another type;
+ * unsupported: a type Nexus can't map; removed: configured here, but no longer in the project
+ */
+export type ProjectRowStatus = "new" | "same" | "differs" | "unsupported" | "removed"
 
-/** A project signal next to the configured signal with the same packet id and direction, if any. */
+/**
+ * A project signal next to the configured signal with the same packet id and direction, if any.
+ * A removed row has only the configured signal; `signal` then describes it the same way.
+ */
 export interface ProjectRow {
   key: string
   signal: LoxoneProjectSignalDto
@@ -20,7 +26,10 @@ export class ProjectDiff {
     return own.find(peer => peer.miniserverId === ms.remoteId) ?? own[0] ?? project.peers[0]
   }
 
-  /** inputs first, then outputs, each in project order; a packet id that appears twice in one direction is listed once */
+  /**
+   * Inputs first, then outputs, each in project order, then the configured signals the project no
+   * longer has; a packet id that appears twice in one direction is listed once.
+   */
   static rows(peer: LoxoneProjectPeerDto, configured: LoxoneSignalDto[]): ProjectRow[] {
     const byKey = new Map(configured.map(signal => [ProjectDiff.key(signal), signal]))
     const seen = new Set<string>()
@@ -29,7 +38,18 @@ export class ProjectDiff {
       const existing = byKey.get(ProjectDiff.key(signal))
       return { key: ProjectDiff.key(signal), signal, ...(existing ? { existing } : {}), status: ProjectDiff.status(signal, existing) }
     })
-    return [...rows.filter(row => row.signal.direction === "in"), ...rows.filter(row => row.signal.direction === "out")]
+    const removed = configured.filter(signal => !seen.has(ProjectDiff.key(signal))).map(existing => ({
+      key: ProjectDiff.key(existing),
+      signal: { packetId: existing.packetId, direction: existing.direction, dataType: existing.dataType, label: existing.label },
+      existing,
+      status: "removed" as const
+    }))
+    return [...rows.filter(row => row.signal.direction === "in"), ...rows.filter(row => row.signal.direction === "out"), ...removed]
+  }
+
+  /** the configured signals the project no longer has, which an import may delete */
+  static removed(rows: ProjectRow[]): Array<ProjectRow & { existing: LoxoneSignalDto }> {
+    return rows.filter((row): row is ProjectRow & { existing: LoxoneSignalDto } => row.status === "removed" && row.existing !== undefined)
   }
 
   /** rows an import changes something for, which are preselected */

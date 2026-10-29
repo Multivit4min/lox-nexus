@@ -76,7 +76,8 @@ the Miniserver never says which packet IDs it expects. Add them by hand or impor
 ### Importing from Loxone Config
 
 **Import from Loxone Config** on a Miniserver's page reads the Loxone Config project and lists the
-peer's objects as new, configured, type differs or unsupported type:
+peer's objects as new, configured, type differs or unsupported type, and the signals Nexus has that
+the project no longer lists as **not in the project** (with the number of wires on each):
 
 - from the Miniserver over FTP, with a Miniserver user that has the FTP right (the login is used
   once and never stored; repeated failed logins make the Miniserver block Nexus' address), or
@@ -84,6 +85,13 @@ peer's objects as new, configured, type differs or unsupported type:
 
 Names and descriptions come from the project. The import preselects the peer whose ID matches the
 Miniserver's `ownId` and lists connection settings that differ from the project.
+
+- **New** signals are added, named as in Loxone Config.
+- **Type differs**: the signal takes the project's data type and keeps its name, topic and wires;
+  Nexus sends and reads it with the new type from then on.
+- **Not in the project**: kept, unless you tick **Also delete the signals the project no longer
+  has**, which deletes them and the wires connected to them after a confirmation. Check that the
+  right peer is chosen first: for another peer, everything of this Miniserver looks removed.
 
 ## Colours and Lumitech
 

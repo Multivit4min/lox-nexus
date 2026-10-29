@@ -41,6 +41,14 @@ describe("ProjectDiff", () => {
     assert.equal(ProjectDiff.typeChange(rows[0]!), "Analog → Smart RGBW")
   })
 
+  test("configured signals the project no longer has come last, as removed, and are never imported", () => {
+    const rows = ProjectDiff.rows(peer({ signals: [{ packetId: "pv", direction: "out", dataType: 1, label: "PV" }] }),
+      [configured("old", "in", 0), configured("pv", "out", 1), configured("gone", "out", 1), configured("pv", "in", 1)])
+    assert.deepEqual(rows.map(row => [row.key, row.status]), [["out:pv", "same"], ["in:old", "removed"], ["out:gone", "removed"], ["in:pv", "removed"]])
+    assert.deepEqual(ProjectDiff.removed(rows).map(row => [row.existing.id, row.signal.label, row.signal.dataType]), [["old", "old", 0], ["gone", "gone", 1], ["pv", "pv", 1]])
+    assert.deepEqual(rows.filter(ProjectDiff.actionable), [])
+  })
+
   test("a packet id listed twice in one direction gives one row, the first", () => {
     const rows = ProjectDiff.rows(peer({
       signals: [

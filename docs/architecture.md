@@ -1058,11 +1058,14 @@ expects), but the Loxone Config project on the Miniserver lists all of them. So 
   message the user can act on (`ProjectReadError`: refused login, FTP off, no project, corrupt
   file). "Import from Loxone Config" on a Miniserver's page preselects the peer whose `id` is
   this Miniserver's `ownId`. It lists connection settings that differ from the project, then the
-  peer's objects as New, Configured, Type differs or Unsupported type (`ProjectDiff`). Importing
+  peer's objects as New, Configured, Type differs or Unsupported type (`ProjectDiff`), then the
+  configured signals the peer no longer has as Not in the project, with their wire counts. Importing
   goes through the normal signal endpoints, one request at a time:
   - New signals are named as in Loxone Config.
   - Signals whose type differs get only the new data type, so their names, topics, wires and
     forces stay.
+  - Signals not in the project are deleted only when the user ticks the option (off by default,
+    confirmed), through the normal delete endpoint, which removes their wires too.
   - Failures are listed per row, and the remaining rows still run.
 - **From a file.** The dialog's second tab reads a project file the user picks:
   - Loxone Config's own `.Loxone`, which is the same `ControlList` XML (UTF-8 with a BOM)
