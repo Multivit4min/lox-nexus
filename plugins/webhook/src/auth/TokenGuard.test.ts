@@ -39,4 +39,10 @@ describe("TokenGuard", () => {
   test("presented collects the tokens of all three places", () => {
     assert.deepEqual(TokenGuard.presented(request({ authorization: "Bearer a", "x-webhook-token": "b" }, { token: "c" })), ["a", "b", "c"])
   })
+
+  test("without a configured token every call is ok", () => {
+    const open = new TokenGuard(undefined)
+    assert.equal(open.check(request()), "ok")
+    assert.equal(open.check(request({ authorization: "Bearer anything" })), "ok")
+  })
 })

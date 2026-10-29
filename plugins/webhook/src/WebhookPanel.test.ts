@@ -1,7 +1,8 @@
 import assert from "node:assert/strict"
 import { afterEach, describe, mock, test } from "node:test"
-import type { PluginTestHost } from "@lox-nexus/plugin-sdk/testing"
+import { PluginTestHost } from "@lox-nexus/plugin-sdk/testing"
 import { WebhookHarness } from "./test-support/WebhookHarness.ts"
+import { WebhookPlugin } from "./WebhookPlugin.ts"
 import { WebhookPanel } from "./WebhookPanel.ts"
 
 const { call } = WebhookHarness
@@ -64,6 +65,24 @@ describe("WebhookPanel", () => {
         { label: "Unknown hook (404, under /hook/test/…)", value: "1, last 2026-10-28T10:01:00.000Z" }
       ]
     })
+  })
+
+  test("tells where the token goes, with the token; without one it warns", async () => {
+    const host = await harness.start()
+    const items = (await sections(host)).Token
+    assert.deepEqual(items?.type === "keyValue" ? items.items.map(item => [item.label, item.value]) : [], [
+      ["Token", WebhookHarness.TOKEN],
+      ["As a header (preferred)", `Authorization: Bearer ${WebhookHarness.TOKEN}  or  X-Webhook-Token: ${WebhookHarness.TOKEN}`],
+      ["In the URL (for callers that can't set headers)", `/hook/test/<hook>?token=${WebhookHarness.TOKEN}`],
+      ["In the body", "not read: a token in the body is answered 401"]
+    ])
+    const open = await PluginTestHost.start(WebhookPlugin, { config: {} })
+    try {
+      const warning = (await sections(open)).Token
+      assert.match(warning?.type === "keyValue" ? warning.items[0]?.value ?? "" : "", /^none: every call is accepted.*Not safe/)
+    } finally {
+      await open.stop()
+    }
   })
 
   test("the last result says what went wrong", async () => {

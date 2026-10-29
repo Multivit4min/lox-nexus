@@ -7,6 +7,7 @@ export type TokenCheck = "ok" | "missing" | "wrong"
 /**
  * Checks the instance token of a call. It is accepted as `Authorization: Bearer <token>`, as an
  * `X-Webhook-Token` header or as a `token` query parameter, because many devices can't set headers.
+ * Without a configured token every call is "ok" (the plugin warns about that).
  *
  * Both sides are hashed with sha256 before `timingSafeEqual`, so the comparison takes the same time
  * whatever the guess and its length; comparing the raw strings would leak the token's length
@@ -14,17 +15,19 @@ export type TokenCheck = "ok" | "missing" | "wrong"
  */
 export class TokenGuard {
   private static readonly bearer = /^Bearer[ \t]+(\S+)[ \t]*$/i
-  private readonly expected: Buffer
+  private readonly expected: Buffer | undefined
 
-  constructor(token: string) {
-    this.expected = TokenGuard.digest(token)
+  constructor(token: string | undefined) {
+    this.expected = token === undefined ? undefined : TokenGuard.digest(token)
   }
 
   check(request: HttpRequest): TokenCheck {
+    const expected = this.expected
+    if (!expected) return "ok"
     const given = TokenGuard.presented(request)
     if (given.length === 0) return "missing"
     // every candidate is compared, so the time doesn't depend on which transport carried the right one
-    const matches = given.map(token => timingSafeEqual(TokenGuard.digest(token), this.expected))
+    const matches = given.map(token => timingSafeEqual(TokenGuard.digest(token), expected))
     return matches.includes(true) ? "ok" : "wrong"
   }
 

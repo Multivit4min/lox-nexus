@@ -15,8 +15,8 @@ function titles(schema: unknown) {
 test("every form field has a title and a description, and every choice a label", async () => {
   const description = await PluginTestHost.describe(WebhookPlugin)
   const token = (description.config as Schema).properties?.token
-  assert.equal(token?.title, "Secret token")
-  assert.equal(token?.writeOnly, true, "the title must not lose the secret marker")
+  assert.equal(token?.title, "Token")
+  assert.equal(token?.writeOnly, undefined, "visible in the form, for copying into the caller")
   const [trigger, ...values] = description.sensors
   assert.deepEqual(titles(trigger?.params), { hook: "Hook name", method: "HTTP method", pulseMs: "Pulse length (ms)" })
   assert.equal(values.length, 3)

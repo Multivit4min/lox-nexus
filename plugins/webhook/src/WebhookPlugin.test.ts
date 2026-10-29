@@ -11,11 +11,25 @@ describe("WebhookPlugin answers", () => {
   const harness = new WebhookHarness()
   afterEach(() => harness.cleanup())
 
-  test("the token is required, secret and at least 16 characters", async () => {
-    await assert.rejects(PluginTestHost.start(WebhookPlugin, { config: {} }))
+  test("the token is visible, not secret, and at least 16 characters when set", async () => {
     await assert.rejects(PluginTestHost.start(WebhookPlugin, { config: { token: "too-short-token" } }))
     const description = await PluginTestHost.describe(WebhookPlugin)
-    assert.match(JSON.stringify(description), /"token":\{[^}]*"writeOnly":true/)
+    assert.doesNotMatch(JSON.stringify(description), /writeOnly/)
+  })
+
+  test("without a token every call is accepted, and the instance is degraded with a warning", async () => {
+    const host = await PluginTestHost.start(WebhookPlugin, { config: {} })
+    try {
+      const trigger = await host.addSensor("trigger", { hook: "door" })
+      assert.equal((await call(host, { hook: "door", headers: { authorization: "" } })).status, 204)
+      assert.deepEqual(host.values(trigger).at(-1), Value.boolean(true))
+      const status = host.sent.findLast(message => message.type === "status")
+      assert.equal(status?.type === "status" ? status.status : undefined, "degraded")
+      assert.match(status?.type === "status" ? status.message ?? "" : "", /no token set: every call is accepted/)
+      assert.ok(host.sent.some(message => message.type === "log" && message.level === "warn" && /no token set/.test(message.message)))
+    } finally {
+      await host.stop()
+    }
   })
 
   test("204 for a call that every signal handled", async () => {
@@ -114,14 +128,12 @@ describe("WebhookPlugin answers", () => {
     assert.equal(host.status.status, "running")
   })
 
-  test("the token never reaches the log, the sent messages or the panel", async () => {
+  test("the token never reaches the log or the sent messages (the panel shows it, as the form does)", async () => {
     const host = await harness.start()
     await host.addSensor("trigger", { hook: "door" })
     await call(host, { hook: "door" })
     await call(host, { hook: "door", headers: { authorization: `Bearer ${TOKEN}-almost` } })
     await call(host, { hook: "door", query: { token: `${TOKEN}-too` } })
-    const panel = await host.panel()
     assert.doesNotMatch(JSON.stringify(host.sent), new RegExp(TOKEN))
-    assert.doesNotMatch(JSON.stringify(panel), new RegExp(TOKEN))
   })
 })

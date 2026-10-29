@@ -28,13 +28,18 @@ plus a value from the same body. A hook exists while at least one signal uses it
 
 | Field | | |
 |---|---|---|
-| `token` (*Secret token*) | required, secret, 16 to 512 visible ASCII characters (no spaces) | The shared secret every call must carry. Generate one with `openssl rand -hex 24`. |
+| `token` (*Token*) | optional, 16 to 512 visible ASCII characters (no spaces) | The shared token every call must carry. Generate one with `openssl rand -hex 24`. Shown in the form and the panel, so it can be copied into the caller. |
 
-One token per instance. Different callers that shouldn't share a secret get their own instance.
+One token per instance. Different callers that shouldn't share a token get their own instance.
+
+**Without a token every call is accepted**: anyone who can reach Nexus can trigger the hooks and
+set their values. The instance then runs as *degraded* with that warning, logs it at start, and the
+panel says so too. Only leave it empty on a network where every device is trusted.
 
 ## Authentication
 
-A call is accepted when it carries the token in any of these places:
+A call is accepted when it carries the token in any of these places. The **body is never read for
+the token**: a token only in the body is answered 401.
 
 | Where | Example |
 |---|---|
@@ -129,7 +134,8 @@ curl -X PUT -H "Authorization: Bearer $TOKEN" --data-binary "Garage left open" h
 
 ## Panel
 
-Two sections. **Hooks**: a table with a row per hook: its name, URL (`/hook/<instance slug>/<name>`),
+Three sections. **Token**: the token and where callers put it (as a header, or in the URL), or the
+warning when there is none. **Hooks**: a table with a row per hook: its name, URL (`/hook/<instance slug>/<name>`),
 the methods and the signals using it (by their names), the number of calls, the time of the last
 call and its result (`ok`, `method … not allowed`, `bad request: <reason>`). Calls without a valid
 token never change a hook's row, so a caller who guesses a name can't hide the real calls.
@@ -141,11 +147,13 @@ The counters live in memory and start at zero with every start of the instance.
 ## Security notes
 
 - Webhook URLs are reachable **without a Nexus login**; the token is the only protection. Use a
-  long random token (`openssl rand -hex 24`) and HTTPS in front of Nexus.
+  long random token (`openssl rand -hex 24`) and HTTPS in front of Nexus. Without a token there is
+  no protection at all.
 - The token is compared in constant time: both sides are hashed with SHA-256 and compared with
   `timingSafeEqual`, so neither the content nor the length of the token leaks through timing.
-- The token is a secret config field: it isn't sent back to the UI, isn't logged and never shows in
-  the panel.
+- The token is a plain config field, visible in the instance form, the panel and the config export
+  to whoever is logged in to Nexus: the caller has to keep it in plain text anyway. It is never
+  logged.
 - Calls with a wrong or missing token are logged at `warn`: the first right away, then at most one
   line a minute with the count, so a brute force can't flood the log. The status stays running.
   The line says whether the hook exists, never the path, which may hold a token typed into it by
@@ -162,9 +170,8 @@ The counters live in memory and start at zero with every start of the instance.
    has one timer that a call restarts, and removing the signal clears it.
 3. A wrong or missing token, and any error, were answered 200. Now 401, 404, 405 and 400 tell the
    caller what went wrong.
-4. The token was compared with `===` and stored as a plain parameter per variable, visible in the
-   UI and API and exported with the config. Now there is one secret token per instance, compared in
-   constant time.
+4. The token was compared with `===` and stored as a plain parameter per variable. Now there is
+   one token per instance, compared in constant time.
 5. Every call wrote its counter and time to the database. Counters are now in memory.
 
 Also new: query, form and raw-body sources, typed number/text/switch sensors with strict

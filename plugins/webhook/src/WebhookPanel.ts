@@ -3,17 +3,23 @@ import type { CallStats, Tally } from "./hooks/CallStats.ts"
 import type { HookRegistry } from "./hooks/HookRegistry.ts"
 
 /**
- * Two sections: a table with a row per configured hook (its signals and counters), and the calls
- * refused before reaching a hook (wrong or missing token, unknown name).
+ * Three sections: how callers send the token (with the token, which is a plain config field, or a
+ * warning without one), a table with a row per configured hook (its signals and counters), and the
+ * calls refused before reaching a hook (wrong or missing token, unknown name).
  *
- * URLs show `<slug>` only with a host too old to tell the plugin its slug. Never shows the token.
+ * URLs show `<slug>` only with a host too old to tell the plugin its slug.
  */
 export class WebhookPanel {
   static readonly columns = ["Hook", "URL", "Methods", "Signals", "Calls", "Last call", "Last result"]
 
   private readonly base: string
 
-  constructor(private readonly hooks: HookRegistry, private readonly stats: CallStats, slug: string | undefined) {
+  constructor(
+    private readonly hooks: HookRegistry,
+    private readonly stats: CallStats,
+    slug: string | undefined,
+    private readonly token: string | undefined
+  ) {
     this.base = `/hook/${slug ?? "<slug>"}`
   }
 
@@ -23,6 +29,7 @@ export class WebhookPanel {
     return {
       type: "sections",
       sections: [
+        { title: "Token", panel: { type: "keyValue", items: this.tokenItems() } },
         { title: "Hooks", panel: { type: "table", columns: WebhookPanel.columns, rows: this.hooks.names().map(name => this.hookRow(name)) } },
         {
           title: "Refused calls",
@@ -36,6 +43,17 @@ export class WebhookPanel {
         }
       ]
     }
+  }
+
+  private tokenItems() {
+    const token = this.token
+    if (token === undefined) return [{ label: "Token", value: "none: every call is accepted, so anyone who can reach Nexus can trigger these hooks. Not safe; set one in the instance settings." }]
+    return [
+      { label: "Token", value: token },
+      { label: "As a header (preferred)", value: `Authorization: Bearer ${token}  or  X-Webhook-Token: ${token}` },
+      { label: "In the URL (for callers that can't set headers)", value: `${this.base}/<hook>?token=${token}` },
+      { label: "In the body", value: "not read: a token in the body is answered 401" }
+    ]
   }
 
   private hookRow(name: string) {
