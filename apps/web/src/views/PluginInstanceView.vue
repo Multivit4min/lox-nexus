@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, shallowRef } from "vue"
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, shallowRef } from "vue"
 import type { PluginInstanceDto, PluginInstanceInput, PluginLogLineDto, PluginPackageDto, PluginSignalDto } from "@lox-nexus/api"
 import type { Panel } from "@lox-nexus/plugin-sdk/wire"
 import { useIntervalFn } from "@vueuse/core"
-import { Pencil, Play, RotateCw, Square, Trash2 } from "@lucide/vue"
+import { BookOpen, Pencil, Play, RotateCw, Square, Trash2 } from "@lucide/vue"
 import { useRouter } from "vue-router"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -20,6 +20,8 @@ import WatchSelectionCard from "../components/plugins/WatchSelectionCard.vue"
 import WiresCard from "../components/wires/WiresCard.vue"
 import { LiveValues } from "../stores/LiveValues.ts"
 
+// loaded on first use: it brings the markdown renderer
+const PluginReadmeDialog = defineAsyncComponent(() => import("../components/plugins/install/PluginReadmeDialog.vue"))
 const props = defineProps<{ id: string }>()
 const context = AppContext.use()
 const api = context.plugins
@@ -31,6 +33,9 @@ const logs = ref<PluginLogLineDto[]>([])
 const panel = ref<Panel | null>(null)
 const panelLoading = ref(false)
 const editing = ref(false)
+const reading = ref(false)
+// the dialog stays mounted once opened, so closing it animates and reopening is instant
+const readmeLoaded = ref(false)
 const busy = ref(false)
 const live = shallowRef<LiveValues>()
 const failure = ref<string>()
@@ -135,6 +140,7 @@ onUnmounted(() => {
             <Button variant="outline" size="sm" :disabled="busy" @click="lifecycle('stop', 'start')"><RotateCw class="size-4" /> Restart</Button>
             <Button variant="outline" size="sm" :disabled="busy" @click="lifecycle('stop')"><Square class="size-4" /> Stop</Button>
           </template>
+          <Button variant="outline" size="sm" :disabled="!pkg" @click="readmeLoaded = reading = true"><BookOpen class="size-4" /> Read me</Button>
           <Button variant="outline" size="sm" :disabled="!pkg" @click="editing = true"><Pencil class="size-4" /> Edit</Button>
           <Button variant="destructive" size="sm" @click="remove"><Trash2 class="size-4" /> Delete</Button>
         </div>
@@ -161,6 +167,7 @@ onUnmounted(() => {
     <PluginSignalsCard v-if="pkg && live && offersSignals" :instance="instance" :description="pkg.description" :signals="signals" :live="live" @changed="loadSignals" @wire="wire" />
     <WiresCard ref="wiresCard" :owner-id="instance.id" />
     <PluginLogsCard :lines="logs" />
+    <PluginReadmeDialog v-if="pkg && readmeLoaded" :id="pkg.id" v-model:open="reading" :name="pkg.name" :version="pkg.version" />
     <Dialog v-model:open="editing">
       <DialogContent class="sm:max-w-4xl">
         <DialogHeader><DialogTitle>Edit {{ instance.label }}</DialogTitle></DialogHeader>

@@ -26,6 +26,7 @@ const failure = ref("")
 // rendered with raw HTML escaped and unsafe links dropped (ReadmeRenderer), so v-html is safe here
 const html = computed(() => (markdown.value === undefined ? "" : renderer.render(markdown.value)))
 
+// immediate: the instance page mounts this dialog lazily, already open
 watch(open, async isOpen => {
   if (!isOpen) return
   state.value = "loading"
@@ -38,7 +39,7 @@ watch(open, async isOpen => {
     failure.value = error instanceof Error ? error.message : String(error)
     state.value = "failed"
   }
-})
+}, { immediate: true })
 </script>
 
 <template>

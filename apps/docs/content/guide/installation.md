@@ -256,8 +256,9 @@ Each card on the **Installed** tab shows:
 actuators. The installer keeps a package's `README.md` (up to 512 KiB) from every source. A version
 installed before Nexus kept READMEs has none stored: Read me then shows the development copy's, or
 the one now in the local repository folder it came from, and says so; **Update** stores it with the
-version. A plugin without any README says so. The plugin's icon also marks its instances on the **Instances** tab and on
-each instance's page.
+version. A plugin without any README says so. Each instance's page has the same **Read me** button
+next to **Edit**, so the plugin's settings are explained where you change them. The plugin's icon
+also marks its instances on the **Instances** tab and on each instance's page.
 
 **Updating.** **Update** opens the same dialog, prefilled with where the plugin came from: the same
 git URL and ref, the same local folder, or the ZIP tab. Check the impact on the review step, then
