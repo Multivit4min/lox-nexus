@@ -188,4 +188,12 @@ describe("CalendarPlugin", { timeout: 20_000 }, () => {
     const allDay = await h.started("/all-day.ics")
     assert.deepEqual((await panelLines(allDay)).slice(5, 7), ["2026-11-04, all day = Public holiday", "2026-11-06 – 2026-11-07, all day = Vacation"])
   })
+
+  test("the panel lists only the next 5 occurrences", async () => {
+    h.server.serve("/daily.ics", "daily.ics")
+    const host = await h.started("/daily.ics")
+    const items = await panelLines(host)
+    assert.ok(items.includes("Upcoming events (400 days) = 8"))
+    assert.equal(items.filter(item => item.endsWith("= Morning walk")).length, 5)
+  })
 })

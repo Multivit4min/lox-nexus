@@ -145,7 +145,7 @@ Two sections.
   the next 400 days, the number of dismissals, the time zone, the last error with its time (kept
   after the feed recovers), events left out (unreadable or repeating too often) and series cut
   short (too many occurrences).
-- **Next 15 events:** a table of when, in the plugin's time zone ("2026-11-02 18:00 – 19:00", or
+- **Next 5 events:** a table of when, in the plugin's time zone ("2026-11-02 18:00 – 19:00", or
   "2026-11-02, all day"), the title ("(no title)" without one), and "dismissed" where it applies.
 
 ## Limits

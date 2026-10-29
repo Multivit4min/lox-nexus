@@ -12,7 +12,7 @@ type Item = { label: string; value: string }
  * feed is named by its host only; the link itself is secret.
  */
 export class CalendarPanel {
-  static readonly UPCOMING = 15
+  static readonly UPCOMING = 5
 
   constructor(
     private readonly source: Pick<CalendarSource, "lastSuccess" | "lastError" | "skipped" | "truncated">,

@@ -11,7 +11,7 @@ with, such as "bins are out".
   current or next matching event, and when it starts or ends (minutes from now or a date).
 - **Actuators:** dismiss the matching events shown now, so every sensor of the instance skips them.
 - **Catalog:** ready-made signals for any event, and for each title among the upcoming events.
-- **Panel:** the feed's host, the last read, errors and events left out, and the next 15 events.
+- **Panel:** the feed's host, the last read, errors and events left out, and the next 5 events.
 
 ## Before you start
 

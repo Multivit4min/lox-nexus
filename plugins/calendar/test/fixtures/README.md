@@ -8,4 +8,5 @@ and the tests fake the clock to match.
 | `single.ics` | One event in UTC, with description and location |
 | `all-day.ics` | A one-day and a two-day all-day event, and a yearly all-day series |
 | `weekly.ics` | A weekly series in Europe/Vienna (VTIMEZONE) with an EXDATE and a moved, retitled occurrence (RECURRENCE-ID), plus a single event |
+| `daily.ics` | A daily series of 8 events in UTC, more than the panel lists |
 | `timezone.ics` | An event in America/New_York, one with Outlook's Windows zone name, and one in floating time |
