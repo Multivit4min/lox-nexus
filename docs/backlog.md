@@ -60,11 +60,11 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
 
 - **Watching instances' choices aren't exported.** The config export carries only the history's
   selection; add the others once plugin instances are part of the export.
-- **More exporters** on the same watching capability: MQTT, Prometheus, CSV.
+- **More exporters** on the same watching capability: Prometheus, CSV.
 
 ## First-party plugins
 
-- **MQTT, Sonos, Hue.** The previous Nexus had them; behaviour, settings and bugs not to repeat are
+- **Sonos, Hue.** The previous Nexus had them; behaviour, settings and bugs not to repeat are
   in `legacy-nexus.md`. Build them with the plugin-dev agent.
 - **Home Assistant: live actuator test.** Service calls are only tested against the simulated
   server; run them against the real instance once the user names entities that may be switched.

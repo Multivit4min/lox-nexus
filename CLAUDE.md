@@ -20,7 +20,7 @@ packages/loxone      Miniserver, MiniserverManager, DiscoveryList (uses core + i
 packages/api         private REST/WS DTO schemas shared by server and web
 apps/server          NexusApp composition root, Fastify, persistence, auth, installer
 apps/web             Vue 3 + Vite + Tailwind v4 + shadcn-vue
-plugins/*            first-party plugins (homeassistant, calendar, fronius)
+plugins/*            first-party plugins (homeassistant, calendar, fronius, script, webhook, influxdb, mqtt)
 ```
 
 ## Commands

@@ -32,6 +32,7 @@
         "plugins/homeassistant.md",
         "plugins/calendar.md",
         "plugins/webhook.md",
+        "plugins/mqtt.md",
         "plugins/script.md",
         "plugins/influxdb.md"
       ]

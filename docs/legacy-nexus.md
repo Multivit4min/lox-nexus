@@ -9,21 +9,6 @@ the rewrite fixed are in `architecture.md` and `loxone-ici-review.md`.
 
 ## Integrations not ported yet
 
-### MQTT
-
-- **Connection:** MQTT.js (`mqtt` 5.x), `connectAsync(url, { username, password })`. The URL scheme picks the transport: `mqtt`, `mqtts`, `ws`, `wss`.
-- **Subscribing:** it subscribed to `#` (everything) and cached the last message per topic in memory, never expiring them.
-- **`subscribe`:** emits the message text.
-- **`subscribe_json`:** parses the message, emits `path` from it (objects as JSON text), and wrote the whole message to the database on every message.
-- **`publish`:** publishes the value as text (QoS 0, no retain). Structured values were written as `"50% 0.2s"`, `"#RRGGBBWW 0.2s"` or `"4000K 50% 0.2s"`.
-- **Bugs not to repeat:**
-  - subscribing to `#`
-  - the unbounded cache (a 5-minute expiry was declared but never used)
-  - a database write per message
-  - `start()` clearing every variable's store
-  - `client.end()` not awaited
-  - topic names decoded twice in the HTTP route
-
 ### Sonos
 
 - **Connection:** `@svrooij/sonos` (`SonosDevice(address)`), UPnP/SOAP over HTTP to one speaker (port 1400).

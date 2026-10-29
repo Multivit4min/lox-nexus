@@ -22,10 +22,11 @@ Miniserver needs no extra hardware, no cloud and no HTTP polling.
 - **Run Nexus:** [Installation](guide/installation.md), then [Concepts](guide/concepts.md) and
   [Setting up a Miniserver](guide/loxone.md).
 - **Connect something:** the [Fronius](plugins/fronius.md), [Home Assistant](plugins/homeassistant.md),
-  [Calendar](plugins/calendar.md), [Webhook](plugins/webhook.md) and [Script](plugins/script.md)
-  plugins ship with Nexus.
-- **Keep values:** [History](guide/history.md) charts in Nexus, and the [InfluxDB](plugins/influxdb.md)
-  plugin for Grafana and long-term storage.
+  [Calendar](plugins/calendar.md), [Webhook](plugins/webhook.md), [MQTT](plugins/mqtt.md) and
+  [Script](plugins/script.md) plugins ship with Nexus.
+- **Keep values:** [History](guide/history.md) charts in Nexus, the [InfluxDB](plugins/influxdb.md)
+  plugin for Grafana and long-term storage, and the [MQTT](plugins/mqtt.md) plugin's export (with
+  Home Assistant discovery).
 - **Write a plugin:** start with the [10-minute quick start](plugins/index.md), then read the
   [plugin guide](plugins/authoring.md) and the [SDK reference](reference/sdk/index.md).
 

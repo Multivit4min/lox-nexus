@@ -1,0 +1,27 @@
+{
+  "name": "@lox-nexus/plugin-mqtt",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "MQTT plugin for Lox Nexus",
+  "type": "module",
+  "loxNexus": {
+    "apiVersion": 1,
+    "id": "mqtt",
+    "entry": "dist/plugin.js",
+    "name": "MQTT",
+    "icon": "wifi"
+  },
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --target=node24 --conditions=@lox-nexus/source --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\" --outfile=dist/plugin.js"
+  },
+  "dependencies": {
+    "@lox-nexus/plugin-sdk": "*",
+    "mqtt": "^5.16.1"
+  },
+  "devDependencies": {
+    "aedes": "^1.2.0",
+    "esbuild": "^0.28.2",
+    "ws": "^8.18.3"
+  }
+}

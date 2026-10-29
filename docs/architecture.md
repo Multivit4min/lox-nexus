@@ -65,7 +65,7 @@ the CLI all share:
 ### Packages
 
 ```
-plugins/{homeassistant,calendar,fronius} ──► packages/plugin-sdk   (published; ONLY dependency plugins may have)
+plugins/*        ──► packages/plugin-sdk   (published; the ONLY workspace dependency a plugin may have; npm packages are bundled in)
 packages/core    ──► plugin-sdk/values   EventBus, ForceRegistry, Recorder, SignalRegistry, WireEngine, PluginSupervisor
 packages/ici     (no deps)               own ICI protocol implementation + protocol lab CLI (could later replace loxone-ici on npm)
 packages/loxone  ──► core, ici           Miniserver, MiniserverManager, DiscoveryList
