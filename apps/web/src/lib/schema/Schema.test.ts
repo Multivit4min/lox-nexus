@@ -120,6 +120,11 @@ describe("SchemaDraft", () => {
     assert.equal(SchemaDraft.value(fields[0]!, "abc"), "abc")
   })
 
+  test("the param marked with signalName is known", () => {
+    const fields = SchemaFields.parse({ type: "object", properties: { hook: { type: "string", signalName: true }, pulseMs: { type: "number" } } }).fields!
+    assert.deepEqual(fields.map(f => [f.name, f.signalName]), [["hook", true], ["pulseMs", undefined]])
+  })
+
   test("enum values can have names (enumLabels)", () => {
     const parsed = SchemaFields.parse({ type: "string", enum: ["unix", "minutesUntil"], default: "unix", enumLabels: { minutesUntil: "Minutes until" } }, "format")
     assert.deepEqual([parsed.options, parsed.optionLabels], [["unix", "minutesUntil"], { minutesUntil: "Minutes until" }])

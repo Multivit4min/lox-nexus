@@ -7,6 +7,8 @@ export interface JsonSchemaNode {
   enum?: unknown[]
   /** names for enum values, by value: not JSON Schema, set by plugins with `.meta({ enumLabels })` */
   enumLabels?: Record<string, string>
+  /** the param that names a signal: not JSON Schema, set by plugins with the SDK's signalName() */
+  signalName?: boolean
   const?: unknown
   writeOnly?: boolean
   properties?: Record<string, JsonSchemaNode>
@@ -49,6 +51,8 @@ export interface SchemaField {
   code?: CodeLanguage
   /** string marked as a random token (`token()` in the SDK): the input has a button that generates one */
   token?: true
+  /** names the signal (`signalName()` in the SDK): a new signal is named after its value */
+  signalName?: true
   /** object: its properties, in schema order */
   fields?: SchemaField[]
   /** array: the item */
@@ -79,6 +83,7 @@ export class SchemaFields {
     for (const key of ["minimum", "maximum", "format"] as const) if (node[key] !== undefined) Object.assign(field, { [key]: node[key] })
     if (field.kind === "string" && node.format === "code") field.code = SchemaFields.CODE_LANGUAGES[node.contentMediaType ?? ""] ?? "text"
     if (field.kind === "string" && node.format === "token") field.token = true
+    if (node.signalName === true || schema.signalName === true) field.signalName = true
     if (field.kind === "enum") field.options = node.enum!.filter(SchemaFields.isPrimitive)
     const labels = node.enumLabels ?? schema.enumLabels
     if (field.kind === "enum" && labels && typeof labels === "object") field.optionLabels = labels

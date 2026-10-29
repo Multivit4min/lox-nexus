@@ -73,6 +73,10 @@ because many devices send JSON without saying so.
 All sensors take `hook` (*Hook name* in the form) and `method` (*HTTP method*): `any` (*Any method*),
 `GET`, `POST` or `PUT`.
 
+A new sensor is named after its hook as you type it, so its topic is the hook name too
+(`webhook/<instance>/sensor/motion-entrance`); a second sensor on the same hook gets `-2`. Type a
+name of your own to change that.
+
 ### `trigger`: a pulse per call (value type `boolean`)
 
 Params: `{ hook, method = "any", pulseMs = 1000 }`, `pulseMs` (*Pulse length (ms)*) from 50 to

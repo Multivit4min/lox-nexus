@@ -53,8 +53,15 @@ watch(capability, (current, previous) => {
   // the params of the signal or entry apply to its own capability only
   const keep = !previous && start && current && `${current.kind}:${current.id}` === `${start.kind}:${start.capability}`
   draft.value = current ? SchemaDraft.from(current.field, keep ? startParams : undefined) : null
-  // a fresh signal is named after what it is until the user names it
-  if (current && !labelEdited.value) label.value = current.label
+}, { immediate: true })
+
+// a fresh signal is named after the param the plugin marked with signalName() (a hook, a variable)
+// as it is typed, otherwise after what it is, until the user names it
+watch([capability, draft], ([current, params]) => {
+  if (!current || labelEdited.value) return
+  const field = current.field.fields?.find(candidate => candidate.signalName)
+  const typed = field && params && typeof params === "object" && !Array.isArray(params) ? params[field.name] : undefined
+  label.value = typeof typed === "string" && typed.trim() ? typed.trim() : current.label
 }, { immediate: true })
 
 // keyboard focus would otherwise fall back to the dialog when the picked button disappears

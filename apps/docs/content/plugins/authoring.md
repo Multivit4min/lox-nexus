@@ -73,6 +73,10 @@ export class MyPlugin extends Plugin<z.infer<typeof config>> {
   `secret()` survives `.optional()`, `.default()` and `.describe()` in any order
   (`secret(z.string()).optional()` and `secret(z.string().optional())` both keep `writeOnly` in
   the JSON Schema); the marker is what counts, so keep the field at the top level of the object.
+- **`signalName(schema)`** marks the top-level param of a sensor or actuator whose value names the
+  signal, such as a hook or variable name. The form names a new signal after what is typed there
+  (and its topic after that name) until the user names it; without one a new signal is named after
+  its kind ("Trigger (pulse)"), which says little once there are several.
 - **`token(schema)`** marks a string field as a random token that callers present (a webhook
   token, say). The form shows a **Generate** button next to it that fills in 24 random bytes as
   48 hex characters, so the schema must allow that length. Leave it visible so the user can copy

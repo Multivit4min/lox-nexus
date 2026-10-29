@@ -1,6 +1,6 @@
 /**
  * The public SDK for plugins: the base classes (Plugin, Sensor, Actuator), lifetimes
- * (Disposable), the worker entry (PluginEntry) and config helpers (secret, code, token, z).
+ * (Disposable), the worker entry (PluginEntry) and config helpers (secret, code, token, signalName, z).
  *
  * Values, the host/worker protocol and the test helpers live in the subpaths
  * `@lox-nexus/plugin-sdk/values`, `/wire` and `/testing`.
@@ -19,6 +19,7 @@ export type { HttpHandler, PluginContext, PluginHttp, PluginLogger, PluginStatus
 export { secret } from "./plugin/Secret.ts"
 export { code, type CodeLanguage } from "./plugin/Code.ts"
 export { token } from "./plugin/Token.ts"
+export { signalName } from "./plugin/SignalName.ts"
 export { PluginEntry } from "./runtime/PluginEntry.ts"
 export { SupersededError } from "./runtime/ActuatorRunner.ts"
 export type { CatalogEntry, CatalogNode, HttpResponse, Panel, PanelPart } from "./wire/Shapes.ts"
