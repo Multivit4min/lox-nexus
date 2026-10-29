@@ -2,9 +2,10 @@ import { fileURLToPath, URL } from "node:url"
 import tailwindcss from "@tailwindcss/vite"
 import vue from "@vitejs/plugin-vue"
 import { defineConfig } from "vite"
+import { LucideImports } from "./build/LucideImports.ts"
 
 export default defineConfig({
-  plugins: [vue(), tailwindcss()],
+  plugins: [LucideImports.fromPackage().plugin(), vue(), tailwindcss()],
   // relative asset paths, so the built UI works under a proxy prefix (see AppRouter)
   base: "./",
   resolve: {
