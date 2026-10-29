@@ -260,7 +260,7 @@ wires.
 
 Installing the same version again with the same bundle changes nothing (or repairs its files when
 they went missing); the same version with a different bundle is refused, so raise the version when
-you change a plugin. Installed plugins are stored in `<data dir>/plugins/<id>/<version>/`, and the
+you change a plugin (the local repository does that for you, see below). Installed plugins are stored in `<data dir>/plugins/<id>/<version>/`, and the
 database records what is installed. Back up the data directory as a whole. See
 [Publishing a plugin](../plugins/publishing.md) for what a package must contain.
 
@@ -313,3 +313,8 @@ that folder that are not installed or are installed in another version, each wit
 - `npm run plugins:build` builds the bundles of the first-party plugins, so they can be installed.
 - Installing copies the files, so rebuilding a plugin in the repository never changes the
   installed version.
+- Versions from the local repository carry their bundle's hash as build metadata: `0.1.0` in
+  `package.json` is listed and installed as, say, `0.1.0+3f6c2a1b`. A rebuild with changes, after
+  a `git pull` for example, is therefore a new version and shows **Update**, even when nobody raised
+  the version; a rebuild without changes keeps its hash and offers nothing. A version that already
+  has build metadata (`1.0.0+ci.42`) is installed as it is.

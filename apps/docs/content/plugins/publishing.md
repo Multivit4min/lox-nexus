@@ -92,7 +92,8 @@ package instead.
 
 The same version with the same bundle counts as already installed, and confirming it changes
 nothing. The same version with a **different** bundle is refused, so raise the version whenever
-the bundle changes. A different version is an update: running instances restart on it, and the
+the bundle changes. Only the local plugin repository stamps versions itself: it installs `1.2.0` as
+`1.2.0+<hash of the bundle>`, so a rebuilt plugin there installs as a new version. A different version is an update: running instances restart on it, and the
 version before stays for a rollback.
 
 **Keep stored data compatible.** Updates and rollbacks don't migrate an instance's config or

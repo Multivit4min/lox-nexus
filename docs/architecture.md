@@ -1396,7 +1396,9 @@ shadowed. Install tests and the walkthrough use a plugin id that isn't in the wo
 6. Compare with what is installed:
    - Same id and version with the same `bundle_sha256` → `sameAsInstalled`, and confirming only
      activates it.
-   - Same id and version with other content → 409 `exists` ("raise the version").
+   - Same id and version with other content → 409 `exists` ("raise the version"). The local
+     repository avoids that for rebuilds: `BuildStamp` appends the bundle's hash as build metadata
+     (`0.1.0+3f6c2a1b`) to a version without one, in the listing and in the staged `package.json`.
    - Otherwise `UpdateImpact` against the active version and the stored instances.
 7. Register in `PendingInstalls`, release the lock, answer 201 with a `StagedInstallDto`.
 

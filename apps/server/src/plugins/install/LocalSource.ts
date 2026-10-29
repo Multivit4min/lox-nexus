@@ -1,5 +1,6 @@
 import fs from "node:fs"
 import path from "node:path"
+import { BuildStamp } from "./BuildStamp.ts"
 import { InstallError } from "./InstallError.ts"
 import type { InstallLimits } from "./InstallLimits.ts"
 import type { LocalPlugin } from "./LocalRepository.ts"
@@ -10,7 +11,8 @@ import type { FetchedPackage, PluginSource } from "./PluginSource.ts"
 
 /**
  * A plugin folder of the local repository. The files are copied, so a rebuild in the folder never
- * changes an installed version; both must be plain files whose real path stays in the folder.
+ * changes an installed version; both must be plain files whose real path stays in the folder. The
+ * version gets the bundle's stamp (BuildStamp), so a rebuild installs as a new version.
  */
 export class LocalSource implements PluginSource {
   constructor(private readonly plugin: LocalPlugin, private readonly limits: InstallLimits) {}
@@ -18,9 +20,12 @@ export class LocalSource implements PluginSource {
   async fetch(packageDir: string): Promise<FetchedPackage> {
     const { dir } = this.plugin
     // read again: the folder may have changed since it was listed
-    const manifestBytes = await this.read("package.json", this.limits.manifestBytes)
+    const authoredBytes = await this.read("package.json", this.limits.manifestBytes)
+    const authored = ManifestValidator.parse(authoredBytes)
+    const bundle = await this.read(authored.entry, this.limits.bundleBytes)
+    // validated again: the stamp makes the version longer
+    const manifestBytes = BuildStamp.manifest(authoredBytes, BuildStamp.version(authored.version, bundle))
     const manifest = ManifestValidator.parse(manifestBytes)
-    const bundle = await this.read(manifest.entry, this.limits.bundleBytes)
     const map = fs.existsSync(PluginDirectory.inside(dir, `${manifest.entry}.map`)) ? await this.read(`${manifest.entry}.map`, this.limits.bundleBytes) : undefined
     await PackageWriter.write(packageDir, manifest, { manifest: manifestBytes, bundle, ...(map ? { map } : {}) })
     return { origin: { kind: "local", folder: dir }, manifest }

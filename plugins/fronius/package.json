@@ -1,6 +1,6 @@
 {
   "name": "@lox-nexus/plugin-fronius",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "license": "MIT",
   "private": true,
   "description": "Fronius plugin for Lox Nexus",

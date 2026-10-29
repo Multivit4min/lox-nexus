@@ -79,7 +79,22 @@ test("the local repository lists its plugins and installs them by folder name", 
   const staged = (await admin.post("/api/plugin-packages/stage/local", { folder: "fixture" })).json<StagedInstallDto>()
   assert.deepEqual(staged.source, { kind: "local", folder: path.join(repository, "fixture") })
   assert.equal((await admin.post(`/api/plugin-packages/stage/${staged.stagingId}/confirm`, { expectedActive: null })).statusCode, 200)
-  assert.equal((await admin.get("/api/plugin-packages/repository")).json<RepositoryPluginDto[]>()[1]?.installedVersion, "1.0.0")
+  const installed = (await admin.get("/api/plugin-packages/repository")).json<RepositoryPluginDto[]>()[1]
+  assert.match(installed?.installedVersion ?? "", /^1\.0\.0\+[0-9a-f]{8}$/, "stamped with its bundle")
+  assert.equal(installed?.version, installed?.installedVersion)
+
+  // the same bytes written again (a rebuild without changes) keep the stamp: nothing new to install
+  fs.writeFileSync(path.join(repository, "fixture", "dist", "plugin.js"), await FixtureBundle.bundle())
+  assert.equal((await admin.get("/api/plugin-packages/repository")).json<RepositoryPluginDto[]>()[1]?.version, installed?.version)
+  // a rebuild with changes keeps package.json's 1.0.0, and still installs as a new version
+  fs.writeFileSync(path.join(repository, "fixture", "dist", "plugin.js"), await FixtureBundle.bundle(2))
+  const rebuilt = (await admin.get("/api/plugin-packages/repository")).json<RepositoryPluginDto[]>()[1]
+  assert.match(rebuilt?.version ?? "", /^1\.0\.0\+[0-9a-f]{8}$/)
+  assert.notEqual(rebuilt?.version, installed?.version)
+  const update = (await admin.post("/api/plugin-packages/stage/local", { folder: "fixture", update: true })).json<StagedInstallDto>()
+  const confirmed = await admin.post(`/api/plugin-packages/stage/${update.stagingId}/confirm`, { expectedActive: installed?.installedVersion })
+  assert.equal(confirmed.statusCode, 200, confirmed.body)
+  assert.equal((await admin.get("/api/plugin-packages/repository")).json<RepositoryPluginDto[]>()[1]?.installedVersion, rebuilt?.version)
 })
 
 test("one operation at a time; a stale review, a discarded or replaced stage can't be confirmed", async t => {

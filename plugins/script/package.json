@@ -1,6 +1,6 @@
 {
   "name": "@lox-nexus/plugin-script",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "license": "MIT",
   "private": true,
   "description": "Script plugin for Lox Nexus: JavaScript that exchanges values with Nexus through named variables",
