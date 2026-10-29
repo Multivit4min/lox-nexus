@@ -57,3 +57,29 @@ test("a README from the local repository is kept; one above the limit is left ou
   await install()
   assert.equal((await admin.get("/api/plugin-packages/fixture/readme")).statusCode, 404)
 })
+
+test("a README edited in the local repository, the bundle unchanged, is offered and installed as an update", async t => {
+  const repository = TestApp.tempDir()
+  t.after(() => fs.rmSync(repository, { recursive: true, force: true }))
+  fs.mkdirSync(path.join(repository, "fixture", "dist"), { recursive: true })
+  fs.writeFileSync(path.join(repository, "fixture", "package.json"), FixtureBundle.manifest())
+  fs.writeFileSync(path.join(repository, "fixture", "dist", "plugin.js"), await FixtureBundle.bundle())
+  fs.writeFileSync(path.join(repository, "fixture", "README.md"), README)
+  const nexus = await InstallTest.start({ repository })
+  t.after(() => nexus.dispose())
+  const admin = await nexus.test.admin()
+  const listed = async () => (await admin.get("/api/plugin-packages/repository")).json<Array<{ folder: string; version?: string }>>().find(p => p.folder === "fixture")?.version
+  const install = async (expectedActive: string | null) => {
+    const staged = (await admin.post("/api/plugin-packages/stage/local", { folder: "fixture" })).json<StagedInstallDto>()
+    const confirmed = await admin.post(`/api/plugin-packages/stage/${staged.stagingId}/confirm`, { expectedActive })
+    assert.equal(confirmed.statusCode, 200, confirmed.body)
+  }
+  const first = await listed()
+  await install(null)
+  fs.writeFileSync(path.join(repository, "fixture", "README.md"), "# Fixture\n\nNow with more to say.\n")
+  const second = await listed()
+  assert.notEqual(second, first, "a new version to offer")
+  await install(first!)
+  assert.deepEqual((await admin.get("/api/plugin-packages/fixture/readme")).json(), { markdown: "# Fixture\n\nNow with more to say.\n" })
+})
+

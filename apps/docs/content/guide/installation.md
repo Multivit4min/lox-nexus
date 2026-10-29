@@ -324,8 +324,9 @@ that folder that are not installed or are installed in another version, each wit
 - `npm run plugins:build` builds the bundles of the first-party plugins, so they can be installed.
 - Installing copies the files, so rebuilding a plugin in the repository never changes the
   installed version.
-- Versions from the local repository carry their bundle's hash as build metadata: `0.1.0` in
-  `package.json` is listed and installed as, say, `0.1.0+3f6c2a1b`. A rebuild with changes, after
-  a `git pull` for example, is therefore a new version and shows **Update**, even when nobody raised
-  the version; a rebuild without changes keeps its hash and offers nothing. A version that already
+- Versions from the local repository carry a hash of the bundle and the README as build metadata:
+  `0.1.0` in `package.json` is listed and installed as, say, `0.1.0+3f6c2a1b`. A rebuild with
+  changes or an edited README, after a `git pull` for example, is therefore a new version and shows
+  **Update**, even when nobody raised the version; a rebuild without changes keeps its hash and
+  offers nothing. A version that already
   has build metadata (`1.0.0+ci.42`) is installed as it is.

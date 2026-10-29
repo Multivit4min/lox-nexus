@@ -4,6 +4,7 @@ import { BuildStamp } from "./BuildStamp.ts"
 import { InstallError } from "./InstallError.ts"
 import type { InstallLimits } from "./InstallLimits.ts"
 import { ManifestValidator, type InstallManifest } from "./ManifestValidator.ts"
+import { PackageWriter } from "./PackageWriter.ts"
 import { PluginDirectory } from "./PluginDirectory.ts"
 
 /** A folder of the local repository that declares a plugin. */
@@ -26,7 +27,7 @@ export interface LocalPlugin {
  */
 export class LocalRepository {
   // a bundle is hashed again only when it changes, not at every listing
-  private readonly stamps = new Map<string, { mtimeMs: number; size: number; authored: string; version: string }>()
+  private readonly stamps = new Map<string, { key: string; version: string }>()
 
   /** @param dir absolute; undefined or a missing folder is an empty repository */
   constructor(readonly dir: string | undefined, private readonly limits: InstallLimits) {}
@@ -70,20 +71,25 @@ export class LocalRepository {
       if (!fs.existsSync(entry)) {
         return { folder, dir, manifest, problem: `not built: ${manifest.entry} is missing (run npm run build in the plugin's folder)` }
       }
-      return { folder, dir, manifest: { ...manifest, version: this.stamped(manifest.version, entry) } }
+      return { folder, dir, manifest: { ...manifest, version: this.stamped(manifest.version, entry, dir) } }
     } catch (error) {
       return { folder, dir, problem: error instanceof Error ? error.message : String(error) }
     }
   }
 
-  // a bundle that isn't a plain file or is too large is listed unstamped; installing it says why it can't be
-  private stamped(authored: string, entry: string): string {
+  // a bundle that isn't a plain file or is too large is listed unstamped; installing it says why it can't be.
+  // The README counts as installing would take it: a plain file within the limit.
+  private stamped(authored: string, entry: string, dir: string): string {
     const stat = fs.lstatSync(entry)
     if (!stat.isFile() || stat.size > this.limits.bundleBytes) return authored
+    const readme = PackageWriter.README_NAMES.map(name => path.join(dir, name)).find(file => fs.existsSync(file))
+    const readmeStat = readme === undefined ? undefined : fs.lstatSync(readme)
+    const kept = readme !== undefined && readmeStat?.isFile() === true && readmeStat.size <= this.limits.readmeBytes ? readme : undefined
+    const key = JSON.stringify([authored, stat.mtimeMs, stat.size, kept, kept && readmeStat?.mtimeMs, kept && readmeStat?.size])
     const cached = this.stamps.get(entry)
-    if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size && cached.authored === authored) return cached.version
-    const version = BuildStamp.version(authored, fs.readFileSync(entry))
-    this.stamps.set(entry, { mtimeMs: stat.mtimeMs, size: stat.size, authored, version })
+    if (cached?.key === key) return cached.version
+    const version = BuildStamp.version(authored, fs.readFileSync(entry), kept === undefined ? undefined : fs.readFileSync(kept))
+    this.stamps.set(entry, { key, version })
     return version
   }
 }

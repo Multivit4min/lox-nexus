@@ -14,3 +14,13 @@ test("package.json keeps everything but the version", () => {
   const written = BuildStamp.manifest(Buffer.from(JSON.stringify({ name: "p", version: "0.1.0", loxNexus: { id: "p" } })), "0.1.0+abcdef12")
   assert.deepEqual(JSON.parse(written.toString("utf8")), { name: "p", version: "0.1.0+abcdef12", loxNexus: { id: "p" } })
 })
+
+test("the README counts too: an edited README is a new version, none keeps the bundle's stamp as before", () => {
+  const bundle = Buffer.from("export default 1")
+  const plain = BuildStamp.version("0.1.0", bundle)
+  assert.equal(BuildStamp.version("0.1.0", bundle, undefined), plain)
+  const documented = BuildStamp.version("0.1.0", bundle, Buffer.from("# Plugin\n"))
+  assert.notEqual(documented, plain)
+  assert.equal(BuildStamp.version("0.1.0", bundle, Buffer.from("# Plugin\n")), documented)
+  assert.notEqual(BuildStamp.version("0.1.0", bundle, Buffer.from("# Plugin, edited\n")), documented)
+})

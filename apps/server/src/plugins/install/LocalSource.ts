@@ -23,11 +23,11 @@ export class LocalSource implements PluginSource {
     const authoredBytes = await this.read("package.json", this.limits.manifestBytes)
     const authored = ManifestValidator.parse(authoredBytes)
     const bundle = await this.read(authored.entry, this.limits.bundleBytes)
+    const readme = await this.readme()
     // validated again: the stamp makes the version longer
-    const manifestBytes = BuildStamp.manifest(authoredBytes, BuildStamp.version(authored.version, bundle))
+    const manifestBytes = BuildStamp.manifest(authoredBytes, BuildStamp.version(authored.version, bundle, readme))
     const manifest = ManifestValidator.parse(manifestBytes)
     const map = fs.existsSync(PluginDirectory.inside(dir, `${manifest.entry}.map`)) ? await this.read(`${manifest.entry}.map`, this.limits.bundleBytes) : undefined
-    const readme = await this.readme()
     await PackageWriter.write(packageDir, manifest, { manifest: manifestBytes, bundle, ...(map ? { map } : {}), ...(readme ? { readme } : {}) })
     return { origin: { kind: "local", folder: dir }, manifest }
   }
