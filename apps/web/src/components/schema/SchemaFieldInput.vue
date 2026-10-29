@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed } from "vue"
-import { Plus, X } from "@lucide/vue"
+import { Plus, RefreshCw, X } from "@lucide/vue"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
+import { RandomToken } from "../../lib/RandomToken.ts"
 import { SchemaDraft, type Draft } from "../../lib/schema/SchemaDraft.ts"
 import type { SchemaField } from "../../lib/schema/SchemaField.ts"
 import FormField from "../FormField.vue"
@@ -39,6 +40,12 @@ const setChild = (name: string, value: Draft) => emit("update:modelValue", { ...
 const setItem = (index: number, value: Draft) => emit("update:modelValue", items.value.map((item, i) => (i === index ? value : item)))
 const removeItem = (index: number) => emit("update:modelValue", items.value.filter((_, i) => i !== index))
 const addItem = () => emit("update:modelValue", [...items.value, SchemaDraft.from(props.field.items!)])
+
+// only fills the field: the old token keeps working until the form is saved
+function generate() {
+  if (text.value && !confirm(`Replace the ${props.field.label.toLowerCase()}? Callers using the current one are refused once you save.`)) return
+  emit("update:modelValue", RandomToken.create())
+}
 </script>
 
 <template>
@@ -87,10 +94,13 @@ const addItem = () => emit("update:modelValue", [...items.value, SchemaDraft.fro
     <Textarea :id="id" :model-value="text" class="font-mono text-xs" rows="4" :required="needed" @update:model-value="value => emit('update:modelValue', String(value))" />
   </FormField>
   <FormField v-else :id="id" :label="label" :hint="hint">
-    <Input
-      :id="id" :model-value="text" :type="field.secret ? 'password' : 'text'"
-      :placeholder="placeholder" :required="needed" :autocomplete="field.secret ? 'new-password' : 'off'"
-      @update:model-value="value => emit('update:modelValue', String(value))"
-    />
+    <div class="flex gap-2">
+      <Input
+        :id="id" :model-value="text" :type="field.secret ? 'password' : 'text'" :class="{ 'font-mono': field.token }"
+        :placeholder="placeholder" :required="needed" :autocomplete="field.secret ? 'new-password' : 'off'"
+        @update:model-value="value => emit('update:modelValue', String(value))"
+      />
+      <Button v-if="field.token" type="button" variant="outline" class="shrink-0" @click="generate"><RefreshCw class="size-4" /> Generate</Button>
+    </div>
   </FormField>
 </template>

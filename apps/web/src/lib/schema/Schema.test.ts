@@ -114,6 +114,12 @@ describe("SchemaDraft", () => {
     assert.equal(SchemaDraft.value(fields[0]!, "let a = 1\n"), "let a = 1\n")
   })
 
+  test("strings marked as tokens get a generate button; a token value is kept as typed", () => {
+    const fields = SchemaFields.parse({ type: "object", properties: { token: { type: "string", format: "token" }, host: { type: "string" } } }).fields!
+    assert.deepEqual(fields.map(f => [f.name, f.token]), [["token", true], ["host", undefined]])
+    assert.equal(SchemaDraft.value(fields[0]!, "abc"), "abc")
+  })
+
   test("enum values can have names (enumLabels)", () => {
     const parsed = SchemaFields.parse({ type: "string", enum: ["unix", "minutesUntil"], default: "unix", enumLabels: { minutesUntil: "Minutes until" } }, "format")
     assert.deepEqual([parsed.options, parsed.optionLabels], [["unix", "minutesUntil"], { minutesUntil: "Minutes until" }])

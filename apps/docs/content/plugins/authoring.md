@@ -73,6 +73,10 @@ export class MyPlugin extends Plugin<z.infer<typeof config>> {
   `secret()` survives `.optional()`, `.default()` and `.describe()` in any order
   (`secret(z.string()).optional()` and `secret(z.string().optional())` both keep `writeOnly` in
   the JSON Schema); the marker is what counts, so keep the field at the top level of the object.
+- **`token(schema)`** marks a string field as a random token that callers present (a webhook
+  token, say). The form shows a **Generate** button next to it that fills in 24 random bytes as
+  48 hex characters, so the schema must allow that length. Leave it visible so the user can copy
+  it into the caller, or wrap it in `secret()` as well to hide it.
 - Keep config schemas to simple types (strings, numbers, booleans, enums, optional fields,
   defaults). The UI builds a form from the JSON Schema; transforms and refinements are lost there,
   while the worker still enforces them when it starts. An object-level `.refine()` or

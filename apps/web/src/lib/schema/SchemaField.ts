@@ -47,6 +47,8 @@ export interface SchemaField {
   format?: string
   /** string marked as source code by the plugin (`code()` in the SDK): edited in a code editor */
   code?: CodeLanguage
+  /** string marked as a random token (`token()` in the SDK): the input has a button that generates one */
+  token?: true
   /** object: its properties, in schema order */
   fields?: SchemaField[]
   /** array: the item */
@@ -76,6 +78,7 @@ export class SchemaFields {
     if (field.hasDefault) field.default = "default" in schema ? schema.default : node.default
     for (const key of ["minimum", "maximum", "format"] as const) if (node[key] !== undefined) Object.assign(field, { [key]: node[key] })
     if (field.kind === "string" && node.format === "code") field.code = SchemaFields.CODE_LANGUAGES[node.contentMediaType ?? ""] ?? "text"
+    if (field.kind === "string" && node.format === "token") field.token = true
     if (field.kind === "enum") field.options = node.enum!.filter(SchemaFields.isPrimitive)
     const labels = node.enumLabels ?? schema.enumLabels
     if (field.kind === "enum" && labels && typeof labels === "object") field.optionLabels = labels

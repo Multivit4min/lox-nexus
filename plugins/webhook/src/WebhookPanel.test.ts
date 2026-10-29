@@ -72,7 +72,8 @@ describe("WebhookPanel", () => {
     const items = (await sections(host)).Token
     assert.deepEqual(items?.type === "keyValue" ? items.items.map(item => [item.label, item.value]) : [], [
       ["Token", WebhookHarness.TOKEN],
-      ["As a header (preferred)", `Authorization: Bearer ${WebhookHarness.TOKEN}  or  X-Webhook-Token: ${WebhookHarness.TOKEN}`],
+      ["As a header (preferred)", `Authorization: Bearer ${WebhookHarness.TOKEN}`],
+      ["Or as this header", `X-Webhook-Token: ${WebhookHarness.TOKEN}`],
       ["In the URL (for callers that can't set headers)", `/hook/test/<hook>?token=${WebhookHarness.TOKEN}`],
       ["In the body", "not read: a token in the body is answered 401"]
     ])

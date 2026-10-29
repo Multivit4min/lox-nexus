@@ -28,7 +28,7 @@ plus a value from the same body. A hook exists while at least one signal uses it
 
 | Field | | |
 |---|---|---|
-| `token` (*Token*) | optional, 16 to 512 visible ASCII characters (no spaces) | The shared token every call must carry. Generate one with `openssl rand -hex 24`. Shown in the form and the panel, so it can be copied into the caller. |
+| `token` (*Token*) | optional, 16 to 512 visible ASCII characters (no spaces) | The shared token every call must carry. **Generate** next to the field in the instance form fills in a random one (48 hex characters); save to use it, and callers with the old one are refused from then on. Shown in the form and the panel, so it can be copied into the caller. |
 
 One token per instance. Different callers that shouldn't share a token get their own instance.
 
@@ -147,7 +147,7 @@ The counters live in memory and start at zero with every start of the instance.
 ## Security notes
 
 - Webhook URLs are reachable **without a Nexus login**; the token is the only protection. Use a
-  long random token (`openssl rand -hex 24`) and HTTPS in front of Nexus. Without a token there is
+  long random token (the form's **Generate** button) and HTTPS in front of Nexus. Without a token there is
   no protection at all.
 - The token is compared in constant time: both sides are hashed with SHA-256 and compared with
   `timingSafeEqual`, so neither the content nor the length of the token leaks through timing.

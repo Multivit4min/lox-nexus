@@ -4,23 +4,27 @@ import { Plugin } from "./Plugin.ts"
 import { PluginDescriber } from "../runtime/PluginDescriber.ts"
 import { code } from "./Code.ts"
 import { secret } from "./Secret.ts"
+import { token } from "./Token.ts"
 import { z } from "zod"
 
-class ScriptLike extends Plugin<{ source: string; template: string; token: string }> {
+class ScriptLike extends Plugin<{ source: string; template: string; token: string; hookToken?: string }> {
   static readonly config = z.object({
     source: code(z.string().default("nexus.set(\"x\", 1)")),
     template: code(z.string(), "json"),
-    token: secret(z.string())
+    token: secret(z.string()),
+    hookToken: token(z.string().min(16).optional())
   })
 }
 
-test("code() and secret() reach the described config schema", () => {
+test("code(), secret() and token() reach the described config schema", () => {
   const config = PluginDescriber.describe(ScriptLike).config as { properties: Record<string, Record<string, unknown>> }
   assert.equal(config.properties.source?.format, "code")
   assert.equal(config.properties.source?.contentMediaType, "text/javascript")
   assert.equal(config.properties.source?.default, "nexus.set(\"x\", 1)")
   assert.equal(config.properties.template?.contentMediaType, "application/json")
   assert.equal(config.properties.token?.writeOnly, true)
+  assert.equal(config.properties.hookToken?.format, "token")
+  assert.equal(config.properties.hookToken?.minLength, 16)
 })
 
 test("code() only takes string schemas", () => {

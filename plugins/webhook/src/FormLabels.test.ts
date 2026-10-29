@@ -3,7 +3,7 @@ import { test } from "node:test"
 import { PluginTestHost } from "@lox-nexus/plugin-sdk/testing"
 import { WebhookPlugin } from "./WebhookPlugin.ts"
 
-type Field = { title?: string; description?: string; writeOnly?: boolean; enumLabels?: Record<string, string> }
+type Field = { title?: string; description?: string; writeOnly?: boolean; format?: string; enumLabels?: Record<string, string> }
 type Schema = { properties?: Record<string, Field> }
 
 /** field key → title, for a JSON Schema object */
@@ -17,6 +17,7 @@ test("every form field has a title and a description, and every choice a label",
   const token = (description.config as Schema).properties?.token
   assert.equal(token?.title, "Token")
   assert.equal(token?.writeOnly, undefined, "visible in the form, for copying into the caller")
+  assert.equal(token?.format, "token", "the form offers to generate one")
   const [trigger, ...values] = description.sensors
   assert.deepEqual(titles(trigger?.params), { hook: "Hook name", method: "HTTP method", pulseMs: "Pulse length (ms)" })
   assert.equal(values.length, 3)

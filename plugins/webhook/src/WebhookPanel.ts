@@ -50,7 +50,8 @@ export class WebhookPanel {
     if (token === undefined) return [{ label: "Token", value: "none: every call is accepted, so anyone who can reach Nexus can trigger these hooks. Not safe; set one in the instance settings." }]
     return [
       { label: "Token", value: token },
-      { label: "As a header (preferred)", value: `Authorization: Bearer ${token}  or  X-Webhook-Token: ${token}` },
+      { label: "As a header (preferred)", value: `Authorization: Bearer ${token}` },
+      { label: "Or as this header", value: `X-Webhook-Token: ${token}` },
       { label: "In the URL (for callers that can't set headers)", value: `${this.base}/<hook>?token=${token}` },
       { label: "In the body", value: "not read: a token in the body is answered 401" }
     ]
