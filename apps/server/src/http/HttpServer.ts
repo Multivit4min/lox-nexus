@@ -48,6 +48,8 @@ export class HttpServer extends Disposable {
     this.app = Fastify({
       loggerInstance: options.logger,
       bodyLimit: 1_048_576,
+      // a webhook URL put together by hand (https://host/ + /hook/…) still reaches its route
+      routerOptions: { ignoreDuplicateSlashes: true },
       trustProxy: options.trustProxy?.length ? options.trustProxy : false,
       // per-request logs would drown the bus events; errors are still logged by ErrorHandler
       logController: new LogController({ disableRequestLogging: true })
@@ -94,7 +96,7 @@ export class HttpServer extends Disposable {
     this.app.register(fastifyStatic, { root: webDir })
     this.app.setNotFoundHandler((request, reply) => {
       if (docs.handles(request)) return docs.notFound(request, reply)
-      if (request.url.startsWith("/api/") || request.method !== "GET") return reply.code(404).send({ error: "not found" })
+      if (request.url.replace(/^\/+/, "/").startsWith("/api/") || request.method !== "GET") return reply.code(404).send({ error: "not found" })
       if (!fs.existsSync(index)) return reply.code(503).send({ error: "web UI not built yet: run npm run dev:web or npm run build" })
       return reply.sendFile("index.html")
     })

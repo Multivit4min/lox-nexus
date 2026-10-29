@@ -88,6 +88,15 @@ describe("plugin API", { timeout: 10_000 }, () => {
     assert.equal((await anonymous.post("/hook/nobody/value", "")).statusCode, 404)
   })
 
+  test("a doubled slash (https://host/ + /hook/…) reaches the hook, and doesn't get around the login", async () => {
+    const anonymous = app.client()
+    const hook = await anonymous.post("//hook/home//value", "43", { "content-type": "text/plain" })
+    assert.deepEqual([hook.statusCode, hook.body], [202, "ok"])
+    await settle()
+    assert.deepEqual(app.app.bus.current("counter/home/sensor/counter-value")?.value, Value.number(43))
+    assert.equal((await anonymous.get("//api/plugin-instances")).statusCode, 401)
+  })
+
   test("webhooks never see the session, can't set cookies, and are sandboxed", async () => {
     const echo = await admin.get("/hook/home/echo")
     assert.equal(echo.statusCode, 200)
