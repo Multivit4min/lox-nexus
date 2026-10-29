@@ -15,6 +15,14 @@ A short vocabulary. The other pages use these words.
 | **Catalog** | A tree a plugin offers to add many sensors and actuators in a few clicks. |
 | **Panel** | A status view of a plugin instance. |
 
+## Finding your way
+
+The bar at the top has what a setup is made of: **Miniservers**, **Plugins** and **Wires**. The
+menu under your user name, at the top right, has the pages used now and then: the **Bus
+Inspector**, **History** (what is recorded), **Backup**, **System** (what Nexus uses, see
+[System diagnostics](diagnostics.md)), the **Docs** and **Log out**. While one of those pages is
+open, the menu button shows its name.
+
 ## Signals and topics
 
 Values have one of these types: `null`, `boolean`, `number`, `string`, `singleChannel`, `rgbw`,
