@@ -94,7 +94,7 @@ can run the T5 and RGBW experiments with your Miniserver.
 - debounce and throttle with `node:test` `mock.timers`
 - `MessageFormatter` snapshot tests
 
-### M3: Loxone, server and inspector (done; the inspector's browser performance is still to be checked by hand)
+### M3: Loxone, server and inspector (done)
 
 - `Miniserver`, `MiniserverManager` and `DiscoveryList`, built on `packages/ici`.
 - Server: the Fastify app, migrations, auth and setup, the Miniserver controller, `BusStream`.
@@ -107,7 +107,9 @@ can run the T5 and RGBW experiments with your Miniserver.
   - packet → bus → wire → output packet
   - forcing an out topic → the forced value arrives at the fake Miniserver
 - A manual run against your real Miniserver.
-- The inspector stays responsive at 500 messages per second.
+- The inspector stays responsive at 500 messages per second. Measured 2026-10-29 with a mock
+  Miniserver: at 253 messages per second the inspector takes 26 % of a browser core and the server
+  7 % CPU, so 500 fits; the mock didn't go higher.
 
 **Added after M3 (done):** editing a Loxone signal (its wires stay; value and force follow a new
 topic), force and release from the signals list, and config export and import of Miniservers,
@@ -205,15 +207,18 @@ first-party plugins load from the workspace until then.
 - Backup of the whole data directory, including plugins, users and values (the config export
   covers only Miniservers, signals and wires) (done, ADR 0014).
 - A Dockerfile for amd64 and arm64 (written; `Dockerfile` and `compose.yaml` at the root, the
-  build steps checked outside Docker, the image itself still to be tested on a Docker host).
+  the image builds and runs on a Docker host, 2026-10-29).
 - A publish pipeline for the SDK, and a plugin template repo.
 - Licensing: the app GPL-3.0-or-later; the SDK, the ICI library and the first-party plugins MIT
   (done, ADR 0015).
 
 **Verify:**
-- A 24 h soak run keeps the heap flat (the user sets it up once everything else is done). The
-  System page (user menu, `/#/system`, guide: diagnostics) samples memory, event loop, plugin workers,
-  traffic and disk for 48 h and gives a flat or growing verdict per heap.
+- A soak run keeps the heap flat (done, 2026-10-29: 16.7 h on a real installation with six plugin
+  instances, no restarts). The server heap grew for the first 7 hours and then stayed flat; the
+  growth was a 50k-entry cause index in `CausalChain` that nothing read, since removed. Plugin
+  workers stayed within 2 MB, CPU about 1 %, event loop p99 about 1.3 ms. The System page (user
+  menu, `/#/system`, guide: diagnostics) samples memory, event loop, plugin workers, traffic and
+  disk for 48 h and gives a flat or growing verdict per heap.
 - An out-of-repo plugin built against the published SDK installs from git.
 
 ### Statistics (S1–S4)

@@ -353,7 +353,8 @@ above:
     causal path.
   - `LoopGuard` drops a value only if the wire is already on that path, or depth reaches 16.
     Siblings in one trace, such as several states a plugin reports after one command, pass.
-  - `CausalChain` keeps the last 50k causes in a ring, so eviction is O(1).
+  - `CausalChain` keeps no history. A cause that returns from a plugin worker by id is looked up
+    among the last 1000 commands sent to that plugin (`PluginSignals`).
   - `Recorder` keeps its messages in a `RingBuffer` (O(1) eviction). `recent(0)` returns nothing,
     and `trace()` returns all roots, so branches whose ancestors were evicted are kept.
 - **Wires.**
