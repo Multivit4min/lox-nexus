@@ -6,14 +6,18 @@ export type StreamState = "connecting" | "open" | "closed"
 export interface StreamHandlers {
   onEvent: (event: StreamEvent) => void
   onState?: (state: StreamState) => void
-  /** the server ended the session (logout elsewhere, password change, expiry) */
-  onSessionEnded?: () => void
+  /**
+   * the server ended the session (logout elsewhere, password change, expiry); resolve true when the
+   * browser still has one (a new cookie after changing its own password) and the stream reconnects
+   */
+  onSessionEnded?: () => boolean | Promise<boolean> | void
 }
 
 /**
  * The /api/stream WebSocket with automatic reconnect (1 s doubling to 30 s). Subscriptions are
  * remembered and sent again after every reconnect, so callers subscribe once. When the server
- * closes with SESSION_ENDED it does not reconnect but calls `onSessionEnded`.
+ * closes with SESSION_ENDED it asks `onSessionEnded` and reconnects only if that says the browser
+ * is still logged in.
  */
 export class StreamConnection {
   private static readonly MAX_DELAY_MS = 30_000
@@ -65,7 +69,8 @@ export class StreamConnection {
     socket.onclose = event => {
       if (event.code === StreamCloseCode.SESSION_ENDED) {
         this.close()
-        return this.handlers.onSessionEnded?.()
+        void Promise.resolve(this.handlers.onSessionEnded?.()).then(still => (still === true ? this.open() : undefined), () => undefined)
+        return
       }
       this.reconnect(socket)
     }

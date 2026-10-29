@@ -18,6 +18,7 @@ async function setup(credentials: Credentials) {
     title="Welcome to Lox Nexus"
     description="Create the administrator account. Passwords need at least 8 characters."
     action="Create account"
+    repeat
     :submit="setup"
   />
 </template>

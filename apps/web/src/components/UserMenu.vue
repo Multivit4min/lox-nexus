@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { computed } from "vue"
-import { Activity, BookOpen, ChartLine, ChevronDown, DatabaseBackup, Gauge, LogOut, UserRound } from "@lucide/vue"
+import { Activity, BookOpen, ChartLine, ChevronDown, DatabaseBackup, Gauge, KeyRound, LogOut, UserRound } from "@lucide/vue"
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuSeparator, DropdownMenuTrigger } from "reka-ui"
 import { useRoute } from "vue-router"
 
 /**
- * The pages used now and then (watching the bus, history settings, backup, diagnostics), the docs
- * and logging out, under the user's name. While one of its pages is open the button is marked and
+ * The pages used now and then (watching the bus, history settings, backup, diagnostics), the docs,
+ * the user's password and logging out, under the user's name. While one of its pages is open the button is marked and
  * names that page, so the header still says where you are.
  */
 const props = defineProps<{ username?: string }>()
-const emit = defineEmits<{ logout: [] }>()
+const emit = defineEmits<{ logout: []; password: [] }>()
 const route = useRoute()
 
 const pages = [
@@ -51,6 +51,7 @@ const item = "flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text
           <a href="docs/" target="_blank" rel="noopener" :class="item"><BookOpen class="size-4 text-muted-foreground" /> Docs</a>
         </DropdownMenuItem>
         <DropdownMenuSeparator class="-mx-1 my-1 h-px bg-border" />
+        <DropdownMenuItem :class="item" @select="emit('password')"><KeyRound class="size-4 text-muted-foreground" /> Change password</DropdownMenuItem>
         <DropdownMenuItem :class="item" @select="emit('logout')"><LogOut class="size-4 text-muted-foreground" /> Log out</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenuPortal>

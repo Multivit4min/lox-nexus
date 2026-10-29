@@ -13,7 +13,12 @@ const toLogin = () => {
   if (!router.currentRoute.value.meta.public) void router.push({ name: "login", query: { next: router.currentRoute.value.fullPath } })
 }
 context.http.onUnauthorized = toLogin
-context.onSessionEnded = toLogin
+// a password changed in this browser ends the old session but leaves a new cookie: carry on
+context.onSessionEnded = async () => {
+  if (await context.session.stillLoggedIn()) return true
+  toLogin()
+  return false
+}
 StaleBuildReload.install(router)
 document.documentElement.classList.toggle("dark", matchMedia("(prefers-color-scheme: dark)").matches)
 

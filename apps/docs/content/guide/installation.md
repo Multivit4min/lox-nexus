@@ -102,8 +102,8 @@ and `NEXUS_DEV_PLUGINS_DIR` preset, and reads a `.env` file at the repository ro
 
 ## First run
 
-The first visit shows a setup page: choose a username and a password (at least 8 characters). This
-works once; after that the page is a login. Sessions last 30 days. Five failed logins lock the
+The first visit shows a setup page: choose a username and a password (at least 8 characters),
+typed twice so a typo can't lock you out. This works once; after that the page is a login. Sessions last 30 days. Five failed logins lock the
 client address for 15 minutes.
 
 Then:
@@ -111,6 +111,12 @@ Then:
 1. Add your Miniserver, see [Setting up a Miniserver](loxone.md).
 2. Add a plugin instance on the **Plugins** page, if you want to connect another system.
 3. Connect signals with [wires](wires.md).
+
+## Changing your password
+
+**Change password** in the menu under your user name asks for the current password and the new one
+twice. Other browsers and devices logged in as you are logged out; the one you changed it in stays
+logged in.
 
 ## Forgot your password?
 

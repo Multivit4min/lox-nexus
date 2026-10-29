@@ -34,8 +34,8 @@ export class AppContext {
   readonly recorded = new RecordedSignals(this.history)
   readonly wired = new WiredSignals(this.wires)
   readonly session = new SessionStore(this.auth)
-  /** set by main.ts once the router exists: forget the user and go to the login page */
-  onSessionEnded: () => void = () => {}
+  /** set by main.ts once the router exists: true while the browser still has a session, else off to the login page */
+  onSessionEnded: () => boolean | Promise<boolean> | void = () => {}
 
   /** a live stream connection that reports an ended session to onSessionEnded */
   stream(handlers: Omit<StreamHandlers, "onSessionEnded">) {

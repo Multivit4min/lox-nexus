@@ -7,16 +7,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ApiError } from "../api/ApiError.ts"
+import { PasswordRules } from "../lib/PasswordRules.ts"
 
-/** Username and password card shared by the setup and login screens. */
-const props = defineProps<{ title: string; description: string; action: string; submit: (credentials: Credentials) => Promise<void> }>()
+/**
+ * Username and password card shared by the setup and login screens. With `repeat` (setup) the
+ * password is typed twice, since a typo there would lock the user out of a fresh installation.
+ */
+const props = defineProps<{ title: string; description: string; action: string; repeat?: boolean; submit: (credentials: Credentials) => Promise<void> }>()
 
 const username = ref("")
 const password = ref("")
+const repetition = ref("")
 const error = ref("")
 const busy = ref(false)
 
 async function onSubmit() {
+  const problem = props.repeat ? PasswordRules.problem(password.value, repetition.value) : undefined
+  if (problem) return void (error.value = problem)
   busy.value = true
   error.value = ""
   try {
@@ -44,7 +51,11 @@ async function onSubmit() {
           </div>
           <div class="grid gap-2">
             <Label for="password">Password</Label>
-            <Input id="password" v-model="password" type="password" autocomplete="current-password" required minlength="8" />
+            <Input id="password" v-model="password" type="password" :autocomplete="repeat ? 'new-password' : 'current-password'" required minlength="8" />
+          </div>
+          <div v-if="repeat" class="grid gap-2">
+            <Label for="passwordRepeat">Repeat password</Label>
+            <Input id="passwordRepeat" v-model="repetition" type="password" autocomplete="new-password" required />
           </div>
           <Alert v-if="error" variant="destructive">
             <AlertDescription>{{ error }}</AlertDescription>

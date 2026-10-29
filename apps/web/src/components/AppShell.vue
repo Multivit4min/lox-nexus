@@ -1,12 +1,15 @@
 <script setup lang="ts">
+import { ref } from "vue"
 import { Cable, Puzzle, Server } from "@lucide/vue"
 import { useRoute, useRouter } from "vue-router"
 import { AppContext } from "../AppContext.ts"
+import PasswordDialog from "./PasswordDialog.vue"
 import UserMenu from "./UserMenu.vue"
 
 const { session } = AppContext.use()
 const router = useRouter()
 const route = useRoute()
+const changingPassword = ref(false)
 // a section stays marked on its detail pages (/plugins/<id>, /plugins/installed), which are separate routes
 const inSection = (to: string) => route.path === to || route.path.startsWith(`${to}/`)
 
@@ -39,8 +42,9 @@ async function logout() {
         </RouterLink>
       </nav>
       <div class="ml-auto">
-        <UserMenu :username="session.state.user?.username" @logout="logout" />
+        <UserMenu :username="session.state.user?.username" @logout="logout" @password="changingPassword = true" />
       </div>
+      <PasswordDialog v-model:open="changingPassword" :username="session.state.user?.username" />
     </header>
     <main class="min-h-0 flex-1 overflow-auto">
       <slot></slot>
