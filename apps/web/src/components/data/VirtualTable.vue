@@ -38,7 +38,7 @@ const grid = computed(() => ({ gridTemplateColumns: props.columns }))
 
 <template>
   <div ref="scroller" role="table" class="overflow-auto rounded-md border text-sm" :style="{ maxHeight }">
-    <div role="row" class="sticky top-0 z-10 grid items-center gap-3 border-b bg-card px-3 text-xs font-medium text-muted-foreground" :style="{ ...grid, height: `${HEADER}px` }">
+    <div role="row" class="sticky top-0 z-10 grid items-center gap-3 border-b bg-muted px-3 text-xs font-medium text-muted-foreground" :style="{ ...grid, height: `${HEADER}px` }">
       <slot name="header"></slot>
     </div>
     <div v-if="rows.length === 0" class="px-3 py-6 text-center text-muted-foreground">{{ empty }}</div>
