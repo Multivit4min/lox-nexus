@@ -2,8 +2,7 @@
 import { computed, onMounted, ref, watch } from "vue"
 import type { PluginInstanceDto, PluginSignalDto, PluginSignalInput } from "@lox-nexus/api"
 import type { CatalogEntry, PluginDescription } from "@lox-nexus/plugin-sdk/wire"
-import { Cable, CircleAlert, FolderTree, Lock, Plus } from "@lucide/vue"
-import { Badge } from "@/components/ui/badge"
+import { Cable, ChevronRight, FolderTree, Plus } from "@lucide/vue"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -13,28 +12,32 @@ import { ApiError } from "../../api/ApiError.ts"
 import { BridgeDraft, type BridgeCandidate } from "../../lib/BridgeDraft.ts"
 import type { CatalogRow } from "../../lib/CatalogTree.ts"
 import { Selection } from "../../lib/Selection.ts"
+import { SignalGroups } from "../../lib/SignalGroups.ts"
 import { TextFilter } from "../../lib/TextFilter.ts"
 import type { LiveValues } from "../../stores/LiveValues.ts"
 import ListToolbar from "../data/ListToolbar.vue"
 import VirtualTable from "../data/VirtualTable.vue"
 import ForceDialog from "../inspector/ForceDialog.vue"
-import SignalActions from "../SignalActions.vue"
 import RecordButtons from "../history/RecordButtons.vue"
 import SignalHistorySheet, { type HistorySubject } from "../history/SignalHistorySheet.vue"
-import ValueText from "../ValueText.vue"
-import WiredMark from "../WiredMark.vue"
 import BridgeDialog from "./BridgeDialog.vue"
 import CatalogBrowser from "./CatalogBrowser.vue"
 import PluginSignalDialog, { type SignalDialogTarget } from "./PluginSignalDialog.vue"
+import PluginSignalRow from "./PluginSignalRow.vue"
 
 /**
  * The sensors and actuators of one plugin instance with live values. Rows can be edited, forced,
  * released and deleted; new ones come from the plugin's catalog or are added manually.
- * Selected signals, or catalog entries, can be connected to a Miniserver in one step.
+ * Selected signals, or catalog entries, can be connected to a Miniserver in one step. Signals of one
+ * device (the params the plugin marked with signalGroup()) are shown under a header that collapses.
  */
 const props = defineProps<{ instance: PluginInstanceDto; description: PluginDescription; signals: PluginSignalDto[]; live: LiveValues }>()
 const emit = defineEmits<{ changed: []; wire: [signal: PluginSignalDto] }>()
 const { plugins: api, bus, recorded, wired } = AppContext.use()
+const groups = computed(() => new SignalGroups(props.description))
+// not kept across visits: a list opens with every group expanded
+const collapsed = ref(new Set<string>())
+const toggleGroup = (key: string) => (collapsed.value = new Set(collapsed.value.has(key) ? [...collapsed.value].filter(k => k !== key) : [...collapsed.value, key]))
 const dialog = ref<SignalDialogTarget>()
 const browsing = ref(false)
 const forcing = ref<PluginSignalDto>()
@@ -50,10 +53,10 @@ const bridgeOpen = ref(false)
 
 const visible = computed(() => {
   const filter = new TextFilter(query.value)
-  return props.signals.filter(s => filter.matches(s.label, capabilityOf(s), s.capability, s.topic))
+  return props.signals.filter(s => filter.matches(s.label, capabilityOf(s), s.capability, s.topic, groups.value.of(s) ?? ""))
 })
 const visibleIds = computed(() => visible.value.map(s => s.id))
-const isForced = (signal: PluginSignalDto) => props.live.get(signal.topic)?.flags?.forced === true
+const rows = computed(() => groups.value.rows(visible.value, collapsed.value))
 const running = computed(() => ["running", "degraded"].includes(props.instance.state))
 const capabilities = computed(() => new Map([
   ...props.description.sensors.map(c => [`sensor:${c.id}`, c.label] as const),
@@ -133,7 +136,7 @@ const remove = (signal: PluginSignalDto) =>
         </Button>
       </ListToolbar>
       <VirtualTable
-        :rows="visible" :row-key="s => s.id" columns="1.25rem minmax(8rem,1.4fr) 5.5rem minmax(6rem,1fr) minmax(10rem,2fr) minmax(7rem,1fr) 9.5rem"
+        :rows="rows" :row-key="row => row.type === 'group' ? `group:${row.key}` : row.signal.id" :row-class="row => row.type === 'group' ? 'bg-muted/40' : undefined" columns="1.25rem minmax(8rem,1.4fr) 5.5rem minmax(6rem,1fr) minmax(10rem,2fr) minmax(7rem,1fr) 9.5rem"
         :empty="signals.length ? 'Nothing matches.' : 'Nothing added yet. Add from the catalog, or add one manually.'"
       >
         <template #header>
@@ -141,22 +144,19 @@ const remove = (signal: PluginSignalDto) =>
           <span>Name</span><span>Kind</span><span>What</span><span>Topic</span><span>Value</span><span></span>
         </template>
         <template #row="{ row }">
-          <Checkbox :model-value="selection.has(row.id)" :aria-label="`Select ${row.label}`" @update:model-value="v => selection.toggle(row.id, v === true)" />
-          <span class="flex min-w-0 items-center gap-1.5">
-            <CircleAlert v-if="row.error" class="size-4 shrink-0 text-destructive" :title="row.error" />
-            <span class="truncate font-medium" :title="row.error ?? row.label">{{ row.label }}</span>
-            <WiredMark :wires="wired.of(row.id)" />
-          </span>
-          <span><Badge variant="outline" :title="row.kind === 'sensor' ? 'reads from the device' : 'controls the device'">{{ row.kind }}</Badge></span>
-          <span class="truncate text-muted-foreground" :title="`${row.capability} ${JSON.stringify(row.params)}`">{{ capabilityOf(row) }}</span>
-          <span class="truncate font-mono text-xs" :title="row.topic">{{ row.topic }}</span>
-          <span class="flex min-w-0 items-center gap-1.5">
-            <Lock v-if="isForced(row)" class="size-3.5 shrink-0 text-amber-600 dark:text-amber-400" aria-label="forced" />
-            <span class="truncate"><ValueText :value="live.get(row.topic)?.value" /></span>
-          </span>
-          <SignalActions
-            :label="row.label" :forced="isForced(row)" :recorded="recorded.has(row.id)" wirable @history="historyFor = { id: row.id, label: row.label, topic: row.topic }"
-            @edit="dialog = { initial: row }" @wire="emit('wire', row)" @force="force(row)" @release="act(() => bus.release(row.topic))" @remove="remove(row)"
+          <template v-if="row.type === 'group'">
+            <Checkbox :model-value="selection.stateOf(row.ids)" :aria-label="`Select all of ${row.label}`" @update:model-value="selection.toggleAll(row.ids)" />
+            <button type="button" class="col-span-6 flex min-w-0 items-center gap-1.5 text-left" :aria-expanded="row.open" @click="toggleGroup(row.key)">
+              <ChevronRight class="size-4 shrink-0 transition-transform" :class="row.open && 'rotate-90'" />
+              <span class="truncate font-mono text-xs font-medium">{{ row.label }}</span>
+              <span class="shrink-0 text-xs text-muted-foreground">{{ row.ids.length }} signals</span>
+            </button>
+          </template>
+          <PluginSignalRow
+            v-else :row="row.signal" :what="capabilityOf(row.signal)" :live="live" :selected="selection.has(row.signal.id)" :in-group="row.inGroup"
+            @select="v => selection.toggle(row.signal.id, v)" @history="historyFor = { id: row.signal.id, label: row.signal.label, topic: row.signal.topic }"
+            @edit="dialog = { initial: row.signal }" @wire="emit('wire', row.signal)" @force="force(row.signal)" @release="act(() => bus.release(row.signal.topic))"
+            @remove="remove(row.signal)"
           />
         </template>
       </VirtualTable>

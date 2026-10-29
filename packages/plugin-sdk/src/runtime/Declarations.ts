@@ -1,4 +1,5 @@
 import { z } from "zod"
+import type { ActionClass } from "../plugin/Action.ts"
 import type { ActuatorClass } from "../plugin/Actuator.ts"
 import type { PluginClass } from "../plugin/Plugin.ts"
 import type { SensorClass } from "../plugin/Sensor.ts"
@@ -19,6 +20,18 @@ export class Declarations {
 
   static actuators(type: PluginClass) {
     return type.actuators ?? []
+  }
+
+  static actions(type: PluginClass) {
+    return type.actions ?? []
+  }
+
+  static actionInput(action: ActionClass) {
+    return action.input ?? Declarations.NONE
+  }
+
+  static actionLabel(action: ActionClass) {
+    return action.label ?? action.id
   }
 
   static params(capability: SensorClass | ActuatorClass) {

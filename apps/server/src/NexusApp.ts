@@ -42,6 +42,7 @@ import { BackupAssembly } from "./backup/BackupAssembly.ts"
 import { BackupService } from "./backup/BackupService.ts"
 import { RestoreApplier } from "./backup/RestoreApplier.ts"
 import { HistoryAssembly } from "./history/HistoryAssembly.ts"
+import { PluginActionService } from "./services/PluginActionService.ts"
 import { PluginBridgeService } from "./services/PluginBridgeService.ts"
 import { PluginService } from "./services/PluginService.ts"
 import { SelectionService } from "./services/SelectionService.ts"
@@ -228,7 +229,7 @@ export class NexusApp extends Disposable {
         new SignalController(this.signals, this.bus, wires),
         new BusController(this.bus, this.recorder),
         new ConfigController(transfer),
-        new PluginController(plugins, pluginSignals, this.pluginLogs, new PluginBridgeService(pluginSignals, loxoneSignals, wires, log)),
+        new PluginController(plugins, pluginSignals, this.pluginLogs, new PluginBridgeService(pluginSignals, loxoneSignals, wires, log), new PluginActionService(id => plugins.supervisor(id), this.pluginLogs)),
         new PluginPackageController(this.pluginAssembly.packages(plugins)),
         ...this.history.controllers(id => plugins.watches(id)),
         BackupAssembly.controller(config, { main: db.db, history: this.history.database.db }, this.options.restart, log),

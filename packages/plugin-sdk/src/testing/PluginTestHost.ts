@@ -154,6 +154,11 @@ export class PluginTestHost<T extends PluginClass = PluginClass> {
     return await this.request({ type: "panel", requestId: this.nextRequest++ }) as Panel | undefined
   }
 
+  /** runs an action like the Run button does; resolves with its message, rejects with its failure */
+  async action(id: string, input: unknown = {}) {
+    return await this.request({ type: "action", requestId: this.nextRequest++, action: id, input }) as string | undefined
+  }
+
   /** Calls a webhook route; the method defaults to POST. An unknown route answers 404, a throwing handler rejects. */
   async http(request: Partial<HttpRequest> & Pick<HttpRequest, "path">) {
     const full = { method: "POST", query: {}, headers: {}, body: "", ...request }

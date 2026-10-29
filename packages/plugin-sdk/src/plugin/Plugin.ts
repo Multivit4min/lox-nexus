@@ -3,6 +3,7 @@ import { SystemClock, type Clock } from "../lifecycle/Clock.ts"
 import { Disposable } from "../lifecycle/Disposable.ts"
 import type { CatalogNode, Panel } from "../wire/Shapes.ts"
 import type { WatchDeclaration, WatchedValue } from "../wire/WatchShapes.ts"
+import type { ActionClass } from "./Action.ts"
 import type { ActuatorClass } from "./Actuator.ts"
 import type { PluginContext, WatchView } from "./PluginContext.ts"
 import type { SensorClass } from "./Sensor.ts"
@@ -209,4 +210,6 @@ export type PluginClass = (new (context: PluginContext) => Plugin) & {
    * gets them. The label and description are shown where the user chooses them.
    */
   readonly watches?: WatchDeclaration
+  /** what users can start from the instance page (pair a device, open a pairing window); ids must be unique */
+  readonly actions?: readonly ActionClass[]
 }

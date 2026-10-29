@@ -31,8 +31,14 @@ export interface PluginConnection extends Listenable {
   stats?(): Promise<ConnectionStats | undefined>
 }
 
+/** Per-plugin options for starting it. */
+export interface OpenOptions {
+  /** the plugin's own heap limit (its manifest's `heapMb`); default: the transport's */
+  heapMb?: number | undefined
+}
+
 /** Starts plugins. The seam that keeps a later switch to child processes open (ADR 0001). */
 export interface PluginTransport {
   /** @param entry absolute path or file URL of the module that calls PluginEntry.define() */
-  open(entry: string): PluginConnection
+  open(entry: string, options?: OpenOptions): PluginConnection
 }

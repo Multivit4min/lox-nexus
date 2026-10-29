@@ -1,4 +1,4 @@
-import { Actuator, z } from "@lox-nexus/plugin-sdk"
+import { Actuator, signalGroup, z } from "@lox-nexus/plugin-sdk"
 import type { Value } from "@lox-nexus/plugin-sdk/values"
 import { EntityId } from "../entities/EntityId.ts"
 import type { HomeAssistantPlugin } from "../HomeAssistantPlugin.ts"
@@ -7,7 +7,7 @@ const name = /^[a-z0-9_]+$/
 const params = z.object({
   domain: z.string().regex(name, "lowercase letters, digits and _").meta({ title: "Service domain", description: "The service name's part before the dot, e.g. media_player for media_player.volume_set" }),
   service: z.string().regex(name, "lowercase letters, digits and _").meta({ title: "Service", description: "The service name's part after the dot, e.g. volume_set" }),
-  entityId: EntityId.schema.optional().meta({ title: "Target entity", description: "Entity ID the service acts on, e.g. media_player.living_room. Leave empty if the service takes none" }),
+  entityId: signalGroup(EntityId.schema.optional()).meta({ title: "Target entity", description: "Entity ID the service acts on, e.g. media_player.living_room. Leave empty if the service takes none" }),
   field: z.string().min(1).optional().meta({
     title: "Value goes into field",
     description: "Service data field that receives the value, e.g. volume_level. Without one, the service is called when the value is true (or non-zero)"

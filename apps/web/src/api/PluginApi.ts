@@ -1,5 +1,6 @@
 import type {
-  BridgeRequest, BridgeResultDto, PluginInstanceDto, PluginInstanceInput, PluginLogLineDto, PluginPackageDto, PluginSignalDto, PluginSignalInput
+  BridgeRequest, BridgeResultDto, PluginActionResultDto, PluginInstanceDto, PluginInstanceInput, PluginLogLineDto, PluginPackageDto, PluginSignalDto,
+  PluginSignalInput
 } from "@lox-nexus/api"
 import type { CatalogNode, Panel } from "@lox-nexus/plugin-sdk/wire"
 import type { Http } from "./Http.ts"
@@ -71,6 +72,11 @@ export class PluginApi {
   /** null when the plugin has no panel; only while running (409 otherwise) */
   panel(id: string) {
     return this.http.get<Panel | null>(`${this.url(id)}/panel`)
+  }
+
+  /** runs one of the plugin's actions; resolves with what the plugin says happened */
+  action(id: string, action: string, input: Record<string, unknown>) {
+    return this.http.post<PluginActionResultDto>(`${this.url(id)}/actions/${encodeURIComponent(action)}`, { input })
   }
 
   logs(id: string) {

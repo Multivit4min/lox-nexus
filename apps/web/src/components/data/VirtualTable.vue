@@ -16,6 +16,8 @@ const props = withDefaults(defineProps<{
   /** the list scrolls inside this height */
   maxHeight?: string
   empty?: string
+  /** extra classes for one row, e.g. a tint for group headers */
+  rowClass?: (row: T) => string | undefined
 }>(), { rowHeight: 36, maxHeight: "60vh", empty: "Nothing here." })
 
 defineSlots<{
@@ -46,7 +48,7 @@ const grid = computed(() => ({ gridTemplateColumns: props.columns }))
     <div v-else class="relative w-full" :style="{ height: `${virtualizer.getTotalSize()}px` }">
       <div
         v-for="item in virtualizer.getVirtualItems()" :key="String(item.key)" role="row"
-        class="absolute left-0 grid w-full items-center gap-3 border-b px-3 hover:bg-accent/50"
+        class="absolute left-0 grid w-full items-center gap-3 border-b px-3 hover:bg-accent/50" :class="rowClass?.(rows[item.index]!)"
         :style="{ ...grid, height: `${rowHeight}px`, transform: `translateY(${item.start - HEADER}px)` }"
       >
         <slot name="row" :row="rows[item.index]!" :index="item.index"></slot>

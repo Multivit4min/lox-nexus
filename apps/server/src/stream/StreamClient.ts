@@ -4,7 +4,7 @@ import { Disposable, type DisposableLike } from "@lox-nexus/plugin-sdk"
 import type { WebSocket } from "ws"
 
 /** the slice of EventBus a client needs; tap() sees every message including shadowed ones, subscribe() only effective ones */
-export type StreamBus = Pick<EventBus, "tap" | "subscribe" | "currentMatching" | "current">
+export type StreamBus = Pick<EventBus, "tap" | "subscribe" | "currentMatching" | "current" | "lastCommand" | "lastCommandsMatching">
 
 /** The session a connection was opened with; BusStream closes the connection when it ends. */
 export interface StreamSession {
@@ -94,16 +94,23 @@ export class StreamClient extends Disposable {
 
   // the full snapshot is sent before subscribing; both run synchronously, so no change can fall between them
   private subscribeState(pattern: string) {
-    this.send({ type: "state", messages: this.bus.currentMatching(pattern), full: true })
-    // a forced command (a plugin actuator) is the topic's current value until released, as a state is
+    this.send({ type: "state", messages: StreamClient.snapshot(this.bus, pattern), full: true })
+    // a command (a plugin actuator) shows as its last sent value; shadowed ones never get here
     const states = this.bus.subscribe(pattern, message => {
-      if (message.kind === "state" || message.flags?.forced) this.states.set(message.topic, message)
+      if (message.kind === "state" || message.kind === "command") this.states.set(message.topic, message)
     })
     // subscribe() doesn't deliver releases; they matter when no value is restored
     const releases = this.bus.tap(message => {
       if (message.kind === "release" && Topic.matches(pattern, message.topic)) this.released.add(message.topic)
     })
     this.subscriptions.set("state", { dispose: () => void [states.dispose(), releases.dispose()] })
+  }
+
+  /** the current values, and for topics without one (actuators) the last command sent */
+  private static snapshot(bus: StreamBus, pattern: string) {
+    const current = bus.currentMatching(pattern)
+    const topics = new Set(current.map(message => message.topic))
+    return [...current, ...bus.lastCommandsMatching(pattern).filter(message => !topics.has(message.topic))]
   }
 
   // runs every FLUSH_MS; when the socket is backed up the batch is counted as dropped instead of buffered further
@@ -118,9 +125,15 @@ export class StreamClient extends Disposable {
     this.dropped = 0
     if (this.queued.length > 0) this.send({ type: "bus", messages: this.queued })
     // checked at flush time: a value published after the release means there is nothing to clear,
-    // and a forced value from the same window must not reach the client after all
-    const cleared = [...this.released].filter(topic => !this.bus.current(topic))
-    for (const topic of cleared) this.states.delete(topic)
+    // and a forced value from the same window must not reach the client after all. A released
+    // actuator keeps its last sent value (the forced one, which its device still has).
+    const released = [...this.released].filter(topic => !this.bus.current(topic))
+    const cleared = released.filter(topic => !this.bus.lastCommand(topic))
+    for (const topic of released) this.states.delete(topic)
+    for (const topic of released) {
+      const last = this.bus.lastCommand(topic)
+      if (last) this.states.set(topic, last)
+    }
     if (this.states.size > 0 || cleared.length > 0) {
       this.send({ type: "state", messages: [...this.states.values()], ...(cleared.length > 0 ? { cleared } : {}) })
     }

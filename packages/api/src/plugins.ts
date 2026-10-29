@@ -66,6 +66,15 @@ export interface PluginLogLineDto {
   data?: string
 }
 
+/** Body of POST /api/plugin-instances/:id/actions/:action: the form's values, checked by the plugin. */
+export const PluginActionRequestSchema = z.object({ input: z.record(z.string(), z.unknown()).default({}) })
+export type PluginActionRequest = z.input<typeof PluginActionRequestSchema>
+
+/** The answer to an action: what the plugin says happened, if anything. */
+export interface PluginActionResultDto {
+  message?: string
+}
+
 /** POST/PUT body of a plugin signal; `slug` defaults to one derived from the label. */
 export const PluginSignalInputSchema = z.object({
   kind: z.enum(["sensor", "actuator"]),

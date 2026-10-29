@@ -135,6 +135,17 @@ export class EventBus extends Disposable {
    * connected and needs the state before it sees changes
    * @throws RangeError for an invalid pattern
    */
+  /** the last command delivered to a topic (an actuator's last sent value); for display only, never replayed */
+  lastCommand(topic: string): BusMessage | undefined {
+    return this.processor.lastCommands.get(topic)
+  }
+
+  /** @throws RangeError for an invalid pattern */
+  lastCommandsMatching(pattern: string): BusMessage[] {
+    Topic.assertValidPattern(pattern)
+    return this.processor.lastCommands.matching(pattern)
+  }
+
   currentMatching(pattern: string): BusMessage[] {
     Topic.assertValidPattern(pattern)
     return [...this.retained.effectiveAll()].filter(message => Topic.matches(pattern, message.topic))
@@ -151,6 +162,9 @@ export class EventBus extends Disposable {
     Topic.assertValidPattern(pattern)
     const topics = this.retained.topicNames().filter(topic => Topic.matches(pattern, topic) && !this.forces.get(topic))
     for (const topic of topics) this.retained.forget(topic)
+    for (const topic of this.processor.lastCommands.topics()) {
+      if (Topic.matches(pattern, topic) && !this.forces.get(topic)) this.processor.lastCommands.forget(topic)
+    }
     return topics
   }
 

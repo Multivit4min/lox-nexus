@@ -74,8 +74,8 @@ export class DevPluginLoader extends Disposable {
     if (!fs.existsSync(manifestFile) || !fs.existsSync(entry)) return undefined
     try {
       const manifest = PluginManifestSchema.parse(JSON.parse(fs.readFileSync(manifestFile, "utf8")))
-      const { id, name, icon } = manifest.loxNexus
-      const pkg: PluginPackage = { id, name, entry, description: await this.describer.describe(entry) }
+      const { id, name, icon, heapMb } = manifest.loxNexus
+      const pkg: PluginPackage = { id, name, entry, description: await this.describer.describe(entry, { heapMb }), ...(heapMb ? { heapMb } : {}) }
       this.catalog.setDevelopment({ pkg, version: manifest.version, dir: root, ...(icon ? { icon } : {}) })
       return pkg
     } catch (error) {

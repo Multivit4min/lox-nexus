@@ -54,11 +54,13 @@ test("a ZIP is staged, reviewed, installed and runs in a worker; uninstall waits
   assert.equal((await admin.delete("/api/plugin-packages/fixture")).statusCode, 404)
 })
 
-test("installs survive a restart, and the instance starts again", async t => {
+test("installs survive a restart with their heap limit, and the instance starts again", async t => {
   const first = await InstallTest.start()
   t.after(() => first.dispose())
   const admin = await first.test.admin()
-  assert.equal((await first.installZip(admin, await ZipFixture.plugin())).statusCode, 200)
+  const zip = await ZipFixture.plugin("", FixtureBundle.manifest({}, { heapMb: 256 }))
+  assert.equal((await first.stageZip(admin, zip)).json<StagedInstallDto>().heapMb, 256, "the review shows it")
+  assert.equal((await first.installZip(admin, zip)).statusCode, 200)
   const instance = (await admin.post("/api/plugin-instances", { plugin: "fixture", slug: "fx", label: "Fixture" })).json<PluginInstanceDto>()
   await first.dispose(false)
 
@@ -71,6 +73,7 @@ test("installs survive a restart, and the instance starts again", async t => {
   assert.deepEqual(installed?.instanceNames, ["Fixture"])
   assert.equal(installed?.shadowedByDevelopment, false)
   await second.until(() => second.app.plugins.get(instance.id)?.state === "running")
+  assert.equal(second.app.plugins.get(instance.id)?.pkg.heapMb, 256)
 })
 
 test("a plugin that doesn't load, and a changed bundle with the same version", async t => {

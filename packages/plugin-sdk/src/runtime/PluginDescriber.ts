@@ -17,14 +17,25 @@ export class PluginDescriber {
       actuators: Declarations.actuators(type).map(actuator => ({
         id: actuator.id, label: Declarations.label(actuator), ...Declarations.description(actuator), params: PluginDescriber.schemaOf(Declarations.params(actuator)), valueType: Declarations.accepts(actuator)
       })),
-      ...Declarations.watches(type)
+      ...Declarations.watches(type),
+      ...PluginDescriber.actions(type)
     }
   }
 
-  /** @throws Error for a sensor or actuator without an id, two with the same id, or an invalid `watches` */
+  // absent without actions, so descriptions of plugins without them stay as they were
+  private static actions(type: PluginClass) {
+    const actions = Declarations.actions(type).map(action => ({
+      id: action.id, label: Declarations.actionLabel(action), input: PluginDescriber.schemaOf(Declarations.actionInput(action)),
+      ...(typeof action.description === "string" && action.description ? { description: action.description } : {}),
+      ...(typeof action.confirm === "string" && action.confirm ? { confirm: action.confirm } : {})
+    }))
+    return actions.length > 0 ? { actions } : {}
+  }
+
+  /** @throws Error for a sensor, actuator or action without an id, two with the same id, or an invalid `watches` */
   static assertValid(type: PluginClass) {
     if (type.watches !== undefined && !WatchDeclarationSchema.safeParse(type.watches).success) throw new Error(`${type.name}: static watches needs a label (1 to 100 characters)`)
-    for (const [kind, list] of [["sensor", Declarations.sensors(type)], ["actuator", Declarations.actuators(type)]] as const) {
+    for (const [kind, list] of [["sensor", Declarations.sensors(type)], ["actuator", Declarations.actuators(type)], ["action", Declarations.actions(type)]] as const) {
       const seen = new Set<string>()
       for (const capability of list) {
         if (!capability.id) throw new Error(`${type.name}: ${kind} ${capability.name} has no static id`)

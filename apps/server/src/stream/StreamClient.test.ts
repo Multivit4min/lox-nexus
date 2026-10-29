@@ -97,19 +97,26 @@ describe("StreamClient backpressure", () => {
     assert.deepEqual(states.map(e => [e.messages.length, e.cleared]), [[0, ["a/brief"]]])
   })
 
-  test("state: a forced command shows live and is cleared on release; plain commands stay out", () => {
+  test("state: an actuator shows its last sent command; a release keeps the forced value it last got", () => {
+    const states = () => socket.sent.filter((e): e is Extract<StreamEvent, { type: "state" }> => e.type === "state")
+      .map(e => [e.messages.map(m => [m.topic, m.value, m.flags?.forced]), e.cleared])
     socket.request({ type: "subscribe", stream: "state", pattern: "a/#" })
     socket.sent.length = 0
     bus.command("a/actuator", Value.number(1), user)
+    mock.timers.tick(StreamClient.FLUSH_MS)
     bus.force("a/actuator", Value.number(20), { by: "t", kind: "command" })
+    bus.command("a/actuator", Value.number(2), user)
     mock.timers.tick(StreamClient.FLUSH_MS)
     bus.release("a/actuator", "t")
     mock.timers.tick(StreamClient.FLUSH_MS)
-    const states = socket.sent.filter((e): e is Extract<StreamEvent, { type: "state" }> => e.type === "state")
-    assert.deepEqual(states.map(e => [e.messages.map(m => [m.topic, m.kind, m.value, m.flags?.forced]), e.cleared]), [
-      [[["a/actuator", "command", Value.number(20), true]], undefined],
-      [[], ["a/actuator"]]
-    ])
+    assert.deepEqual(states(), [
+      [[["a/actuator", Value.number(1), undefined]], undefined],
+      [[["a/actuator", Value.number(20), true]], undefined],
+      [[["a/actuator", Value.number(20), undefined]], undefined]
+    ], "the command shadowed by the force never reached the device, so it isn't shown")
+    socket.sent.length = 0
+    socket.request({ type: "subscribe", stream: "state", pattern: "a/#" })
+    assert.deepEqual(states(), [[[["a/actuator", Value.number(20), undefined]], undefined]], "a new snapshot has it too")
   })
 
   test("a new pattern discards what was queued for the old one", () => {

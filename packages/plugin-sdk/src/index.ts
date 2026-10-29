@@ -1,6 +1,7 @@
 /**
- * The public SDK for plugins: the base classes (Plugin, Sensor, Actuator), lifetimes
- * (Disposable), the worker entry (PluginEntry) and config helpers (secret, code, token, signalName, z).
+ * The public SDK for plugins: the base classes (Plugin, Sensor, Actuator, Action), lifetimes
+ * (Disposable), the worker entry (PluginEntry) and config helpers (secret, code, token, signalName,
+ * signalGroup, z).
  *
  * Values, the host/worker protocol and the test helpers live in the subpaths
  * `@lox-nexus/plugin-sdk/values`, `/wire` and `/testing`.
@@ -14,15 +15,17 @@ export { SystemClock, type Clock } from "./lifecycle/Clock.ts"
 export { Plugin, type PluginClass } from "./plugin/Plugin.ts"
 export { Sensor, type SensorClass, type SensorOutput } from "./plugin/Sensor.ts"
 export { Actuator, type ActuatorClass, type ActuatorConcurrency } from "./plugin/Actuator.ts"
+export { Action, type ActionClass } from "./plugin/Action.ts"
 export type { SignalInfo } from "./plugin/SignalInfo.ts"
 export type { HttpHandler, PluginContext, PluginHttp, PluginLogger, PluginStatus, PluginStore, WatchView } from "./plugin/PluginContext.ts"
 export { secret } from "./plugin/Secret.ts"
 export { code, type CodeLanguage } from "./plugin/Code.ts"
 export { token } from "./plugin/Token.ts"
 export { signalName } from "./plugin/SignalName.ts"
+export { signalGroup } from "./plugin/SignalGroup.ts"
 export { PluginEntry } from "./runtime/PluginEntry.ts"
 export { SupersededError } from "./runtime/ActuatorRunner.ts"
-export type { CatalogEntry, CatalogNode, HttpResponse, Panel, PanelPart } from "./wire/Shapes.ts"
+export type { CatalogEntry, CatalogNode, HttpResponse, Panel, PanelPart, RowAction } from "./wire/Shapes.ts"
 export type { HttpRequest } from "./wire/HostMessages.ts"
 export type { WatchDeclaration, WatchedSignal, WatchedValue } from "./wire/WatchShapes.ts"
 /** the zod the SDK is built with; plugins use it so schemas and the runtime agree on one version */

@@ -128,6 +128,31 @@ static readonly concurrency?: ActuatorConcurrency   // "queue" (default) | "late
 
 In the guide: [Actuators](authoring.md#actuators-commands-to-the-device).
 
+### Action ([reference](../reference/sdk/@lox-nexus/plugin-sdk.md#abstract-action))
+
+Something a user starts from the instance page with a small form: pair a device, open a pairing
+window, remove a paired controller. Declared in the plugin's `static actions`; the page shows a
+button per action, and a panel table's `rowActions` open one with its input filled in.
+
+| Member | Notes |
+|---|---|
+| `run()` | Returns the text shown to the user (clipped to 2000 characters), or nothing ("Done."). A throw is shown as the failure, and the form stays filled in. Runs with a 2-minute timeout; one action at a time per instance (a second is refused while one runs). Disposed when it settles or the plugin stops. |
+| `input` | Validated against the static `input` schema, defaults applied. May hold secrets such as pairing codes: never log it. |
+| `plugin` | The plugin instance. |
+
+Static declarations ([`ActionClass`](../reference/sdk/@lox-nexus/plugin-sdk.md#actionclass)):
+
+```ts
+static readonly id: string            // required; unique among the plugin's actions
+static readonly label?: string        // the button's text; default: id
+static readonly description?: string  // one sentence in the dialog
+static readonly input?: z.ZodType     // the form; default: no input
+static readonly confirm?: string      // asked before it runs, for actions that undo something
+```
+
+Actions run only while the instance runs or is degraded; a reverse proxy in front of Nexus should
+allow requests of up to two minutes, or a slow pairing shows as a timeout although it worked.
+
 ### Disposable ([reference](../reference/sdk/@lox-nexus/plugin-sdk.md#abstract-disposable))
 
 ```ts
@@ -206,9 +231,11 @@ In the guide: [Logging, store and status](authoring.md#logging-store-and-status)
 | [`code`](../reference/sdk/@lox-nexus/plugin-sdk.md#code) | `code<T extends z.ZodType>(schema: T, language?: CodeLanguage): T` | Marks a string field as source code (`format: "code"` plus the language's `contentMediaType`), so the UI edits it in a code editor. `CodeLanguage` is `"javascript"` (default), `"json"` or `"text"`. Validating the code stays the plugin's job. |
 | [`token`](../reference/sdk/@lox-nexus/plugin-sdk.md#token) | `token<T extends z.ZodType>(schema: T): T` | Marks a string field as a random token (`format: "token"`), so the form shows a Generate button that fills in 48 hex characters. Leave it visible for copying, or add `secret()` to hide it. |
 | [`signalName`](../reference/sdk/@lox-nexus/plugin-sdk.md#signalname) | `signalName<T extends z.ZodType>(schema: T): T` | Marks the top-level param of a sensor or actuator whose value names the signal (`signalName: true`), e.g. a hook or variable name: the form names a new signal, and so its topic, after it until the user names it. |
+| [`signalGroup`](../reference/sdk/@lox-nexus/plugin-sdk.md#signalgroup) | `signalGroup<T extends z.ZodType>(schema: T): T` | Marks the top-level param of a sensor or actuator that names the device the signal belongs to (`signalGroup: true`), e.g. a Home Assistant entity: signal lists show the signals with the same value under one collapsible header. Several marked params form a path ("node ▸ endpoint"). Only the lists use it. |
 | `z` | zod | Use this one, not your own copy. |
 | [`SupersededError`](../reference/sdk/@lox-nexus/plugin-sdk.md#supersedederror) | `class extends Error` | See `concurrency: "latest"`. |
-| `CatalogNode`, `CatalogEntry`, `Panel`, `PanelPart`, `HttpRequest`, `HttpResponse` | types, see [wire](#lox-nexusplugin-sdkwire) | Return values of `catalog()`, `panel()` and webhook handlers. |
+| `CatalogNode`, `CatalogEntry`, `Panel`, `PanelPart`, `RowAction`, `HttpRequest`, `HttpResponse` | types, see [wire](#lox-nexusplugin-sdkwire) | Return values of `catalog()`, `panel()` and webhook handlers. |
+| [`Action`](../reference/sdk/@lox-nexus/plugin-sdk.md#abstract-action), `ActionClass` | class, type | See [Action](#action-reference). |
 
 ## `@lox-nexus/plugin-sdk/values`
 
@@ -331,9 +358,11 @@ interface CatalogNode { label: string; children?: CatalogNode[]; entries?: Catal
 type CatalogEntry = { kind: "sensor" | "actuator"; capability: string; params: unknown; label: string; value?: Value; unit?: string }
 type PanelPart =
   | { type: "keyValue"; items: { label: string; value: string }[] }
-  | { type: "table"; columns: string[]; rows: string[][] }
+  | { type: "table"; columns: string[]; rows: string[][]; rowActions?: RowAction[][] }  // up to 4 buttons per row
+  | { type: "qr"; data: string; caption?: string }  // e.g. a Matter pairing payload; hosts before it refuse the panel
   | { type: "json"; data: unknown }
 type Panel = PanelPart | { type: "sections"; sections: { title: string; panel: PanelPart }[] }  // at most 20 sections
+type RowAction = { action: string; label?: string; input?: Record<string, unknown> }  // opens the action's dialog filled in
 type HttpRequest = { method: string; path: string; query: Record<string, string>; headers: Record<string, string>; body: string }
 type HttpResponse = { status: number; headers?: Record<string, string>; body?: string }
 type PluginHealth = "running" | "degraded"
@@ -361,6 +390,7 @@ sends them itself; the runtime does. Requests carry a `requestId` and are answer
 | `catalog` | `requestId` | `CatalogNode[]` |
 | `panel` | `requestId` | a `Panel`, or none |
 | `http.request` | `requestId`, `request` (`HttpRequest`) | an `HttpResponse` |
+| `action` | `requestId`, `action`, `input` | the text to show, or none; only sent for actions the description declares |
 | `watch.signals` | `signals` (`WatchedSignal[]`) | none |
 | `watch.values` | `seq`, `values` (`WatchedValue[]`), `dropped?` | `watch.ack` |
 | `ping` | `seq` | `pong` |

@@ -1,6 +1,7 @@
 import { Value } from "@lox-nexus/plugin-sdk/values"
 import type { BusMessage } from "./BusMessage.ts"
 import type { CausalChain } from "./CausalChain.ts"
+import { LastCommands } from "./LastCommands.ts"
 import type { Clock } from "./Clock.ts"
 import type { ForceRegistry } from "./ForceRegistry.ts"
 import type { Pending } from "./Pending.ts"
@@ -15,6 +16,9 @@ import type { TopicKinds } from "./TopicKinds.ts"
  * turns that into an event on system/bus/error.
  */
 export class BusProcessor {
+  /** what each command topic delivered last, for display (see LastCommands) */
+  readonly lastCommands = new LastCommands()
+
   /** @param topicKinds optional; without it a forced topic's kind falls back to what the bus has seen */
   constructor(
     private readonly chain: CausalChain,
@@ -49,10 +53,13 @@ export class BusProcessor {
     this.subscribers.dispatch(message)
   }
 
+  // a shadowed command doesn't reach the device, so it isn't the last one sent
   private command(pending: Pending) {
     this.retained.noteCommand(pending.topic)
     if (this.forces.get(pending.topic)) return this.subscribers.dispatch(this.accept(pending, { shadowed: true }), true)
-    this.subscribers.dispatch(this.accept(pending))
+    const message = this.accept(pending)
+    this.lastCommands.set(message)
+    this.subscribers.dispatch(message)
   }
 
   // A force emits two messages: the force itself (tap only) and an effective message of the topic's
@@ -72,6 +79,7 @@ export class BusProcessor {
       options: { source: pending.options.source, cause: forceMessage, flags: { ...pending.options.flags, forced: true } }
     })
     this.retained.setEffective(effective)
+    if (kind === "command") this.lastCommands.set(effective)
     this.subscribers.dispatch(effective)
   }
 

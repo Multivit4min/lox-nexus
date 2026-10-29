@@ -11,6 +11,8 @@ export interface PluginPackage {
   /** the installed version, for messages; development copies have none */
   version?: string
   description: PluginDescription
+  /** the worker's heap limit from the manifest (`loxNexus.heapMb`); default 128 MB */
+  heapMb?: number
 }
 
 /** One configured instance of a plugin. */

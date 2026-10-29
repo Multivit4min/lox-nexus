@@ -18,13 +18,27 @@ export const CapabilityDescriptionSchema = z.object({
 })
 export type CapabilityDescription = z.infer<typeof CapabilityDescriptionSchema>
 
+/** An action a user can start from the instance page (`static actions`). */
+export const ActionDescriptionSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  description: z.string().optional(),
+  /** JSON Schema of the form; an empty object schema when the action takes no input */
+  input: z.record(z.string(), z.unknown()),
+  /** a sentence to confirm before it runs */
+  confirm: z.string().optional()
+})
+export type ActionDescription = z.infer<typeof ActionDescriptionSchema>
+
 /** The answer to `describe`: everything a UI needs to configure a plugin without loading it. */
 export const PluginDescriptionSchema = z.object({
   config: z.record(z.string(), z.unknown()),
   sensors: z.array(CapabilityDescriptionSchema),
   actuators: z.array(CapabilityDescriptionSchema),
   /** set when the plugin watches signals the user chooses (`static readonly watches`) */
-  watches: WatchDeclarationSchema.optional()
+  watches: WatchDeclarationSchema.optional(),
+  /** set when the plugin declares `static actions`; older hosts drop it */
+  actions: z.array(ActionDescriptionSchema).optional()
 })
 export type PluginDescription = z.infer<typeof PluginDescriptionSchema>
 
@@ -69,36 +83,48 @@ export const CatalogNodeSchema: z.ZodType<CatalogNode> = z.lazy(() => z.object({
 
 /**
  * A declarative status view a plugin shows on its page, returned by Plugin.panel(); plugins ship
- * no UI code. Four shapes exist (cells are plain strings, so format numbers yourself):
+ * no UI code. Five shapes exist (cells are plain strings, so format numbers yourself):
  *
  * ```ts
  * { type: "keyValue", items: [{ label: "Firmware", value: "1.34" }] }
  * { type: "table", columns: ["Meter", "Power"], rows: [["Grid", "412 W"]] }
  * { type: "json", data: { anything: "JSON-serialisable" } }
+ * { type: "qr", data: "MT:Y.K90…", caption: "Scan in the Alexa app" }
  * { type: "sections", sections: [{ title: "Inverter", panel: { type: "keyValue", items } }, { title: "Meters", panel: { type: "table", columns, rows } }] }
  * ```
  *
- * Never put secrets in a panel.
+ * A table may offer actions per row (`rowActions`, one list per row), e.g. "Remove" next to each
+ * paired controller: the button opens the action's dialog with `input` filled in. Hosts before
+ * `qr` refuse a panel with one, which fails only the panel request; they ignore `rowActions`.
+ * Answers must be JSON: format BigInt and dates as text. Never put secrets in a panel.
  */
 const KeyValuePanel = z.object({ type: z.literal("keyValue"), items: z.array(z.object({ label: z.string(), value: z.string() })) })
-const TablePanel = z.object({ type: z.literal("table"), columns: z.array(z.string()), rows: z.array(z.array(z.string())) })
+/** a button on one table row that opens an action's dialog with `input` filled in; its keys must be fields of the action's `input` schema, others are dropped */
+export const RowActionSchema = z.object({ action: z.string().min(1).max(100), label: z.string().max(100).optional(), input: z.record(z.string(), z.unknown()).optional() })
+export type RowAction = z.infer<typeof RowActionSchema>
+const TablePanel = z.object({
+  type: z.literal("table"), columns: z.array(z.string()), rows: z.array(z.array(z.string())),
+  rowActions: z.array(z.array(RowActionSchema).max(4)).optional()
+})
+/** a QR code of `data`, e.g. a Matter pairing payload */
+const QrPanel = z.object({ type: z.literal("qr"), data: z.string().min(1).max(1024), caption: z.string().max(200).optional() })
 /** shown as a formatted tree; data must be JSON */
 const JsonPanel = z.object({ type: z.literal("json"), data: z.unknown() })
 
 /** One part of a panel; a section holds one of these. */
-export const PanelPartSchema = z.discriminatedUnion("type", [KeyValuePanel, TablePanel, JsonPanel])
-/** A key-value list, a table or a JSON tree. */
+export const PanelPartSchema = z.discriminatedUnion("type", [KeyValuePanel, TablePanel, JsonPanel, QrPanel])
+/** A key-value list, a table, a JSON tree or a QR code. */
 export type PanelPart = z.infer<typeof PanelPartSchema>
 
 export const PanelSchema = z.discriminatedUnion("type", [
-  KeyValuePanel, TablePanel, JsonPanel,
+  KeyValuePanel, TablePanel, JsonPanel, QrPanel,
   /**
    * titled parts shown one below the other, e.g. facts as key-value pairs above a table. Hosts
    * before this type refuse it, which fails only the panel request.
    */
   z.object({ type: z.literal("sections"), sections: z.array(z.object({ title: z.string(), panel: PanelPartSchema })).max(20) })
 ])
-/** A status view: a key-value list, a table, a JSON tree, or titled sections of those; see PanelSchema. */
+/** A status view: a key-value list, a table, a JSON tree, a QR code, or titled sections of those; see PanelSchema. */
 export type Panel = z.infer<typeof PanelSchema>
 
 /** What a webhook handler answers (see PluginHttp.route); `body` is utf-8 text, `headers` and `body` default to empty. */

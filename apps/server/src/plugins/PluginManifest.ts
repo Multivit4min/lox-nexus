@@ -14,7 +14,9 @@ export const PluginManifestSchema = z.object({
     name: z.string().min(1).max(100),
     /** the built bundle, relative to the package; development runs src/index.ts instead */
     entry: z.string().min(1),
-    icon: z.string().max(50).regex(/^[a-z0-9-]+$/, "lowercase letters, digits or '-'").optional()
+    icon: z.string().max(50).regex(/^[a-z0-9-]+$/, "lowercase letters, digits or '-'").optional(),
+    /** the worker's heap limit in MB, for plugins that need more than the default 128 (a Matter stack) */
+    heapMb: z.int().min(128).max(512).optional()
   })
 })
 export type PluginManifest = z.infer<typeof PluginManifestSchema>

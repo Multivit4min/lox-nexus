@@ -42,3 +42,9 @@ test("broken JSON is refused; declaresPlugin tells plugins from other packages",
   assert.equal(ManifestValidator.declaresPlugin(JSON.stringify({ name: "x" })), false)
   assert.equal(ManifestValidator.declaresPlugin("{"), false)
 })
+
+test("a plugin may ask for a heap limit between 128 and 512 MB", () => {
+  assert.equal(ManifestValidator.parse(FixtureBundle.manifest({}, { heapMb: 256 })).heapMb, 256)
+  assert.equal("heapMb" in ManifestValidator.parse(FixtureBundle.manifest()), false)
+  for (const heapMb of [64, 1024, 200.5, "256"]) refused(FixtureBundle.manifest({}, { heapMb }), /heapMb/)
+})

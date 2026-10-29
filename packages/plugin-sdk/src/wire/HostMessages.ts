@@ -56,6 +56,11 @@ export const HostMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("catalog"), requestId }),
   /** answered with a Panel, or no result when the plugin has none */
   z.object({ type: z.literal("panel"), requestId }),
+  /**
+   * runs one of the plugin's actions (`static actions`); answered with the text to show, or no
+   * result. Sent only for actions the plugin's description declares.
+   */
+  z.object({ type: z.literal("action"), requestId, action: z.string().min(1).max(100), input: z.unknown() }),
   /** answered with a full HttpResponse */
   z.object({ type: z.literal("http.request"), requestId, request: HttpRequestSchema }),
   /**

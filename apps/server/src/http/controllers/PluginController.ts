@@ -1,6 +1,7 @@
-import { PluginInstanceInputSchema, PluginSignalInputSchema } from "@lox-nexus/api"
+import { PluginActionRequestSchema, PluginInstanceInputSchema, PluginSignalInputSchema } from "@lox-nexus/api"
 import type { FastifyInstance, FastifyRequest } from "fastify"
 import { z } from "zod"
+import type { PluginActionService } from "../../services/PluginActionService.ts"
 import type { PluginBridgeService } from "../../services/PluginBridgeService.ts"
 import type { PluginLogs } from "../../services/PluginLogs.ts"
 import type { PluginService } from "../../services/PluginService.ts"
@@ -9,6 +10,7 @@ import type { Controller } from "../Controller.ts"
 
 const IdParams = z.object({ id: z.string().min(1) })
 const SignalParams = IdParams.extend({ signalId: z.string().min(1) })
+const ActionParams = IdParams.extend({ action: z.string().min(1).max(100) })
 
 /**
  * /api/plugins (what can be instantiated) and /api/plugin-instances. All routes need a session.
@@ -25,13 +27,16 @@ const SignalParams = IdParams.extend({ signalId: z.string().min(1) })
  * - POST :id/bridge: 200 with one result per item (signal, Loxone signal and wire, or why it failed);
  *   404 for an unknown Miniserver as well, before anything is created.
  * - GET :id/logs: 200 with the instance's recent log lines, oldest first (kept in memory only).
+ * - POST :id/actions/:action: 200 with the plugin's message; 400 the plugin refused, 404 unknown
+ *   action, 409 not running, 503 timeout (2 min) or the plugin stopped meanwhile.
  */
 export class PluginController implements Controller {
   constructor(
     private readonly plugins: PluginService,
     private readonly signals: PluginSignalService,
     private readonly logs: Pick<PluginLogs, "recent">,
-    private readonly bridges: Pick<PluginBridgeService, "bridge">
+    private readonly bridges: Pick<PluginBridgeService, "bridge">,
+    private readonly actions: Pick<PluginActionService, "run">
   ) {}
 
   register(app: FastifyInstance) {
@@ -54,6 +59,11 @@ export class PluginController implements Controller {
       return this.logs.recent(id)
     })
     app.get("/api/plugin-instances/:id/panel", async request => (await this.plugins.panel(PluginController.id(request))) ?? null)
+    // lock-free: pairing takes up to two minutes, which must not hold off a config import
+    app.post("/api/plugin-instances/:id/actions/:action", { bodyLimit: 64 * 1024, config: { lockFree: true } }, request => {
+      const { id, action } = ActionParams.parse(request.params)
+      return this.actions.run(id, action, PluginActionRequestSchema.parse(request.body ?? {}).input, request.user!.username)
+    })
     this.registerSignals(app)
   }
 

@@ -12,6 +12,8 @@ export interface SessionTimings {
   initMs: number
   /** for every other request */
   requestMs: number
+  /** for an action (pairing a device takes tens of seconds) */
+  actionMs: number
   pingMs: number
   /** unanswered pings in a row before the plugin counts as hung */
   missedPings: number

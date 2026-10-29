@@ -1,4 +1,4 @@
-import { z } from "@lox-nexus/plugin-sdk"
+import { signalGroup, z } from "@lox-nexus/plugin-sdk"
 import { Value } from "@lox-nexus/plugin-sdk/values"
 import { EntityId } from "../entities/EntityId.ts"
 import type { EntityState } from "../entities/EntityStore.ts"
@@ -7,8 +7,8 @@ import { StateValue } from "../entities/StateValue.ts"
 import { EntitySensor } from "./EntitySensor.ts"
 
 const params = z.object({
-  entityId: EntityId.schema.refine(id => EntityId.domain(id) === "light", "a light entity, e.g. light.kitchen")
-    .meta(EntityId.meta("light.kitchen")),
+  entityId: signalGroup(EntityId.schema.refine(id => EntityId.domain(id) === "light", "a light entity, e.g. light.kitchen")
+    .meta(EntityId.meta("light.kitchen"))),
   part: z.enum(["brightness", "color"]).default("brightness").meta({
     title: "What to send",
     description: "Brightness: a dimmer value (0–100 %). Colour: RGBW, or a colour temperature while the light is in that mode",

@@ -30,7 +30,7 @@ export class PackageInspector {
     const bundleSha256 = await PluginDirectory.sha256(entry)
     let description: PluginDescription
     try {
-      description = await this.describer.describe(entry)
+      description = await this.describer.describe(entry, { heapMb: fetched.manifest.heapMb })
     } catch (error) {
       const message = (error instanceof Error ? error.message : String(error)).replaceAll(packageDir, "<package>").slice(0, 500)
       throw new InstallError("describe-failed", `the plugin could not be loaded: ${message}`)

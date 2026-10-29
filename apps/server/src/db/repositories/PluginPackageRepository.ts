@@ -7,6 +7,8 @@ export interface StoredVersion {
   version: string
   name: string
   icon?: string
+  /** the worker's heap limit from the manifest, when it asks for one */
+  heapMb?: number
   entry: string
   source: PluginSourceDto
   bundleSha256: string
@@ -28,6 +30,7 @@ interface VersionRow {
   version: string
   name: string
   icon: string | null
+  heap_mb: number | null
   entry: string
   source_kind: "zip" | "git" | "local"
   source: string
@@ -67,8 +70,8 @@ export class PluginPackageRepository {
   insert(version: StoredVersion) {
     this.db.transaction(() => {
       this.db.run(
-        `INSERT INTO plugin_versions (plugin_id, version, name, icon, entry, source_kind, source, ref, commit_sha, archive_sha256, bundle_sha256, description, installed_at, installed_by)
-         VALUES (:pluginId, :version, :name, :icon, :entry, :kind, :source, :ref, :commit, :archive, :bundle, :description, :at, :by)`,
+        `INSERT INTO plugin_versions (plugin_id, version, name, icon, heap_mb, entry, source_kind, source, ref, commit_sha, archive_sha256, bundle_sha256, description, installed_at, installed_by)
+         VALUES (:pluginId, :version, :name, :icon, :heapMb, :entry, :kind, :source, :ref, :commit, :archive, :bundle, :description, :at, :by)`,
         PluginPackageRepository.params(version)
       )
       this.db.run(
@@ -119,7 +122,7 @@ export class PluginPackageRepository {
   private static params(version: StoredVersion) {
     const { source } = version
     return {
-      pluginId: version.pluginId, version: version.version, name: version.name, icon: version.icon ?? null, entry: version.entry,
+      pluginId: version.pluginId, version: version.version, name: version.name, icon: version.icon ?? null, heapMb: version.heapMb ?? null, entry: version.entry,
       kind: source.kind,
       source: source.kind === "git" ? source.url : source.kind === "zip" ? source.fileName : source.folder,
       ref: source.kind === "git" ? source.ref : null,
@@ -134,7 +137,7 @@ export class PluginPackageRepository {
       ? { kind: "git", url: row.source, ref: row.ref ?? "", commit: row.commit_sha ?? "" }
       : row.source_kind === "zip" ? { kind: "zip", fileName: row.source, archiveSha256: row.archive_sha256 ?? "" } : { kind: "local", folder: row.source }
     return {
-      pluginId: row.plugin_id, version: row.version, name: row.name, ...(row.icon ? { icon: row.icon } : {}), entry: row.entry, source,
+      pluginId: row.plugin_id, version: row.version, name: row.name, ...(row.icon ? { icon: row.icon } : {}), ...(row.heap_mb ? { heapMb: row.heap_mb } : {}), entry: row.entry, source,
       bundleSha256: row.bundle_sha256, description: row.description, installedAt: row.installed_at, installedBy: row.installed_by
     }
   }

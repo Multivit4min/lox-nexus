@@ -1,4 +1,4 @@
-import { z } from "@lox-nexus/plugin-sdk"
+import { signalGroup, z } from "@lox-nexus/plugin-sdk"
 
 /** Entity ids as Home Assistant forms them: `<domain>.<object id>`, e.g. `light.kitchen`. */
 export class EntityId {
@@ -14,9 +14,12 @@ export class EntityId {
     return { title: "Entity ID", description: `The entity's ID as Home Assistant shows it, e.g. ${example}` }
   }
 
-  /** the params of a sensor or actuator that follows one entity, e.g. `paramsFor("cover.living_room")` */
+  /**
+   * the params of a sensor or actuator that follows one entity, e.g. `paramsFor("cover.living_room")`;
+   * signal lists group the signals of one entity
+   */
   static paramsFor(example: string) {
-    return z.object({ entityId: EntityId.schema.meta(EntityId.meta(example)) })
+    return z.object({ entityId: signalGroup(EntityId.schema.meta(EntityId.meta(example))) })
   }
 
   static domain(entityId: string) {

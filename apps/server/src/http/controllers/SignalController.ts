@@ -21,14 +21,15 @@ const IdParams = z.object({ id: z.string().min(1) })
 export class SignalController implements Controller {
   constructor(
     private readonly signals: Pick<SignalRegistry, "list">,
-    private readonly bus: Pick<EventBus, "current">,
+    private readonly bus: Pick<EventBus, "current" | "lastCommand">,
     private readonly wires: WireService
   ) {}
 
   /** the wire bodies are validated by WireService, which owns the transform schema */
   register(app: FastifyInstance) {
     app.get("/api/signals", (): SignalDto[] => this.signals.list().map(signal => {
-      const current = this.bus.current(signal.topic)
+      // an actuator has no current value; its last sent command shows instead
+      const current = this.bus.current(signal.topic) ?? this.bus.lastCommand(signal.topic)
       return { ...signal, ...(current ? { current } : {}) }
     }))
     app.get("/api/wires", () => this.wires.list())

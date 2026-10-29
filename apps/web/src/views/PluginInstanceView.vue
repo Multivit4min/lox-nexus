@@ -12,6 +12,7 @@ import { AppContext } from "../AppContext.ts"
 import { ApiError } from "../api/ApiError.ts"
 import InstanceForm from "../components/plugins/InstanceForm.vue"
 import PanelCard from "../components/plugins/PanelCard.vue"
+import PluginActionButtons from "../components/plugins/PluginActionButtons.vue"
 import PluginIcon from "../components/plugins/PluginIcon.vue"
 import PluginLogsCard from "../components/plugins/PluginLogsCard.vue"
 import PluginSignalsCard from "../components/plugins/PluginSignalsCard.vue"
@@ -41,6 +42,7 @@ const live = shallowRef<LiveValues>()
 const failure = ref<string>()
 const missing = ref(false)
 const wiresCard = ref<InstanceType<typeof WiresCard>>()
+const actionButtons = ref<InstanceType<typeof PluginActionButtons>>()
 let unmounted = false
 // a sensor is a wire's source, an actuator its target
 const wire = (signal: PluginSignalDto) => wiresCard.value?.startNew(signal.kind === "sensor" ? { sourceId: signal.id } : { targetId: signal.id })
@@ -140,6 +142,10 @@ onUnmounted(() => {
             <Button variant="outline" size="sm" :disabled="busy" @click="lifecycle('stop', 'start')"><RotateCw class="size-4" /> Restart</Button>
             <Button variant="outline" size="sm" :disabled="busy" @click="lifecycle('stop')"><Square class="size-4" /> Stop</Button>
           </template>
+          <PluginActionButtons
+            v-if="pkg?.description.actions?.length" ref="actionButtons" :instance-id="instance.id" :actions="pkg.description.actions"
+            :running="instance.state === 'running' || instance.state === 'degraded'" @done="refreshPanel"
+          />
           <Button variant="outline" size="sm" :disabled="!pkg" @click="readmeLoaded = reading = true"><BookOpen class="size-4" /> Read me</Button>
           <Button variant="outline" size="sm" :disabled="!pkg" @click="editing = true"><Pencil class="size-4" /> Edit</Button>
           <Button variant="destructive" size="sm" @click="remove"><Trash2 class="size-4" /> Delete</Button>
@@ -162,7 +168,7 @@ onUnmounted(() => {
       <AlertTitle>Degraded</AlertTitle>
       <AlertDescription>{{ instance.statusMessage }}</AlertDescription>
     </Alert>
-    <PanelCard v-if="panel" :panel="panel" :loading="panelLoading" @refresh="refreshPanel" />
+    <PanelCard v-if="panel" :panel="panel" :loading="panelLoading" @refresh="refreshPanel" @action="a => actionButtons?.open(a.action, a.input)" />
     <WatchSelectionCard v-if="pkg?.description.watches" :instance-id="instance.id" :declaration="pkg.description.watches" />
     <PluginSignalsCard v-if="pkg && live && offersSignals" :instance="instance" :description="pkg.description" :signals="signals" :live="live" @changed="loadSignals" @wire="wire" />
     <WiresCard ref="wiresCard" :owner-id="instance.id" />

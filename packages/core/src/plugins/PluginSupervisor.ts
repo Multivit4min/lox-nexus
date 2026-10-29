@@ -20,7 +20,7 @@ export interface SupervisorTimings extends SessionTimings {
 }
 
 export const DEFAULT_TIMINGS: SupervisorTimings = {
-  helloMs: 10_000, initMs: 30_000, requestMs: 30_000, pingMs: 10_000, missedPings: 3, graceMs: 5_000,
+  helloMs: 10_000, initMs: 30_000, requestMs: 30_000, actionMs: 120_000, pingMs: 10_000, missedPings: 3, graceMs: 5_000,
   backoffInitialMs: 1_000, backoffMaxMs: 300_000, stableMs: 60_000
 }
 
@@ -66,7 +66,7 @@ export class PluginSupervisor extends Disposable {
     this.timings = { ...DEFAULT_TIMINGS, ...deps.timings }
     this.backoff = new Backoff(this.timings.backoffInitialMs, this.timings.backoffMaxMs)
     this.topics = new PluginTopics(instance)
-    this.calls = new PluginCalls(() => this.session, () => this.signals, deps.bus)
+    this.calls = new PluginCalls(() => this.session, () => this.signals, deps.bus, this.timings.actionMs)
     this.signals = this.own(new PluginSignals(instance, () => this.currentPkg, deps.bus, deps.registry, (id, value, cause) => this.calls.actuate(id, value, cause)))
     this.inbox = new PluginInbox({
       instance: () => this.instance, signals: this.signals, store: deps.store, logs: deps.logs, report: text => this.report(text),
@@ -153,7 +153,7 @@ export class PluginSupervisor extends Disposable {
     this.setState("starting")
     let session: PluginSession | undefined
     try {
-      session = new PluginSession(this.deps.transport.open(this.currentPkg.entry), this.timings)
+      session = new PluginSession(this.deps.transport.open(this.currentPkg.entry, { heapMb: this.currentPkg.heapMb }), this.timings)
       this.wire(session)
       const timeZone = this.deps.timeZone?.()
       await session.open({

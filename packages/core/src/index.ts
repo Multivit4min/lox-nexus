@@ -23,7 +23,7 @@ export { WirePreview, type PreviewStep, type WirePreviewResult } from "./wires/W
 export { TransformSchema, WireSchema, type TransformConfig, type WireConfig, type WireInput } from "./wires/WireSchema.ts"
 
 export type { PluginInstanceConfig, PluginLogSink, PluginPackage, PluginSignalConfig, PluginState, PluginStateStore, SignalValueType } from "./plugins/PluginTypes.ts"
-export type { ConnectionStats, PluginConnection, PluginConnectionEvents, PluginTransport } from "./plugins/PluginTransport.ts"
+export type { ConnectionStats, OpenOptions, PluginConnection, PluginConnectionEvents, PluginTransport } from "./plugins/PluginTransport.ts"
 export { PluginWorker, type WorkerOptions } from "./plugins/PluginWorker.ts"
 export { WorkerTransport } from "./plugins/WorkerTransport.ts"
 export { PluginInbox, type InboxTarget } from "./plugins/PluginInbox.ts"

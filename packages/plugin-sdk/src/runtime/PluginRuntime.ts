@@ -4,6 +4,7 @@ import type { Plugin, PluginClass } from "../plugin/Plugin.ts"
 import type { PluginContext, PluginLogger } from "../plugin/PluginContext.ts"
 import { HostMessageSchema, WIRE_VERSION, type HostMessage } from "../wire/HostMessages.ts"
 import type { LogLevel, WorkerMessage } from "../wire/WorkerMessages.ts"
+import { ActionHost } from "./ActionHost.ts"
 import { CauseScope } from "./CauseScope.ts"
 import { Declarations } from "./Declarations.ts"
 import { PluginDescriber } from "./PluginDescriber.ts"
@@ -30,6 +31,7 @@ export class PluginRuntime {
     return this.plugin
   }
   private signals: SignalHost | undefined
+  private actions: ActionHost | undefined
   private readonly routes = new RouteTable()
   private readonly watch: WatchHost
 
@@ -64,6 +66,7 @@ export class PluginRuntime {
       if (!config.success) throw new Error(`invalid config: ${z.prettifyError(config.error)}`)
       const plugin = this.plugin = new this.type(this.context(message, config.data))
       this.signals = new SignalHost(this.type, plugin, this.send)
+      this.actions = new ActionHost(this.type, plugin, message => this.log("error", message))
       await plugin.start()
       this.send({ type: "ready" })
     } catch (error) {
@@ -76,7 +79,9 @@ export class PluginRuntime {
   private async request(message: Request) {
     try {
       const result = await this.answer(message)
-      const size = MessageLimits.size(result) ?? 0
+      const size = MessageLimits.size(result)
+      // structuredClone carries a BigInt to the host, whose JSON answer then fails
+      if (size === undefined) throw new Error("the answer can't be sent as JSON (a BigInt or a cycle?); format such values as text")
       if (size > MessageLimits.ANSWER) throw new Error(`the answer is ${MessageLimits.describe(size)}; the limit is ${MessageLimits.describe(MessageLimits.ANSWER)}`)
       this.send({ type: "response", requestId: message.requestId, ok: true, ...(result === undefined ? {} : { result }) })
     } catch (error) {
@@ -93,6 +98,7 @@ export class PluginRuntime {
       case "catalog": return this.started().plugin.catalog()
       case "panel": return this.started().plugin.panel()
       case "http.request": return this.routes.dispatch(message.request)
+      case "action": return this.started().actions.run(message.action, message.input)
     }
   }
 
@@ -100,14 +106,15 @@ export class PluginRuntime {
   private async shutdown() {
     // a batch being exported finishes first, so the plugin's last flush on dispose includes it
     await this.watch.idle()
+    await this.actions?.dispose()
     await this.signals?.disposeAll()
     await this.plugin?.dispose().catch((error: unknown) => this.log("error", `stopping failed: ${PluginRuntime.text(error)}`))
     this.send({ type: "stopped" })
   }
 
   private started() {
-    if (!this.plugin || !this.signals) throw new Error("the plugin is not initialized")
-    return { plugin: this.plugin, signals: this.signals }
+    if (!this.plugin || !this.signals || !this.actions) throw new Error("the plugin is not initialized")
+    return { plugin: this.plugin, signals: this.signals, actions: this.actions }
   }
 
   private context(init: Extract<HostMessage, { type: "init" }>, config: unknown): PluginContext {

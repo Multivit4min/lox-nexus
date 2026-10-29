@@ -11,6 +11,8 @@ export interface InstallManifest {
   /** relative POSIX path of the bundle */
   entry: string
   icon?: string
+  /** the worker's heap limit in MB, when the plugin asks for more than the default */
+  heapMb?: number
 }
 
 // semver.org's regular expression; build metadata is allowed, so "1.0.0+abc" is a valid folder name too
@@ -47,8 +49,8 @@ export class ManifestValidator {
     }
     const parsed = InstallManifestSchema.safeParse(json)
     if (!parsed.success) throw new InstallError("invalid-package", `package.json is not an installable plugin: ${z.prettifyError(parsed.error)}`)
-    const { version, loxNexus: { id, name, entry, icon } } = parsed.data
-    return { id, name, version, entry, ...(icon ? { icon } : {}) }
+    const { version, loxNexus: { id, name, entry, icon, heapMb } } = parsed.data
+    return { id, name, version, entry, ...(icon ? { icon } : {}), ...(heapMb ? { heapMb } : {}) }
   }
 
   /** true when package.json declares a plugin at all (has a loxNexus block), valid or not */

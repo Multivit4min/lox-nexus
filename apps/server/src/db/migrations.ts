@@ -160,5 +160,11 @@ export const MIGRATIONS: readonly Migration[] = [
       );
     `
   },
-  SELECTIONS_MIGRATION
+  SELECTIONS_MIGRATION,
+  {
+    version: 7,
+    name: "plugin_heap_limit",
+    // a plugin's own worker heap limit (manifest `loxNexus.heapMb`); NULL: the default
+    sql: "ALTER TABLE plugin_versions ADD COLUMN heap_mb INTEGER"
+  }
 ]

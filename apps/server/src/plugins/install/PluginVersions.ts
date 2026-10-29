@@ -12,8 +12,8 @@ import { PluginDirectory } from "./PluginDirectory.ts"
  * missing or changed is unavailable, with the reason in `problem()`.
  */
 export class PluginVersions {
-  /** the description format stored descriptions were written in; raise it when the description gains fields (2: `watches`) */
-  static readonly FORMAT = 2
+  /** the description format stored descriptions were written in; raise it when the description gains fields (2: `watches`, 3: `actions`) */
+  static readonly FORMAT = 3
 
   /** why a version is unavailable, by "<id>@<version>" */
   private readonly problemsByVersion = new Map<string, string>()
@@ -35,12 +35,12 @@ export class PluginVersions {
    * be written, the folder is removed again, so nothing half-installed stays.
    */
   async commit(staged: StagedPackage, by: string): Promise<StoredVersion> {
-    const { id, name, version, entry, icon } = staged.manifest
+    const { id, name, version, entry, icon, heapMb } = staged.manifest
     // a folder without a row is left over from a failed uninstall or commit; boot would delete it too
     if (!this.repo.versions().some(row => row.pluginId === id && row.version === version)) await this.directory.removeVersion(id, version)
     await this.directory.moveIn(staged.packageDir, id, version)
     const stored: StoredVersion = {
-      pluginId: id, version, name, ...(icon ? { icon } : {}), entry, source: staged.origin, bundleSha256: staged.bundleSha256,
+      pluginId: id, version, name, ...(icon ? { icon } : {}), ...(heapMb ? { heapMb } : {}), entry, source: staged.origin, bundleSha256: staged.bundleSha256,
       description: PluginVersions.store(staged.description), installedAt: Date.now(), installedBy: by
     }
     try {
@@ -68,7 +68,8 @@ export class PluginVersions {
       if (sha !== stored.bundleSha256) return this.unavailable(key, "its bundle changed on disk since it was installed")
       const description = await this.description(stored)
       this.problemsByVersion.delete(key)
-      return { pkg: { id, name: stored.name, entry, version, description }, version, dir: this.directory.versionDir(id, version), ...(stored.icon ? { icon: stored.icon } : {}) }
+      const pkg = { id, name: stored.name, entry, version, description, ...(stored.heapMb ? { heapMb: stored.heapMb } : {}) }
+      return { pkg, version, dir: this.directory.versionDir(id, version), ...(stored.icon ? { icon: stored.icon } : {}) }
     } catch (error) {
       this.log.warn({ err: error, plugin: id, version }, "installed plugin can't be loaded")
       return this.unavailable(key, `it can't be loaded: ${error instanceof Error ? error.message.slice(0, 300) : String(error)}`)
@@ -136,7 +137,7 @@ export class PluginVersions {
     const parsed = PluginDescriptionSchema.safeParse(json)
     if (parsed.success && current) return parsed.data
     this.log.info({ plugin: stored.pluginId, version: stored.version }, "describing an installed plugin again")
-    const description = await this.describer.describe(this.directory.entryFile(stored.pluginId, stored.version, stored.entry))
+    const description = await this.describer.describe(this.directory.entryFile(stored.pluginId, stored.version, stored.entry), { heapMb: stored.heapMb })
     this.repo.setDescription(stored.pluginId, stored.version, PluginVersions.store(description))
     return description
   }

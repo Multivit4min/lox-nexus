@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import type { Panel } from "@lox-nexus/plugin-sdk/wire"
+import type { Panel, RowAction } from "@lox-nexus/plugin-sdk/wire"
 import { RefreshCw } from "@lucide/vue"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import PanelPartView from "./PanelPartView.vue"
 
-/** The status view a plugin declares: key-value pairs, a table, JSON, or titled sections of those. Plugins ship no UI code. */
+/** The status view a plugin declares: key-value pairs, a table, JSON, a QR code, or titled sections of those. Plugins ship no UI code. */
 defineProps<{ panel: Panel; loading?: boolean }>()
-const emit = defineEmits<{ refresh: [] }>()
+const emit = defineEmits<{ refresh: []; action: [action: RowAction] }>()
 </script>
 
 <template>
@@ -20,10 +20,10 @@ const emit = defineEmits<{ refresh: [] }>()
       <div v-if="panel.type === 'sections'" class="grid gap-5">
         <section v-for="(section, i) in panel.sections" :key="i" class="grid gap-2">
           <h3 class="text-sm font-medium">{{ section.title }}</h3>
-          <PanelPartView :part="section.panel" />
+          <PanelPartView :part="section.panel" @action="action => emit('action', action)" />
         </section>
       </div>
-      <PanelPartView v-else :part="panel" />
+      <PanelPartView v-else :part="panel" @action="action => emit('action', action)" />
     </CardContent>
   </Card>
 </template>

@@ -115,6 +115,12 @@ Each class below lives in its own file under `packages/core/src/bus/`:
 - **`RetainedState`**: the last value per topic. It is snapshotted to the DB every 5 s and on
   shutdown, and nothing is written per value. Restored values are flagged, and wires ignore them
   unless `syncOnStart` is set, so a boot never actuates a device.
+- **`LastCommands`**: the last command each topic delivered, i.e. what an actuator's device was
+  last told, for display only (`EventBus.lastCommand`). Kept apart from `RetainedState` so a
+  command is never replayed, never a wire's source value and not persisted (empty after a
+  restart). A forced command counts as delivered and is kept without its forced flag, so after the
+  release the lists still show the value the device has; commands shadowed by a force are not.
+  The live state stream and `GET /api/signals` show it where a topic has no current value.
 - **`ForceRegistry`**:
   - `force(topic, value, { by, reason, until? })` and `release(topic)` emit `force` / `release`
     messages.

@@ -1,4 +1,5 @@
 import type { Value } from "@lox-nexus/plugin-sdk/values"
+import { z } from "zod"
 import { CatalogNodeSchema, HttpResponseSchema, PanelSchema, type HttpRequest, type SignalSpec } from "@lox-nexus/plugin-sdk/wire"
 import type { BusMessage } from "../bus/BusMessage.ts"
 import type { PluginSession } from "./PluginSession.ts"
@@ -15,14 +16,15 @@ export class PluginNotRunningError extends Error {
 
 /**
  * Everything the host asks a running plugin for, with the answers validated: creating its
- * signals, actuating (reported as `result` on the bus), catalog, panel and webhooks. Signal
+ * signals, actuating (reported as `result` on the bus), catalog, panel, actions and webhooks. Signal
  * changes are registered on the bus at once and passed to the plugin when it runs.
  */
 export class PluginCalls {
   constructor(
     private readonly session: () => PluginSession | undefined,
     private readonly signals: () => PluginSignals,
-    private readonly bus: Pick<PluginBus, "result" | "replayForce">
+    private readonly bus: Pick<PluginBus, "result" | "replayForce">,
+    private readonly actionMs?: number
   ) {}
 
   /**
@@ -106,6 +108,16 @@ export class PluginCalls {
   async panel() {
     return PanelSchema.optional().parse(await this.running().request({ type: "panel" }))
   }
+
+  /**
+   * Runs one of the plugin's actions; resolves with its message for the user.
+   * @throws PluginNotRunningError; PluginRequestError with the plugin's refusal; PluginUnavailableError on timeout
+   */
+  async action(id: string, input: unknown) {
+    return PluginCalls.ACTION_RESULT.parse(await this.running().request({ type: "action", action: id, input }, this.actionMs))
+  }
+
+  private static readonly ACTION_RESULT = z.string().max(2000).optional()
 
   /** a webhook call; @throws PluginNotRunningError, or the handler's error */
   async http(request: HttpRequest) {

@@ -237,6 +237,25 @@ whether every signal is recorded or exported, or only selected ones.
 - **S4: the `influxdb` plugin** (done). Line protocol to InfluxDB v2/v3 or v1, batched with retries and a
   bounded buffer, a status panel, a Grafana example in the docs.
 
+### Matter (MB0–MB3)
+
+Plan: two plugins on matter.js (ADR 0017), a bridge (Nexus devices in Alexa, Google, Apple, Home
+Assistant) and a controller (Matter devices and hubs in Nexus, and so in Loxone).
+
+- **MB0: test bridge with a real Echo** (done, 2026-10-29). A throwaway matter.js bridge in a
+  plugin worker, its keys in the plugin store: paired with Alexa, voice control, a temperature
+  question and a routine started by a contact sensor worked; pairing survived a container
+  recreation; about 38–50 MB heap and 105–120 MB RSS per instance. On the way, plugin bundles
+  stopped running under tsx in their workers.
+- **MB1: SDK and host groundwork** (done). Plugin actions with a form (`static actions`, one at a
+  time, 2-minute timeout, `POST /api/plugin-instances/:id/actions/:action`), a QR panel part, buttons
+  per panel table row, `loxNexus.heapMb` (128–512 MB), answers JSON can't hold refused, and signal
+  groups in the lists (`signalGroup()`, ADR 0018; Home Assistant groups by entity).
+- **MB2: `matter-bridge`.** Devices from the config, commands as sensors and state as actuators, the
+  pairing code and QR code in the panel, pairing window and fabric removal as actions.
+- **MB3: `matter-controller`.** Pair devices and hubs by code (multi-admin), a catalog of their
+  clusters, live values by subscription.
+
 ## Top risks
 
 1. **Plugins are trusted code.** Worker threads are not a sandbox. Say so explicitly in the docs and

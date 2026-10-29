@@ -69,6 +69,8 @@ export interface StagedInstallDto {
   actuators: number
   /** the plugin can receive the values of signals the user chooses (also of other systems) */
   watches?: boolean
+  /** the worker's heap limit in MB, when the plugin asks for more than the default 128 */
+  heapMb?: number
   /** the active installed version with the same id */
   installedVersion?: string
   /** the same version with the same bundle is installed already; confirming changes nothing */
