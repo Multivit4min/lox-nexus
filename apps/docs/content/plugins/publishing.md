@@ -70,6 +70,17 @@ package instead.
   time. Mark nothing as `--external`: the bundle must be a single file, with no `node_modules`
   next to it.
 - Node built-ins (`node:fs`, `node:net`, ...) are available.
+- **CommonJS dependencies** (an MQTT client, for example) make esbuild write `__require("events")`
+  into the ESM bundle, which fails when Nexus loads it with `Dynamic require of "stream" is not
+  supported`. Define `require` with a banner in the build script:
+
+  ```json
+  "build": "esbuild src/index.ts --bundle --platform=node --format=esm --target=node24 --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\" --outfile=dist/plugin.js"
+  ```
+
+  This works because Nexus loads the entry by file URL, so `import.meta.url` is the bundle's own
+  path. Before you publish, load the built bundle once from a small `.mjs`
+  (`await import("./dist/plugin.js")`) to catch this error early.
 - The code runs in a worker with an **empty environment** (no `process.env` values) and a 128 MB
   heap.
 
@@ -77,8 +88,14 @@ package instead.
 
 1. Raise `version`, build the bundle, and make it part of what you hand out: `package.json` and
    the file named by `entry` are what gets installed. A source map next to the bundle
-   (`<entry>.map`) is installed too if there is one. Everything else is ignored: sources,
-   `node_modules`, READMEs and other files are not installed.
+   (`<entry>.map`) is installed too if there is one, and so is the README (see below).
+   Everything else is ignored: sources, `node_modules` and other files are not installed.
+   - **Write a README for the people who install the plugin.** Put `README.md` (or `readme.md`,
+     `Readme.md`) at the package root. Nexus keeps it, from a ZIP, a git repository and the local
+     repository alike, and the Installed page shows it rendered as Markdown under **Read me** on
+     the plugin's card. Say what the plugin does, its settings, its sensors and actuators, and its
+     limits. A README larger than 512 KiB is left out and the install goes on. Raw HTML is shown
+     as text, images show only their alt text, and links open in a new tab.
 2. Hand it out in one of two ways.
    - **A ZIP file.** `package.json` is at the archive's root or in its only top-level folder (as
      "download as ZIP" and most zip tools pack a folder). Up to 50 MiB; no absolute paths, `..`,
@@ -93,7 +110,7 @@ package instead.
 The same version with the same bundle counts as already installed, and confirming it changes
 nothing. The same version with a **different** bundle is refused, so raise the version whenever
 the bundle changes. Only the local plugin repository stamps versions itself: it installs `1.2.0` as
-`1.2.0+<hash of the bundle>`, so a rebuilt plugin there installs as a new version. A different version is an update: running instances restart on it, and the
+`1.2.0+<hash of the bundle>`, so a rebuilt plugin there installs as a new version. A different version is an update: running instances restart on it (stopped, then started as a new worker, see the [lifecycle](authoring.md#the-lifecycle-of-a-plugin)), and the
 version before stays for a rollback.
 
 **Keep stored data compatible.** Updates and rollbacks don't migrate an instance's config or

@@ -50,9 +50,13 @@ type Waiter = { match: (message: WorkerMessage) => boolean; resolve: (message: W
  * ```
  */
 export class PluginTestHost<T extends PluginClass = PluginClass> {
-  /** every message the plugin sent, in order */
+  /**
+   * every message the plugin sent, in order: emits, logs (`{ type: "log", level, message, data? }`),
+   * status changes, store writes and responses. Assert on it for what no other member shows, such
+   * as a log line.
+   */
   readonly sent: WorkerMessage[] = []
-  /** the store as the host would have persisted it */
+  /** the store as the host would have persisted it; updated by the plugin's set() and delete(), read it back in assertions */
   readonly store: Record<string, unknown>
   private readonly runtime: PluginRuntime
   private readonly waiters = new Set<Waiter>()
@@ -88,12 +92,15 @@ export class PluginTestHost<T extends PluginClass = PluginClass> {
     }
   }
 
-  /** describes the class without starting it */
+  /** the description the UI gets (config and params as JSON Schema), without starting the plugin; throws for invalid static declarations */
   static async describe(type: PluginClass) {
     return await new PluginTestHost(type, {}).request({ type: "describe", requestId: 0 }) as PluginDescription
   }
 
   /**
+   * Adds and starts a sensor, like the host does when the user configures a signal; the call
+   * resolves after the sensor's start(). Ids are generated ("sensor-1", "sensor-2", …).
+   * @param params checked against the capability's `params` schema, defaults applied; default `{}`
    * @param label the signal's name (`this.signal.label`); default "" like an older host
    * @returns the new signal's id; @throws Error for unknown capabilities, invalid params or a failing start
    */
@@ -101,12 +108,12 @@ export class PluginTestHost<T extends PluginClass = PluginClass> {
     return this.add("sensor", capability, params, label)
   }
 
-  /** @returns the new signal's id; throws like addSensor() */
+  /** Adds an actuator like addSensor() does for a sensor. @returns the new signal's id; throws like addSensor() */
   async addActuator(capability: string, params: unknown = {}, label?: string) {
     return this.add("actuator", capability, params, label)
   }
 
-  /** removes the signal; unknown ids are ignored */
+  /** disposes the signal's sensor or actuator, as when the user deletes it; unknown ids are ignored */
   async remove(id: string) {
     await this.request({ type: "signal.remove", requestId: this.nextRequest++, id })
   }

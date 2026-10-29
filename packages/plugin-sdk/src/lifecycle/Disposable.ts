@@ -28,6 +28,23 @@ export interface Listenable {
  *
  * Registering anything after dispose() throws, so a late callback cannot leak a timer into a
  * dead object.
+ *
+ * Plugins, sensors and actuators are Disposables; the runtime calls their dispose() when a signal
+ * is removed or edited and when the instance stops, so plugin code rarely calls it itself. A
+ * class you own() should extend Disposable too (or implement DisposableLike) and register its own
+ * timers and listeners the same way:
+ *
+ * ```ts
+ * class Poller extends Disposable {
+ *   start() { this.every(5000, () => void this.poll()) }
+ * }
+ * // in the plugin: readonly poller = this.own(new Poller())   (call poller.start() from start())
+ * ```
+ *
+ * A callback given to every(), after() or listen() that throws is an uncaught exception, which
+ * ends the worker (the host restarts it); catch errors inside it, and report them with the
+ * plugin's `log` or `status`. A callback that returns a rejected promise goes to
+ * Plugin.unhandledRejection().
  */
 export abstract class Disposable implements DisposableLike {
   /** the largest delay setTimeout/setInterval honour; Node turns anything longer into 1 ms */
@@ -45,6 +62,10 @@ export abstract class Disposable implements DisposableLike {
   }
 
   /**
+   * Releases everything registered with this object. Plugin code seldom needs it: the runtime
+   * disposes plugins, sensors and actuators, and own() disposes children. Call it yourself for an
+   * object you created without own(), or to end a child early.
+   *
    * Runs all teardowns in reverse registration order and keeps going when one fails. Idempotent:
    * every call returns the same promise, so a second caller also waits for async teardowns.
    * @throws AggregateError collecting every teardown error, after all teardowns have run
@@ -69,7 +90,10 @@ export abstract class Disposable implements DisposableLike {
   }
 
   /**
-   * registers a teardown callback that runs on dispose()
+   * Registers a callback that runs on dispose(), for cleanup the helpers don't cover (closing a
+   * socket, flushing a buffer). Async callbacks are awaited one after the other, last registered
+   * first, so a flush can use what was registered before it. Keep the total under the five seconds
+   * a stop has.
    * @throws Error if already disposed
    */
   protected onDispose(teardown: Teardown) {
@@ -109,6 +133,8 @@ export abstract class Disposable implements DisposableLike {
 
   /**
    * runs fn every ms milliseconds until disposed or until the returned cancel function is called.
+   * The first run is after ms, not at once; call fn yourself first if you want an immediate run.
+   * Runs are not queued: a slow async fn can overlap its next run, so guard it yourself if needed.
    * @throws RangeError unless 0 < ms <= MAX_TIMER_MS
    */
   protected every(ms: number, fn: () => void): () => void {
@@ -156,7 +182,11 @@ export abstract class Disposable implements DisposableLike {
     return cancel
   }
 
-  /** subscribes to an emitter until disposed; the listener is removed again on dispose() */
+  /**
+   * Subscribes `listener` to `event` of an EventEmitter (or anything with on/off) and removes it
+   * again on dispose(), so a long-lived emitter such as the plugin's poller does not keep a
+   * disposed sensor alive. Prefer it to calling `emitter.on` yourself.
+   */
   protected listen(emitter: Listenable, event: string | symbol, listener: Listener) {
     emitter.on(event, listener)
     this.onDispose(() => void emitter.off(event, listener))

@@ -17,6 +17,11 @@ export interface SensorOutput {
 /**
  * A value coming from the device. Each configured sensor (a capability plus params) is one
  * instance, created when the signal is added and disposed when it is removed or the plugin stops.
+ * Editing a signal's params in the UI disposes the instance and creates a new one, so start()
+ * runs again with the new params; keep state that must outlive that in the plugin.
+ *
+ * A sensor has no value until it emits: in start(), emit what you already know (the plugin's
+ * latest poll, the entity's current state), or the signal stays empty until the next change.
  *
  * The class declares itself with static fields (see SensorClass; only `id` is required):
  *
@@ -31,7 +36,9 @@ export interface SensorOutput {
  */
 export abstract class Sensor<P extends Plugin = Plugin, Params = unknown> extends Disposable {
   /**
-   * `params` are validated against the static `params` schema before construction. `signal` names
+   * `plugin` is the plugin instance, for what sensors share (a poller, an API client). `params`
+   * are validated against the static `params` schema before construction, with defaults applied,
+   * and are available in field initializers. `signal` names
    * the configured signal this sensor is (for panels and log lines); a subclass that declares its
    * own constructor must pass it on to super().
    */
@@ -49,17 +56,31 @@ export abstract class Sensor<P extends Plugin = Plugin, Params = unknown> extend
   // whether a fail() is still showing, so recover() only tells the host when there is something to clear
   private failed = false
 
-  /** Starts producing values; a rejection makes adding the signal fail and disposes the sensor. */
+  /**
+   * Starts producing values. Called once, right after construction, when the signal is added; the
+   * host waits for it (at most 30 seconds). A rejection makes adding the signal fail with the
+   * message and disposes the sensor. Emitting from inside start() is allowed.
+   */
   start(): void | Promise<void> {}
 
-  /** sends a value to the bus (equal consecutive values are deduped there); clears a reported failure */
+  /**
+   * Sends a value to the bus, tagged with the cause of the work that is running. Equal consecutive
+   * values are dropped there, so emit on every poll without comparing yourself. A value of another
+   * type than the declared `valueType` is converted to it by the host before it is published. Clears a failure reported
+   * with fail(). Does nothing once the sensor is disposed, so a late callback is harmless.
+   */
   protected emit(value: Value) {
     if (this.isDisposed) return
     this.failed = false
     this.output.emit(value)
   }
 
-  /** reports that the sensor can't deliver values anymore, e.g. the entity it follows was deleted; the next emit() or recover() clears it */
+  /**
+   * Reports that the sensor can't deliver values anymore, e.g. the entity it follows was deleted.
+   * The message shows on the signal and the instance's error topic until the next emit() or
+   * recover(). The last value stays on the bus. For a temporary outage of the whole device use
+   * `plugin.status.set("degraded", …)` instead.
+   */
   protected fail(message: string) {
     if (this.isDisposed) return
     this.failed = true

@@ -4,7 +4,11 @@ import type { HttpResponse } from "../wire/Shapes.ts"
 import type { WatchedSignal } from "../wire/WatchShapes.ts"
 import type { LogLevel, PluginHealth } from "../wire/WorkerMessages.ts"
 
-/** Log lines go to the host's log, tagged with the instance and the bus message being handled. */
+/**
+ * Log lines go to the host's log, tagged with the instance and the bus message being handled.
+ * Text is clipped to 10 000 characters, and `data` (structured-cloned; one that cannot be cloned
+ * is logged as text) is replaced by a note when it is more than 64 KiB as JSON. Never log secrets.
+ */
 export type PluginLogger = Record<LogLevel, (message: string, data?: unknown) => void>
 
 /**
@@ -12,16 +16,22 @@ export type PluginLogger = Record<LogLevel, (message: string, data?: unknown) =>
  * synchronous from memory; writes are sent to the host, which stores them.
  */
 export interface PluginStore {
-  /** the cast to `T` is not checked; validate data that an older version may have written */
+  /**
+   * The value last set (also earlier in this run), or undefined. The cast to `T` is not checked;
+   * validate data that an older version may have written.
+   */
   get<T = unknown>(key: string): T | undefined
   /**
-   * The value must be JSON (it is stored as JSON; functions, undefined fields and class
-   * instances are dropped or flattened, BigInt and cycles throw). Keys are 1 to 200 characters.
+   * Remembers `value` under `key`: visible to get() at once, saved by the host in the background
+   * and handed to the next run's `init`. The value must be JSON (it is stored as JSON; functions,
+   * undefined fields and class instances are dropped or flattened, BigInt and cycles throw), at
+   * most 1 MiB as JSON, and not `undefined` itself (use delete()). Keys are 1 to 200 characters.
    * @throws Error for an invalid key or value
    */
   set(key: string, value: unknown): void
-  /** removing an absent key is a no-op */
+  /** removes the key; an absent key is a no-op */
   delete(key: string): void
+  /** every key currently stored, in insertion order */
   keys(): string[]
 }
 
@@ -31,7 +41,11 @@ export interface PluginStatus {
   set(status: PluginHealth, message?: string): void
 }
 
-/** A webhook handler; when it throws, the caller gets 502 and the error goes to the server log. */
+/**
+ * A webhook handler; when it throws (or answers with something that is not a valid HttpResponse),
+ * the caller gets 502 and the error goes to the server log. The host waits up to 30 seconds for
+ * the answer. The plugin sees at most 8 calls at once per instance (more get 429).
+ */
 export type HttpHandler = (request: HttpRequest) => HttpResponse | Promise<HttpResponse>
 
 /** Webhook routes, reachable at /hook/<instance><path> without a login: check a secret yourself. */
@@ -54,7 +68,10 @@ export interface WatchView {
 
 /** Everything a plugin gets from the runtime. */
 export interface PluginContext {
-  /** stable for the life of the configured instance (webhook URLs use the instance's slug instead) */
+  /**
+   * stable for the life of the configured instance (webhook URLs use the instance's slug instead).
+   * Plugin does not expose it as a getter; subclasses read it as `this.context.instanceId`.
+   */
   readonly instanceId: string
   /** the instance's slug: its topic segment and webhook path (/hook/<slug>/…); undefined with older hosts */
   readonly slug?: string

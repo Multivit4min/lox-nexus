@@ -59,7 +59,9 @@ export type ValueOf<T extends ValueType> = Extract<Value, { type: T }>
 /**
  * Factories and helpers, used as `Value.number(3)` or `Value.equals(a, b)`. The factories copy
  * structured payloads so a caller mutating its input cannot change a value already on the bus.
- * They do not validate or round; use ValueSchema for untrusted input and Converter for coercion.
+ * The structured factories (singleChannel, rgbw, tunableWhite, t5) round and clamp to what the
+ * wire carries; none of them validates or throws. Use ValueSchema for untrusted input and
+ * Converter for coercion.
  */
 export class ValueFactory {
   /** every value type, in a stable order for UIs and schemas */

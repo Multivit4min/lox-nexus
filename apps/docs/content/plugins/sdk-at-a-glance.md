@@ -1,6 +1,8 @@
 # SDK at a glance
 
-This page is maintained by hand next to the generated [SDK reference](../reference/sdk/index.md); if the two ever disagree, the reference wins. For concepts see [Writing plugins](authoring.md), [Values](values.md) and [Testing](testing.md).
+This page is the compact reference: one place to look up a signature, a default or a limit. It is maintained by hand next to the generated [SDK reference](../reference/sdk/index.md); if the two ever disagree, the reference wins.
+
+It does not teach. For when and why to use each member, and for what happens in which order, read the [plugin guide](authoring.md) (start with its [lifecycle](authoring.md#the-lifecycle-of-a-plugin)), [Values](values.md) and [Testing](testing.md). Each section below links to the matching part of the guide.
 
 Imports: `@lox-nexus/plugin-sdk` (classes), `@lox-nexus/plugin-sdk/values`, `@lox-nexus/plugin-sdk/testing`, `@lox-nexus/plugin-sdk/wire`.
 
@@ -18,6 +20,7 @@ abstract class Plugin<Config = unknown> extends Disposable {
   get http(): PluginHttp
   get slug(): string | undefined
   get timeZone(): string                                   // IANA, e.g. "Europe/Vienna"
+  get clock(): Clock                                       // now(), and the clock every()/after() run on
   start(): void | Promise<void>
   catalog(): CatalogNode[] | Promise<CatalogNode[]>
   panel(): Panel | undefined | Promise<Panel | undefined>
@@ -36,6 +39,7 @@ abstract class Plugin<Config = unknown> extends Disposable {
 | `unhandledRejection(reason)` | Called for a promise in the worker that was rejected without a handler (a forgotten `.catch`). The worker keeps running; the default logs an error with the stack. Override to say more or to set a degraded status; it must not throw. `PluginTestHost.unhandledRejection(reason)` calls it in tests. |
 | `config` | Already validated against the static `config` schema, defaults applied. Available in field initializers of subclasses. |
 | `slug` | The instance's slug: its topic segment and webhook path (`/hook/<slug>/…`). Undefined with hosts that don't send it. Fixed for one run (a slug change restarts the instance). |
+| `clock` | `this.clock.now()` instead of `Date.now()`; `every()` and `after()` run on it. Also on sensors and actuators. See [Time](authoring.md#time-and-time-zones). |
 | `timeZone` | The installation's IANA time zone, for anything that depends on the local time. Nexus takes it from the Loxone project it read last; without one (and with older hosts) it is the server's zone, which in a container is often UTC. Fixed for one run. |
 
 Static declarations on the subclass ([`PluginClass`](../reference/sdk/@lox-nexus/plugin-sdk.md#pluginclass)); all optional:
@@ -57,6 +61,8 @@ interface WatchView { signals(): WatchedSignal[]; signal(id: string): WatchedSig
 type WatchedSignal = { id: string; topic: string; label: string; valueType: ValueType | "any"; owner?: { kind: "miniserver" | "plugin"; id: string } }
 type WatchedValue = { signalId: string; ts: number; kind: "state" | "command"; value: Value; forced?: true; initial?: true }
 ```
+
+The guide explains each of these: [the plugin class](authoring.md#the-plugin-class), [starting and failing](authoring.md#starting-failing-and-degrading), [catalog](authoring.md#catalog-browse-and-add), [panel](authoring.md#panel-a-status-page).
 
 ### Sensor ([reference](../reference/sdk/@lox-nexus/plugin-sdk.md#abstract-sensor))
 
@@ -90,6 +96,8 @@ static readonly valueType?: ValueType | "any"    // what emit() sends; default "
 
 `SensorOutput`: `{ emit(value: Value): void; fail(message: string): void; recover?(): void }`, the runtime's side, not used by plugin code.
 
+In the guide: [Sensors](authoring.md#sensors-values-from-the-device).
+
 ### Actuator ([reference](../reference/sdk/@lox-nexus/plugin-sdk.md#abstract-actuator))
 
 ```ts
@@ -117,6 +125,8 @@ static readonly concurrency?: ActuatorConcurrency   // "queue" (default) | "late
 ```
 
 `"latest"`: while a command runs, only the newest waiting one runs; the replaced ones are reported as superseded ([`SupersededError`](../reference/sdk/@lox-nexus/plugin-sdk.md#supersedederror), thrown by the runtime, not by plugins).
+
+In the guide: [Actuators](authoring.md#actuators-commands-to-the-device).
 
 ### Disposable ([reference](../reference/sdk/@lox-nexus/plugin-sdk.md#abstract-disposable))
 
@@ -147,6 +157,8 @@ abstract class Disposable implements DisposableLike {
 | `listen(emitter, event, listener)` | Subscribes until disposed. |
 
 Related types: `Clock { now(); setTimeout(fn, ms); clearTimeout(handle); setInterval(fn, ms); clearInterval(handle) }` (`SystemClock.instance` in production, `TestClock` from `/testing` in tests), `Teardown = () => void | Promise<void>`, `DisposableLike { dispose(): void | Promise<void> }`, `Listenable { on(event, listener): unknown; off(event, listener): unknown }` (an `EventEmitter` fits), `Listener = (...args: any[]) => void`.
+
+In the guide: [Lifetimes](authoring.md#lifetimes-disposable).
 
 ### Context objects
 
@@ -183,6 +195,8 @@ type HttpHandler = (request: HttpRequest) => HttpResponse | Promise<HttpResponse
 | `http.route` | Reachable at `/hook/<instance slug><path>` **without a login**: check a secret yourself. Method `"*"` matches any method; a path ending in `/*` matches everything below that prefix (`"/a/*"` matches `/a/` and `/a/b`, not `/a`; `"/*"` all). The most specific route wins: exact before prefix, longer prefix first, a named method before `"*"`. Throws `Error` on a duplicate method + path. A throwing handler gives the caller 502. |
 | `log.*` | `data` is structured-cloned; more than 64 KiB as JSON is replaced by a note with its size. Never log secrets. |
 
+In the guide: [Logging, store and status](authoring.md#logging-store-and-status) and [Webhooks](authoring.md#webhooks). Every number (timeouts, sizes) is in [Limits at a glance](authoring.md#limits-at-a-glance).
+
 ### Entry, config and re-exports
 
 | Export | Signature | Notes |
@@ -197,6 +211,8 @@ type HttpHandler = (request: HttpRequest) => HttpResponse | Promise<HttpResponse
 | `CatalogNode`, `CatalogEntry`, `Panel`, `PanelPart`, `HttpRequest`, `HttpResponse` | types, see [wire](#lox-nexusplugin-sdkwire) | Return values of `catalog()`, `panel()` and webhook handlers. |
 
 ## `@lox-nexus/plugin-sdk/values`
+
+In the guide: [Values](values.md).
 
 ### Value ([reference](../reference/sdk/@lox-nexus/plugin-sdk/values.md#valuefactory))
 
@@ -256,6 +272,8 @@ Value.types: readonly ValueType[]
 
 ## `@lox-nexus/plugin-sdk/testing`
 
+In the guide: [Testing](testing.md).
+
 ### PluginTestHost ([reference](../reference/sdk/@lox-nexus/plugin-sdk/testing.md#plugintesthost))
 
 ```ts
@@ -292,7 +310,7 @@ class TestClock implements Clock {
 
 | Member | Notes |
 |---|---|
-| `start` | Defaults: `config` `{}`, `store` `{}`, `instanceId` `"test"`. Throws `Error` with the plugin's message when init fails (invalid config, `start()` threw). |
+| `start` | Defaults: `config` `{}`, `store` `{}`, `instanceId` `"test"`. `stop()` waits 2 s (real time) for the plugin to stop; production allows 5 s. Throws `Error` with the plugin's message when init fails (invalid config, `start()` threw). |
 | `addSensor` / `addActuator` | Return the new signal's id. Throw for unknown capabilities, invalid params or a failing `start()`. |
 | `values(id)` | Every value emitted so far. |
 | `next(id, timeoutMs = 2000)` | Waits for the next value emitted after the call; throws on timeout. Waits use the real timers, also while a test mocks them (`mock.timers`), so a missing value fails instead of hanging. |

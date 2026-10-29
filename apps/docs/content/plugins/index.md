@@ -5,7 +5,7 @@ only on the public SDK, `@lox-nexus/plugin-sdk`. Each configured instance of it 
 worker thread; Nexus talks to it only through messages, so a plugin can crash, hang or leak
 without taking anything else down.
 
-A plugin declares:
+The user adds an **instance** of your plugin with its settings, then adds **signals** to it. A plugin declares:
 
 - **sensors**: values coming from the device (they become wire sources),
 - **actuators**: commands going to the device (they become wire targets),
@@ -187,6 +187,6 @@ This writes one self-contained file, `dist/plugin.js`, which is what a release s
 
 ## Next
 
-- [Plugin guide](authoring.md): every part of the SDK in context.
+- [Plugin guide](authoring.md): every part of the SDK in context, including the [lifecycle](authoring.md#the-lifecycle-of-a-plugin) (what your code sees, in order).
 - [SDK at a glance](sdk-at-a-glance.md): all signatures on one page.
 - [Values](values.md), [Testing](testing.md), [Publishing](publishing.md).

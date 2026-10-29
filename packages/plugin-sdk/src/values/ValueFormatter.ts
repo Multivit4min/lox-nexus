@@ -1,7 +1,10 @@
 import { T5Buttons } from "./T5Buttons.ts"
 import type { Value } from "./Value.ts"
 
-/** Short human-readable rendering, shared by the bus inspector, logs and the CLI. */
+/**
+ * Short human-readable rendering, shared by the bus inspector, logs and the CLI:
+ * `42`, `true`, `"eco"` (strings are quoted), `60% 0.2s`, `2700K 80% 2s`, `t5[left-upper+middle]`.
+ */
 export class ValueFormatter {
   /** Lossy by design (numbers round to 3 decimals): for display only, never parse the result. undefined gives an empty string. */
   format(value: Value | undefined): string {
