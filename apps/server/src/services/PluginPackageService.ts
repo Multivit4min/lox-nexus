@@ -1,4 +1,4 @@
-import type { ActivateInput, GitInstallInput, InstallOutcomeDto, InstalledPluginDto, RepositoryPluginDto, StagedInstallDto, UpdateImpactDto } from "@lox-nexus/api"
+import type { ActivateInput, GitInstallInput, InstallOutcomeDto, InstalledPluginDto, PluginReadmeDto, RepositoryPluginDto, StagedInstallDto, UpdateImpactDto } from "@lox-nexus/api"
 import type { Logger } from "pino"
 import type { PluginPackageRepository } from "../db/repositories/PluginPackageRepository.ts"
 import { InstallError } from "../plugins/install/InstallError.ts"
@@ -24,6 +24,8 @@ export interface PluginPackageDeps {
   plugins: Pick<PluginService, "list">
   /** the ZIP upload cap, for the controller's body limit */
   uploadBytes: number
+  /** the largest README shown, as the installer keeps them */
+  readmeBytes: number
   log: Logger
 }
 
@@ -49,9 +51,21 @@ export class PluginPackageService {
     return this.deps.repo.list().map(stored => this.dtos.installed(stored, instances.filter(instance => instance.plugin === stored.id)))
   }
 
-  /** the README of the version in use, else of a development copy; undefined when it has none */
-  readme(id: string): string | undefined {
-    return PluginReadme.read(this.deps.catalog.installed(id) ?? this.deps.catalog.get(id))
+  /**
+   * The README of the version in use. A version installed before Nexus kept READMEs has none: then
+   * the development copy's, or the one in the local repository folder the version came from.
+   * Undefined when none of them has one.
+   */
+  readme(id: string): PluginReadmeDto | undefined {
+    const max = this.deps.readmeBytes
+    const version = PluginReadme.read(this.deps.catalog.installed(id), max)
+    if (version !== undefined) return { markdown: version, from: "version" }
+    const copy = this.deps.catalog.get(id)
+    const development = copy?.source === "development" ? PluginReadme.read(copy, max) : undefined
+    if (development !== undefined) return { markdown: development, from: "development" }
+    const source = this.deps.repo.get(id)?.active.source
+    const repository = source?.kind === "local" ? PluginReadme.read({ dir: source.folder }, max) : undefined
+    return repository === undefined ? undefined : { markdown: repository, from: "repository" }
   }
 
   /** the plugins in the server's local repository folder, with the installed version of each */

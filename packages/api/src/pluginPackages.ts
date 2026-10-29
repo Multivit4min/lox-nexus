@@ -142,3 +142,13 @@ export const ConfirmInstallInputSchema = z.object({
   expectedActive: z.string().max(64).nullable()
 })
 export type ConfirmInstallInput = z.infer<typeof ConfirmInstallInputSchema>
+
+/**
+ * GET /api/plugin-packages/:id/readme. `from` says whose README it is: the installed version's;
+ * the development copy's; or, for a version installed without one (before Nexus kept READMEs), the
+ * one now in the local repository folder it came from.
+ */
+export interface PluginReadmeDto {
+  markdown: string
+  from: "version" | "development" | "repository"
+}

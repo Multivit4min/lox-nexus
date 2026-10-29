@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
+import type { PluginReadmeDto } from "@lox-nexus/api"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { AppContext } from "../../../AppContext.ts"
@@ -13,6 +14,13 @@ const api = AppContext.use().pluginPackages
 const renderer = new ReadmeRenderer()
 
 const markdown = ref<string>()
+const from = ref<PluginReadmeDto["from"]>("version")
+// a README that isn't the installed version's own says so, since it may describe another version
+const NOTES: Record<PluginReadmeDto["from"], string> = {
+  version: "",
+  development: "From the development copy, which runs instead of the installed version.",
+  repository: "This version was installed before Nexus kept READMEs, so this is the one now in the local repository folder it came from. Update the plugin to store it with the version."
+}
 const state = ref<"loading" | "none" | "failed" | "ready">("loading")
 const failure = ref("")
 // rendered with raw HTML escaped and unsafe links dropped (ReadmeRenderer), so v-html is safe here
@@ -22,7 +30,8 @@ watch(open, async isOpen => {
   if (!isOpen) return
   state.value = "loading"
   try {
-    markdown.value = (await api.readme(props.id)).markdown
+    const readme = await api.readme(props.id)
+    ;[markdown.value, from.value] = [readme.markdown, readme.from]
     state.value = "ready"
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) return void (state.value = "none")
@@ -40,10 +49,16 @@ watch(open, async isOpen => {
         <DialogDescription>README of version {{ version }}</DialogDescription>
       </DialogHeader>
       <p v-if="state === 'loading'" class="text-sm text-muted-foreground">Loading…</p>
-      <p v-else-if="state === 'none'" class="text-sm text-muted-foreground">This plugin came without a README.</p>
+      <p v-else-if="state === 'none'" class="text-sm text-muted-foreground">
+        No README is stored for this version, and its source has none either. A plugin installed before Nexus kept READMEs gets one with its
+        next update, if its source has one.
+      </p>
       <Alert v-else-if="state === 'failed'" variant="destructive"><AlertDescription>{{ failure }}</AlertDescription></Alert>
-      <!-- eslint-disable-next-line vue/no-v-html -->
-      <div v-else class="readme min-w-0" v-html="html"></div>
+      <template v-else>
+        <Alert v-if="NOTES[from]"><AlertDescription>{{ NOTES[from] }}</AlertDescription></Alert>
+        <!-- eslint-disable-next-line vue/no-v-html -->
+        <div class="readme min-w-0" v-html="html"></div>
+      </template>
     </DialogContent>
   </Dialog>
 </template>

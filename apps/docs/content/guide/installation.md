@@ -251,8 +251,10 @@ Each card on the **Installed** tab shows:
 - the buttons **Read me**, **Update**, **Roll back to** the previous version, and **Uninstall**.
 
 **Read me** shows the README of the version in use: what the plugin does, its settings, sensors and
-actuators. The installer keeps a package's `README.md` (up to 512 KiB) from every source; a plugin
-without one says so. The plugin's icon also marks its instances on the **Instances** tab and on
+actuators. The installer keeps a package's `README.md` (up to 512 KiB) from every source. A version
+installed before Nexus kept READMEs has none stored: Read me then shows the development copy's, or
+the one now in the local repository folder it came from, and says so; **Update** stores it with the
+version. A plugin without any README says so. The plugin's icon also marks its instances on the **Instances** tab and on
 each instance's page.
 
 **Updating.** **Update** opens the same dialog, prefilled with where the plugin came from: the same

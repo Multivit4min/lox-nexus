@@ -24,7 +24,7 @@ test("an installed plugin's README comes from the version in use, whichever sour
 
   const fromGit = (await admin.post("/api/plugin-packages/stage/git", { url: repo.url, ref: "v1.0.0" })).json<StagedInstallDto>()
   await admin.post(`/api/plugin-packages/stage/${fromGit.stagingId}/confirm`, { expectedActive: null })
-  assert.deepEqual((await admin.get("/api/plugin-packages/fixture/readme")).json(), { markdown: README })
+  assert.deepEqual((await admin.get("/api/plugin-packages/fixture/readme")).json(), { markdown: README, from: "version" })
 
   // version 2 from a ZIP without a README: the page shows none for it
   const zip = ZipFixture.zip({ "package.json": FixtureBundle.manifest({ version: "2.0.0" }), "dist/plugin.js": await FixtureBundle.bundle(2) })
@@ -50,7 +50,7 @@ test("a README from the local repository is kept; one above the limit is left ou
     assert.equal(confirmed.statusCode, 200, confirmed.body)
   }
   await install()
-  assert.deepEqual((await admin.get("/api/plugin-packages/fixture/readme")).json(), { markdown: README })
+  assert.deepEqual((await admin.get("/api/plugin-packages/fixture/readme")).json(), { markdown: README, from: "version" })
 
   await admin.delete("/api/plugin-packages/fixture")
   fs.writeFileSync(path.join(repository, "fixture", "README.md"), "x".repeat(65))
@@ -80,6 +80,25 @@ test("a README edited in the local repository, the bundle unchanged, is offered 
   const second = await listed()
   assert.notEqual(second, first, "a new version to offer")
   await install(first!)
-  assert.deepEqual((await admin.get("/api/plugin-packages/fixture/readme")).json(), { markdown: "# Fixture\n\nNow with more to say.\n" })
+  assert.deepEqual((await admin.get("/api/plugin-packages/fixture/readme")).json(), { markdown: "# Fixture\n\nNow with more to say.\n", from: "version" })
+})
+
+test("a version stored without a README shows the one now in the local repository folder, marked as such", async t => {
+  const repository = TestApp.tempDir()
+  t.after(() => fs.rmSync(repository, { recursive: true, force: true }))
+  fs.mkdirSync(path.join(repository, "fixture", "dist"), { recursive: true })
+  fs.writeFileSync(path.join(repository, "fixture", "package.json"), FixtureBundle.manifest())
+  fs.writeFileSync(path.join(repository, "fixture", "dist", "plugin.js"), await FixtureBundle.bundle())
+  fs.writeFileSync(path.join(repository, "fixture", "README.md"), README)
+  const nexus = await InstallTest.start({ repository })
+  t.after(() => nexus.dispose())
+  const admin = await nexus.test.admin()
+  const staged = (await admin.post("/api/plugin-packages/stage/local", { folder: "fixture" })).json<StagedInstallDto>()
+  const installed = (await admin.post(`/api/plugin-packages/stage/${staged.stagingId}/confirm`, { expectedActive: null })).json<InstallOutcomeDto>()
+  // as a version installed before Nexus kept READMEs
+  fs.rmSync(path.join(nexus.dataDir, "plugins", "fixture", installed.plugin.active.version, "README.md"))
+  assert.deepEqual((await admin.get("/api/plugin-packages/fixture/readme")).json(), { markdown: README, from: "repository" })
+  fs.rmSync(path.join(repository, "fixture", "README.md"))
+  assert.equal((await admin.get("/api/plugin-packages/fixture/readme")).statusCode, 404)
 })
 

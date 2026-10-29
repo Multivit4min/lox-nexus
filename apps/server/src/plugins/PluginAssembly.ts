@@ -92,7 +92,7 @@ export class PluginAssembly extends Disposable {
     const installer = new PluginInstaller({ staging: this.staging, pending, inspector: new PackageInspector(this.describer, this.limits), versions: this.versions, repo: this.repo, log: installLog })
     const switcher = new PluginSwitch({ versions: this.versions, repo: this.repo, catalog: this.catalog, plugins, signals: this.signalRepo })
     return new PluginPackageService({
-      installer, versions: this.versions, repo: this.repo, catalog: this.catalog, sources, switcher, plugins, uploadBytes: this.limits.uploadBytes, log: installLog
+      installer, versions: this.versions, repo: this.repo, catalog: this.catalog, sources, switcher, plugins, uploadBytes: this.limits.uploadBytes, readmeBytes: this.limits.readmeBytes, log: installLog
     })
   }
 }

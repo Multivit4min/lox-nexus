@@ -1,6 +1,4 @@
-import type {
-  ActivateInput, GitInstallInput, InstallOutcomeDto, InstalledPluginDto, RepositoryPluginDto, StagedInstallDto, UpdateImpactDto
-} from "@lox-nexus/api"
+import type { ActivateInput, GitInstallInput, InstallOutcomeDto, InstalledPluginDto, PluginReadmeDto, RepositoryPluginDto, StagedInstallDto, UpdateImpactDto } from "@lox-nexus/api"
 import type { Http } from "./Http.ts"
 
 /**
@@ -14,9 +12,9 @@ export class PluginPackageApi {
     return this.http.get<InstalledPluginDto[]>("/api/plugin-packages")
   }
 
-  /** the README of the version in use, as Markdown; 404 when the plugin has none */
+  /** the README of the version in use (or where it came from, see PluginReadmeDto), as Markdown; 404 when there is none */
   readme(id: string) {
-    return this.http.get<{ markdown: string }>(`/api/plugin-packages/${encodeURIComponent(id)}/readme`)
+    return this.http.get<PluginReadmeDto>(`/api/plugin-packages/${encodeURIComponent(id)}/readme`)
   }
 
   /** the plugins in the server's local plugin repository folder */
