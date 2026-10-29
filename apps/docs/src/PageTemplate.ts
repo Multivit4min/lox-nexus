@@ -27,6 +27,9 @@ export class PageTemplate {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escape(page.title)} · ${escape(context.nav.title)}</title>
+<link rel="icon" href="${root}assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="${root}assets/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="${root}assets/apple-touch-icon.png">
 <link rel="stylesheet" href="${root}assets/style.css">
 <script src="${root}assets/search.js" defer></script>
 </head>
