@@ -68,7 +68,8 @@ restarted automatically) or `crashed` (restarted with a growing delay, 1 s up to
 
 Inside an instance you add **sensors** (values from the device, the source of wires) and
 **actuators** (commands to the device, the target of wires). The **catalog**, if the plugin offers
-one, lists what the device has, so you add them without typing entity names. The **panel** shows
+one, lists what the device has, so you add them without typing entity names; search it, and show
+only sensors or only actuators when it has both. The **panel** shows
 the plugin's own status.
 
 Secret settings such as tokens are never sent back to the browser, and an update that leaves them

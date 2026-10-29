@@ -16,7 +16,8 @@ import VirtualTable from "../data/VirtualTable.vue"
 import ValueText from "../ValueText.vue"
 
 /**
- * What a running plugin offers, flattened and searchable. "Add" configures an entry as it is;
+ * What a running plugin offers, flattened, searchable and filterable by kind (sensors or actuators,
+ * offered once the catalog has both). "Add" configures an entry as it is;
  * "customize" opens it in the signal form to change name or params first. Entries not configured
  * yet can be selected and connected to a Miniserver in one go (`bridge`).
  */
@@ -27,12 +28,15 @@ const rows = ref<CatalogRow[]>([])
 const loading = ref(true)
 const failure = ref<string>()
 const query = ref("")
+const kind = ref<"all" | "sensor" | "actuator">("all")
+const KINDS = [["all", "all"], ["sensor", "sensors"], ["actuator", "actuators"]] as const
+const mixed = computed(() => new Set(rows.value.map(row => row.entry.kind)).size > 1)
 const busy = ref<string>()
 const selection = new Selection()
 
 const visible = computed(() => {
   const filter = new TextFilter(query.value)
-  return rows.value.filter(row => filter.matches(row.path, row.entry.label, row.entry.capability))
+  return rows.value.filter(row => (kind.value === "all" || row.entry.kind === kind.value) && filter.matches(row.path, row.entry.label, row.entry.capability))
 })
 
 // configured entries can't be added again; their signals are connected from the signal list
@@ -70,6 +74,14 @@ async function addRow(row: CatalogRow) {
   <div class="grid min-w-0 gap-3">
     <Alert v-if="failure" variant="destructive"><AlertDescription>{{ failure }}</AlertDescription></Alert>
     <ListToolbar v-model="query" :shown="visible.length" :total="rows.length" placeholder="Search the catalog">
+      <div v-if="mixed" class="flex gap-1" role="group" aria-label="Show">
+        <Button
+          v-for="[value, text] in KINDS" :key="value" size="sm" class="h-8" :variant="kind === value ? 'secondary' : 'ghost'"
+          :aria-pressed="kind === value" @click="kind = value"
+        >
+          {{ text }}
+        </Button>
+      </div>
       <Button v-if="selection.pick(selectable).length" size="sm" class="h-8" @click="emit('bridge', picked())">
         <Cable class="size-4" /> Connect {{ selection.pick(selectable).length }} to a Miniserver…
       </Button>
