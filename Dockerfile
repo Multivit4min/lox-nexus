@@ -14,11 +14,13 @@ RUN npm ci --no-audit --no-fund
 RUN npm run build -w @lox-nexus/web \
  && npm run docs:build \
  && npm run plugins:build
-# the plugin repository the UI installs from: one folder per plugin with package.json and its bundle
+# the plugin repository the UI installs from: one folder per plugin with package.json, its bundle
+# and its README (installed with it and shown under Read me)
 RUN mkdir /plugin-repository \
  && for dir in plugins/*/; do \
       name="$(basename "$dir")"; \
       mkdir -p "/plugin-repository/$name" && cp "$dir/package.json" "/plugin-repository/$name/" && cp -r "$dir/dist" "/plugin-repository/$name/"; \
+      if [ -f "$dir/README.md" ]; then cp "$dir/README.md" "/plugin-repository/$name/"; fi; \
     done
 
 # 2. The server's production dependencies, on the target platform: tsx, which runs the server's
