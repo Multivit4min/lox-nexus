@@ -10,8 +10,8 @@ const props = defineProps<{ series: HistorySeriesDto }>()
 const rows = computed(() => {
   const { series } = props
   const text = series.resolution === "raw"
-    ? series.points.map(p => ({ ts: p.ts, value: HistoryText.raw(p, series.valueType), changes: "" }))
-    : series.points.map(p => ({ ts: p.ts, value: HistoryText.bucket(p, series.valueType), changes: String(p.n) }))
+    ? series.points.map(p => ({ ts: p.ts, value: HistoryText.raw(p, series.valueType, series), changes: "" }))
+    : series.points.map(p => ({ ts: p.ts, value: HistoryText.bucket(p, series.valueType, series), changes: String(p.n) }))
   return text.reverse()
 })
 </script>

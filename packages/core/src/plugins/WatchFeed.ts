@@ -6,6 +6,7 @@ import { SelectedValues } from "../selection/SelectedValues.ts"
 import type { SignalSelection } from "../selection/SignalSelection.ts"
 import type { Signal } from "../wires/Signal.ts"
 import type { SignalRegistry } from "../wires/SignalRegistry.ts"
+import { SignalDisplays } from "../wires/SignalDisplay.ts"
 
 /** What feeding a watching plugin needs from Nexus. */
 export interface WatchDeps {
@@ -119,6 +120,9 @@ export class WatchFeed extends Disposable {
   }
 
   private static describe(signal: Signal): WatchedSignal {
-    return { id: signal.id, topic: signal.topic, label: signal.label, valueType: signal.valueType, ...(signal.owner ? { owner: { ...signal.owner } } : {}) }
+    return {
+      id: signal.id, topic: signal.topic, label: signal.label, valueType: signal.valueType, ...(signal.owner ? { owner: { ...signal.owner } } : {}),
+      ...SignalDisplays.of(signal)
+    }
   }
 }

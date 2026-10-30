@@ -1,4 +1,5 @@
 import { IciId, IciSocket } from "@lox-nexus/ici"
+import { SignalDisplaySchema } from "@lox-nexus/core"
 import { z } from "zod"
 
 const iciId = z.string().refine(IciId.isValid, "1–8 printable ASCII characters")
@@ -50,7 +51,8 @@ export const LoxoneSignalConfigSchema = z.object({
    * `20bbbkkkk` becomes a tunableWhite value, `BBBGGGRRR` an rgbw one, and back for outputs.
    * Analog signals only, or RGBW inputs (which then carry the number's raw bytes).
    */
-  lumitech: z.boolean().optional()
+  lumitech: z.boolean().optional(),
+  ...SignalDisplaySchema.shape
 }).refine(signal => !signal.lumitech || signal.dataType === 1 || (signal.dataType === 4 && signal.direction === "in"), {
   path: ["lumitech"], message: "only for Analog signals and RGBW inputs"
 })

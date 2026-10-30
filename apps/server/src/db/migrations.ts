@@ -166,5 +166,18 @@ export const MIGRATIONS: readonly Migration[] = [
     name: "plugin_heap_limit",
     // a plugin's own worker heap limit (manifest `loxNexus.heapMb`); NULL: the default
     sql: "ALTER TABLE plugin_versions ADD COLUMN heap_mb INTEGER"
+  },
+  {
+    version: 8,
+    name: "signal_display",
+    // how a signal's values are shown (NULL: not set), and after how long without a value it counts as stale
+    sql: `
+      ALTER TABLE loxone_signals ADD COLUMN unit TEXT;
+      ALTER TABLE loxone_signals ADD COLUMN decimals INTEGER;
+      ALTER TABLE loxone_signals ADD COLUMN stale_after_min INTEGER;
+      ALTER TABLE plugin_signals ADD COLUMN unit TEXT;
+      ALTER TABLE plugin_signals ADD COLUMN decimals INTEGER;
+      ALTER TABLE plugin_signals ADD COLUMN stale_after_min INTEGER;
+    `
   }
 ]

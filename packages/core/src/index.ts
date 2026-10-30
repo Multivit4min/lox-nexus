@@ -15,6 +15,7 @@ export { TopicTrie } from "./bus/TopicTrie.ts"
 export type { TopicKinds } from "./bus/TopicKinds.ts"
 
 export type { Signal, SignalOwner } from "./wires/Signal.ts"
+export { SignalDisplays, SignalDisplaySchema, type SignalDisplay } from "./wires/SignalDisplay.ts"
 export { SignalRegistry } from "./wires/SignalRegistry.ts"
 export { WIRE_ERROR_TOPIC, WireEngine } from "./wires/WireEngine.ts"
 export { WIRE_LOOP_TOPIC, type SyncOptions } from "./wires/ActiveWire.ts"

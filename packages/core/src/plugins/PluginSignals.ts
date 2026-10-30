@@ -5,6 +5,7 @@ import { BoundedIndex } from "../bus/BoundedIndex.ts"
 import type { BusMessage, Cause, MessageSource } from "../bus/BusMessage.ts"
 import type { EventBus } from "../bus/EventBus.ts"
 import type { Signal } from "../wires/Signal.ts"
+import { SignalDisplays } from "../wires/SignalDisplay.ts"
 import type { SignalRegistry } from "../wires/SignalRegistry.ts"
 import { PluginTopics } from "./PluginTopics.ts"
 import type { PluginInstanceConfig, PluginPackage, PluginSignalConfig, SignalValueType } from "./PluginTypes.ts"
@@ -213,7 +214,7 @@ export class PluginSignals extends Disposable {
     return {
       id: entry.config.id, topic: entry.topic, label: entry.config.label, valueType: entry.valueType,
       direction: sensor ? "source" : "target", delivery: sensor ? "state" : "command",
-      owner: { kind: "plugin", id: this.instance.id }
+      owner: { kind: "plugin", id: this.instance.id }, ...SignalDisplays.of(entry.config)
     }
   }
 

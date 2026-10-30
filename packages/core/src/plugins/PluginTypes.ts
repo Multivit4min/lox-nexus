@@ -1,5 +1,6 @@
 import type { LogLevel, PluginDescription } from "@lox-nexus/plugin-sdk/wire"
 import type { ValueType } from "@lox-nexus/plugin-sdk/values"
+import type { SignalDisplay } from "../wires/SignalDisplay.ts"
 
 /** A plugin that can be run: where its entry module is and what it offers. */
 export interface PluginPackage {
@@ -28,7 +29,7 @@ export interface PluginInstanceConfig {
 }
 
 /** A configured sensor or actuator of an instance. */
-export interface PluginSignalConfig {
+export interface PluginSignalConfig extends SignalDisplay {
   id: string
   kind: "sensor" | "actuator"
   /** the Sensor or Actuator class id */

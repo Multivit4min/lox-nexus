@@ -2,6 +2,7 @@ import type { TransformConfig } from "@lox-nexus/core"
 import { ValueSchema, type Value } from "@lox-nexus/plugin-sdk/values"
 import { z } from "zod"
 import type { BusMessageDto } from "./bus.ts"
+import type { SignalDisplayDto } from "./signalDisplay.ts"
 
 /** What a signal belongs to; the UI looks up the Miniserver or plugin instance by id. */
 export interface SignalOwnerDto {
@@ -10,7 +11,7 @@ export interface SignalOwnerDto {
 }
 
 /** A registered signal with the value subscribers currently see. */
-export interface SignalDto {
+export interface SignalDto extends SignalDisplayDto {
   id: string
   topic: string
   label: string

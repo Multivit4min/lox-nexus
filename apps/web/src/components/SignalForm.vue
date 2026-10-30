@@ -8,7 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { ApiError } from "../api/ApiError.ts"
 import { DataTypes } from "../lib/DataTypes.ts"
+import { SignalDisplayDraft } from "../lib/SignalDisplayDraft.ts"
 import FormField from "./FormField.vue"
+import SignalDisplayFields from "./SignalDisplayFields.vue"
 
 /**
  * Creates or edits a Loxone signal: in = Miniserver → Nexus (a "virtual output" in Loxone Config),
@@ -24,8 +26,11 @@ const form = reactive({
   slug: props.initial?.slug ?? "",
   lumitech: props.initial?.lumitech ?? false
 })
+const display = reactive(new SignalDisplayDraft(props.initial))
 const failure = ref<ApiError>()
 const lumitechPossible = computed(() => LumitechRule.allowed(Number(form.dataType), form.direction))
+// only plain numbers: a Lumitech signal carries colours
+const numeric = computed(() => form.dataType === "1" && !(form.lumitech && lumitechPossible.value))
 
 async function onSubmit() {
   failure.value = undefined
@@ -33,7 +38,7 @@ async function onSubmit() {
     const { slug, dataType, lumitech, ...rest } = form
     await props.submit({
       ...rest, dataType: Number(dataType) as LoxoneSignalInput["dataType"], label: form.label || form.packetId,
-      ...(slug ? { slug } : {}), ...(lumitech && lumitechPossible.value ? { lumitech: true } : {})
+      ...(slug ? { slug } : {}), ...(lumitech && lumitechPossible.value ? { lumitech: true } : {}), ...(numeric.value ? display.input() : {})
     })
   } catch (error) {
     failure.value = error instanceof ApiError ? error : new ApiError(0, String(error))
@@ -80,6 +85,7 @@ async function onSubmit() {
         </span>
       </span>
     </label>
+    <SignalDisplayFields v-if="numeric" v-model:unit="display.unit" v-model:decimals="display.decimals" id-prefix="signal" :error="failure?.issueFor('decimals')" />
     <Alert v-if="failure" variant="destructive"><AlertDescription>{{ failure.message }}</AlertDescription></Alert>
     <p v-if="initial" class="text-xs text-muted-foreground">
       Wires stay connected. A new packet ID, direction or topic name moves the signal to a new topic; its last value and any force move with it.

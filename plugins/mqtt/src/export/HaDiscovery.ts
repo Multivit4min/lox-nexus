@@ -48,13 +48,22 @@ export class HaDiscovery {
 
   private static typed(signal: WatchedSignal, stateTopic: string): Record<string, unknown> {
     if (signal.valueType === "boolean") return { payload_on: "true", payload_off: "false" }
-    if (signal.valueType === "number") return { state_class: "measurement" }
+    if (signal.valueType === "number") return { state_class: "measurement", ...HaDiscovery.display(signal) }
     const structured = STRUCTURED[signal.valueType]
     if (!structured) return {}
+    // the template's output has its own unit; the signal's is for plain numbers
     return {
       value_template: structured.template,
       json_attributes_topic: stateTopic,
       ...structured.unit ? { unit_of_measurement: structured.unit } : {}
+    }
+  }
+
+  // the unit and decimals the user gave the signal in Nexus
+  private static display(signal: WatchedSignal) {
+    return {
+      ...signal.unit ? { unit_of_measurement: signal.unit } : {},
+      ...signal.decimals === undefined ? {} : { suggested_display_precision: signal.decimals }
     }
   }
 

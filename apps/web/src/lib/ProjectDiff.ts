@@ -67,10 +67,11 @@ export class ProjectDiff {
     if (dataType === undefined) throw new Error(`data type ${row.signal.dataType} is not supported`)
     const { packetId, direction } = row.signal
     if (!row.existing) return { packetId, direction, dataType, label: row.signal.label.slice(0, 100) }
-    const { label, slug, lumitech } = row.existing
-    // a full replace: the Lumitech option stays where the new type still allows it
+    const { label, slug, lumitech, unit, decimals } = row.existing
+    // a full replace: the Lumitech option stays where the new type still allows it, unit and decimals while it is a plain number
     const keep = lumitech && LumitechRule.allowed(dataType, direction)
-    return { packetId, direction, dataType, label, ...(slug === undefined ? {} : { slug }), ...(keep ? { lumitech: true } : {}) }
+    const display = dataType === 1 && !keep ? { ...(unit ? { unit } : {}), ...(decimals === undefined ? {} : { decimals }) } : {}
+    return { packetId, direction, dataType, label, ...(slug === undefined ? {} : { slug }), ...(keep ? { lumitech: true } : {}), ...display }
   }
 
   /** where the peer's settings disagree with the Miniserver's; ICI only works when they match */

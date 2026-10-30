@@ -1,5 +1,6 @@
 import { z } from "zod"
 import type { Value, ValueType } from "@lox-nexus/plugin-sdk/values"
+import { SignalDisplayInputSchema, type SignalDisplayDto } from "./signalDisplay.ts"
 
 /** ICI ids are at most 8 characters on the wire */
 const iciId = z.string().min(1).max(8)
@@ -42,7 +43,8 @@ export const LoxoneSignalInputSchema = z.object({
   label: z.string().max(100),
   slug: segment.optional(),
   /** a Loxone colour number (Lumitech output): Analog signals and RGBW inputs only, checked by the server */
-  lumitech: z.boolean().optional()
+  lumitech: z.boolean().optional(),
+  ...SignalDisplayInputSchema.shape
 })
 export type LoxoneSignalInput = z.input<typeof LoxoneSignalInputSchema>
 
@@ -138,7 +140,7 @@ export interface MiniserverLoadDto {
 }
 
 /** A configured Loxone signal; `topic` is where it appears on the bus. */
-export interface LoxoneSignalDto {
+export interface LoxoneSignalDto extends SignalDisplayDto {
   id: string
   miniserverId: string
   packetId: string

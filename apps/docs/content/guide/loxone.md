@@ -66,6 +66,11 @@ Each packet ID can be used once per direction. A signal has a **data type**:
 
 Incoming values are converted to the signal's declared type.
 
+An Analog signal can have a **Unit** and **Decimals**. They only change how its values are
+shown: `412.3 W` in lists, wires and the history, while the bus and the Miniserver get the exact
+value. A plugin's sensors and actuators have the same two fields; a new one starts with what the
+plugin or the catalog entry suggests. The MQTT export passes them to Home Assistant.
+
 ### Discovery
 
 Inputs can be discovered: packets with an unknown packet ID appear under **discovered** with their

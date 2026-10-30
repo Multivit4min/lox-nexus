@@ -117,13 +117,18 @@ test("unhandled rejections go to the plugin, which logs them by default; a throw
   assert.deepEqual(await logs(Broken, "x"), ["error unhandled promise rejection: override broke"])
 })
 
-test("describe passes a description on, and leaves the field out without one", () => {
+test("describe passes a description, unit and decimals on, and leaves out what is missing or invalid", () => {
   class Described extends Sensor<Plugin, object> {
     static readonly id = "described"
     static readonly description = "What it reads"
+    static readonly unit = " W "
+    static readonly decimals = 1
   }
   class Plain extends Actuator<Plugin, object> {
     static readonly id = "plain"
+    // plain JS may declare anything; the description stays valid
+    static readonly unit = "   "
+    static readonly decimals = 9
     run() {}
   }
   class DescribedPlugin extends Plugin {
@@ -133,6 +138,8 @@ test("describe passes a description on, and leaves the field out without one", (
   const description = PluginDescriber.describe(DescribedPlugin)
   assert.equal(description.sensors[0]?.description, "What it reads")
   assert.equal("description" in description.actuators[0]!, false)
+  assert.deepEqual([description.sensors[0]?.unit, description.sensors[0]?.decimals], ["W", 1], "the suggested unit and decimals, trimmed")
+  assert.deepEqual(["unit" in description.actuators[0]!, "decimals" in description.actuators[0]!], [false, false], "invalid ones are left out")
 })
 
 test("the plugin knows its slug, and each sensor and actuator its signal's id and label", async () => {

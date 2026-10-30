@@ -33,7 +33,7 @@ const sentAt = () => {
   <span class="truncate font-mono text-xs" :title="row.topic">{{ row.topic }}</span>
   <span class="flex min-w-0 items-center gap-1.5" :title="sentAt()">
     <Lock v-if="forced()" class="size-3.5 shrink-0 text-amber-600 dark:text-amber-400" aria-label="forced" />
-    <span class="truncate"><ValueText :value="live.get(row.topic)?.value" /></span>
+    <span class="truncate"><ValueText :value="live.get(row.topic)?.value" :unit="row.unit" :decimals="row.decimals" /></span>
   </span>
   <SignalActions
     :label="row.label" :forced="forced()" :recorded="recorded.has(row.id)" wirable @history="emit('history')"

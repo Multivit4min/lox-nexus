@@ -14,6 +14,7 @@ import { TextFilter } from "../../lib/TextFilter.ts"
 import ListToolbar from "../data/ListToolbar.vue"
 import VirtualTable from "../data/VirtualTable.vue"
 import ValueText from "../ValueText.vue"
+import { SignalDisplayDraft } from "../../lib/SignalDisplayDraft.ts"
 
 /**
  * What a running plugin offers, flattened, searchable and filterable by kind (sensors or actuators,
@@ -61,7 +62,8 @@ async function addRow(row: CatalogRow) {
   failure.value = undefined
   try {
     const { kind, capability, params, label } = row.entry
-    await props.add({ kind, capability, params, label })
+    const unit = SignalDisplayDraft.unitOf(row.entry)
+    await props.add({ kind, capability, params, label, ...(unit ? { unit } : {}) })
   } catch (error) {
     failure.value = `${row.entry.label}: ${error instanceof Error ? error.message : String(error)}`
   } finally {

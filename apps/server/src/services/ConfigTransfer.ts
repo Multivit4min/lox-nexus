@@ -1,5 +1,5 @@
 import { ConfigExportSchema, type ConfigExport, type ConfigImportResultDto, type LoxoneSignalInput } from "@lox-nexus/api"
-import type { WireInput } from "@lox-nexus/core"
+import { SignalDisplays, type WireInput } from "@lox-nexus/core"
 import type { Logger } from "pino"
 import { z } from "zod"
 import { ErrorHandler } from "../http/ErrorHandler.ts"
@@ -86,9 +86,9 @@ export class ConfigTransfer {
       ...(ms.listenAddress === undefined ? {} : { listenAddress: ms.listenAddress }),
       ownId: ms.ownId, remoteId: ms.remoteId, enabled: ms.enabled, resendInterval: ms.resendInterval,
       // the DTO types dataType as a number; the schema checks it when the file is read back
-      signals: signals.list(ms.id).map(({ id, packetId, direction, dataType, label, slug, lumitech }) => ({
+      signals: signals.list(ms.id).map(({ id, packetId, direction, dataType, label, slug, lumitech, unit, decimals }) => ({
         id, packetId, direction, dataType: dataType as LoxoneSignalInput["dataType"], label, ...(slug === undefined ? {} : { slug }),
-        ...(lumitech ? { lumitech } : {})
+        ...(lumitech ? { lumitech } : {}), ...SignalDisplays.of({ unit, decimals })
       }))
     }))
     // a wire to a signal outside the file (a plugin's, later) could not be recreated by an import

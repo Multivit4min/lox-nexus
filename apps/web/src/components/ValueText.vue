@@ -3,11 +3,17 @@ import { computed } from "vue"
 import { ValueFormatter, type Value } from "@lox-nexus/plugin-sdk/values"
 import { Swatch } from "../lib/Swatch.ts"
 
-/** A bus value as text; colours and colour temperatures get a swatch, so they can be recognised at a glance. */
-const props = defineProps<{ value?: Value }>()
+/**
+ * A bus value as text; colours and colour temperatures get a swatch, so they can be recognised at
+ * a glance. A signal's unit and decimals apply to numbers ("412.3 W").
+ */
+const props = defineProps<{ value?: Value; unit?: string | undefined; decimals?: number | undefined }>()
 const formatter = new ValueFormatter()
 
-const text = computed(() => formatter.format(props.value))
+const text = computed(() => {
+  const text = formatter.format(props.value, { decimals: props.decimals })
+  return props.unit && props.value?.type === "number" ? `${text} ${props.unit}` : text
+})
 const swatch = computed(() => Swatch.of(props.value))
 </script>
 

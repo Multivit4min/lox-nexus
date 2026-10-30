@@ -1,8 +1,9 @@
 import type { LoxoneSignalConfig } from "@lox-nexus/loxone"
 import type { Database } from "../Database.ts"
+import { SignalDisplayColumns, type SignalDisplayRow } from "./SignalDisplayColumns.ts"
 
 /** A row of `loxone_signals`; data_type is the ICI data type byte. */
-interface LoxoneSignalRow {
+interface LoxoneSignalRow extends SignalDisplayRow {
   id: string
   miniserver_id: string
   packet_id: string
@@ -41,12 +42,9 @@ export class LoxoneSignalRepository {
     this.db.transaction(() => {
       this.db.run("INSERT INTO signals (id, owner) VALUES (:id, :owner)", { id: signal.id, owner: LoxoneSignalRepository.OWNER })
       this.db.run(
-        `INSERT INTO loxone_signals (id, miniserver_id, packet_id, direction, data_type, label, slug, lumitech)
-         VALUES (:id, :miniserverId, :packetId, :direction, :dataType, :label, :slug, :lumitech)`,
-        {
-          id: signal.id, miniserverId: signal.miniserverId, packetId: signal.packetId, direction: signal.direction,
-          dataType: signal.dataType, label: signal.label, slug: signal.slug ?? null, lumitech: signal.lumitech ? 1 : 0
-        }
+        `INSERT INTO loxone_signals (id, miniserver_id, packet_id, direction, data_type, label, slug, lumitech, unit, decimals)
+         VALUES (:id, :miniserverId, :packetId, :direction, :dataType, :label, :slug, :lumitech, :unit, :decimals)`,
+        LoxoneSignalRepository.params(signal)
       )
     })
   }
@@ -58,12 +56,9 @@ export class LoxoneSignalRepository {
   update(signal: StoredLoxoneSignal) {
     const { changes } = this.db.run(
       `UPDATE loxone_signals SET packet_id = :packetId, direction = :direction, data_type = :dataType, label = :label, slug = :slug,
-         lumitech = :lumitech
+         lumitech = :lumitech, ${SignalDisplayColumns.ASSIGN}
        WHERE id = :id AND miniserver_id = :miniserverId`,
-      {
-        id: signal.id, miniserverId: signal.miniserverId, packetId: signal.packetId, direction: signal.direction,
-        dataType: signal.dataType, label: signal.label, slug: signal.slug ?? null, lumitech: signal.lumitech ? 1 : 0
-      }
+      LoxoneSignalRepository.params(signal)
     )
     if (changes !== 1) throw new TypeError(`loxone signal "${signal.id}" is not stored for miniserver "${signal.miniserverId}"`)
   }
@@ -73,11 +68,19 @@ export class LoxoneSignalRepository {
     this.db.run("DELETE FROM signals WHERE id = :id", { id })
   }
 
+  private static params(signal: StoredLoxoneSignal) {
+    return {
+      id: signal.id, miniserverId: signal.miniserverId, packetId: signal.packetId, direction: signal.direction,
+      dataType: signal.dataType, label: signal.label, slug: signal.slug ?? null, lumitech: signal.lumitech ? 1 : 0, ...SignalDisplayColumns.params(signal)
+    }
+  }
+
   // NULL slug and a 0 lumitech become absent fields
   private static toSignal(row: LoxoneSignalRow): StoredLoxoneSignal {
     return {
       id: row.id, miniserverId: row.miniserver_id, packetId: row.packet_id, direction: row.direction,
-      dataType: row.data_type, label: row.label, ...(row.slug === null ? {} : { slug: row.slug }), ...(row.lumitech ? { lumitech: true } : {})
+      dataType: row.data_type, label: row.label, ...(row.slug === null ? {} : { slug: row.slug }), ...(row.lumitech ? { lumitech: true } : {}),
+      ...SignalDisplayColumns.read(row)
     }
   }
 }

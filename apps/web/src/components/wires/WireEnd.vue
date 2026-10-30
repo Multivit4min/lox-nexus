@@ -11,7 +11,7 @@ defineProps<{ signal?: SignalDto; owner: string }>()
     <span class="truncate" :title="signal?.topic">{{ signal?.label ?? "missing signal" }}</span>
     <span class="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
       <span class="truncate">{{ owner }}</span>
-      <ValueText v-if="signal?.current?.value" :value="signal.current.value" />
+      <ValueText v-if="signal?.current?.value" :value="signal.current.value" :unit="signal.unit" :decimals="signal.decimals" />
     </span>
   </span>
 </template>

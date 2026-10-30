@@ -21,7 +21,7 @@ const point = computed(() => (active.value === undefined ? undefined : props.ser
 const label = computed(() => {
   const p = point.value
   if (!p) return ""
-  const value = "avg" in p ? HistoryText.bucket(p, props.series.valueType) : HistoryText.raw(p, props.series.valueType)
+  const value = "avg" in p ? HistoryText.bucket(p, props.series.valueType, props.series) : HistoryText.raw(p, props.series.valueType, props.series)
   return `${HistoryText.when(p.ts, props.series.resolution)}: ${value}`
 })
 const top = SeriesChartGeometry.MARGIN.top

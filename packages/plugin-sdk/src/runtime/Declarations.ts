@@ -48,6 +48,16 @@ export class Declarations {
     return typeof capability.description === "string" && capability.description ? { description: capability.description } : {}
   }
 
+  /** spread into a description: the suggested unit and decimals, each only when valid (plain JS may declare anything) */
+  static display(capability: SensorClass | ActuatorClass) {
+    const unit = typeof capability.unit === "string" ? capability.unit.trim() : ""
+    const { decimals } = capability
+    return {
+      ...(unit && unit.length <= 16 ? { unit } : {}),
+      ...(typeof decimals === "number" && Number.isInteger(decimals) && decimals >= 0 && decimals <= 6 ? { decimals } : {})
+    }
+  }
+
   /** the declaration, if any; PluginDescriber.assertValid refuses an invalid one */
   static watches(type: PluginClass) {
     return type.watches === undefined ? {} : { watches: WatchDeclarationSchema.parse(type.watches) }

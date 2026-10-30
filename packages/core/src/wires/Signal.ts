@@ -1,4 +1,5 @@
 import type { ValueType } from "@lox-nexus/plugin-sdk/values"
+import type { SignalDisplay } from "./SignalDisplay.ts"
 
 /** What a signal belongs to, so UIs can group signals and tell whether their owner is running. */
 export interface SignalOwner {
@@ -11,7 +12,7 @@ export interface SignalOwner {
  * Anything addressable on the bus: a Loxone packet id or a configured plugin sensor or actuator.
  * Wires reference signals by id, never by topic, so renaming a signal doesn't break wires.
  */
-export interface Signal {
+export interface Signal extends SignalDisplay {
   /** stable identifier; what WireConfig.sourceId and targetId refer to */
   id: string
   /** bus topic, unique per direction; see Topic for the allowed characters */

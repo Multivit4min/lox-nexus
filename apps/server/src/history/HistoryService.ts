@@ -1,6 +1,6 @@
 import fs from "node:fs"
 import { HistoryQuerySchema, type HistorySeriesDto, type HistoryStatsDto } from "@lox-nexus/api"
-import { SeriesAggregator, type Clock, type SignalRegistry, type SignalSelection } from "@lox-nexus/core"
+import { SeriesAggregator, SignalDisplays, type Clock, type SignalRegistry, type SignalSelection } from "@lox-nexus/core"
 import type { HistoryReadRepository } from "../db/history/HistoryReadRepository.ts"
 import type { HistoryRepository } from "../db/history/HistoryRepository.ts"
 import { HttpError } from "../http/HttpError.ts"
@@ -41,7 +41,8 @@ export class HistoryService {
     const query = HistoryQuerySchema.parse(input)
     const signal = this.deps.signals.get(signalId)
     if (!signal && !this.deps.reader.series(signalId)) throw HttpError.notFound(`signal "${signalId}"`)
-    return this.query.run(signalId, signal?.valueType ?? "any", query)
+    // the signal's display settings now, also for values recorded before they were set
+    return { ...this.query.run(signalId, signal?.valueType ?? "any", query), ...(signal ? SignalDisplays.of(signal) : {}) }
   }
 
   /**

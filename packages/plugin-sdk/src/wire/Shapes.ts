@@ -14,7 +14,11 @@ export const CapabilityDescriptionSchema = z.object({
   /** JSON Schema of the params; fields marked secret are `writeOnly` */
   params: z.record(z.string(), z.unknown()),
   /** what a sensor emits or an actuator accepts; "any" means it isn't fixed */
-  valueType: z.union([ValueTypeSchema, z.literal("any")])
+  valueType: z.union([ValueTypeSchema, z.literal("any")]),
+  /** suggested for new signals (`static unit`); only for display, so an invalid one is dropped */
+  unit: z.string().max(16).optional().catch(undefined),
+  /** suggested for new signals (`static decimals`); dropped when invalid */
+  decimals: z.int().min(0).max(6).optional().catch(undefined)
 })
 export type CapabilityDescription = z.infer<typeof CapabilityDescriptionSchema>
 

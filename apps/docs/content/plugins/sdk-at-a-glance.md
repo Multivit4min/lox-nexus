@@ -60,7 +60,7 @@ the chosen signals. See [Watching signals](authoring.md#watching-signals-exporte
 ```ts
 type WatchDeclaration = { label: string; description?: string }
 interface WatchView { signals(): WatchedSignal[]; signal(id: string): WatchedSignal | undefined }
-type WatchedSignal = { id: string; topic: string; label: string; valueType: ValueType | "any"; owner?: { kind: "miniserver" | "plugin"; id: string } }
+type WatchedSignal = { id: string; topic: string; label: string; valueType: ValueType | "any"; owner?: { kind: "miniserver" | "plugin"; id: string }; unit?: string; decimals?: number }
 type WatchedValue = { signalId: string; ts: number; kind: "state" | "command"; value: Value; forced?: true; initial?: true }
 ```
 
@@ -94,6 +94,8 @@ static readonly label?: string                   // default: id
 static readonly description?: string             // one sentence the UI shows when adding it
 static readonly params?: z.ZodType               // default: empty object; validated before construction
 static readonly valueType?: ValueType | "any"    // what emit() sends; default "any"
+static readonly unit?: string                    // suggested for new signals, e.g. "W" (up to 16 characters)
+static readonly decimals?: number                // suggested for new signals: decimals to show (0-6)
 ```
 
 `SensorOutput`: `{ emit(value: Value): void; fail(message: string): void; recover?(): void }`, the runtime's side, not used by plugin code.
@@ -128,6 +130,8 @@ static readonly description?: string                // one sentence the UI shows
 static readonly params?: z.ZodType                  // default: empty object
 static readonly accepts?: ValueType | "any"         // wires convert to this before run(); default "any"
 static readonly concurrency?: ActuatorConcurrency   // "queue" (default) | "latest"
+static readonly unit?: string                       // suggested for new signals, e.g. "%"
+static readonly decimals?: number                   // suggested for new signals (0-6)
 ```
 
 `"latest"`: while a command runs, only the newest waiting one runs; the replaced ones are reported as superseded ([`SupersededError`](../reference/sdk/@lox-nexus/plugin-sdk.md#supersedederror), thrown by the runtime, not by plugins).

@@ -105,4 +105,8 @@ export type ActuatorClass = (new (plugin: never, params: never, signal?: SignalI
   readonly accepts?: ValueType | "any"
   /** default "queue" */
   readonly concurrency?: ActuatorConcurrency
+  /** the unit new signals of it show their values in, e.g. "%" (up to 16 characters); the user can change it */
+  readonly unit?: string
+  /** the decimals new signals of it round their values to for display (0-6); the user can change it */
+  readonly decimals?: number
 }

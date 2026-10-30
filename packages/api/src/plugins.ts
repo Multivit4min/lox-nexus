@@ -1,6 +1,7 @@
 import type { ValueType } from "@lox-nexus/plugin-sdk/values"
 import type { LogLevel, PluginDescription } from "@lox-nexus/plugin-sdk/wire"
 import { z } from "zod"
+import { SignalDisplayInputSchema, type SignalDisplayDto } from "./signalDisplay.ts"
 
 /** one topic segment: lowercase so topics are case-stable */
 const segment = z.string().regex(/^[a-z0-9][a-z0-9._-]*$/, "lowercase letters, digits, '.', '_' or '-'")
@@ -95,12 +96,13 @@ export const PluginSignalInputSchema = z.object({
   capability: z.string().min(1),
   params: z.unknown().default({}),
   label: z.string().max(100),
-  slug: segment.optional()
+  slug: segment.optional(),
+  ...SignalDisplayInputSchema.shape
 })
 export type PluginSignalInput = z.input<typeof PluginSignalInputSchema>
 
 /** A configured sensor or actuator; `error` is why the plugin refused it, if it did. */
-export interface PluginSignalDto {
+export interface PluginSignalDto extends SignalDisplayDto {
   id: string
   instanceId: string
   kind: "sensor" | "actuator"

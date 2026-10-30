@@ -1,4 +1,4 @@
-import { DomainError, SystemClock, type Clock, type MessageSource, type Signal, type SignalRegistry } from "@lox-nexus/core"
+import { DomainError, SignalDisplays, SystemClock, type Clock, type MessageSource, type Signal, type SignalRegistry } from "@lox-nexus/core"
 import { Disposable } from "@lox-nexus/plugin-sdk"
 import { Value } from "@lox-nexus/plugin-sdk/values"
 import { DiscoveryList } from "./DiscoveryList.ts"
@@ -268,7 +268,7 @@ export class Miniserver extends Disposable {
       direction: config.direction === "in" ? "source" : "target",
       valueType: IciValueMapper.signalValueType(config),
       delivery: "state",
-      owner: { kind: "miniserver", id: this.current.id }
+      owner: { kind: "miniserver", id: this.current.id }, ...SignalDisplays.of(config)
     }
   }
 }

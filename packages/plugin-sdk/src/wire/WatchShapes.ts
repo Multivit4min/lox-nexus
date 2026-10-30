@@ -21,7 +21,11 @@ export const WatchedSignalSchema = z.object({
   label: z.string(),
   valueType: z.union([ValueTypeSchema, z.literal("any")]),
   /** the Miniserver or plugin instance it belongs to */
-  owner: z.object({ kind: z.enum(["miniserver", "plugin"]), id: z.string() }).optional()
+  owner: z.object({ kind: z.enum(["miniserver", "plugin"]), id: z.string() }).optional(),
+  /** the unit the user gave the signal, e.g. "W"; absent when none (and from older hosts) */
+  unit: z.string().optional(),
+  /** the decimals the user wants its numbers shown with; absent when not set */
+  decimals: z.int().optional()
 })
 export type WatchedSignal = z.infer<typeof WatchedSignalSchema>
 

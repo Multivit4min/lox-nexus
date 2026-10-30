@@ -1,4 +1,5 @@
 import { z } from "zod"
+import type { SignalDisplayDto } from "./signalDisplay.ts"
 
 /** GET/PUT /api/history/settings. Retention in days per tier; 0 keeps forever. */
 export const HistorySettingsSchema = z.object({
@@ -52,7 +53,7 @@ export interface HistoryGapDto {
   to: number
 }
 
-interface HistorySeriesBase {
+interface HistorySeriesBase extends SignalDisplayDto {
   signalId: string
   valueType: string
   from: number

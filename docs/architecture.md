@@ -1969,3 +1969,24 @@ in the user menu; the API is behind the login like the rest.
 
 Native `fetch` and `WebSocket` replace axios and socket.io (`ws` comes in through
 @fastify/websocket and is used directly only in tests). No lodash.
+
+## Implementation notes: units and decimals (P3)
+
+- `SignalDisplay` (core, `{ unit?, decimals? }`, unit up to 16 characters, decimals 0-6) is part
+  of `Signal`, `PluginSignalConfig` and the Loxone signal config, so the registry, `GET
+  /api/signals`, the watch feed (`WatchedSignal.unit/decimals`) and the history series carry it.
+  An empty unit is none. Only for display: values on the bus stay exact.
+- Stored in `loxone_signals` and `plugin_signals` (`unit`, `decimals`, migration 8, which also
+  adds `stale_after_min` for stale warnings). The config export carries them for Loxone signals.
+- Plugins suggest them with `static unit` / `static decimals` on a sensor or actuator class
+  (in the description as `unit` / `decimals`, dropped when invalid). The server applies the
+  suggestion only when a signal is added without its own; a catalog entry's `unit` (if it fits)
+  is the form's and the bulk add's default.
+- Signal edits replace the whole signal: a PUT without the fields clears them, as it does for
+  slug or Lumitech. The project re-sync (`ProjectDiff.inputFor`) carries them over while the signal
+  stays a plain number. An add with neither field takes the class's suggestion; a form always
+  sends the unit (empty clears it), so what it shows is final.
+- The web shows them through `ValueText unit decimals` (numbers only; the SDK's
+  `ValueFormatter.format(value, { decimals })`) and `HistoryText`. The MQTT export's Home Assistant
+  discovery sends `unit_of_measurement` and `suggested_display_precision`.
+

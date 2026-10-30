@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto"
 import { PluginSignalInputSchema, type PluginSignalDto, type PluginSignalInput } from "@lox-nexus/api"
-import { PluginRequestError, PluginUnavailableError, Topic, type PluginSignalConfig, type PluginSignalEntry, type PluginSupervisor } from "@lox-nexus/core"
+import { PluginRequestError, PluginUnavailableError, SignalDisplays, SignalDisplaySchema, Topic, type PluginSignalConfig, type PluginSignalEntry, type PluginSupervisor } from "@lox-nexus/core"
 import type { PluginSignalRepository } from "../db/repositories/PluginSignalRepository.ts"
 import { HttpError } from "../http/HttpError.ts"
 import { FreeSlug } from "./FreeSlug.ts"
@@ -30,7 +30,10 @@ export class PluginSignalService {
   /** @throws HttpError 400 unknown capability or refused params, 409 taken slug */
   async add(instanceId: string, input: PluginSignalInput): Promise<PluginSignalDto> {
     const supervisor = this.instances.supervisor(instanceId)
-    const config = this.configOf(supervisor, randomUUID(), input)
+    const parsed = this.configOf(supervisor, randomUUID(), input)
+    // a form sends the fields, empty ones included: what it shows is the user's choice. An empty
+    // unit parses to `unit: undefined`, so the key tells it apart from an input without the field
+    const config = "unit" in input || "decimals" in input ? parsed : PluginSignalService.withSuggestions(supervisor, parsed)
     this.repo.insert(instanceId, config)
     try {
       await PluginSignalService.refusals(() => supervisor.calls.addSignal(config))
@@ -88,6 +91,14 @@ export class PluginSignalService {
     if (parsed.slug) return { id, ...parsed, slug: parsed.slug }
     const taken = new Set(supervisor.signals.list().filter(e => e.config.kind === parsed.kind && e.config.id !== id).map(e => e.config.slug))
     return { id, ...parsed, slug: FreeSlug.pick(Topic.slug(parsed.label || parsed.capability), taken) }
+  }
+
+  // a new signal without its own unit and decimals takes what its class suggests, if that is valid here
+  private static withSuggestions(supervisor: PluginSupervisor, config: PluginSignalConfig): PluginSignalConfig {
+    const { description } = supervisor.pkg
+    const capability = (config.kind === "sensor" ? description.sensors : description.actuators).find(offered => offered.id === config.capability)
+    const suggested = SignalDisplaySchema.safeParse({ unit: capability?.unit, decimals: capability?.decimals })
+    return suggested.success ? { ...config, ...SignalDisplays.of(suggested.data) } : config
   }
 
   private require(supervisor: PluginSupervisor, signalId: string) {

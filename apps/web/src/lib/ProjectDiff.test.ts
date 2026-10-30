@@ -84,6 +84,17 @@ describe("ProjectDiff", () => {
     assert.equal(ProjectDiff.inputFor(toDigital!).lumitech, undefined, "a digital one can't")
   })
 
+  test("an existing signal keeps its unit and decimals while it stays a number", () => {
+    const [stays, toDigital] = ProjectDiff.rows(peer({
+      signals: [
+        { packetId: "pv", direction: "in", dataType: 1, label: "PV" },
+        { packetId: "flag", direction: "in", dataType: 0, label: "Flag" }
+      ]
+    }), [{ ...configured("pv", "in", 1), unit: "W", decimals: 1 }, { ...configured("flag", "in", 1), unit: "W" }])
+    assert.deepEqual([ProjectDiff.inputFor(stays!).unit, ProjectDiff.inputFor(stays!).decimals], ["W", 1])
+    assert.equal(ProjectDiff.inputFor(toDigital!).unit, undefined, "a digital signal has no unit")
+  })
+
   test("lists every setting the project disagrees with", () => {
     assert.deepEqual(ProjectDiff.mismatches(peer(), ms), [])
     const found = ProjectDiff.mismatches(peer({ miniserverId: "ms2", id: "other", miniserverPort: 1, port: 2, encrypted: true }), ms)

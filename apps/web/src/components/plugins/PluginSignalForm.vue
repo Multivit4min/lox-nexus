@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, shallowRef, watch } from "vue"
+import { computed, nextTick, reactive, ref, shallowRef, watch } from "vue"
 import type { PluginSignalDto, PluginSignalInput } from "@lox-nexus/api"
 import type { CatalogEntry, PluginDescription } from "@lox-nexus/plugin-sdk/wire"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -7,9 +7,11 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ApiError } from "../../api/ApiError.ts"
+import { SignalDisplayDraft } from "../../lib/SignalDisplayDraft.ts"
 import { SchemaDraft, type Draft } from "../../lib/schema/SchemaDraft.ts"
 import { SchemaFields, type JsonSchemaNode } from "../../lib/schema/SchemaField.ts"
 import FormField from "../FormField.vue"
+import SignalDisplayFields from "../SignalDisplayFields.vue"
 import SchemaFieldInput from "../schema/SchemaFieldInput.vue"
 import CapabilityPicker from "./CapabilityPicker.vue"
 
@@ -38,6 +40,9 @@ const slug = ref(props.initial?.slug ?? "")
 const draft = shallowRef<Draft>(null)
 const failure = ref<string>()
 const busy = ref(false)
+// a catalog entry's unit, where it fits a signal
+const presetUnit = SignalDisplayDraft.unitOf(props.preset)
+const display = reactive(new SignalDisplayDraft(props.initial ?? (presetUnit ? { unit: presetUnit } : {})))
 
 const capability = computed(() => {
   // the kind never has a ":", a capability id might
@@ -53,6 +58,8 @@ watch(capability, (current, previous) => {
   // the params of the signal or entry apply to its own capability only
   const keep = !previous && start && current && `${current.kind}:${current.id}` === `${start.kind}:${start.capability}`
   draft.value = current ? SchemaDraft.from(current.field, keep ? startParams : undefined) : null
+  // a new signal starts with what its class suggests, where the catalog entry doesn't say
+  if (current && !props.initial) Object.assign(display, new SignalDisplayDraft({ ...current, ...(presetUnit ? { unit: presetUnit } : {}) }))
 }, { immediate: true })
 
 // a fresh signal is named after the param the plugin marked with signalName() (a hook, a variable)
@@ -79,7 +86,10 @@ async function onSubmit() {
   failure.value = undefined
   try {
     const params = SchemaDraft.value(current.field, draft.value) ?? {}
-    await props.submit({ kind: current.kind, capability: current.id, params, label: label.value, ...(slug.value ? { slug: slug.value } : {}) })
+    await props.submit({
+      kind: current.kind, capability: current.id, params, label: label.value, ...(slug.value ? { slug: slug.value } : {}),
+      ...(SignalDisplayDraft.applies(current.valueType) ? display.input() : {})
+    })
   } catch (error) {
     failure.value = error instanceof Error ? error.message : String(error)
     if (error instanceof ApiError && error.issues.length) failure.value = error.issues.map(i => `${i.path.join(".")}: ${i.message}`).join("; ")
@@ -117,6 +127,7 @@ async function onSubmit() {
         <SchemaFieldInput id="params" v-model="draft" :field="capability.field" />
       </div>
     </section>
+    <SignalDisplayFields v-if="SignalDisplayDraft.applies(capability.valueType)" v-model:unit="display.unit" v-model:decimals="display.decimals" id-prefix="signal" />
     <details class="text-sm">
       <summary class="cursor-pointer text-muted-foreground">Advanced</summary>
       <FormField id="signalSlug" label="Topic name" class="mt-3" hint="Leave empty to make one from the name">

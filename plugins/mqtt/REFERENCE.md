@@ -168,7 +168,9 @@ With `discovery` on, each exported signal gets a retained config (QoS 1) under
 other than letters, digits, `_` and `-` become `_`:
 
 - `binary_sensor` for on/off signals (`payload_on: "true"`, `payload_off: "false"`),
-- `sensor` for the rest: numbers with `state_class: measurement`; text as it is; structured values
+- `sensor` for the rest: numbers with `state_class: measurement`, plus the unit and decimals the
+  signal has in Nexus (`unit_of_measurement`, `suggested_display_precision`); text as it is (a
+  signal of type "any" gets no unit, since Home Assistant refuses text states with one); structured values
   with a state template (dimmer channel or brightness in %, the brightest RGBW channel in %, the T5
   buttons) and the whole JSON as attributes (`json_attributes_topic` is the state topic).
 
