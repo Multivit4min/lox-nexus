@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue"
 import type { DiagnosticsDto } from "@lox-nexus/api"
-import { useIntervalFn } from "@vueuse/core"
 import { Download } from "@lucide/vue"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AppContext } from "../AppContext.ts"
+import { VisiblePolling } from "../lib/VisiblePolling.ts"
 import { DiagnosticsApi } from "../api/DiagnosticsApi.ts"
 import MetricChart from "../components/system/MetricChart.vue"
 import SystemTiles from "../components/system/SystemTiles.vue"
@@ -55,7 +55,7 @@ async function load() {
 }
 
 onMounted(load)
-useIntervalFn(() => document.visibilityState === "visible" && load(), 30_000)
+VisiblePolling.use(load, 30_000)
 </script>
 
 <template>

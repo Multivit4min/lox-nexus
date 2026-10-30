@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, shallowRef } from "vue"
 import type { DiscoveredPacketDto, LoxoneSignalDto, LoxoneSignalInput, MiniserverDto, MiniserverInput, SignalLoadDto } from "@lox-nexus/api"
-import { useIntervalFn } from "@vueuse/core"
 import { FileDown, Pencil, Play, Square, Trash2 } from "@lucide/vue"
 import { useRouter } from "vue-router"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { AppContext } from "../AppContext.ts"
+import { VisiblePolling } from "../lib/VisiblePolling.ts"
 import DiscoveredCard from "../components/DiscoveredCard.vue"
 import HealthBadge from "../components/HealthBadge.vue"
 import LoadIndicator from "../components/load/LoadIndicator.vue"
@@ -51,7 +51,7 @@ async function load() {
 }
 
 // health, errors, discovery and the load figure change on their own; the stream covers signal values
-useIntervalFn(refresh, 5000)
+VisiblePolling.use(refresh, 5000)
 onMounted(load)
 onUnmounted(() => {
   unmounted = true

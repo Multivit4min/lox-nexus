@@ -2,13 +2,13 @@
 import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, shallowRef } from "vue"
 import type { PluginInstanceDto, PluginInstanceInput, PluginLogLineDto, PluginPackageDto, PluginSignalDto } from "@lox-nexus/api"
 import type { Panel } from "@lox-nexus/plugin-sdk/wire"
-import { useIntervalFn } from "@vueuse/core"
 import { BookOpen, Pencil, Play, RotateCw, Square, Trash2 } from "@lucide/vue"
 import { useRouter } from "vue-router"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { AppContext } from "../AppContext.ts"
+import { VisiblePolling } from "../lib/VisiblePolling.ts"
 import { ApiError } from "../api/ApiError.ts"
 import InstanceForm from "../components/plugins/InstanceForm.vue"
 import PanelCard from "../components/plugins/PanelCard.vue"
@@ -114,7 +114,7 @@ async function remove() {
   })
 }
 
-useIntervalFn(() => !missing.value && attempt(refresh), 3000)
+VisiblePolling.use(() => attempt(refresh), 3000, () => !missing.value)
 onMounted(() => attempt(load))
 onUnmounted(() => {
   unmounted = true

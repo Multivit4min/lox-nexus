@@ -43,3 +43,20 @@ test("a poll is skipped while a load is still running", async () => {
   pending[1]!([])
   await poll
 })
+
+test("rows take the newer values from the stream, forces included, over the loaded ones", async () => {
+  const signal = (id: string, value: number) => ({ id, topic: `t/${id}`, label: id, current: { topic: `t/${id}`, value: { type: "number", value } } })
+  const context = {
+    wires: { list: () => Promise.resolve([{ id: "w", label: "w", sourceId: "a", targetId: "b", transforms: [], enabled: true, syncOnStart: false, active: true }]) },
+    bus: { signals: () => Promise.resolve([signal("a", 1), signal("b", 1)]) },
+    miniservers: { list: () => Promise.resolve([]) },
+    plugins: { list: () => Promise.resolve([]) }
+  } as unknown as ConstructorParameters<typeof WireBoard>[0]
+  const board = new WireBoard(context)
+  await board.load()
+  const live = new Map([["t/b", { topic: "t/b", value: { type: "number", value: 7 }, flags: { forced: true } }]])
+  const [row] = board.rows(undefined, { get: (topic: string) => live.get(topic) as never })
+  assert.deepEqual([row?.source?.current?.value, row?.target?.current?.value], [{ type: "number", value: 1 }, { type: "number", value: 7 }])
+  assert.match(row?.status.text ?? "", /"b" is forced/)
+  assert.deepEqual(board.rows()[0]?.target?.current?.value, { type: "number", value: 1 }, "without the stream, the loaded value")
+})

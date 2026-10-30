@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from "vue"
 import type { PluginInstanceDto, PluginInstanceInput, PluginPackageDto } from "@lox-nexus/api"
-import { useIntervalFn } from "@vueuse/core"
 import { Play, Plus, Square } from "@lucide/vue"
 import { useRouter } from "vue-router"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { AppContext } from "../AppContext.ts"
+import { VisiblePolling } from "../lib/VisiblePolling.ts"
 import InstanceForm from "../components/plugins/InstanceForm.vue"
 import PluginIcon from "../components/plugins/PluginIcon.vue"
 import PluginStateBadge from "../components/plugins/PluginStateBadge.vue"
@@ -52,7 +52,7 @@ async function toggle(instance: PluginInstanceDto) {
 }
 
 // a failed poll (server restarting) is retried by the next one
-useIntervalFn(() => load().catch(() => undefined), 5000)
+VisiblePolling.use(() => load().catch(() => undefined), 5000)
 onMounted(async () => {
   ;[packages.value] = await Promise.all([api.packages(), load()])
 })

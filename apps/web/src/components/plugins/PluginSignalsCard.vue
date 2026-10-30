@@ -46,8 +46,8 @@ const query = ref("")
 const selection = new Selection()
 const historyFor = ref<HistorySubject>()
 onMounted(() => void recorded.load())
-// also after a deletion or connecting to a Miniserver: both change the signals and their wires
-watch(() => props.signals, () => void wired.load(), { immediate: true })
+// when signals come or go (a deletion takes its wires along); not on the page's periodic reload of the same list
+watch(() => props.signals.map(s => s.id).join(), () => void wired.load(), { immediate: true })
 const bridging = ref<BridgeCandidate[]>([])
 const bridgeOpen = ref(false)
 
@@ -91,8 +91,10 @@ const bridgeSelected = () => {
 }
 const bridgeEntries = (rows: CatalogRow[]) => bridge(rows.map(row => BridgeDraft.fromEntry(row.key, row.entry, props.description)))
 
+// connecting adds wires to signals that may already exist
 function bridged() {
   selection.clear()
+  void wired.load()
   emit("changed")
 }
 
