@@ -1,4 +1,4 @@
-import type { SignalDto, WireDto } from "@lox-nexus/api"
+import type { SignalDto, StaleSignalDto, WireDto } from "@lox-nexus/api"
 import { shallowReactive } from "vue"
 import type { AppContext } from "../AppContext.ts"
 import type { LiveValues } from "./LiveValues.ts"
@@ -10,6 +10,8 @@ export interface WireRow {
   source?: SignalDto
   target?: SignalDto
   status: WireStatus
+  /** the source went quiet */
+  sourceStale?: StaleSignalDto
 }
 
 /**
@@ -63,12 +65,14 @@ export class WireBoard {
    * @param ownerId only wires with an end owned by this Miniserver or plugin instance
    * @param live values newer than the last load, from the stream; forces in it change the status too
    */
-  rows(ownerId?: string, live?: Pick<LiveValues, "get">): WireRow[] {
+  rows(ownerId?: string, live?: Pick<LiveValues, "get"> & Partial<Pick<LiveValues, "staleOf">>): WireRow[] {
     const signals = live ? WireBoard.withLive(this.state.signals, live) : this.state.signals
-    const health = new WireHealth(signals, this.state.owners)
-    const rows = this.state.wires.map(wire => ({
-      wire, source: signals.get(wire.sourceId), target: signals.get(wire.targetId), status: health.of(wire)
-    }))
+    const health = new WireHealth(signals, this.state.owners, topic => live?.staleOf?.(topic))
+    const rows = this.state.wires.map(wire => {
+      const source = signals.get(wire.sourceId)
+      const sourceStale = source && live?.staleOf?.(source.topic)
+      return { wire, source, target: signals.get(wire.targetId), status: health.of(wire), ...(sourceStale ? { sourceStale } : {}) }
+    })
     if (ownerId === undefined) return rows
     return rows.filter(row => row.source?.owner?.id === ownerId || row.target?.owner?.id === ownerId)
   }

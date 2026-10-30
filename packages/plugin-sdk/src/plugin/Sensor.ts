@@ -115,4 +115,9 @@ export type SensorClass = (new (plugin: never, params: never, output: SensorOutp
   readonly unit?: string
   /** the decimals new signals of it round their values to for display (0-6); the user can change it */
   readonly decimals?: number
+  /**
+   * after how long without a value (an unchanged one counts) new signals of it warn that it is
+   * stale, e.g. three poll intervals; rounded up to minutes. The user can change it.
+   */
+  readonly staleAfterMs?: number
 }

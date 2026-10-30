@@ -71,6 +71,13 @@ shown: `412.3 W` in lists, wires and the history, while the bus and the Miniserv
 value. A plugin's sensors and actuators have the same two fields; a new one starts with what the
 plugin or the catalog entry suggests. The MQTT export passes them to Home Assistant.
 
+An input, and a plugin's sensor, can also **Warn when no value for** a number of minutes. Loxone
+resends values every few seconds, so an input that stays quiet that long has a problem, even when
+its last value looked fine. It then shows a clock icon with the time of its last value, and its
+wires say "source stale". Nothing warns while the Miniserver or plugin instance itself is stopped,
+offline or degraded: that shows on the Miniserver or instance. The time counts from when the
+signal got its limit, its owner started or it was renamed, whichever was last.
+
 ### Discovery
 
 Inputs can be discovered: packets with an unknown packet ID appear under **discovered** with their

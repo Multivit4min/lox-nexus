@@ -146,3 +146,23 @@ describe("StreamClient backpressure", () => {
     assert.deepEqual(socket.sent.map(e => e.type), ["error"])
   })
 })
+
+describe("StreamClient signal status", () => {
+  test("stale signals come with the state subscription, and again whenever they change", t => {
+    t.mock.timers.enable({ apis: ["setInterval", "setTimeout"] })
+    let listener: (stale: { signalId: string; topic: string }[]) => void = () => {}
+    const status = { list: () => [{ signalId: "a", topic: "x/a" }], onChange: (next: typeof listener) => ((listener = next), () => (listener = () => {})) }
+    const socket = new FakeSocket()
+    const client = new StreamClient(socket as unknown as WebSocket, new EventBus(), { token: "t", tokenHash: "h", userId: "u" }, status)
+    socket.request({ type: "subscribe", stream: "state" })
+    listener([])
+    t.mock.timers.tick(StreamClient.FLUSH_MS)
+    const statuses = socket.sent.filter(event => event.type === "signal-status")
+    assert.deepEqual(statuses, [{ type: "signal-status", stale: [{ signalId: "a", topic: "x/a" }] }, { type: "signal-status", stale: [] }])
+    socket.request({ type: "unsubscribe", stream: "state" })
+    listener([{ signalId: "b", topic: "x/b" }])
+    t.mock.timers.tick(StreamClient.FLUSH_MS)
+    assert.equal(socket.sent.filter(event => event.type === "signal-status").length, 2, "nothing after unsubscribing")
+    void client.dispose()
+  })
+})

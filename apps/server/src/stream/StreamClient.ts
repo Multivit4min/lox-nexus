@@ -1,10 +1,16 @@
-import { StreamRequestSchema, type StreamEvent } from "@lox-nexus/api"
+import { StreamRequestSchema, type StaleSignalDto, type StreamEvent } from "@lox-nexus/api"
 import { Topic, type BusMessage, type EventBus } from "@lox-nexus/core"
 import { Disposable, type DisposableLike } from "@lox-nexus/plugin-sdk"
 import type { WebSocket } from "ws"
 
 /** the slice of EventBus a client needs; tap() sees every message including shadowed ones, subscribe() only effective ones */
 export type StreamBus = Pick<EventBus, "tap" | "subscribe" | "currentMatching" | "current" | "lastCommand" | "lastCommandsMatching">
+
+/** Which signals are stale; StaleWatcher in the app. */
+export interface SignalStatusSource {
+  list(): StaleSignalDto[]
+  onChange(listener: (stale: StaleSignalDto[]) => void): () => void
+}
 
 /** The session a connection was opened with; BusStream closes the connection when it ends. */
 export interface StreamSession {
@@ -22,7 +28,8 @@ export interface StreamSession {
  *   or its queue overflows, messages are dropped and it gets a `gap` with the count instead.
  * - state: the full current state on subscribe (`full: true`), then only the latest change per
  *   topic per flush, so a busy topic costs one entry per batch. A release that leaves a topic
- *   without a value (it was forced before any real value arrived) is sent as `cleared`.
+ *   without a value (it was forced before any real value arrived) is sent as `cleared`. The
+ *   stale signals come with it (`signal-status`): all of them on subscribe and on every change.
  * A ping every HEARTBEAT_MS without a pong since the last one terminates a half-open connection.
  */
 export class StreamClient extends Disposable {
@@ -38,11 +45,13 @@ export class StreamClient extends Disposable {
   private queued: BusMessage[] = []
   private states = new Map<string, BusMessage>()
   private released = new Set<string>()
+  /** the stale set to send at the next flush, when it changed */
+  private stale: StaleSignalDto[] | undefined
   private dropped = 0
   private alive = true
 
   /** Starts listening to the socket at once; nothing is sent until the client subscribes. */
-  constructor(private readonly socket: WebSocket, private readonly bus: StreamBus, readonly session: StreamSession) {
+  constructor(private readonly socket: WebSocket, private readonly bus: StreamBus, readonly session: StreamSession, private readonly status?: SignalStatusSource) {
     super()
     this.listen(socket, "message", (data: Buffer) => this.onRequest(data))
     this.listen(socket, "pong", () => (this.alive = true))
@@ -81,6 +90,7 @@ export class StreamClient extends Disposable {
     } else {
       this.states = new Map()
       this.released = new Set()
+      this.stale = undefined
     }
   }
 
@@ -103,7 +113,9 @@ export class StreamClient extends Disposable {
     const releases = this.bus.tap(message => {
       if (message.kind === "release" && Topic.matches(pattern, message.topic)) this.released.add(message.topic)
     })
-    this.subscriptions.set("state", { dispose: () => void [states.dispose(), releases.dispose()] })
+    if (this.status) this.send({ type: "signal-status", stale: this.status.list() })
+    const status = this.status?.onChange(stale => (this.stale = stale))
+    this.subscriptions.set("state", { dispose: () => void [states.dispose(), releases.dispose(), status?.()] })
   }
 
   /** the current values, and for topics without one (actuators) the last command sent */
@@ -137,9 +149,11 @@ export class StreamClient extends Disposable {
     if (this.states.size > 0 || cleared.length > 0) {
       this.send({ type: "state", messages: [...this.states.values()], ...(cleared.length > 0 ? { cleared } : {}) })
     }
+    if (this.stale) this.send({ type: "signal-status", stale: this.stale })
     this.queued = []
     this.states = new Map()
     this.released = new Set()
+    this.stale = undefined
   }
 
   // terminate() skips the close handshake, which a half-open connection would never answer

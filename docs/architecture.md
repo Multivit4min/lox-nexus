@@ -1974,3 +1974,26 @@ Native `fetch` and `WebSocket` replace axios and socket.io (`ws` comes in throug
   `ValueFormatter.format(value, { decimals })`) and `HistoryText`. The MQTT export's Home Assistant
   discovery sends `unit_of_measurement` and `suggested_display_precision`.
 
+## Implementation notes: stale warnings (P4)
+
+- `EventBus.lastSeen(topic)` is when a state last arrived, set in `BusProcessor.state` before the
+  dedup check, so a Miniserver's unchanged resends and a plugin's emit on every poll count;
+  restored values don't. Kept in `RetainedState`, in memory only.
+- `staleAfterMin` (1-10080) is part of the signal settings with unit and decimals
+  (`SignalDisplay`, column `stale_after_min` from migration 8, export, forms). Plugins suggest it
+  with `static staleAfterMs` (in the description as `staleAfterMin`, rounded up); Fronius values
+  suggest 5 minutes.
+- `StaleWatcher` (server, every 30 s and on every registry change) checks sources with a limit
+  while their owner is active (a Miniserver "online", a plugin instance running; degraded and
+  offline owners show that themselves). It counts at the earliest from when the owner became
+  active and from when the signal was first watched with its topic and limit, so a restart, a new
+  signal or a rename gets its full time. Owner activity is sampled, so a restart within one check
+  keeps the old start; its sensors usually send at once anyway. Targets never carry a limit: the
+  services drop it.
+- Plugin suggestions apply per field: a key the input leaves out takes the class's suggestion, a
+  form sends "" or null for "none". So a catalog's bulk add with only a unit still gets the
+  stale limit. Changes go to stream clients with a
+  state subscription as `signal-status` (the whole set; also once on subscribe). The web keeps it
+  in `LiveValues.stale`, shows `StaleBadge` in signal lists and wire ends, and `WireHealth` says
+  "source stale".
+

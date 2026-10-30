@@ -17,14 +17,12 @@ import type { Config } from "./config/Config.ts"
 import { DatabaseLock } from "./db/DatabaseLock.ts"
 import { Persistence } from "./db/Persistence.ts"
 import { AuthGuard } from "./http/AuthGuard.ts"
+import { PluginControllers } from "./http/PluginControllers.ts"
 import { AuthController } from "./http/controllers/AuthController.ts"
 import { BusController } from "./http/controllers/BusController.ts"
 import { ConfigController } from "./http/controllers/ConfigController.ts"
 import { HookController } from "./http/controllers/HookController.ts"
 import { MiniserverController } from "./http/controllers/MiniserverController.ts"
-import { PluginController } from "./http/controllers/PluginController.ts"
-import { PluginLogController } from "./http/controllers/PluginLogController.ts"
-import { PluginPackageController } from "./http/controllers/PluginPackageController.ts"
 import { SignalController } from "./http/controllers/SignalController.ts"
 import { ChangeLock } from "./http/ChangeLock.ts"
 import { HttpServer } from "./http/HttpServer.ts"
@@ -39,12 +37,11 @@ import { TimeZoneSetting } from "./services/TimeZoneSetting.ts"
 import { LoxoneSignalService } from "./services/LoxoneSignalService.ts"
 import { MiniserverService } from "./services/MiniserverService.ts"
 import { PluginLogs } from "./services/PluginLogs.ts"
+import { StaleWatcher } from "./services/StaleWatcher.ts"
 import { BackupAssembly } from "./backup/BackupAssembly.ts"
 import { BackupService } from "./backup/BackupService.ts"
 import { RestoreApplier } from "./backup/RestoreApplier.ts"
 import { HistoryAssembly } from "./history/HistoryAssembly.ts"
-import { PluginActionService } from "./services/PluginActionService.ts"
-import { PluginBridgeService } from "./services/PluginBridgeService.ts"
 import { PluginService } from "./services/PluginService.ts"
 import { SelectionService } from "./services/SelectionService.ts"
 import { PluginSignalService } from "./services/PluginSignalService.ts"
@@ -215,7 +212,8 @@ export class NexusApp extends Disposable {
     this.own(new SessionPruner(sessions, log))
     const auth = new AuthService(db.db, db.users, sessions, new PasswordHasher(this.options.hasherCost), clock)
     const cookie = new SessionCookie(config.secureCookies)
-    const stream = this.own(new BusStream(this.bus, auth, sessions, cookie))
+    const stale = this.own(new StaleWatcher({ signals: this.signals, bus: this.bus, clock, active: StaleWatcher.activeIn(this.miniservers, this.plugins) }))
+    const stream = this.own(new BusStream(this.bus, auth, sessions, cookie, stale))
     this.stream = stream
     return new HttpServer({
       logger: log,
@@ -230,9 +228,7 @@ export class NexusApp extends Disposable {
         new SignalController(this.signals, this.bus, wires),
         new BusController(this.bus, this.recorder),
         new ConfigController(transfer),
-        new PluginController(plugins, pluginSignals, new PluginBridgeService(pluginSignals, loxoneSignals, wires, log), new PluginActionService(id => plugins.supervisor(id), this.pluginLogs)),
-        new PluginLogController(plugins, this.pluginLogs),
-        new PluginPackageController(this.pluginAssembly.packages(plugins), this.pluginAssembly.updates(plugins)),
+        ...PluginControllers.build({ plugins, pluginSignals, loxoneSignals, wires, logs: this.pluginLogs, assembly: this.pluginAssembly, log }),
         ...this.history.controllers(id => plugins.watches(id)),
         BackupAssembly.controller(config, { main: db.db, history: this.history.database.db }, this.options.restart, log),
         this.own(new DiagnosticsAssembly(this, config, clock, log)).controller(),

@@ -43,6 +43,8 @@ export class BusProcessor {
   // Dedup compares with the real value while forced: a repeated Miniserver resend must not show up
   // in the inspector, but a changed one is recorded (shadowed) and kept for the later release.
   private state(pending: Pending) {
+    // a repeat proves the source is alive even though it is dropped; a restored value proves nothing
+    if (!pending.options.flags?.restored) this.retained.noteSeen(pending.topic, this.clock.now())
     const forced = this.forces.get(pending.topic) !== undefined
     const previous = forced ? this.retained.real(pending.topic) : this.retained.effective(pending.topic)
     if (!pending.options.force && previous && Value.equals(previous.value, pending.value)) return

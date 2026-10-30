@@ -88,7 +88,7 @@ async function onSubmit() {
     const params = SchemaDraft.value(current.field, draft.value) ?? {}
     await props.submit({
       kind: current.kind, capability: current.id, params, label: label.value, ...(slug.value ? { slug: slug.value } : {}),
-      ...(SignalDisplayDraft.applies(current.valueType) ? display.input() : {})
+      ...(SignalDisplayDraft.applies(current.valueType) ? display.input() : {}), ...(current.kind === "sensor" ? display.staleInput() : {})
     })
   } catch (error) {
     failure.value = error instanceof Error ? error.message : String(error)
@@ -127,7 +127,10 @@ async function onSubmit() {
         <SchemaFieldInput id="params" v-model="draft" :field="capability.field" />
       </div>
     </section>
-    <SignalDisplayFields v-if="SignalDisplayDraft.applies(capability.valueType)" v-model:unit="display.unit" v-model:decimals="display.decimals" id-prefix="signal" />
+    <SignalDisplayFields
+      v-model:unit="display.unit" v-model:decimals="display.decimals" v-model:stale="display.staleAfterMin" id-prefix="signal"
+      :numeric="SignalDisplayDraft.applies(capability.valueType)" :source="capability.kind === 'sensor'"
+    />
     <details class="text-sm">
       <summary class="cursor-pointer text-muted-foreground">Advanced</summary>
       <FormField id="signalSlug" label="Topic name" class="mt-3" hint="Leave empty to make one from the name">

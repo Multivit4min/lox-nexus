@@ -29,6 +29,8 @@ Most users never type the path: adding a value from the catalog fills it in.
   component is inactive, e.g. PV power at night.
 - The sensor emits after every successful poll (the bus drops repeats), and once when it is added
   if data is already there.
+- A new value warns that it is stale after 5 minutes without a successful poll (**Warn when no
+  value for** in the signal's form); with a long poll interval, raise it to a few intervals.
 - A path that doesn't resolve, or that points to an object or a list, emits nothing. The device
   behind it may be missing, or its endpoint failed this time; the sensor keeps its last value.
 - Device ids are the keys the inverter uses, written as plain path segments (`meter.0.…`). Inverters

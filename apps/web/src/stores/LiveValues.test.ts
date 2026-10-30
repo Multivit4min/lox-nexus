@@ -19,3 +19,16 @@ test("state batches merge; cleared topics are removed", () => {
   assert.deepEqual([...live.values.keys()], ["a/y"])
   assert.deepEqual(live.get("a/y")?.value, Value.number(3))
 })
+
+test("the stale set is replaced by each signal-status event", () => {
+  let handlers: StreamHandlers | undefined
+  const connect = (given: StreamHandlers) => {
+    handlers = given
+    return { subscribe: () => {}, open: () => {}, close: () => {} } as unknown as StreamConnection
+  }
+  const live = new LiveValues(connect, "a/#")
+  handlers!.onEvent({ type: "signal-status", stale: [{ signalId: "1", topic: "a/x", lastSeen: 5 }, { signalId: "2", topic: "a/y" }] })
+  assert.equal(live.staleOf("a/x")?.lastSeen, 5)
+  handlers!.onEvent({ type: "signal-status", stale: [{ signalId: "2", topic: "a/y" }] })
+  assert.deepEqual([live.staleOf("a/x"), live.staleOf("a/y")?.signalId], [undefined, "2"])
+})

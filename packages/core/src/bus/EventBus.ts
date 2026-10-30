@@ -131,10 +131,14 @@ export class EventBus extends Disposable {
   }
 
   /**
-   * the current message of every topic matching the pattern, e.g. for a client that just
-   * connected and needs the state before it sees changes
-   * @throws RangeError for an invalid pattern
+   * Epoch ms when a state last arrived on the topic, counting the equal repeats the bus drops (a
+   * Miniserver's resends, a plugin's emit on every poll); restored values don't count. Undefined
+   * until one arrived after the start. What stale warnings go by.
    */
+  lastSeen(topic: string): number | undefined {
+    return this.retained.lastSeen(topic)
+  }
+
   /** the last command delivered to a topic (an actuator's last sent value); for display only, never replayed */
   lastCommand(topic: string): BusMessage | undefined {
     return this.processor.lastCommands.get(topic)
@@ -146,6 +150,11 @@ export class EventBus extends Disposable {
     return this.processor.lastCommands.matching(pattern)
   }
 
+  /**
+   * the current message of every topic matching the pattern, e.g. for a client that just
+   * connected and needs the state before it sees changes
+   * @throws RangeError for an invalid pattern
+   */
   currentMatching(pattern: string): BusMessage[] {
     Topic.assertValidPattern(pattern)
     return [...this.retained.effectiveAll()].filter(message => Topic.matches(pattern, message.topic))

@@ -96,6 +96,7 @@ static readonly params?: z.ZodType               // default: empty object; valid
 static readonly valueType?: ValueType | "any"    // what emit() sends; default "any"
 static readonly unit?: string                    // suggested for new signals, e.g. "W" (up to 16 characters)
 static readonly decimals?: number                // suggested for new signals: decimals to show (0-6)
+static readonly staleAfterMs?: number            // suggested for new signals: warn after this long without a value
 ```
 
 `SensorOutput`: `{ emit(value: Value): void; fail(message: string): void; recover?(): void }`, the runtime's side, not used by plugin code.

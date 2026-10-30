@@ -39,7 +39,7 @@ const DOT: Record<WireLevel, string> = {
           {{ row.status.text }}
         </span>
       </span>
-      <WireEnd :signal="row.source" :owner="ownerName(row.source)" />
+      <WireEnd :signal="row.source" :owner="ownerName(row.source)" :stale="row.sourceStale" />
       <ArrowRight class="size-4 text-muted-foreground" />
       <WireEnd :signal="row.target" :owner="ownerName(row.target)" />
       <span class="truncate text-xs text-muted-foreground" :title="steps(row)">

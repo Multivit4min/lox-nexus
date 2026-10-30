@@ -19,6 +19,7 @@ import ForceDialog from "./inspector/ForceDialog.vue"
 import SignalActions from "./SignalActions.vue"
 import VirtualTable from "./data/VirtualTable.vue"
 import SignalForm from "./SignalForm.vue"
+import StaleBadge from "./StaleBadge.vue"
 import RecordButtons from "./history/RecordButtons.vue"
 import SignalHistorySheet, { type HistorySubject } from "./history/SignalHistorySheet.vue"
 import ValueText from "./ValueText.vue"
@@ -151,6 +152,7 @@ async function removeSelected() {
           <span class="truncate font-mono text-xs" :title="row.topic">{{ row.topic }}</span>
           <span class="flex min-w-0 items-center gap-1.5">
             <Lock v-if="isForced(row)" class="size-3.5 shrink-0 text-amber-600 dark:text-amber-400" aria-label="forced" />
+            <StaleBadge :stale="live.staleOf(row.topic)" :limit-min="row.staleAfterMin" />
             <span class="truncate"><ValueText :value="live.get(row.topic)?.value" :unit="row.unit" :decimals="row.decimals" /></span>
           </span>
           <span class="text-right text-xs text-muted-foreground tabular-nums">{{ LoadShare.format(load?.[row.id]) }}</span>

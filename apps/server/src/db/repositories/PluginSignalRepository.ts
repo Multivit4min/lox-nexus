@@ -31,8 +31,8 @@ export class PluginSignalRepository {
     this.db.transaction(() => {
       this.db.run("INSERT INTO signals (id, owner) VALUES (:id, :owner)", { id: signal.id, owner: PluginSignalRepository.OWNER })
       this.db.run(
-        `INSERT INTO plugin_signals (id, instance_id, kind, capability, params, label, slug, unit, decimals)
-         VALUES (:id, :instanceId, :kind, :capability, :params, :label, :slug, :unit, :decimals)`,
+        `INSERT INTO plugin_signals (id, instance_id, kind, capability, params, label, slug, ${SignalDisplayColumns.COLUMNS})
+         VALUES (:id, :instanceId, :kind, :capability, :params, :label, :slug, ${SignalDisplayColumns.VALUES})`,
         { ...PluginSignalRepository.params(signal), instanceId }
       )
     })

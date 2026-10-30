@@ -25,6 +25,8 @@ export class ValueSensor extends Sensor<FroniusPlugin, z.infer<typeof params>> {
   static readonly description = "One value the inverter reports, such as PV power, grid power or battery charge"
   static readonly params = params
   static readonly valueType = "any"
+  /** new signals warn after five minutes without a poll result: many polls at the default interval */
+  static readonly staleAfterMs = 5 * 60_000
 
   override start() {
     this.listen(this.plugin.poller, "data", (snapshot: FroniusSnapshot) => this.update(snapshot))

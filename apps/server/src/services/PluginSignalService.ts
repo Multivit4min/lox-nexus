@@ -30,10 +30,7 @@ export class PluginSignalService {
   /** @throws HttpError 400 unknown capability or refused params, 409 taken slug */
   async add(instanceId: string, input: PluginSignalInput): Promise<PluginSignalDto> {
     const supervisor = this.instances.supervisor(instanceId)
-    const parsed = this.configOf(supervisor, randomUUID(), input)
-    // a form sends the fields, empty ones included: what it shows is the user's choice. An empty
-    // unit parses to `unit: undefined`, so the key tells it apart from an input without the field
-    const config = "unit" in input || "decimals" in input ? parsed : PluginSignalService.withSuggestions(supervisor, parsed)
+    const config = PluginSignalService.withSuggestions(supervisor, this.configOf(supervisor, randomUUID(), input), input)
     this.repo.insert(instanceId, config)
     try {
       await PluginSignalService.refusals(() => supervisor.calls.addSignal(config))
@@ -88,17 +85,23 @@ export class PluginSignalService {
     if (!offered.some(capability => capability.id === parsed.capability)) {
       throw HttpError.badRequest(`${supervisor.pkg.name} has no ${parsed.kind} "${parsed.capability}"`)
     }
-    if (parsed.slug) return { id, ...parsed, slug: parsed.slug }
+    // only sources go stale; an actuator's limit would be stored and exported for nothing
+    const own = { id, ...parsed, ...(parsed.kind === "actuator" ? { staleAfterMin: undefined } : {}) }
+    if (parsed.slug) return { ...own, slug: parsed.slug }
     const taken = new Set(supervisor.signals.list().filter(e => e.config.kind === parsed.kind && e.config.id !== id).map(e => e.config.slug))
-    return { id, ...parsed, slug: FreeSlug.pick(Topic.slug(parsed.label || parsed.capability), taken) }
+    return { ...own, slug: FreeSlug.pick(Topic.slug(parsed.label || parsed.capability), taken) }
   }
 
-  // a new signal without its own unit and decimals takes what its class suggests, if that is valid here
-  private static withSuggestions(supervisor: PluginSupervisor, config: PluginSignalConfig): PluginSignalConfig {
+  // A new signal takes what its class suggests for each setting its input leaves out. A form sends
+  // every field it shows, an empty one as "" or null (parsed to `undefined`, but the key stays), so
+  // what it shows is final; a catalog's bulk add with only a unit still gets the stale limit.
+  private static withSuggestions(supervisor: PluginSupervisor, config: PluginSignalConfig, input: object): PluginSignalConfig {
     const { description } = supervisor.pkg
     const capability = (config.kind === "sensor" ? description.sensors : description.actuators).find(offered => offered.id === config.capability)
-    const suggested = SignalDisplaySchema.safeParse({ unit: capability?.unit, decimals: capability?.decimals })
-    return suggested.success ? { ...config, ...SignalDisplays.of(suggested.data) } : config
+    const suggested = SignalDisplaySchema.safeParse({ unit: capability?.unit, decimals: capability?.decimals, staleAfterMin: capability?.staleAfterMin })
+    if (!suggested.success) return config
+    const missing = Object.entries(SignalDisplays.of(suggested.data)).filter(([key]) => !(key in input))
+    return { ...config, ...Object.fromEntries(missing), ...SignalDisplays.of(config) }
   }
 
   private require(supervisor: PluginSupervisor, signalId: string) {

@@ -45,7 +45,7 @@ export class LoxoneSignalService {
    */
   add(miniserverId: string, input: LoxoneSignalInput, id: string = randomUUID()): LoxoneSignalDto {
     const miniserver = this.require(miniserverId)
-    const config = LoxoneSignalService.domain(() => miniserver.addSignal({ ...input, id }))
+    const config = LoxoneSignalService.domain(() => miniserver.addSignal({ ...LoxoneSignalService.normalized(input), id }))
     try {
       this.repo.insert({ ...config, miniserverId })
     } catch (error) {
@@ -66,7 +66,7 @@ export class LoxoneSignalService {
     const previous = miniserver.signals().find(signal => signal.id === signalId)
     const before = miniserver.topicOf(signalId)
     if (!previous || !before) throw HttpError.notFound(`signal "${signalId}"`)
-    const config = LoxoneSignalService.domain(() => miniserver.updateSignal({ ...input, id: signalId }))
+    const config = LoxoneSignalService.domain(() => miniserver.updateSignal({ ...LoxoneSignalService.normalized(input), id: signalId }))
     try {
       this.repo.update({ ...config, miniserverId })
     } catch (error) {
@@ -141,5 +141,11 @@ export class LoxoneSignalService {
     } catch (error) {
       throw HttpError.fromDomain(error)
     }
+  }
+
+  // a form's null means "none"; only inputs go stale, an output's limit would be stored and exported for nothing
+  private static normalized(input: LoxoneSignalInput) {
+    const parsed = LoxoneSignalInputSchema.parse(input)
+    return parsed.direction === "out" ? { ...parsed, staleAfterMin: undefined } : parsed
   }
 }

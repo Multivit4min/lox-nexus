@@ -8,7 +8,9 @@ import { z } from "zod"
 export const SignalDisplayInputSchema = z.object({
   // empty means none
   unit: z.string().trim().max(16).transform(unit => (unit === "" ? undefined : unit)).optional(),
-  decimals: z.int().min(0).max(6).optional()
+  // null: the form says "none", so the server applies no suggestion of the plugin's
+  decimals: z.int().min(0).max(6).nullable().transform(decimals => decimals ?? undefined).optional(),
+  staleAfterMin: z.int().min(1).max(10_080).nullable().transform(minutes => minutes ?? undefined).optional()
 })
 
 /** How a signal's numbers are shown, in signal DTOs; absent fields are not set. */
@@ -17,4 +19,6 @@ export interface SignalDisplayDto {
   unit?: string
   /** decimals numbers are rounded to for display */
   decimals?: number
+  /** a source without a value for this many minutes is stale */
+  staleAfterMin?: number
 }

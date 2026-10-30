@@ -35,7 +35,7 @@ async function onSubmit() {
     const { slug, dataType, ...rest } = form
     await props.submit({
       ...rest, dataType: Number(dataType) as LoxoneSignalInput["dataType"], label: form.label || form.packetId,
-      ...(slug ? { slug } : {}), ...(numeric.value ? display.input() : {})
+      ...(slug ? { slug } : {}), ...(numeric.value ? display.input() : {}), ...(form.direction === "in" ? display.staleInput() : {})
     })
   } catch (error) {
     failure.value = error instanceof ApiError ? error : new ApiError(0, String(error))
@@ -71,7 +71,10 @@ async function onSubmit() {
         <Input id="slug" v-model="form.slug" />
       </FormField>
     </div>
-    <SignalDisplayFields v-if="numeric" v-model:unit="display.unit" v-model:decimals="display.decimals" id-prefix="signal" :error="failure?.issueFor('decimals')" />
+    <SignalDisplayFields
+      v-model:unit="display.unit" v-model:decimals="display.decimals" v-model:stale="display.staleAfterMin" id-prefix="signal"
+      :numeric="numeric" :source="form.direction === 'in'" :error="failure?.issueFor('decimals')" :stale-error="failure?.issueFor('staleAfterMin')"
+    />
     <Alert v-if="failure" variant="destructive"><AlertDescription>{{ failure.message }}</AlertDescription></Alert>
     <p v-if="initial" class="text-xs text-muted-foreground">
       Wires stay connected. A new packet ID, direction or topic name moves the signal to a new topic; its last value and any force move with it.

@@ -8,6 +8,7 @@ import type { LiveValues } from "../../stores/LiveValues.ts"
 import SignalActions from "../SignalActions.vue"
 import ValueText from "../ValueText.vue"
 import WiredMark from "../WiredMark.vue"
+import StaleBadge from "../StaleBadge.vue"
 
 /** The cells of one plugin signal in the signals table; a signal inside a group is indented. */
 const props = defineProps<{ row: PluginSignalDto; what: string; live: LiveValues; selected: boolean; inGroup?: boolean }>()
@@ -33,6 +34,7 @@ const sentAt = () => {
   <span class="truncate font-mono text-xs" :title="row.topic">{{ row.topic }}</span>
   <span class="flex min-w-0 items-center gap-1.5" :title="sentAt()">
     <Lock v-if="forced()" class="size-3.5 shrink-0 text-amber-600 dark:text-amber-400" aria-label="forced" />
+    <StaleBadge :stale="live.staleOf(row.topic)" :limit-min="row.staleAfterMin" />
     <span class="truncate"><ValueText :value="live.get(row.topic)?.value" :unit="row.unit" :decimals="row.decimals" /></span>
   </span>
   <SignalActions

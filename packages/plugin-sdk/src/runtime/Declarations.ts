@@ -49,12 +49,16 @@ export class Declarations {
   }
 
   /** spread into a description: the suggested unit and decimals, each only when valid (plain JS may declare anything) */
-  static display(capability: SensorClass | ActuatorClass) {
+  static display(capability: SensorClass | ActuatorClass, kind: "sensor" | "actuator") {
     const unit = typeof capability.unit === "string" ? capability.unit.trim() : ""
     const { decimals } = capability
+    // only sensors go stale
+    const staleMs = kind === "sensor" && "staleAfterMs" in capability ? capability.staleAfterMs : undefined
+    const staleAfterMin = typeof staleMs === "number" && Number.isFinite(staleMs) && staleMs > 0 ? Math.ceil(staleMs / 60_000) : undefined
     return {
       ...(unit && unit.length <= 16 ? { unit } : {}),
-      ...(typeof decimals === "number" && Number.isInteger(decimals) && decimals >= 0 && decimals <= 6 ? { decimals } : {})
+      ...(typeof decimals === "number" && Number.isInteger(decimals) && decimals >= 0 && decimals <= 6 ? { decimals } : {}),
+      ...(staleAfterMin !== undefined && staleAfterMin <= 10_080 ? { staleAfterMin } : {})
     }
   }
 

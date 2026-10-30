@@ -40,8 +40,8 @@ export class LoxoneSignalRepository {
     this.db.transaction(() => {
       this.db.run("INSERT INTO signals (id, owner) VALUES (:id, :owner)", { id: signal.id, owner: LoxoneSignalRepository.OWNER })
       this.db.run(
-        `INSERT INTO loxone_signals (id, miniserver_id, packet_id, direction, data_type, label, slug, unit, decimals)
-         VALUES (:id, :miniserverId, :packetId, :direction, :dataType, :label, :slug, :unit, :decimals)`,
+        `INSERT INTO loxone_signals (id, miniserver_id, packet_id, direction, data_type, label, slug, ${SignalDisplayColumns.COLUMNS})
+         VALUES (:id, :miniserverId, :packetId, :direction, :dataType, :label, :slug, ${SignalDisplayColumns.VALUES})`,
         LoxoneSignalRepository.params(signal)
       )
     })

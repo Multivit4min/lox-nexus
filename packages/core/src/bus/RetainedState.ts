@@ -15,6 +15,8 @@ interface TopicState {
   /** the last real value, kept while forced so a release can restore it */
   real?: BusMessage
   kind: "state" | "command"
+  /** epoch ms of the last state published, also one dropped as a repeat; not from restored values */
+  seen?: number
 }
 
 /** Last value per topic. Persisted as periodic snapshots of real values, never per change. */
@@ -51,6 +53,15 @@ export class RetainedState {
   /** whether the topic carries states or commands: "command" once a command was seen on it, else "state" */
   kindOf(topic: string): "state" | "command" {
     return this.topics.get(topic)?.kind ?? "state"
+  }
+
+  /** when a state last arrived on the topic, also an equal one the bus dropped; undefined since the start */
+  lastSeen(topic: string) {
+    return this.topics.get(topic)?.seen
+  }
+
+  noteSeen(topic: string, ts: number) {
+    this.entry(topic).seen = ts
   }
 
   /** remembers that the topic carries commands, so a force on it is delivered as a command */

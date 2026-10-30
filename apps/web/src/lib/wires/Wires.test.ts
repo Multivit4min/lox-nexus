@@ -88,6 +88,13 @@ describe("WireHealth", () => {
     assert.equal(new WireHealth(reversed, owners).of(wire).level, "ok")
   })
 
+  test("a stale source idles its wire, while its owner runs", () => {
+    const owners = WireHealth.owners([ms], [plugin])
+    const signals = new Map([["a", signal("a", "p", { staleAfterMin: 5 })], ["b", signal("b", "ms", { direction: "target" })]])
+    const stale = (topic: string) => (topic === signals.get("a")!.topic ? { signalId: "a", topic } : undefined)
+    assert.deepEqual(new WireHealth(signals, owners, stale).of(wire), { level: "idle", text: "source stale: \"a\" sent no value for longer than 5 min" })
+  })
+
   test("a forced source is mentioned, the wire still carries its value", () => {
     const signals = new Map([["a", signal("a", "p", { current: { flags: { forced: true } } } as Partial<SignalDto>)], ["b", signal("b", "ms", { direction: "target" })]])
     assert.deepEqual(new WireHealth(signals, WireHealth.owners([ms], [plugin])).of(wire), { level: "ok", text: "\"a\" is forced: the wire carries the forced value" })

@@ -1,4 +1,4 @@
-import type { MiniserverDto, PluginInstanceDto, SignalDto, WireDto } from "@lox-nexus/api"
+import type { MiniserverDto, PluginInstanceDto, SignalDto, StaleSignalDto, WireDto } from "@lox-nexus/api"
 
 /** A Miniserver or plugin instance as far as wires care: its name and whether values get through. */
 export interface OwnerStatus {
@@ -34,7 +34,12 @@ const MINISERVER_PHRASES: Record<MiniserverDto["health"], string> = {
 
 /** Tells for each wire whether values flow and, when they don't, why, in words for the user. */
 export class WireHealth {
-  constructor(private readonly signals: ReadonlyMap<string, SignalDto>, private readonly owners: ReadonlyMap<string, OwnerStatus>) {}
+  /** @param stale a source that went quiet (its owner runs, but it sends nothing) idles its wires */
+  constructor(
+    private readonly signals: ReadonlyMap<string, SignalDto>,
+    private readonly owners: ReadonlyMap<string, OwnerStatus>,
+    private readonly stale: (topic: string) => StaleSignalDto | undefined = () => undefined
+  ) {}
 
   static owners(miniservers: readonly MiniserverDto[], instances: readonly PluginInstanceDto[]): Map<string, OwnerStatus> {
     const owners = new Map<string, OwnerStatus>()
@@ -62,6 +67,10 @@ export class WireHealth {
     if (!source || !target) return { level: "broken", text: "one of its signals is gone" }
     const from = this.ownerOf(source)
     if (from && !from.delivers) return { level: "idle", text: `no values while ${WireHealth.describe(from)} is ${from.phrase}` }
+    if (this.stale(source.topic)) {
+      const limit = source.staleAfterMin === undefined ? "" : ` for longer than ${source.staleAfterMin} min`
+      return { level: "idle", text: `source stale: "${source.label}" sent no value${limit}` }
+    }
     const to = this.ownerOf(target)
     if (to && !to.accepts) return { level: "idle", text: `values don't reach ${WireHealth.describe(to)} while it is ${to.phrase}` }
     if (target.current?.flags?.forced) return { level: "idle", text: `"${target.label}" is forced: its subscribers see the forced value, not this wire's` }

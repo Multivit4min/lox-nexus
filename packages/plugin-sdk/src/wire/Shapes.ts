@@ -18,7 +18,9 @@ export const CapabilityDescriptionSchema = z.object({
   /** suggested for new signals (`static unit`); only for display, so an invalid one is dropped */
   unit: z.string().max(16).optional().catch(undefined),
   /** suggested for new signals (`static decimals`); dropped when invalid */
-  decimals: z.int().min(0).max(6).optional().catch(undefined)
+  decimals: z.int().min(0).max(6).optional().catch(undefined),
+  /** suggested for new sensor signals (`static staleAfterMs`, in minutes rounded up); dropped when invalid */
+  staleAfterMin: z.int().min(1).max(10_080).optional().catch(undefined)
 })
 export type CapabilityDescription = z.infer<typeof CapabilityDescriptionSchema>
 

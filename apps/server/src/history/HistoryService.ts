@@ -42,7 +42,7 @@ export class HistoryService {
     const signal = this.deps.signals.get(signalId)
     if (!signal && !this.deps.reader.series(signalId)) throw HttpError.notFound(`signal "${signalId}"`)
     // the signal's display settings now, also for values recorded before they were set
-    return { ...this.query.run(signalId, signal?.valueType ?? "any", query), ...(signal ? SignalDisplays.of(signal) : {}) }
+    return { ...this.query.run(signalId, signal?.valueType ?? "any", query), ...(signal ? SignalDisplays.format(signal) : {}) }
   }
 
   /**

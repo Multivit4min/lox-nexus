@@ -122,7 +122,7 @@ export class WatchFeed extends Disposable {
   private static describe(signal: Signal): WatchedSignal {
     return {
       id: signal.id, topic: signal.topic, label: signal.label, valueType: signal.valueType, ...(signal.owner ? { owner: { ...signal.owner } } : {}),
-      ...SignalDisplays.of(signal)
+      ...SignalDisplays.format(signal)
     }
   }
 }

@@ -6,7 +6,7 @@ import type { AuthService } from "../auth/AuthService.ts"
 import { SessionService } from "../auth/SessionService.ts"
 import type { Controller } from "../http/Controller.ts"
 import type { SessionCookie } from "../http/SessionCookie.ts"
-import { StreamClient, type StreamBus } from "./StreamClient.ts"
+import { StreamClient, type SignalStatusSource, type StreamBus } from "./StreamClient.ts"
 
 /**
  * The /api/stream WebSocket: one multiplexed connection per browser tab. AuthGuard checks the
@@ -28,7 +28,8 @@ export class BusStream extends Disposable implements Controller {
     private readonly bus: StreamBus,
     private readonly auth: Pick<AuthService, "isValid">,
     sessions: SessionService,
-    private readonly cookie: SessionCookie
+    private readonly cookie: SessionCookie,
+    private readonly status?: SignalStatusSource
   ) {
     super()
     this.listen(sessions, "revoked", (which: { tokenHash: string } | { userId: string }) =>
@@ -57,7 +58,7 @@ export class BusStream extends Disposable implements Controller {
   private connect(socket: WebSocket, request: FastifyRequest) {
     const token = this.cookie.read(request)
     if (this.isDisposed || !token || !request.user) return socket.close(StreamCloseCode.SESSION_ENDED, "login required")
-    const client = new StreamClient(socket, this.bus, { token, tokenHash: SessionService.hash(token), userId: request.user.id })
+    const client = new StreamClient(socket, this.bus, { token, tokenHash: SessionService.hash(token), userId: request.user.id }, this.status)
     this.clients.add(client)
     socket.once("close", () => {
       this.clients.delete(client)

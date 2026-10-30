@@ -24,7 +24,17 @@ export type StreamEvent =
    * real value arrived), to be removed.
    */
   | { type: "state"; messages: BusMessageDto[]; full?: true; cleared?: string[] }
+  /** every stale signal now (replace): sent with the state subscription, then whenever the set changes */
+  | { type: "signal-status"; stale: StaleSignalDto[] }
   | { type: "error"; message: string }
+
+/** A source that sent no value (not even an unchanged one) for longer than its `staleAfterMin`, while its owner runs. */
+export interface StaleSignalDto {
+  signalId: string
+  topic: string
+  /** epoch ms of its last value since the server started; absent when none came */
+  lastSeen?: number
+}
 
 /** WebSocket close codes the UI reacts to. */
 export const StreamCloseCode = {
