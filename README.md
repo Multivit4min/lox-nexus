@@ -13,7 +13,9 @@ of values the Miniserver reads and writes. It uses Loxone's own **Network Interc
 Nexus is a self-hosted server with a web UI. It runs in Docker (amd64 and arm64, e.g. a
 Raspberry Pi 4 or 5) or straight from a checkout with Node.js.
 
-![A Miniserver's page: its inputs and outputs with live values and units, and the wires connecting them](docs/screenshots/miniserver.png)
+<p align="center">
+  <a href="docs/screenshots/miniserver.png"><img src="docs/screenshots/miniserver.png" width="70%" alt="A Miniserver's page: its inputs and outputs with live values and units, and the wires connecting them"></a>
+</p>
 
 > **Status:** under active development. The Docker image is published for amd64 and arm64; the
 > plugin SDK isn't on npm yet, so plugins are developed in a checkout of this repository.
@@ -48,25 +50,30 @@ Raspberry Pi 4 or 5) or straight from a checkout with Node.js.
 
 ## Screenshots
 
-**Wires** connect any source to any target, with the value they carry right now.
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <a href="docs/screenshots/wires.png"><img src="docs/screenshots/wires.png" alt="The Wires page: seven wires between Loxone, Home Assistant, a calendar, a webhook and a script"></a>
+      <br><b>Wires</b> connect any source to any target, showing the value they carry.
+    </td>
+    <td width="50%" valign="top">
+      <a href="docs/screenshots/bus-inspector.png"><img src="docs/screenshots/bus-inspector.png" alt="The Bus Inspector's detail of a message, with its cause chain from the Loxone dimmer to the Home Assistant light"></a>
+      <br><b>Bus Inspector</b>: a Loxone dimmer, the wire, and Home Assistant confirming in 3 ms.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <a href="docs/screenshots/plugin-homeassistant.png"><img src="docs/screenshots/plugin-homeassistant.png" alt="The Home Assistant plugin instance: connection status, and sensors and actuators with their values"></a>
+      <br><b>A plugin instance</b>: status, sensors and actuators with live values.
+    </td>
+    <td width="50%" valign="top">
+      <a href="docs/screenshots/plugin-calendar.png"><img src="docs/screenshots/plugin-calendar.png" alt="The Calendar plugin instance: feed status and the next five events with Dismiss buttons"></a>
+      <br><b>Plugin panels</b>: the calendar's feed status and next events.
+    </td>
+  </tr>
+</table>
 
-![The Wires page: seven wires between Loxone, Home Assistant, a calendar, a webhook and a script](docs/screenshots/wires.png)
-
-**Bus Inspector:** every message with its cause. Here a Loxone dimmer moved, the wire sent the new
-brightness to Home Assistant, and Home Assistant confirmed it in 3 ms.
-
-![The Bus Inspector's detail of a message, with its cause chain from the Loxone dimmer to the Home Assistant light](docs/screenshots/bus-inspector.png)
-
-**A plugin instance:** its status, its sensors and actuators with live values, and their wires.
-
-![The Home Assistant plugin instance: connection status, and sensors and actuators with their values](docs/screenshots/plugin-homeassistant.png)
-
-**Plugins bring their own panel.** The calendar shows how reading the feed goes and the next
-events, each with a button to dismiss it.
-
-![The Calendar plugin instance: feed status and the next five events with Dismiss buttons](docs/screenshots/plugin-calendar.png)
-
-The screenshots show a demo installation with made-up data.
+Click a screenshot for the full size. They show a demo installation with made-up data.
 
 ## Plugins
 
