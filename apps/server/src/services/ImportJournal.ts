@@ -2,11 +2,18 @@ import fs from "node:fs"
 import path from "node:path"
 import { ConfigExportSchema } from "@lox-nexus/api"
 import { z } from "zod"
+import type { PluginSnapshot } from "./PluginTransfer.ts"
 
 const JournalSchema = z.object({
   backup: ConfigExportSchema,
   /** Miniserver passwords by id; an export leaves them out, so they are kept here for the restore */
-  passwords: z.record(z.string(), z.string())
+  passwords: z.record(z.string(), z.string()),
+  /** the plugin instances' secret settings and stores by id, which an export leaves out too; absent in older journals */
+  plugins: z.object({
+    secrets: z.record(z.string(), z.record(z.string(), z.unknown())),
+    stores: z.record(z.string(), z.record(z.string(), z.unknown())),
+    plugins: z.record(z.string(), z.string()).default({})
+  }).default({ secrets: {}, stores: {}, plugins: {} })
 })
 
 /** What a running import would have to put back: the configuration before it, with passwords. */
@@ -14,13 +21,14 @@ export interface ImportBackup {
   /** parsed, with defaults applied */
   backup: z.output<typeof ConfigExportSchema>
   passwords: Map<string, string>
+  plugins: PluginSnapshot
 }
 
 /**
  * The configuration before a running config import, on disk. An import first writes it, then
  * replaces everything, then deletes it. A file left behind means Nexus stopped in the middle (a
- * crash, a power cut), and the next start restores it. It holds Miniserver passwords, like the
- * database, so it is private to the user and lives next to the database.
+ * crash, a power cut), and the next start restores it. It holds Miniserver passwords and plugin
+ * secrets and stores, like the database, so it is private to the user and lives next to the database.
  */
 export class ImportJournal {
   static readonly FILE_NAME = "import-in-progress.json"
@@ -33,13 +41,13 @@ export class ImportJournal {
   }
 
   /** writes it atomically (temp file, fsync, rename, fsync of the folder), so a crash leaves the old or the new one */
-  write({ backup, passwords }: ImportBackup) {
+  write({ backup, passwords, plugins }: ImportBackup) {
     const temp = `${this.file}.tmp`
     // a leftover temp file would keep its mode; the new one is created 0600
     fs.rmSync(temp, { force: true })
     const fd = fs.openSync(temp, "w", 0o600)
     try {
-      fs.writeSync(fd, JSON.stringify({ backup, passwords: Object.fromEntries(passwords) }))
+      fs.writeSync(fd, JSON.stringify({ backup, passwords: Object.fromEntries(passwords), plugins }))
       fs.fsyncSync(fd)
     } finally {
       fs.closeSync(fd)
@@ -60,8 +68,8 @@ export class ImportJournal {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined
       throw error
     }
-    const { backup, passwords } = JournalSchema.parse(JSON.parse(text))
-    return { backup, passwords: new Map(Object.entries(passwords)) }
+    const { backup, passwords, plugins } = JournalSchema.parse(JSON.parse(text))
+    return { backup, passwords: new Map(Object.entries(passwords)), plugins }
   }
 
   /** removes it; never throws */

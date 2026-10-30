@@ -37,6 +37,7 @@ import { TimeZoneSetting } from "./services/TimeZoneSetting.ts"
 import { LoxoneSignalService } from "./services/LoxoneSignalService.ts"
 import { MiniserverService } from "./services/MiniserverService.ts"
 import { PluginLogs } from "./services/PluginLogs.ts"
+import { PluginTransfer } from "./services/PluginTransfer.ts"
 import { StaleWatcher } from "./services/StaleWatcher.ts"
 import { BackupAssembly } from "./backup/BackupAssembly.ts"
 import { BackupService } from "./backup/BackupService.ts"
@@ -176,7 +177,8 @@ export class NexusApp extends Disposable {
     const pluginSignals = new PluginSignalService(db.pluginSignals, plugins, cleanup)
     const lock = new ChangeLock()
     const runtime = { cleanup, exists: (topic: string) => this.signals.atTopic(topic) !== undefined }
-    const transfer = new ConfigTransfer({ miniservers, signals: loxoneSignals, wires, selections: this.selections }, log, { lock, journal: this.journal, runtime })
+    const pluginTransfer = PluginTransfer.of(db, plugins, { catalog: this.pluginCatalog, selections: this.selections })
+    const transfer = new ConfigTransfer({ miniservers, signals: loxoneSignals, wires, selections: this.selections, plugins: pluginTransfer }, log, { lock, journal: this.journal, runtime })
     this.bus.restoreForces()
     miniservers.load()
     await this.pluginAssembly.load(plugins)

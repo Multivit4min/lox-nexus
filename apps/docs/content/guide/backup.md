@@ -43,3 +43,26 @@ backup**. Nexus copies its databases while it keeps running and your browser sav
 A backup without value history leaves the current history in place; history of signals the
 restored configuration doesn't have is removed an hour later. A backup made by an older Nexus is
 brought up to date when Nexus starts.
+
+## The configuration file
+
+**Export** on the Miniservers page saves the configuration as a JSON file: Miniservers, their
+signals, wires, which signals the history records, and the plugin instances with their sensors,
+actuators and watched signals. It is for moving a setup or keeping it in git, not a full backup:
+
+- Miniserver passwords are never in it. An import keeps the password stored for a Miniserver with
+  the same id.
+- The plugins' secret settings (tokens, passwords) are in it only when you tick **Include the
+  plugins' secret settings**, encrypted with a passphrase of at least 12 characters. The import
+  asks for it. Without them, an instance with the same id keeps the secrets it has; a new one
+  starts without them and the import names what to enter in its settings.
+- Plugin storage (the Matter bridge's devices and pairings, tokens a plugin received) is not in
+  it. An import keeps the storage of an instance with the same id; elsewhere, pair again, or use
+  a backup to move everything.
+
+**Import** replaces the whole configuration, the plugin instances too when the file has them; they
+stop first and start again on the file's settings. A file from before plugin instances leaves them
+as they are, and its wires to their sensors and actuators are kept. Forces and last values stay on
+topics that still exist. If anything fails, the configuration from before is restored, also after
+a crash in the middle.
+

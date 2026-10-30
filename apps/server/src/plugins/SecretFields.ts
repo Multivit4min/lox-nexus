@@ -22,6 +22,11 @@ export class SecretFields {
     this.declared = schema.properties && !open ? new Set(Object.keys(properties)) : undefined
   }
 
+  /** the names of the fields marked secret */
+  get secretNames(): string[] {
+    return [...this.names]
+  }
+
   /** a copy without the secret fields and the undeclared ones */
   strip(value: unknown): Record<string, unknown> {
     if (!SecretFields.isRecord(value)) return {}

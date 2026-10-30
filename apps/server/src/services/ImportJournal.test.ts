@@ -23,7 +23,7 @@ test("an import cut off in the middle is undone at the next start, passwords inc
   await first.dispose()
 
   // as if Nexus died after the import had written its journal and cleared the configuration
-  ImportJournal.in(dir).write({ backup: exported, passwords: new Map([[ms.id, "secret"]]) })
+  ImportJournal.in(dir).write({ backup: exported, passwords: new Map([[ms.id, "secret"]]), plugins: { secrets: {}, stores: {}, plugins: {} } })
   const db = new DatabaseSync(databaseFile)
   db.exec("PRAGMA foreign_keys = ON; DELETE FROM signals; DELETE FROM miniservers")
   db.close()
@@ -55,7 +55,7 @@ test("a restore at the start that can't bring everything back sets the journal a
   })
   // two Miniservers on one listen port: the second one can't come back
   const backup = ConfigExportSchema.parse({ format: "lox-nexus/config", version: 1, miniservers: [miniserver("a", "a"), miniserver("b", "b")], wires: [] })
-  ImportJournal.in(dir).write({ backup, passwords: new Map() })
+  ImportJournal.in(dir).write({ backup, passwords: new Map(), plugins: { secrets: {}, stores: {}, plugins: {} } })
   const app = await TestApp.start({ databaseFile: path.join(dir, "nexus.db") })
   t.after(() => app.dispose())
   assert.deepEqual(app.app.miniservers.list().map(m => m.config.id), ["a"], "as much as possible came back")

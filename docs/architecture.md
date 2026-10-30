@@ -2039,3 +2039,29 @@ Native `fetch` and `WebSocket` replace axios and socket.io (`ws` comes in throug
   list buttons in their heading (`actions`, RowAction shape, at most 4). The Matter bridge places
   all its actions there and splits Edit lock (with Allow unlocking) from Edit device.
 
+## Implementation notes: plugin instances in the config export (P6)
+
+- Format version 2 adds `plugins` (settings without secret fields, signals with their display
+  settings, the watch selection) and optionally `secrets`: `{ instanceId: { field: value } }`
+  sealed with a passphrase (`SecretSeal`: AES-256-GCM, scrypt key like a backup). An instance of a
+  plugin that isn't installed exports its whole config as secret, since its secret fields are
+  unknown. Wires and history rules on plugin signals come along.
+- `PluginTransfer` writes imported instances as stored rows (no settings check, like the boot),
+  then `packageChanged` attaches and starts them; one of a missing plugin stays unavailable.
+  Stores are not exported; an instance with the same id keeps its store and its secrets over an
+  import. `missingSecrets` names what a new instance lacks.
+- An import of a file with plugin instances stops them first (`snapshot()`), so their stores are
+  final, and keeps their secrets, stores and plugin types; an imported instance inherits them only
+  for the same id and plugin, under the file's settings and sealed secrets. Forces and values are
+  kept on every topic (`keep("#")`) and come back where the topic still exists.
+- A version 1 file leaves the plugin instances alone, its rollback too (the backup it restores has
+  no `plugins`), and its wires may end at existing plugin signals.
+- The journal keeps the plugins' secrets, stores and types besides the backup, so `recover()`
+  restores them after a crash; at boot it only attaches the instances (`packageChanged(pkg, false)`)
+  and the boot starts them as usual. `ConfigCheck` covers plugin ids, slugs, signal ids and watch
+  rule targets; selections may name whole instances (`instanceId`). The Miniservers and the history
+  selection moved to `MiniserverTransfer` and `HistorySelectionTransfer`.
+- Secret fields fail closed: a plugin that isn't installed, or a config schema without top-level
+  fields or with secrets below them, exports its whole config as secret. A sealed part with a
+  wrong iv, salt or tag length is a wrong passphrase, and a file may ask for at most 2^18 scrypt.
+

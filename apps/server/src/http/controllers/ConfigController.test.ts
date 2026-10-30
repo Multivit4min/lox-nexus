@@ -40,7 +40,7 @@ describe("config export and import", { timeout: 10_000 }, () => {
     assert.equal(response.statusCode, 200)
     assert.match(String(response.headers["content-disposition"]), /attachment; filename="lox-nexus-config-\d{4}-\d{2}-\d{2}\.json"/)
     exported = response.json<ConfigExport>()
-    assert.deepEqual([exported.format, exported.version, exported.miniservers.length, exported.wires.length], ["lox-nexus/config", 1, 1, 1])
+    assert.deepEqual([exported.format, exported.version, exported.miniservers.length, exported.wires.length], ["lox-nexus/config", 2, 1, 1])
     assert.equal(exported.miniservers[0]!.signals.length, 2)
     assert.doesNotMatch(response.body, /secret|password/)
   })
@@ -52,7 +52,7 @@ describe("config export and import", { timeout: 10_000 }, () => {
       await other.post("/api/miniservers", { slug: "alt", label: "Alt", host: "h", port: 1, listenPort: 2, ownId: "a", remoteId: "b", enabled: false })
       const response = await other.post("/api/config/import", exported)
       assert.equal(response.statusCode, 200, response.body)
-      assert.deepEqual(response.json<ConfigImportResultDto>(), { miniservers: 1, signals: 2, wires: 1, inactiveWires: 0, keptPasswords: [] })
+      assert.deepEqual(response.json<ConfigImportResultDto>(), { miniservers: 1, signals: 2, wires: 1, inactiveWires: 0, keptPasswords: [], plugins: 0, pluginSignals: 0, missingSecrets: [] })
       const expected = await snapshot(admin)
       assert.deepEqual(await snapshot(other), { ...expected, miniservers: expected.miniservers.map(ms => ({ ...ms, hasPassword: false })) })
     } finally {

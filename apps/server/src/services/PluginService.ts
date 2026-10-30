@@ -48,10 +48,10 @@ export class PluginService {
   /**
    * A plugin was (re)loaded, after an edit in development or an install, update or rollback:
    * running instances restart with it, enabled instances in error or crashed start on it, and
-   * instances that were unavailable get a supervisor and start if enabled. Instances stopped by
-   * hand stay stopped.
+   * instances that were unavailable get a supervisor and start if enabled (with `start`). Instances
+   * stopped by hand stay stopped.
    */
-  async packageChanged(pkg: PluginPackage) {
+  async packageChanged(pkg: PluginPackage, start = true) {
     // an update may be the fix: enabled instances that failed start on it rather than staying down
     const failed = this.manager.list()
       .filter(supervisor => supervisor.config.plugin === pkg.id && supervisor.config.enabled && (supervisor.state === "error" || supervisor.state === "crashed"))
@@ -61,6 +61,8 @@ export class PluginService {
     const waiting = this.repo.list().filter(instance => instance.plugin === pkg.id && !this.manager.get(instance.id))
     // attached synchronously, so a concurrent call (a development reload) can't attach one twice
     const attached = waiting.map(instance => ({ instance, supervisor: this.attach(instance, pkg) }))
+    // a recovery at boot only attaches: the boot starts the enabled instances afterwards
+    if (!start) return
     await Promise.all([
       ...restart.map(supervisor => supervisor.start()),
       ...attached.filter(({ instance }) => instance.enabled).map(({ supervisor }) => supervisor.start())
