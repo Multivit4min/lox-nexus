@@ -16,7 +16,7 @@
     "@lox-nexus/plugin-sdk": "*",
     "@lucide/vue": "^1.61.0",
     "@tanstack/vue-virtual": "^3.13.48",
-    "@vueuse/core": "^14.4.0",
+    "@vueuse/core": "^15.0.0",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.0",
     "markdown-it": "^15.0.3",
