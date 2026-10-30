@@ -194,6 +194,18 @@ Read [`docs/architecture.md`](docs/architecture.md) before larger changes. The c
 (class per file, short files, lifetimes through `Disposable`, package boundaries) are in
 [`CLAUDE.md`](CLAUDE.md) and enforced by ESLint.
 
+## AI disclosure
+
+Lox Nexus is written largely by Claude (Anthropic) through Claude Code, under the maintainer's
+direction. Commits written this way carry a `Co-Authored-By: Claude` line. The maintainer makes the
+design decisions, recorded in [`docs/adr`](docs/adr), and tests Nexus against a real Miniserver,
+Fronius inverters and Home Assistant. Every change passes lint, type checks and over 1,200
+automated tests in CI; code and security reviews are AI-assisted too.
+
+It is early software: read before you rely on it for things that matter in your home, and report
+what you find ([issues](https://github.com/Multivit4min/lox-nexus/issues), or privately as
+described in [`SECURITY.md`](SECURITY.md)).
+
 ## License
 
 Lox Nexus is free software under the **GNU General Public License v3.0 or later**
