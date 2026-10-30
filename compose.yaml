@@ -11,10 +11,34 @@ services:
     init: true
     volumes:
       - nexus-data:/data
+    # every setting Nexus reads; the commented values are the defaults (in this image)
     environment:
-      # behind an HTTPS reverse proxy:
-      # NEXUS_SECURE_COOKIES: "true"
-      # NEXUS_PUBLIC_ORIGINS: https://nexus.example
+      # fatal, error, warn, info, debug, trace or silent
       NEXUS_LOG_LEVEL: info
+      # where the web UI and API listen; with host networking, change the port here
+      # NEXUS_HTTP_HOST: 0.0.0.0
+      # NEXUS_HTTP_PORT: "8080"
+
+      # behind an HTTPS reverse proxy:
+      # cookies only over HTTPS
+      # NEXUS_SECURE_COOKIES: "true"
+      # comma-separated addresses or CIDRs of proxies whose X-Forwarded-For is trusted (login throttling
+      # counts per client address; without this every login seems to come from the proxy)
+      # NEXUS_TRUST_PROXY: 127.0.0.1
+      # comma-separated addresses the UI is reached at, when the proxy rewrites the Host header
+      # NEXUS_PUBLIC_ORIGINS: https://nexus.example
+
+      # set by the image; change only together with the volume or a custom build
+      # database, history, installed plugins and backups staged for restore
+      # NEXUS_DATA_DIR: /data
+      # the built web UI, and the documentation served at /docs/ without a login
+      # NEXUS_WEB_DIR: /app/apps/web/dist
+      # NEXUS_DOCS_DIR: /app/apps/docs/dist
+      # a folder with one built plugin per subfolder, offered under Plugins → Install
+      # NEXUS_PLUGIN_REPOSITORY: /app/plugin-repository
+
+      # development only: run every plugin in this folder from source and reload it on changes
+      # (mount the folder under volumes:, e.g. ./plugins:/plugins)
+      # NEXUS_DEV_PLUGINS_DIR: /plugins
 volumes:
   nexus-data:
