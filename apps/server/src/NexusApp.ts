@@ -24,33 +24,24 @@ import { ConfigController } from "./http/controllers/ConfigController.ts"
 import { HookController } from "./http/controllers/HookController.ts"
 import { MiniserverController } from "./http/controllers/MiniserverController.ts"
 import { SignalController } from "./http/controllers/SignalController.ts"
-import { ChangeLock } from "./http/ChangeLock.ts"
 import { HttpServer } from "./http/HttpServer.ts"
 import { SessionCookie } from "./http/SessionCookie.ts"
 import { PluginAssembly, type InstallOptions } from "./plugins/PluginAssembly.ts"
 import type { PluginCatalog } from "./plugins/PluginCatalog.ts"
 import { DiagnosticsAssembly } from "./diagnostics/DiagnosticsAssembly.ts"
-import { ConfigTransfer } from "./services/ConfigTransfer.ts"
 import { ImportJournal } from "./services/ImportJournal.ts"
 import { LoxoneProjectService } from "./services/LoxoneProjectService.ts"
 import { TimeZoneSetting } from "./services/TimeZoneSetting.ts"
-import { LoxoneSignalService } from "./services/LoxoneSignalService.ts"
-import { MiniserverService } from "./services/MiniserverService.ts"
 import { PluginLogs } from "./services/PluginLogs.ts"
-import { PluginTransfer } from "./services/PluginTransfer.ts"
 import { StaleWatcher } from "./services/StaleWatcher.ts"
 import { BackupAssembly } from "./backup/BackupAssembly.ts"
 import { BackupService } from "./backup/BackupService.ts"
 import { RestoreApplier } from "./backup/RestoreApplier.ts"
 import { HistoryAssembly } from "./history/HistoryAssembly.ts"
-import { PluginService } from "./services/PluginService.ts"
 import { SelectionService } from "./services/SelectionService.ts"
-import { PluginSignalService } from "./services/PluginSignalService.ts"
+import { ServiceAssembly } from "./services/ServiceAssembly.ts"
 import { SnapshotWriter } from "./services/SnapshotWriter.ts"
 import { SystemEventLogger } from "./services/SystemEventLogger.ts"
-import { TopicCleanup } from "./services/TopicCleanup.ts"
-import { UnloadableRows } from "./services/UnloadableRows.ts"
-import { WireService } from "./services/WireService.ts"
 import { BusStream } from "./stream/BusStream.ts"
 
 /** Overrides for tests; production uses the defaults. */
@@ -68,17 +59,6 @@ export interface NexusAppOptions {
   install?: InstallOptions
   /** restarts the app in-process (main.ts), e.g. to apply a restored backup; tests leave it out */
   restart?: () => void
-}
-
-/** The services the HTTP layer needs, built in start(). */
-interface Services {
-  miniservers: MiniserverService
-  loxoneSignals: LoxoneSignalService
-  wires: WireService
-  plugins: PluginService
-  pluginSignals: PluginSignalService
-  transfer: ConfigTransfer
-  lock: ChangeLock
 }
 
 /**
@@ -167,18 +147,11 @@ export class NexusApp extends Disposable {
   async start(): Promise<string | undefined> {
     const { persistence: db, log } = this
     if (db.applied.length > 0) log.info({ migrations: db.applied }, "database migrated")
-    const cleanup = new TopicCleanup(this.bus, db.snapshot)
-    const unloadable = new UnloadableRows()
-    const loxoneSignals = new LoxoneSignalService(db.loxoneSignals, this.miniservers, cleanup, unloadable, log)
-    const wires = new WireService(db.wires, this.wires, this.signals, log)
-    const miniservers = new MiniserverService(db.miniservers, this.miniservers, loxoneSignals, cleanup, unloadable, log, wires)
-    const plugins = new PluginService(db.pluginInstances, db.pluginSignals, this.plugins, this.pluginCatalog, cleanup, log, this.pluginLogs, wires, this.selections,
-      this.pluginAssembly.settingsCheck(id => db.pluginInstances.get(id), this.persistence.pluginStore))
-    const pluginSignals = new PluginSignalService(db.pluginSignals, plugins, cleanup)
-    const lock = new ChangeLock()
-    const runtime = { cleanup, exists: (topic: string) => this.signals.atTopic(topic) !== undefined }
-    const pluginTransfer = PluginTransfer.of(db, plugins, { catalog: this.pluginCatalog, selections: this.selections })
-    const transfer = new ConfigTransfer({ miniservers, signals: loxoneSignals, wires, selections: this.selections, plugins: pluginTransfer }, log, { lock, journal: this.journal, runtime })
+    const services = new ServiceAssembly({
+      db, bus: this.bus, signals: this.signals, wires: this.wires, miniservers: this.miniservers, plugins: this.plugins, pluginCatalog: this.pluginCatalog,
+      pluginAssembly: this.pluginAssembly, pluginLogs: this.pluginLogs, selections: this.selections, journal: this.journal, log
+    })
+    const { miniservers, plugins, wires, transfer } = services
     this.bus.restoreForces()
     miniservers.load()
     await this.pluginAssembly.load(plugins)
@@ -191,7 +164,7 @@ export class NexusApp extends Disposable {
     for (const failure of await this.miniservers.startEnabled()) log.warn({ err: failure.error, miniserver: failure.id }, "miniserver failed to start")
     if (this.isDisposed) return undefined
     this.own(new SystemEventLogger(this.bus, log.child({ component: "bus" })))
-    this.http = this.own(this.createHttp({ miniservers, loxoneSignals, wires, plugins, pluginSignals, transfer, lock }))
+    this.http = this.own(this.createHttp(services))
     const address = await this.http.start(this.config.httpPort, this.config.httpHost)
     // failures show up as each instance's state; nothing to wait for here
     this.plugins.startEnabled().catch((error: unknown) => log.error({ err: error }, "starting the plugins failed"))
@@ -209,7 +182,7 @@ export class NexusApp extends Disposable {
   }
 
   /** Builds the auth stack and HTTP server. Called once from start(); everything created here is owned by the app. */
-  private createHttp({ miniservers, loxoneSignals, wires, plugins, pluginSignals, transfer, lock }: Services) {
+  private createHttp({ miniservers, loxoneSignals, wires, plugins, pluginSignals, transfer, lock }: ServiceAssembly) {
     const { persistence: db, clock, config, log } = this
     const sessions = new SessionService(db.sessions, clock)
     this.own(new SessionPruner(sessions, log))

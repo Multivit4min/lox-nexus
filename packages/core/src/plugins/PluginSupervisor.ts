@@ -1,7 +1,6 @@
 import { Disposable } from "@lox-nexus/plugin-sdk"
 import { Value } from "@lox-nexus/plugin-sdk/values"
 import type { SignalRegistry } from "../wires/SignalRegistry.ts"
-import { Backoff } from "./Backoff.ts"
 import { PluginCalls } from "./PluginCalls.ts"
 import { PluginInbox } from "./PluginInbox.ts"
 import { InitFailedError, PluginSession, type SessionTimings } from "./PluginSession.ts"
@@ -9,16 +8,12 @@ import { PluginSignals, type PluginBus } from "./PluginSignals.ts"
 import { PluginTopics } from "./PluginTopics.ts"
 import type { PluginTransport } from "./PluginTransport.ts"
 import type { PluginInstanceConfig, PluginLogSink, PluginPackage, PluginState, PluginStateStore } from "./PluginTypes.ts"
+import { RestartSchedule, type RestartTimings } from "./RestartSchedule.ts"
 import { SessionInit } from "./SessionInit.ts"
 import { WatchFeed, type WatchDeps } from "./WatchFeed.ts"
 
 /** Session timeouts plus the restart policy, in ms. */
-export interface SupervisorTimings extends SessionTimings {
-  backoffInitialMs: number
-  backoffMaxMs: number
-  /** running this long without a crash resets the backoff */
-  stableMs: number
-}
+export interface SupervisorTimings extends SessionTimings, RestartTimings {}
 
 export const DEFAULT_TIMINGS: SupervisorTimings = {
   helloMs: 10_000, initMs: 30_000, requestMs: 30_000, actionMs: 120_000, pingMs: 10_000, missedPings: 3, graceMs: 5_000,
@@ -56,18 +51,15 @@ export class PluginSupervisor extends Disposable {
   private feed: WatchFeed | undefined
   private current: PluginState = "stopped"
   private failure: string | undefined
-  private crashes = 0
   private readonly timings: SupervisorTimings
-  private readonly backoff: Backoff
+  private readonly restarting: RestartSchedule
   private topics: PluginTopics
   private lifecycle: Promise<unknown> = Promise.resolve()
-  private cancelRestart = () => {}
-  private cancelStable = () => {}
 
   constructor(private instance: PluginInstanceConfig, private currentPkg: PluginPackage, private readonly deps: SupervisorDeps) {
     super()
     this.timings = { ...DEFAULT_TIMINGS, ...deps.timings }
-    this.backoff = new Backoff(this.timings.backoffInitialMs, this.timings.backoffMaxMs)
+    this.restarting = this.own(new RestartSchedule(this.timings))
     this.topics = new PluginTopics(instance)
     this.calls = new PluginCalls(() => this.session, () => this.signals, deps.bus, this.timings.actionMs)
     this.signals = this.own(new PluginSignals(instance, () => this.currentPkg, deps.bus, deps.registry, (id, value, cause) => this.calls.actuate(id, value, cause)))
@@ -114,18 +106,18 @@ export class PluginSupervisor extends Disposable {
 
   /** automatic restarts after crashes since the last start() or stop() from outside */
   get restarts() {
-    return this.crashes
+    return this.restarting.restarts
   }
 
   /** starts the plugin; failing to start is not an error of the call, see `state` and `lastError` */
   start(): Promise<void> {
-    this.crashes = 0
+    this.restarting.resetCount()
     return this.serialize(() => this.open())
   }
 
   /** stops the plugin gracefully and cancels a pending restart; a stopped instance stays stopped */
   stop(): Promise<void> {
-    this.crashes = 0
+    this.restarting.resetCount()
     return this.serialize(() => this.close("stopped"))
   }
 
@@ -154,7 +146,7 @@ export class PluginSupervisor extends Disposable {
   // never rejects: every failure becomes a state; a dispose meanwhile closes what was opened
   private async open() {
     if (this.session || this.isDisposed) return
-    this.cancelRestart()
+    this.restarting.cancel()
     this.inbox.reset()
     this.setState("starting")
     let session: PluginSession | undefined
@@ -176,12 +168,11 @@ export class PluginSupervisor extends Disposable {
     const { watch } = this.deps
     if (watch && this.currentPkg.description.watches) this.feed = new WatchFeed(this.instance.id, watch, message => session.notify(message), text => this.report(text))
     this.setState(this.inbox.health)
-    this.cancelStable = this.after(this.timings.stableMs, () => this.backoff.reset())
+    this.restarting.running()
   }
 
   private async close(state: PluginState) {
-    this.cancelRestart()
-    this.cancelStable()
+    this.restarting.cancel()
     const session = this.session
     this.session = undefined
     this.stopFeed()
@@ -199,7 +190,7 @@ export class PluginSupervisor extends Disposable {
       if (this.session !== session) return
       this.session = undefined
       this.stopFeed()
-      this.cancelStable()
+      this.restarting.ended()
       this.crashed(reason)
     })
   }
@@ -219,15 +210,9 @@ export class PluginSupervisor extends Disposable {
     if (this.isDisposed) return
     this.failure = reason
     this.setState("crashed")
-    const delay = this.backoff.next()
+    const delay = this.restarting.crashed(() => void this.serialize(() => this.open())
+      .catch((error: unknown) => this.report(`restarting failed: ${PluginSupervisor.message(error)}`)))
     this.report(`${reason}; restarting in ${Math.round(delay / 1000)} s`)
-    this.cancelRestart = this.after(delay, () => void this.restart().catch((error: unknown) => this.report(`restarting failed: ${PluginSupervisor.message(error)}`)))
-  }
-
-  // an automatic start after a crash, counted in `restarts`
-  private restart() {
-    this.crashes++
-    return this.serialize(() => this.open())
   }
 
   private rename(instance: PluginInstanceConfig) {

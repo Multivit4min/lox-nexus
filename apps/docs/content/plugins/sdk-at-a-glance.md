@@ -328,6 +328,7 @@ class PluginTestHost<T extends PluginClass = PluginClass> {
   get plugin(): InstanceType<T>
   static start<T extends PluginClass>(type: T, options?: TestHostOptions): Promise<PluginTestHost<T>>
   static describe(type: PluginClass): Promise<PluginDescription>
+  static checkConfig(type: PluginClass, config: unknown, configVersion?: number, store?: Record<string, unknown>): Promise<ConfigCheckResult>
   addSensor(capability: string, params?: unknown, label?: string): Promise<string>
   addActuator(capability: string, params?: unknown, label?: string): Promise<string>
   remove(id: string): Promise<void>
@@ -343,6 +344,8 @@ class PluginTestHost<T extends PluginClass = PluginClass> {
   pushValues(values: Array<Omit<WatchedValue, "ts" | "kind"> & Partial<Pick<WatchedValue, "ts" | "kind">>>, dropped?: number): Promise<void>
   stop(): Promise<void>
 }
+interface ConfigCheckResult { issues: ConfigIssue[]; config: unknown; version: number; store?: { set: Record<string, unknown>; delete: string[] } }
+interface ConfigIssue { path: (string | number)[]; message: string }
 interface TestHostOptions { config?: unknown; store?: Record<string, unknown>; instanceId?: string; slug?: string /* default "test" */; clock?: Clock /* e.g. a TestClock */; timeZone?: string; forwardRejections?: boolean }
 
 class TestClock implements Clock {
@@ -360,6 +363,7 @@ class TestClock implements Clock {
 | `addSensor` / `addActuator` | Return the new signal's id. Throw for unknown capabilities, invalid params or a failing `start()`. |
 | `values(id)` | Every value emitted so far. |
 | `next(id, timeoutMs = 2000)` | Waits for the next value emitted after the call; throws on timeout. Waits use the real timers, also while a test mocks them (`mock.timers`), so a missing value fails instead of hanging. |
+| `checkConfig` | Checks settings as the host does before saving them, without starting the plugin: zod issues at their fields, and the config migrated from `configVersion` (default: the current version). With `store`, `store` in the result says what the migration wrote. |
 | `plugin` | The plugin instance, typed as its class, for reaching into it from a test (e.g. waiting for a poller). |
 | `actuate` | Throws `Error` with the message `run()` threw. `causeId` is the bus message it answers. |
 | `http` | Method defaults to `POST`; unknown route answers 404; a throwing handler rejects. |

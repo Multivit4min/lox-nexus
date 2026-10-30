@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto"
-import { PluginNotRunningError, PluginRequestError, PluginUnavailableError, type PluginInstanceConfig, type PluginManager, type PluginPackage, type PluginSupervisor } from "@lox-nexus/core"
+import type { PluginInstanceConfig, PluginManager, PluginPackage, PluginSupervisor } from "@lox-nexus/core"
 import type { PluginInstanceDto, PluginInstanceInput, PluginPackageDto } from "@lox-nexus/api"
 import { PluginInstanceInputSchema } from "@lox-nexus/api"
 import type { Logger } from "pino"
@@ -8,6 +8,7 @@ import type { PluginSignalRepository } from "../db/repositories/PluginSignalRepo
 import { HttpError } from "../http/HttpError.ts"
 import type { PluginCatalog } from "../plugins/PluginCatalog.ts"
 import { SecretFields } from "../plugins/SecretFields.ts"
+import { PluginErrors } from "./PluginErrors.ts"
 import type { PluginSettingsCheck, PreparedConfig } from "./PluginSettingsCheck.ts"
 import type { PluginLogs } from "./PluginLogs.ts"
 import type { SelectionService } from "./SelectionService.ts"
@@ -91,7 +92,7 @@ export class PluginService {
     if (!entry) throw HttpError.badRequest(`plugin "${parsed.plugin}" is not available`)
     const { config, configVersion }: PreparedConfig = await this.settings?.prepare(parsed.plugin, parsed.config) ?? { config: parsed.config }
     const instance: PluginInstanceConfig = { id: randomUUID(), ...parsed, config, ...(configVersion === undefined ? {} : { configVersion }) }
-    const supervisor = PluginService.domain(() => this.manager.add(instance, entry.pkg))
+    const supervisor = PluginErrors.domain(() => this.manager.add(instance, entry.pkg))
     try {
       this.repo.save(instance)
     } catch (error) {
@@ -119,7 +120,7 @@ export class PluginService {
     const instance: PluginInstanceConfig = { ...parsed, id, ...checked }
     const topics = new Map(supervisor.signals.list().map(entry => [entry.config.id, entry.topic]))
     if (!instance.enabled) await supervisor.stop()
-    await PluginService.domainAsync(() => this.manager.update(instance))
+    await PluginErrors.domainAsync(() => this.manager.update(instance))
     try {
       this.repo.save(instance)
     } catch (error) {
@@ -170,12 +171,12 @@ export class PluginService {
 
   /** @throws HttpError 409 when the instance isn't running */
   catalog(id: string) {
-    return PluginService.running(() => this.supervisor(id).calls.catalog())
+    return PluginErrors.running(() => this.supervisor(id).calls.catalog())
   }
 
   /** @throws HttpError 409 when the instance isn't running; resolves undefined when the plugin has no panel */
   panel(id: string) {
-    return PluginService.running(() => this.supervisor(id).calls.panel())
+    return PluginErrors.running(() => this.supervisor(id).calls.panel())
   }
 
   /** @throws HttpError 404 unknown instance, 409 when its plugin isn't available */
@@ -234,33 +235,5 @@ export class PluginService {
 
   private static version(instance: PluginInstanceConfig) {
     return instance.configVersion === undefined ? {} : { configVersion: instance.configVersion }
-  }
-
-  // a plugin that throws in catalog() or panel() is a failing upstream: 502 with its message
-  private static async running<T>(work: () => Promise<T>) {
-    try {
-      return await work()
-    } catch (error) {
-      if (error instanceof PluginNotRunningError) throw HttpError.conflict(error.message)
-      if (error instanceof PluginRequestError) throw new HttpError(502, `the plugin failed: ${error.message}`)
-      if (error instanceof PluginUnavailableError) throw new HttpError(503, error.message)
-      throw error
-    }
-  }
-
-  private static domain<T>(work: () => T): T {
-    try {
-      return work()
-    } catch (error) {
-      throw HttpError.fromDomain(error)
-    }
-  }
-
-  private static async domainAsync<T>(work: () => Promise<T>) {
-    try {
-      return await work()
-    } catch (error) {
-      throw HttpError.fromDomain(error)
-    }
   }
 }
