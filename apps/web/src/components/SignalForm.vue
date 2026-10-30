@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from "vue"
-import { LumitechRule, type LoxoneSignalDto, type LoxoneSignalInput } from "@lox-nexus/api"
+import type { LoxoneSignalDto, LoxoneSignalInput } from "@lox-nexus/api"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
 import { ApiError } from "../api/ApiError.ts"
 import { DataTypes } from "../lib/DataTypes.ts"
 import { SignalDisplayDraft } from "../lib/SignalDisplayDraft.ts"
@@ -23,22 +22,20 @@ const form = reactive({
   direction: props.initial?.direction ?? "in" as "in" | "out",
   dataType: String(props.initial?.dataType ?? 1),
   label: props.initial?.label ?? "",
-  slug: props.initial?.slug ?? "",
-  lumitech: props.initial?.lumitech ?? false
+  slug: props.initial?.slug ?? ""
 })
 const display = reactive(new SignalDisplayDraft(props.initial))
 const failure = ref<ApiError>()
-const lumitechPossible = computed(() => LumitechRule.allowed(Number(form.dataType), form.direction))
-// only plain numbers: a Lumitech signal carries colours
-const numeric = computed(() => form.dataType === "1" && !(form.lumitech && lumitechPossible.value))
+// units and decimals are for numbers
+const numeric = computed(() => form.dataType === "1")
 
 async function onSubmit() {
   failure.value = undefined
   try {
-    const { slug, dataType, lumitech, ...rest } = form
+    const { slug, dataType, ...rest } = form
     await props.submit({
       ...rest, dataType: Number(dataType) as LoxoneSignalInput["dataType"], label: form.label || form.packetId,
-      ...(slug ? { slug } : {}), ...(lumitech && lumitechPossible.value ? { lumitech: true } : {}), ...(numeric.value ? display.input() : {})
+      ...(slug ? { slug } : {}), ...(numeric.value ? display.input() : {})
     })
   } catch (error) {
     failure.value = error instanceof ApiError ? error : new ApiError(0, String(error))
@@ -74,17 +71,6 @@ async function onSubmit() {
         <Input id="slug" v-model="form.slug" />
       </FormField>
     </div>
-    <label v-if="lumitechPossible" class="flex items-start gap-3 text-sm">
-      <Switch v-model="form.lumitech" class="mt-0.5" />
-      <span class="grid gap-0.5">
-        <span class="font-medium">Lumitech colour</span>
-        <span class="text-xs text-muted-foreground">
-          The value is a Lighting Controller's Lumitech output: a colour temperature (e.g. 200504000 = 4000 K at 50 %) or an RGB colour.
-          It shows and wires as a colour temperature or colour instead of a number. Wire it to Lumitech outputs or colour-aware targets:
-          a plain Analog output would get a brightness, not the colour number.
-        </span>
-      </span>
-    </label>
     <SignalDisplayFields v-if="numeric" v-model:unit="display.unit" v-model:decimals="display.decimals" id-prefix="signal" :error="failure?.issueFor('decimals')" />
     <Alert v-if="failure" variant="destructive"><AlertDescription>{{ failure.message }}</AlertDescription></Alert>
     <p v-if="initial" class="text-xs text-muted-foreground">

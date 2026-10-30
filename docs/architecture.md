@@ -673,31 +673,15 @@ above:
     can't take PacketTraffic's slots.
   - The shares don't add up to the total: the total also counts status packets and packets for
     other targets that share the port.
-- **Lumitech signals (Loxone colour numbers).** A Smart RGBW output loses colour temperatures:
-  the Miniserver mixes them into RGBW before sending, and no flag marks them (PROTOCOL.md). A
-  Lighting Controller output of type Lumitech sends the controller's own number instead:
-  `20bbbkkkk` for a temperature, or `BBBGGGRRR` for an RGB colour.
-  - A signal's **Lumitech** option, for Analog signals and RGBW inputs, decodes it (`LoxoneColor`
-    in `packages/ici`). Temperatures become `tunableWhite` and colours `rgbw`, so the signal's
-    value type is `any`.
-  - Lumitech outputs (Analog) send `tunableWhite` as a temperature, and `rgbw` and other types
-    as RGB with white added to each channel. A number is taken as a colour number as it is (50 is
-    red 50 %). One that isn't a colour number is refused and reported on the error topic,
-    instead of being turned into some colour.
-  - A Lumitech input that receives a number that isn't a colour number reports it too. Adopting
-    a discovered RGBW packet that showed a colour temperature switches the option on, and a
-    project import keeps it wherever the new data type allows it (`LumitechRule` in
-    `@lox-nexus/api`, which mirrors the server's schema check).
-  - Wired to a plain Analog output, a Lumitech input gives a brightness, not the colour number
-    (the Converter knows no colour numbers). The signal form says so.
-  - A Lumitech output wired to an **RGBW** intercommunication output arrives as the raw bytes of
-    the double. Those are recognised on every RGBW input, because a real RGBW payload never looks
-    like one. Without the option they are converted to RGBW, and the Miniserver's error topic
-    suggests turning the option on.
-  - Stored in `loxone_signals.lumitech` (migration 4), exported with the config, and switched in
-    the signal form. Values show with a swatch tinted by their Kelvin.
-  - Verified live: mood 4 (2200 K, 70 %) shows as "2200K 70%" on the Analog and the RGBW
-    Lumitech signal, while the Smart output next to them shows `r83 g30 w39`.
+- **Loxone colour numbers.** A Lighting Controller output of type Lumitech sends the controller's
+  own number (`20bbbkkkk` for a temperature, `BBBGGGRRR` for RGB; `LoxoneColor` in
+  `packages/ici`, see PROTOCOL.md). Wired to an **RGBW** intercommunication output it arrives as
+  the raw bytes of the double; every RGBW input recognises those (a real RGBW payload never looks
+  like one) and publishes the RGB colour that was meant, converted to the signal's `rgbw` type.
+  - A per-signal **Lumitech** option (Analog signals carrying colour numbers, decoded into
+    `tunableWhite`/`rgbw`, and encoded for outputs) existed until it was removed for lack of use;
+    migration 9 drops `loxone_signals.lumitech`. Such signals are plain Analog ones again, and
+    config files that still carry the field import without it.
 - **Long lists.** A Miniserver can have thousands of signals, and up to 1000 discovered packets.
   Every list that can grow uses `VirtualTable`, which renders only the rows in view (so only
   visible rows track live values), with a search box and an "x of y" count. That covers signals,
@@ -1983,8 +1967,8 @@ Native `fetch` and `WebSocket` replace axios and socket.io (`ws` comes in throug
   suggestion only when a signal is added without its own; a catalog entry's `unit` (if it fits)
   is the form's and the bulk add's default.
 - Signal edits replace the whole signal: a PUT without the fields clears them, as it does for
-  slug or Lumitech. The project re-sync (`ProjectDiff.inputFor`) carries them over while the signal
-  stays a plain number. An add with neither field takes the class's suggestion; a form always
+  slug. The project re-sync (`ProjectDiff.inputFor`) carries them over while the signal
+  stays a number. An add with neither field takes the class's suggestion; a form always
   sends the unit (empty clears it), so what it shows is final.
 - The web shows them through `ValueText unit decimals` (numbers only; the SDK's
   `ValueFormatter.format(value, { decimals })`) and `HistoryText`. The MQTT export's Home Assistant

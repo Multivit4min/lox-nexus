@@ -11,8 +11,6 @@ interface LoxoneSignalRow extends SignalDisplayRow {
   data_type: number
   label: string
   slug: string | null
-  /** 0 or 1 */
-  lumitech: number
 }
 
 /** A stored Loxone signal: its config plus the Miniserver it belongs to. dataType is validated when the Miniserver parses it. */
@@ -42,8 +40,8 @@ export class LoxoneSignalRepository {
     this.db.transaction(() => {
       this.db.run("INSERT INTO signals (id, owner) VALUES (:id, :owner)", { id: signal.id, owner: LoxoneSignalRepository.OWNER })
       this.db.run(
-        `INSERT INTO loxone_signals (id, miniserver_id, packet_id, direction, data_type, label, slug, lumitech, unit, decimals)
-         VALUES (:id, :miniserverId, :packetId, :direction, :dataType, :label, :slug, :lumitech, :unit, :decimals)`,
+        `INSERT INTO loxone_signals (id, miniserver_id, packet_id, direction, data_type, label, slug, unit, decimals)
+         VALUES (:id, :miniserverId, :packetId, :direction, :dataType, :label, :slug, :unit, :decimals)`,
         LoxoneSignalRepository.params(signal)
       )
     })
@@ -56,7 +54,7 @@ export class LoxoneSignalRepository {
   update(signal: StoredLoxoneSignal) {
     const { changes } = this.db.run(
       `UPDATE loxone_signals SET packet_id = :packetId, direction = :direction, data_type = :dataType, label = :label, slug = :slug,
-         lumitech = :lumitech, ${SignalDisplayColumns.ASSIGN}
+         ${SignalDisplayColumns.ASSIGN}
        WHERE id = :id AND miniserver_id = :miniserverId`,
       LoxoneSignalRepository.params(signal)
     )
@@ -71,15 +69,15 @@ export class LoxoneSignalRepository {
   private static params(signal: StoredLoxoneSignal) {
     return {
       id: signal.id, miniserverId: signal.miniserverId, packetId: signal.packetId, direction: signal.direction,
-      dataType: signal.dataType, label: signal.label, slug: signal.slug ?? null, lumitech: signal.lumitech ? 1 : 0, ...SignalDisplayColumns.params(signal)
+      dataType: signal.dataType, label: signal.label, slug: signal.slug ?? null, ...SignalDisplayColumns.params(signal)
     }
   }
 
-  // NULL slug and a 0 lumitech become absent fields
+  // a NULL slug becomes an absent field
   private static toSignal(row: LoxoneSignalRow): StoredLoxoneSignal {
     return {
       id: row.id, miniserverId: row.miniserver_id, packetId: row.packet_id, direction: row.direction,
-      dataType: row.data_type, label: row.label, ...(row.slug === null ? {} : { slug: row.slug }), ...(row.lumitech ? { lumitech: true } : {}),
+      dataType: row.data_type, label: row.label, ...(row.slug === null ? {} : { slug: row.slug }),
       ...SignalDisplayColumns.read(row)
     }
   }

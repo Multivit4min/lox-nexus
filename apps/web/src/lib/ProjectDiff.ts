@@ -1,4 +1,4 @@
-import { LumitechRule, type LoxoneProjectDto, type LoxoneProjectPeerDto, type LoxoneProjectSignalDto, type LoxoneSignalDto, type LoxoneSignalInput, type MiniserverDto } from "@lox-nexus/api"
+import type { LoxoneProjectDto, LoxoneProjectPeerDto, LoxoneProjectSignalDto, LoxoneSignalDto, LoxoneSignalInput, MiniserverDto } from "@lox-nexus/api"
 import { DataTypes } from "./DataTypes.ts"
 
 /**
@@ -67,11 +67,10 @@ export class ProjectDiff {
     if (dataType === undefined) throw new Error(`data type ${row.signal.dataType} is not supported`)
     const { packetId, direction } = row.signal
     if (!row.existing) return { packetId, direction, dataType, label: row.signal.label.slice(0, 100) }
-    const { label, slug, lumitech, unit, decimals } = row.existing
-    // a full replace: the Lumitech option stays where the new type still allows it, unit and decimals while it is a plain number
-    const keep = lumitech && LumitechRule.allowed(dataType, direction)
-    const display = dataType === 1 && !keep ? { ...(unit ? { unit } : {}), ...(decimals === undefined ? {} : { decimals }) } : {}
-    return { packetId, direction, dataType, label, ...(slug === undefined ? {} : { slug }), ...(keep ? { lumitech: true } : {}), ...display }
+    const { label, slug, unit, decimals } = row.existing
+    // a full replace: unit and decimals stay while it is still a number
+    const display = dataType === 1 ? { ...(unit ? { unit } : {}), ...(decimals === undefined ? {} : { decimals }) } : {}
+    return { packetId, direction, dataType, label, ...(slug === undefined ? {} : { slug }), ...display }
   }
 
   /** where the peer's settings disagree with the Miniserver's; ICI only works when they match */

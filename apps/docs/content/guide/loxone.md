@@ -98,17 +98,12 @@ Miniserver's `ownId` and lists connection settings that differ from the project.
   has**, which deletes them and the wires connected to them after a confirmation. Check that the
   right peer is chosen first: for another peer, everything of this Miniserver looks removed.
 
-## Colours and Lumitech
+## Colours from a Lighting Controller
 
-A Loxone Lighting Controller output of type **Lumitech** sends the controller's own colour number
-(for example `200504000`: 50 % brightness at 4000 K), not RGB bytes. Tick **Lumitech** on the
-signal so Nexus decodes it. This option exists for:
-
-- **Analog** signals (the number itself), and
-- **RGBW inputs** (which may carry the number's bytes).
-
-It gives exact colour temperatures. A *Smart* output goes through a table inside the Miniserver,
-which loses the exact temperature.
+A Lighting Controller output of type **Lumitech** sends the controller's own colour number, not RGB
+bytes. Wired to an **RGBW** intercommunication output, Nexus recognises it on the RGBW input and
+shows the colour that was meant, as RGBW. Exact colour temperatures don't come through either way:
+the RGBW input keeps only the colour, and a Smart output goes through a table inside the Miniserver.
 
 ## Load limit
 

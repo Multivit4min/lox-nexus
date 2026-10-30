@@ -179,5 +179,11 @@ export const MIGRATIONS: readonly Migration[] = [
       ALTER TABLE plugin_signals ADD COLUMN decimals INTEGER;
       ALTER TABLE plugin_signals ADD COLUMN stale_after_min INTEGER;
     `
+  },
+  {
+    version: 9,
+    name: "drop_lumitech",
+    // the Lumitech option is gone; its signals are plain Analog ones (or RGBW inputs) again
+    sql: "ALTER TABLE loxone_signals DROP COLUMN lumitech"
   }
 ]

@@ -73,17 +73,6 @@ describe("ProjectDiff", () => {
     assert.throws(() => ProjectDiff.inputFor(odd!), /not supported/)
   })
 
-  test("an existing Lumitech signal keeps the option where the project's type still allows it", () => {
-    const [toRgbwIn, toDigital] = ProjectDiff.rows(peer({
-      signals: [
-        { packetId: "lc", direction: "in", dataType: 4, label: "Light" },
-        { packetId: "dim", direction: "in", dataType: 0, label: "Dim" }
-      ]
-    }), [{ ...configured("lc", "in", 1), lumitech: true }, { ...configured("dim", "in", 1), lumitech: true }])
-    assert.equal(ProjectDiff.inputFor(toRgbwIn!).lumitech, true, "an RGBW input still carries colour numbers")
-    assert.equal(ProjectDiff.inputFor(toDigital!).lumitech, undefined, "a digital one can't")
-  })
-
   test("an existing signal keeps its unit and decimals while it stays a number", () => {
     const [stays, toDigital] = ProjectDiff.rows(peer({
       signals: [

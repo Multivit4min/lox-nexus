@@ -147,7 +147,7 @@ async function removeSelected() {
             <WiredMark :wires="wired.of(row.id)" />
           </span>
           <span class="flex min-w-0 items-center gap-1.5"><Badge variant="outline">{{ row.direction }}</Badge><span class="truncate font-mono text-xs">{{ row.packetId }}</span></span>
-          <span class="truncate text-muted-foreground">{{ DataTypes.nameOf(row.dataType) }}{{ row.lumitech ? " · Lumitech" : "" }}</span>
+          <span class="truncate text-muted-foreground">{{ DataTypes.nameOf(row.dataType) }}</span>
           <span class="truncate font-mono text-xs" :title="row.topic">{{ row.topic }}</span>
           <span class="flex min-w-0 items-center gap-1.5">
             <Lock v-if="isForced(row)" class="size-3.5 shrink-0 text-amber-600 dark:text-amber-400" aria-label="forced" />
