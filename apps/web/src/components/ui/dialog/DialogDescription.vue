@@ -18,6 +18,6 @@ const forwardedProps = useForwardProps(delegatedProps)
     v-bind="forwardedProps"
     :class="cn('text-muted-foreground *:[a]:hover:text-foreground text-sm *:[a]:underline *:[a]:underline-offset-3', props.class)"
   >
-    <slot></slot>
+    <slot />
   </DialogDescription>
 </template>

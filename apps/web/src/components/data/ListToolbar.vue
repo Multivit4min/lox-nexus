@@ -13,7 +13,7 @@ const query = defineModel<string>({ required: true })
       <Search class="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
       <Input v-model="query" class="h-8 w-72 max-w-full pl-8 text-sm" :placeholder="placeholder ?? 'Search'" :aria-label="placeholder ?? 'Search'" type="search" />
     </div>
-    <slot></slot>
+    <slot />
     <span class="ml-auto text-xs text-muted-foreground" style="font-variant-numeric: tabular-nums">
       {{ shown === total ? `${total.toLocaleString()} total` : `${shown.toLocaleString()} of ${total.toLocaleString()}` }}
     </span>

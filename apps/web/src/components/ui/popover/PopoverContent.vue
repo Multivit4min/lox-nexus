@@ -39,7 +39,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
         )
       "
     >
-      <slot></slot>
+      <slot />
     </PopoverContent>
   </PopoverPortal>
 </template>

@@ -16,6 +16,6 @@ const delegatedProps = reactiveOmit(props, "class")
     v-bind="delegatedProps"
     :class="cn('scroll-my-1 p-1', props.class)"
   >
-    <slot></slot>
+    <slot />
   </SelectGroup>
 </template>

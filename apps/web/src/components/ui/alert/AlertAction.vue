@@ -12,6 +12,6 @@ const props = defineProps<{
     data-slot="alert-action"
     :class="cn('absolute top-2 right-2', props.class)"
   >
-    <slot></slot>
+    <slot />
   </div>
 </template>

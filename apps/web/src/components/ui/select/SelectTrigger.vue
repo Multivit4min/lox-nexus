@@ -26,7 +26,7 @@ const forwardedProps = useForwardProps(delegatedProps)
       props.class,
     )"
   >
-    <slot></slot>
+    <slot />
     <SelectIcon as-child>
       <ChevronDownIcon class="text-muted-foreground size-4 pointer-events-none" />
     </SelectIcon>

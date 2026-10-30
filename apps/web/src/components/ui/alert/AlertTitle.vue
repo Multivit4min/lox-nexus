@@ -12,6 +12,6 @@ const props = defineProps<{
     data-slot="alert-title"
     :class="cn('font-medium group-has-[>svg]/alert:col-start-2 cn-font-heading [&_a]:underline [&_a]:underline-offset-3 [&_a]:hover:text-foreground', props.class)"
   >
-    <slot></slot>
+    <slot />
   </div>
 </template>

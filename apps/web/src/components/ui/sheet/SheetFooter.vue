@@ -10,6 +10,6 @@ const props = defineProps<{ class?: HTMLAttributes["class"] }>()
     data-slot="sheet-footer"
     :class="cn('gap-2 p-4 mt-auto flex flex-col', props.class)"
   >
-    <slot></slot>
+    <slot />
   </div>
 </template>

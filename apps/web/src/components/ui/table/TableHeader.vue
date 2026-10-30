@@ -12,6 +12,6 @@ const props = defineProps<{
     data-slot="table-header"
     :class="cn('bg-muted/50 [&_tr]:border-b [&_tr]:hover:bg-transparent', props.class)"
   >
-    <slot></slot>
+    <slot />
   </thead>
 </template>

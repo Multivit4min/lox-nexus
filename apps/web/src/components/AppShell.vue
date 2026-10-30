@@ -55,7 +55,7 @@ async function logout() {
       <PasswordDialog v-model:open="changingPassword" :username="session.state.user?.username" />
     </header>
     <main class="min-h-0 flex-1 overflow-auto">
-      <slot></slot>
+      <slot />
     </main>
   </div>
 </template>
