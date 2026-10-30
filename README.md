@@ -148,6 +148,7 @@ the server at `http://<host>:8080/docs/`. Its sources are in [`apps/docs/content
 - [History](apps/docs/content/guide/history.md), [Backup](apps/docs/content/guide/backup.md),
   [Diagnostics](apps/docs/content/guide/diagnostics.md)
 - Each plugin's page under [`plugins`](apps/docs/content/plugins)
+- What changed in each release: [CHANGELOG.md](CHANGELOG.md)
 
 ## Writing plugins
 
