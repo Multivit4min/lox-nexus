@@ -1,0 +1,66 @@
+# Builds the image for amd64 and arm64 and pushes it to the GitHub Container Registry:
+#   main      → ghcr.io/<owner>/<repo>:edge and :sha-<short>
+#   tag v1.2.3 → :1.2.3, :1.2 and :latest
+# Pull requests only build it (amd64, not pushed), so a broken Dockerfile shows up before merging.
+name: Docker image
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*.*.*"]
+  pull_request:
+    paths: [Dockerfile, .dockerignore, package.json, package-lock.json, "apps/**", "packages/**", "plugins/**"]
+  workflow_dispatch:
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+
+      # arm64 runs emulated, but only the server's `npm ci` needs it: the UI, docs and plugin
+      # bundles are built once on the runner's own platform (see the Dockerfile)
+      - uses: docker/setup-qemu-action@v3
+        if: github.event_name != 'pull_request'
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        if: github.event_name != 'pull_request'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=raw,value=edge,enable={{is_default_branch}}
+            type=sha,enable=${{ github.event_name != 'pull_request' }}
+          labels: |
+            org.opencontainers.image.title=Lox Nexus
+            org.opencontainers.image.description=Connects Home Assistant, Fronius, calendars and more to Loxone Miniservers over Network Intercommunication
+            org.opencontainers.image.licenses=GPL-3.0-or-later
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: ${{ github.event_name == 'pull_request' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
