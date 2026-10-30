@@ -72,7 +72,7 @@ user adding an instance to it being stopped.
 ### 1. Start of a run
 
 1. **The worker starts** with an empty environment (`process.env` is empty) and a 128 MB heap
-   limit. Nexus waits up to 10 seconds for the entry module to announce itself, which
+   limit (or the manifest's `heapMb`, up to 512). Nexus waits up to 10 seconds for the entry module to announce itself, which
    `PluginEntry.define()` does.
 2. **Nexus sends the instance**: its id, slug, settings, the persisted store and the installation's
    time zone. The runtime checks your static declarations first (a sensor without `id`, or two
@@ -230,7 +230,9 @@ const config = z.object({
 - **`this.config`** has defaults applied and is available in field initializers.
 - **Use the SDK's `z`.** Import it from `@lox-nexus/plugin-sdk` so your schemas and the runtime
   share one zod version.
-- **Keep schemas simple**: strings, numbers, booleans, enums, optional fields and defaults. The
+- **Keep schemas simple**: strings, numbers, booleans, enums, optional fields and defaults, and
+  arrays and objects of those (a list of devices, each with a name and a type, renders as a list
+  the user adds rows to). The
   form is built from the JSON Schema, so transforms and refinements are lost there, while the worker
   still enforces them when it starts. An object-level `.refine()` or `.superRefine()` keeps the form
   the same; the form does not run the check, and the worker refuses a failing value at start (the
@@ -342,7 +344,7 @@ first requests in `start()` if the plugin works without them; start them in the 
 A failure of one sensor, as opposed to the whole device, is reported with `fail()`, see
 [Sensors](#sensors-values-from-the-device).
 
-**Restarts.** Nexus restarts a worker that crashed, ran out of memory (128 MB heap), took longer
+**Restarts.** Nexus restarts a worker that crashed, ran out of memory (128 MB heap, or the manifest's `heapMb`), took longer
 than 30 seconds to start, or stopped answering its pings (sent every 10 seconds; the worker is
 terminated after three go unanswered, so after roughly 30 to 40 seconds of a busy loop). The delay
 before a restart doubles each time: 1 s, 2 s, 4 s and so on up to 5 minutes. A run that stays up for
@@ -759,7 +761,7 @@ Everything numeric in one place. Keep these in mind and you will rarely meet the
 | Ping interval and tolerated misses | every 10 s, terminated after 3 unanswered |
 | Time to stop (watched batch, disposals, flush) | 5 s |
 | Restart delay after a crash | 1 s, doubling to 5 min; reset after 60 s of running |
-| Heap of the worker | 128 MB; `process.env` is empty |
+| Heap of the worker | 128 MB, or the manifest's `heapMb` (128 to 512); `process.env` is empty |
 | Store key, store value | 1 to 200 characters, 1 MiB as JSON |
 | Log text, log data | 10 000 characters, 64 KiB as JSON |
 | Status message | 10 000 characters |

@@ -30,6 +30,7 @@ says so.
 - **Actuators:** <what Nexus can control>
 - **Catalog:** <what can be browsed to add signals>
 - **Panel:** <what the status panel shows>
+- **Actions:** <the buttons on the instance page and what they do>   (only for plugins with actions)
 - **Export:** <what it publishes of other signals>   (only for plugins that watch signals)
 
 (Leave out a bullet the plugin doesn't have. Plain sentences, no params here.)
@@ -46,7 +47,8 @@ says so.
 | **<Form title>** (`<key>`) | <required / optional; default `<value>`; secret> | <what it is, when to change it, an example value> |
 
 (One row per field of the plugin's config schema, in schema order; the form title exactly as
-the form shows it. Nested objects get one row per field, as `parent.child`.)
+the form shows it. Nested objects get one row per field, as `parent.child`; fields of the items of
+a list as `parent[].child`.)
 
 ## Sensors and actuators
 

@@ -1,0 +1,26 @@
+{
+  "name": "@lox-nexus/plugin-matter-bridge",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Matter bridge plugin for Lox Nexus: Nexus devices in Alexa, Google Home, Apple Home and Home Assistant",
+  "type": "module",
+  "loxNexus": {
+    "apiVersion": 1,
+    "id": "matter-bridge",
+    "entry": "dist/plugin.js",
+    "name": "Matter bridge",
+    "icon": "lightbulb",
+    "heapMb": 256
+  },
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "@lox-nexus/plugin-sdk": "*",
+    "@matter/main": "0.18.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}

@@ -61,7 +61,11 @@ function generate() {
     <div class="grid gap-2">
       <div v-for="(item, i) in items" :key="i" class="flex items-start gap-2">
         <div class="min-w-0 flex-1">
-          <SchemaFieldInput :id="`${id}-${i}`" :field="{ ...field.items!, label: `${field.label} ${i + 1}` }" :model-value="item" @update:model-value="value => setItem(i, value)" />
+          <!-- a name makes an object item a bordered group with its number, so its fields read as one entry -->
+          <SchemaFieldInput
+            :id="`${id}-${i}`" :field="{ ...field.items!, name: field.items!.name || `${field.name}-${i + 1}`, label: `${field.label} ${i + 1}` }"
+            :model-value="item" @update:model-value="value => setItem(i, value)"
+          />
         </div>
         <Button type="button" size="icon" variant="ghost" class="size-9" :title="`Remove item ${i + 1}`" @click="removeItem(i)"><X class="size-4" /></Button>
       </div>

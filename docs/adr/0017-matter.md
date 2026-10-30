@@ -41,9 +41,17 @@ MB0 also showed what the runtime lacks:
 **Storage on `this.store`.**
 - A `StoreStorageDriver` (extends matter.js's `MemoryStorageDriver`, calls `initialize()` itself)
   persists one store key per leaf storage context, `matter:<namespace>/<context path>`, with the
-  value as matter.js's own `toJson()` text; matter.js's own codec handles `Uint8Array` and `bigint`.
-  A key longer than 200 characters is shortened with a hash suffix. Writes go through at once (no
-  coalescing) until MB2 measures the write rate.
+  value `{ context, json }`: the context path (so a key shortened with a hash can be read back) and
+  matter.js's own `toJson()` text, whose codec handles `Uint8Array` and `bigint`. A key longer than
+  200 characters is shortened with a hash suffix. Fabrics, sessions, access control,
+  commissioning data and the pairing secrets are written at once; device attribute state and
+  remembered states are merged per key within 1.5 s (`WriteCoalescer`, flushed on stop). Measured
+  in MB2: 11 writes for a first start, 16 for a pairing, 2 for 20 blind positions within 2 s.
+- The bridge keeps its passcode and discriminator in the store (`pairing`): matter.js 0.18 otherwise
+  advertised a code that failed after the factory reset that follows removing the last controller.
+- The SDK's `Actuator` has no `fail()`: a bridge actuator whose device is missing or of another
+  type refuses in `start()`, so the signal shows the reason. An actuator-side `fail()` is a
+  candidate SDK addition.
 - Per-context keys keep each value far below the 1 MiB store limit, also for a controller whose
   per-node caches would not fit in one key. A value over 900 KiB is logged as a warning.
 - The driver is copied into each plugin (plugins import only the SDK); the copies are identical

@@ -24,6 +24,8 @@ Miniserver needs no extra hardware, no cloud and no HTTP polling.
 - **Connect something:** the [Fronius](plugins/fronius.md), [Home Assistant](plugins/homeassistant.md),
   [Calendar](plugins/calendar.md), [Webhook](plugins/webhook.md), [MQTT](plugins/mqtt.md) and
   [Script](plugins/script.md) plugins ship with Nexus.
+- **Voice control:** the [Matter bridge](plugins/matter-bridge.md) shows Nexus devices to Alexa,
+  Google Home, Apple Home and Home Assistant.
 - **Keep values:** [History](guide/history.md) charts in Nexus, the [InfluxDB](plugins/influxdb.md)
   plugin for Grafana and long-term storage, and the [MQTT](plugins/mqtt.md) plugin's export (with
   Home Assistant discovery).

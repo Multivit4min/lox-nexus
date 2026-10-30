@@ -319,6 +319,7 @@ class PluginTestHost<T extends PluginClass = PluginClass> {
   catalog(): Promise<CatalogNode[]>
   panel(): Promise<Panel | undefined>
   http(request: Partial<HttpRequest> & Pick<HttpRequest, "path">): Promise<Required<HttpResponse>>
+  action(id: string, input?: unknown): Promise<string | undefined>  // runs an action like its button; rejects with its failure
   get status(): { status: "running" | "degraded"; message?: string }
   watchSignals(signals: WatchedSignal[]): Promise<void>
   pushValues(values: Array<Omit<WatchedValue, "ts" | "kind"> & Partial<Pick<WatchedValue, "ts" | "kind">>>, dropped?: number): Promise<void>

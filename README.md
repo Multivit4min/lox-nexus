@@ -72,7 +72,7 @@ docs).
 | `packages/api` | REST/WebSocket contract between server and UI |
 | `apps/server` | Composition root, HTTP API, persistence, plugin installer |
 | `apps/web` | Vue 3 + Tailwind + shadcn-vue UI |
-| `plugins/*` | First-party plugins: homeassistant, calendar, fronius, influxdb, mqtt, script, webhook |
+| `plugins/*` | First-party plugins: homeassistant, calendar, fronius, influxdb, matter-bridge, mqtt, script, webhook |
 | `docs/` | Architecture, ADRs, roadmap, plugin authoring guide |
 
 ## Working with Claude Code

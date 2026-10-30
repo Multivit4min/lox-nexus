@@ -34,7 +34,8 @@
         "plugins/webhook.md",
         "plugins/mqtt.md",
         "plugins/script.md",
-        "plugins/influxdb.md"
+        "plugins/influxdb.md",
+        "plugins/matter-bridge.md"
       ]
     },
     {
