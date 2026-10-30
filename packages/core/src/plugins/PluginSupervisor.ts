@@ -73,6 +73,7 @@ export class PluginSupervisor extends Disposable {
       healthChanged: health => this.session && this.setState(health)
     })
     this.onDispose(() => this.serialize(() => this.close("stopped")))
+    this.onDispose(deps.logs.onLevel?.(instance.id, level => this.session?.logLevel(level)) ?? (() => undefined))
     this.publishState()
   }
 
@@ -155,10 +156,9 @@ export class PluginSupervisor extends Disposable {
     try {
       session = new PluginSession(this.deps.transport.open(this.currentPkg.entry, { heapMb: this.currentPkg.heapMb }), this.timings)
       this.wire(session)
-      const timeZone = this.deps.timeZone?.()
       await session.open({
         instanceId: this.instance.id, slug: this.instance.slug, config: this.instance.config, store: this.deps.store.load(this.instance.id),
-        ...(timeZone === undefined ? {} : { timeZone })
+        timeZone: this.deps.timeZone?.(), logLevel: this.deps.logs.level?.(this.instance.id)
       })
     } catch (error) {
       await session?.dispose().catch(() => undefined)
@@ -167,6 +167,8 @@ export class PluginSupervisor extends Disposable {
     if (this.isDisposed) return void await session.close().catch(() => undefined)
     this.session = session
     this.failure = undefined
+    // a change while it started reached no session; the session sends only a level that differs
+    session.logLevel(this.deps.logs.level?.(this.instance.id))
     await this.calls.addAll()
     if (this.isDisposed || this.session !== session) return
     const { watch } = this.deps

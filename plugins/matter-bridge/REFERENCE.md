@@ -118,9 +118,8 @@ Every sensor and actuator has one param:
 
 A sensor for a device that doesn't exist, or whose type has no such command, goes into the error
 state with the reason (for example `"Hall" is a plug (on/off), which gets no brightness
-commands`); it follows devices removed while it runs. An actuator in that case is refused with the
-same message when it is added or the instance starts, and a device removed while it runs fails
-each command. Renaming never affects signals.
+commands`); it follows devices removed while it runs. An actuator does the same, and each command
+it gets meanwhile fails with that message. Renaming never affects signals.
 
 ## Catalog
 

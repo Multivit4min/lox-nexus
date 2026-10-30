@@ -1,6 +1,6 @@
 import type {
-  BridgeRequest, BridgeResultDto, PluginActionResultDto, PluginInstanceDto, PluginInstanceInput, PluginLogLineDto, PluginPackageDto, PluginSignalDto,
-  PluginSignalInput
+  BridgeRequest, BridgeResultDto, PluginActionResultDto, PluginInstanceDto, PluginInstanceInput, PluginLogLevelDto, PluginLogLevelInput, PluginLogLineDto,
+  PluginPackageDto, PluginSignalDto, PluginSignalInput
 } from "@lox-nexus/api"
 import type { CatalogNode, Panel } from "@lox-nexus/plugin-sdk/wire"
 import type { Http } from "./Http.ts"
@@ -83,7 +83,25 @@ export class PluginApi {
     return this.http.get<PluginLogLineDto[]>(`${this.url(id)}/logs`)
   }
 
+  /** the log as a text file, for a link the browser downloads */
+  static logsDownloadUrl(id: string) {
+    return `${PluginApi.url(id)}/logs?download=1`
+  }
+
+  /** whether the instance keeps debug lines, and until when */
+  logLevel(id: string) {
+    return this.http.get<PluginLogLevelDto>(`${this.url(id)}/log-level`)
+  }
+
+  setLogLevel(id: string, input: PluginLogLevelInput) {
+    return this.http.put<PluginLogLevelDto>(`${this.url(id)}/log-level`, input)
+  }
+
   private url(id: string) {
+    return PluginApi.url(id)
+  }
+
+  private static url(id: string) {
     return `/api/plugin-instances/${encodeURIComponent(id)}`
   }
 }

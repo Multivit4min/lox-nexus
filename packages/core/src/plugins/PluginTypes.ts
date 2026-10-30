@@ -52,6 +52,10 @@ export interface PluginStateStore {
 /** Where plugin log lines go, tagged with their instance. */
 export interface PluginLogSink {
   log(instance: Pick<PluginInstanceConfig, "id" | "slug">, level: LogLevel, message: string, data?: unknown): void
+  /** the lowest level kept for the instance; the worker then doesn't send lines below it. Without it, all are sent */
+  level?(instanceId: string): LogLevel
+  /** calls `listener` when the instance's level changes; @returns the unsubscribe */
+  onLevel?(instanceId: string, listener: (level: LogLevel) => void): () => void
 }
 
 /** The value type a configured signal carries, from the plugin's description. */

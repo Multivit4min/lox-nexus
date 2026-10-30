@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { ValueSchema } from "../values/ValueSchema.ts"
 import { WatchedSignalSchema, WatchedValueSchema } from "./WatchShapes.ts"
+import { LogLevelSchema } from "./WorkerMessages.ts"
 
 /** bumped on any incompatible change; a worker announces its version in `hello` */
 export const WIRE_VERSION = 1
@@ -43,7 +44,9 @@ export const HostMessageSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("init"), instanceId: z.string(), slug: z.string().optional(), config: z.unknown(), store: z.record(z.string(), z.unknown()),
     /** IANA name of the installation's time zone; absent when the host doesn't know it */
-    timeZone: z.string().optional()
+    timeZone: z.string().optional(),
+    /** the lowest level the host keeps; lines below it aren't sent. Absent from older hosts: send everything */
+    logLevel: LogLevelSchema.optional()
   }),
   /** what the plugin offers: config schema, sensors and actuators with their params (JSON Schema) */
   z.object({ type: z.literal("describe"), requestId }),
@@ -70,6 +73,8 @@ export const HostMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("watch.signals"), signals: z.array(WatchedSignalSchema).max(100_000) }),
   /** values of watched signals, oldest first; answered with `watch.ack` (seq). `dropped`: values left out since the last batch because the plugin was too slow */
   z.object({ type: z.literal("watch.values"), seq: z.int().nonnegative(), values: z.array(WatchedValueSchema).max(5000), dropped: z.int().nonnegative().optional() }),
+  /** the lowest level the host keeps from now on; only to workers whose hello lists the feature "log.level" */
+  z.object({ type: z.literal("log.level"), level: LogLevelSchema }),
   /** liveness probe; the worker echoes `seq` in `pong` */
   z.object({ type: z.literal("ping"), seq: z.int() }),
   /** dispose everything, answer `stopped`; the host terminates the worker after a grace period */

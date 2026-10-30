@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { after, before, describe, test } from "node:test"
-import type { PluginInstanceDto, PluginLogLineDto, PluginPackageDto, PluginSignalDto } from "@lox-nexus/api"
+import type { PluginInstanceDto, PluginLogLevelDto, PluginLogLineDto, PluginPackageDto, PluginSignalDto } from "@lox-nexus/api"
 import { CounterPlugin, FakePluginTransport } from "@lox-nexus/core/testing"
 import { PluginTestHost } from "@lox-nexus/plugin-sdk/testing"
 import { Value } from "@lox-nexus/plugin-sdk/values"
@@ -76,6 +76,19 @@ describe("plugin API", { timeout: 10_000 }, () => {
     const degraded = (await admin.get(base())).json<PluginInstanceDto>()
     assert.deepEqual([degraded.state, degraded.statusMessage, degraded.restarts, degraded.secrets], ["degraded", "unlucky number", 0, []])
     assert.equal((await admin.get("/api/plugin-instances/nope/logs")).statusCode, 404)
+  })
+
+  test("debug logging switches on for a while and off again; the log downloads as text", async () => {
+    assert.deepEqual((await admin.get(`${base()}/log-level`)).json<PluginLogLevelDto>(), { level: "info" })
+    const on = (await admin.put(`${base()}/log-level`, { level: "debug", minutes: 5 })).json<PluginLogLevelDto>()
+    assert.equal(on.level, "debug")
+    assert.ok(on.until! > Date.now() + 4 * 60_000 && on.until! <= Date.now() + 5 * 60_000)
+    assert.equal((await admin.put(`${base()}/log-level`, { level: "debug", minutes: 61 })).statusCode, 400)
+    assert.deepEqual((await admin.put(`${base()}/log-level`, { level: "info" })).json<PluginLogLevelDto>(), { level: "info" })
+    const download = await admin.get(`${base()}/logs?download=1`)
+    assert.match(String(download.headers["content-disposition"]), /attachment; filename="home-log.txt"/)
+    assert.match(download.body, /^\d{4}-\d\d-\d\dT[\d:.]+Z INFO {2}started$/m)
+    assert.equal((await admin.put("/api/plugin-instances/nope/log-level", { level: "debug" })).statusCode, 404)
   })
 
   test("webhooks reach the running plugin without a session", async () => {

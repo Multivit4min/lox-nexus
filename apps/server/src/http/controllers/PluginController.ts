@@ -3,7 +3,6 @@ import type { FastifyInstance, FastifyRequest } from "fastify"
 import { z } from "zod"
 import type { PluginActionService } from "../../services/PluginActionService.ts"
 import type { PluginBridgeService } from "../../services/PluginBridgeService.ts"
-import type { PluginLogs } from "../../services/PluginLogs.ts"
 import type { PluginService } from "../../services/PluginService.ts"
 import type { PluginSignalService } from "../../services/PluginSignalService.ts"
 import type { Controller } from "../Controller.ts"
@@ -26,7 +25,7 @@ const ActionParams = IdParams.extend({ action: z.string().min(1).max(100) })
  * - GET :id/catalog, :id/panel: 200 with the plugin's answer.
  * - POST :id/bridge: 200 with one result per item (signal, Loxone signal and wire, or why it failed);
  *   404 for an unknown Miniserver as well, before anything is created.
- * - GET :id/logs: 200 with the instance's recent log lines, oldest first (kept in memory only).
+ * - The log is PluginLogController's.
  * - POST :id/actions/:action: 200 with the plugin's message; 400 the plugin refused, 404 unknown
  *   action, 409 not running, 503 timeout (2 min) or the plugin stopped meanwhile.
  */
@@ -34,7 +33,6 @@ export class PluginController implements Controller {
   constructor(
     private readonly plugins: PluginService,
     private readonly signals: PluginSignalService,
-    private readonly logs: Pick<PluginLogs, "recent">,
     private readonly bridges: Pick<PluginBridgeService, "bridge">,
     private readonly actions: Pick<PluginActionService, "run">
   ) {}
@@ -53,11 +51,6 @@ export class PluginController implements Controller {
     app.post("/api/plugin-instances/:id/start", request => this.plugins.start(PluginController.id(request)))
     app.post("/api/plugin-instances/:id/stop", request => this.plugins.stop(PluginController.id(request)))
     app.get("/api/plugin-instances/:id/catalog", request => this.plugins.catalog(PluginController.id(request)))
-    app.get("/api/plugin-instances/:id/logs", request => {
-      const id = PluginController.id(request)
-      this.plugins.get(id)
-      return this.logs.recent(id)
-    })
     app.get("/api/plugin-instances/:id/panel", async request => (await this.plugins.panel(PluginController.id(request))) ?? null)
     // lock-free: pairing takes up to two minutes, which must not hold off a config import
     app.post("/api/plugin-instances/:id/actions/:action", { bodyLimit: 64 * 1024, config: { lockFree: true } }, request => {

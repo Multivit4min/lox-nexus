@@ -1,12 +1,13 @@
 import { z } from "zod"
 import { SystemClock, type Clock } from "../lifecycle/Clock.ts"
 import type { Plugin, PluginClass } from "../plugin/Plugin.ts"
-import type { PluginContext, PluginLogger } from "../plugin/PluginContext.ts"
+import type { PluginContext } from "../plugin/PluginContext.ts"
 import { HostMessageSchema, WIRE_VERSION, type HostMessage } from "../wire/HostMessages.ts"
 import type { LogLevel, WorkerMessage } from "../wire/WorkerMessages.ts"
 import { ActionHost } from "./ActionHost.ts"
 import { CauseScope } from "./CauseScope.ts"
 import { Declarations } from "./Declarations.ts"
+import { LogLevels } from "./LogLevels.ts"
 import { PluginDescriber } from "./PluginDescriber.ts"
 import { MessageLimits } from "./MessageLimits.ts"
 import { RouteTable } from "./RouteTable.ts"
@@ -23,7 +24,7 @@ type Request = Extract<HostMessage, { requestId: number }>
  */
 export class PluginRuntime {
   /** the longest text a message may carry (the `text` bound in WorkerMessages); longer log, status and error texts are clipped to it */
-  static readonly MAX_TEXT = 10_000
+  static readonly MAX_TEXT = MessageLimits.TEXT
   private plugin: Plugin | undefined
 
   /** the plugin instance after init, for PluginTestHost; undefined before init and after a failed one */
@@ -34,6 +35,7 @@ export class PluginRuntime {
   private actions: ActionHost | undefined
   private readonly routes = new RouteTable()
   private readonly watch: WatchHost
+  private readonly levels = new LogLevels(error => this.log("error", `a log level listener threw: ${PluginRuntime.text(error)}`))
 
   /** @param clock what the plugin's timers and `clock.now()` run on; tests pass a TestClock */
   constructor(private readonly type: PluginClass, private readonly send: (message: WorkerMessage) => void, private readonly clock: Clock = SystemClock.instance) {
@@ -42,7 +44,7 @@ export class PluginRuntime {
 
   /** announces the wire version; the host sends `init` (or `describe`) after it */
   hello() {
-    this.send({ type: "hello", version: WIRE_VERSION })
+    this.send({ type: "hello", version: WIRE_VERSION, features: [LogLevels.FEATURE] })
   }
 
   /** handles one host message; never throws (failures are answered as messages) */
@@ -53,6 +55,7 @@ export class PluginRuntime {
     if (message.type === "init") return this.init(message)
     if (message.type === "ping") return this.send({ type: "pong", seq: message.seq })
     if (message.type === "shutdown") return this.shutdown()
+    if (message.type === "log.level") return this.levels.set(message.level)
     if (message.type === "watch.signals") return this.watch.setSignals(message.signals, () => this.plugin)
     if (message.type === "watch.values") return this.watch.values(message.seq, message.values, message.dropped ?? 0, () => this.plugin)
     return this.request(message)
@@ -119,10 +122,11 @@ export class PluginRuntime {
 
   private context(init: Extract<HostMessage, { type: "init" }>, config: unknown): PluginContext {
     const { instanceId, slug, timeZone, store } = init
-    const log = Object.fromEntries((["debug", "info", "warn", "error"] as const).map(level =>
-      [level, (message: string, data?: unknown) => this.log(level, message, data)])) as PluginLogger
+    if (init.logLevel) this.levels.set(init.logLevel)
+    const log = this.levels.logger((level, message, data) => this.log(level, message, data))
     return {
       instanceId, ...(slug === undefined ? {} : { slug }), ...(timeZone === undefined ? {} : { timeZone }), config, log, http: this.routes, watch: this.watch, clock: this.clock,
+      logLevel: this.levels.view(),
       store: new RuntimeStore(store, this.send),
       status: { set: (status, message) => this.send({ type: "status", status, ...(message ? { message: PluginRuntime.clip(message) } : {}) }) }
     }
@@ -163,6 +167,6 @@ export class PluginRuntime {
   }
 
   private static clip(text: string) {
-    return text.length > PluginRuntime.MAX_TEXT ? `${text.slice(0, PluginRuntime.MAX_TEXT - 1)}…` : text
+    return MessageLimits.clip(text)
   }
 }

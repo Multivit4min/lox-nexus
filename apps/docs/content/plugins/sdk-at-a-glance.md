@@ -15,6 +15,7 @@ abstract class Plugin<Config = unknown> extends Disposable {
   constructor(protected readonly context: PluginContext)
   get config(): Config
   get log(): PluginLogger
+  get logLevel(): PluginLogLevel                           // { current, onChange(listener) }
   get store(): PluginStore
   get status(): PluginStatus
   get http(): PluginHttp
@@ -40,6 +41,7 @@ abstract class Plugin<Config = unknown> extends Disposable {
 | `config` | Already validated against the static `config` schema, defaults applied. Available in field initializers of subclasses. |
 | `slug` | The instance's slug: its topic segment and webhook path (`/hook/<slug>/…`). Undefined with hosts that don't send it. Fixed for one run (a slug change restarts the instance). |
 | `clock` | `this.clock.now()` instead of `Date.now()`; `every()` and `after()` run on it. Also on sensors and actuators. See [Time](authoring.md#time-and-time-zones). |
+| `logLevel` | `current` is "debug" while the user switched on debug logging for the instance (for 15 minutes) or the server's own log is at debug, "info" otherwise; `onChange(listener)` returns the unsubscribe. Lines below it are dropped in the worker. Use it to raise a library's own verbosity; plain `log.debug()` needs nothing. "debug" for good with older hosts. |
 | `timeZone` | The installation's IANA time zone, for anything that depends on the local time. Nexus takes it from the Loxone project it read last; without one (and with older hosts) it is the server's zone, which in a container is often UTC. Fixed for one run. |
 
 Static declarations on the subclass ([`PluginClass`](../reference/sdk/@lox-nexus/plugin-sdk.md#pluginclass)); all optional:
@@ -105,6 +107,8 @@ abstract class Actuator<P extends Plugin = Plugin, Params = unknown, V extends V
   constructor(readonly plugin: P, readonly params: Params, readonly signal: SignalInfo = { id: "", label: "" })
   start(): void | Promise<void>
   abstract run(value: V): void | Promise<void>
+  protected fail(message: string): void
+  protected recover(): void
 }
 ```
 
@@ -112,6 +116,8 @@ abstract class Actuator<P extends Plugin = Plugin, Params = unknown, V extends V
 |---|---|
 | `run(value)` | Throwing or rejecting reports a failed result. Emits and logs made while it runs (also from timers and promises it started) carry the command's cause. Never overlaps itself. |
 | `start()` | A rejection makes adding the signal fail. |
+| `fail(message)` | The actuator can't work at the moment (its device is gone); shown on the signal until `recover()`. Commands still reach `run()`. |
+| `recover()` | Ends a failure. Only tells the host after a `fail()`, so it is cheap to call on every change. |
 
 Static declarations ([`ActuatorClass`](../reference/sdk/@lox-nexus/plugin-sdk.md#actuatorclass)):
 
@@ -383,7 +389,7 @@ sends them itself; the runtime does. Requests carry a `requestId` and are answer
 
 | Host → worker (`HostMessage`) | Fields | Answer |
 |---|---|---|
-| `init` | `instanceId`, `slug?`, `config`, `store`, `timeZone?` | `ready` or `failed` |
+| `init` | `instanceId`, `slug?`, `config`, `store`, `timeZone?`, `logLevel?` | `ready` or `failed` |
 | `describe` | `requestId` | the `PluginDescription` |
 | `signal.add` | `requestId`, `signal` (`SignalSpec`) | ok once the sensor's or actuator's `start()` resolved |
 | `signal.remove` | `requestId`, `id` | ok once disposed |
@@ -394,12 +400,13 @@ sends them itself; the runtime does. Requests carry a `requestId` and are answer
 | `action` | `requestId`, `action`, `input` | the text to show, or none; only sent for actions the description declares |
 | `watch.signals` | `signals` (`WatchedSignal[]`) | none |
 | `watch.values` | `seq`, `values` (`WatchedValue[]`), `dropped?` | `watch.ack` |
+| `log.level` | `level` | none; only to workers whose `hello` lists the feature `log.level` |
 | `ping` | `seq` | `pong` |
 | `shutdown` | | `stopped` |
 
 | Worker → host (`WorkerMessage`) | Fields | Meaning |
 |---|---|---|
-| `hello` | `version` | the wire version, sent first |
+| `hello` | `version`, `features?` | the wire version, sent first; `features` names additions the worker understands (`log.level`) |
 | `ready` | | `init` done |
 | `failed` | `error` | `init` failed |
 | `emit` | `signalId`, `value`, `causeId?` | a sensor's value |

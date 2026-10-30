@@ -1,6 +1,6 @@
 import { EventEmitter } from "node:events"
 import { Disposable } from "@lox-nexus/plugin-sdk"
-import { WIRE_VERSION, type HostMessage, type WorkerMessage } from "@lox-nexus/plugin-sdk/wire"
+import { WIRE_VERSION, type HostMessage, type LogLevel, type WorkerMessage } from "@lox-nexus/plugin-sdk/wire"
 import type { PluginConnection } from "./PluginTransport.ts"
 import { PluginUnavailableError, RequestTracker } from "./RequestTracker.ts"
 
@@ -33,6 +33,9 @@ export interface SessionEvents {
   ended: [reason: string]
 }
 
+type Init = Extract<HostMessage, { type: "init" }>
+/** init without its type; the optional fields may be undefined, and are then left out */
+type InitFields = Omit<Init, "type" | "timeZone" | "logLevel"> & { timeZone?: string | undefined; logLevel?: Init["logLevel"] | undefined }
 type Request = Extract<HostMessage, { requestId: number }>
 type RequestBody = Request extends infer R ? R extends Request ? Omit<R, "requestId"> : never : never
 
@@ -46,6 +49,10 @@ export class PluginSession extends Disposable {
   private unanswered = 0
   private closing = false
   private over = false
+  /** additions to the wire version the worker announced in hello */
+  private features: ReadonlySet<string> = new Set()
+  /** the level the worker knows, from init or log.level */
+  private sentLevel: LogLevel | undefined
   private endReason = "stopped"
   /** pending waitFor() calls; they fail with the real reason when the session ends */
   private readonly waiting = new Set<(reason: string) => void>()
@@ -64,10 +71,12 @@ export class PluginSession extends Disposable {
    * Waits for hello, sends init and waits for ready, then starts pinging.
    * @throws InitFailedError when the plugin refuses; Error when it times out or exits meanwhile
    */
-  async open(init: Omit<Extract<HostMessage, { type: "init" }>, "type">) {
+  async open(fields: InitFields) {
     await this.greet()
     const ready = this.waitFor(["ready", "failed"], this.timings.initMs, "finish starting")
-    this.connection.send({ type: "init", ...init })
+    const { timeZone, logLevel, ...required } = fields
+    this.connection.send({ type: "init", ...required, ...(timeZone === undefined ? {} : { timeZone }), ...(logLevel === undefined ? {} : { logLevel }) })
+    this.sentLevel = logLevel
     const outcome = await ready
     if (outcome.type === "failed") throw new InitFailedError(outcome.error)
     this.every(this.timings.pingMs, () => this.ping())
@@ -80,9 +89,9 @@ export class PluginSession extends Disposable {
    */
   async greet() {
     const hello = await this.waitFor("hello", this.timings.helloMs, "say hello (does its entry call PluginEntry.define()?)")
-    if (hello.type === "hello" && hello.version !== WIRE_VERSION) {
-      throw new InitFailedError(`the plugin speaks wire version ${hello.version}, this Nexus ${WIRE_VERSION}`)
-    }
+    if (hello.type !== "hello") return
+    if (hello.version !== WIRE_VERSION) throw new InitFailedError(`the plugin speaks wire version ${hello.version}, this Nexus ${WIRE_VERSION}`)
+    this.features = new Set(hello.features ?? [])
   }
 
   /**
@@ -114,6 +123,13 @@ export class PluginSession extends Disposable {
   /** a notification to the worker that expects no response (watched signals and values) */
   notify(message: Extract<HostMessage, { type: "watch.signals" | "watch.values" }>) {
     if (!this.closing && !this.over) this.connection.send(message)
+  }
+
+  /** a new lowest log level; dropped for workers that didn't announce they understand it (an older SDK would log it as invalid) */
+  logLevel(level: LogLevel | undefined) {
+    if (level === undefined || level === this.sentLevel || !this.features.has("log.level") || this.closing || this.over) return
+    this.sentLevel = level
+    this.connection.send({ type: "log.level", level })
   }
 
   private receive(message: WorkerMessage) {

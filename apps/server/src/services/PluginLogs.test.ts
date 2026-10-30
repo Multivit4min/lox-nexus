@@ -39,3 +39,49 @@ test("recent returns a copy; forget drops an instance's lines", () => {
   buffer.forget("i1")
   assert.deepEqual(buffer.recent("i1"), [])
 })
+
+test("debug lines are kept only while debug logging is on, which ends by itself; the ring grows meanwhile", t => {
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"] })
+  const buffer = logs()
+  const heard: string[] = []
+  const stop = buffer.onLevel("i1", level => heard.push(level))
+  buffer.log(instance, "debug", "dropped")
+  assert.deepEqual(buffer.setLevel("i1", "debug", 2), { level: "debug", until: 2 * 60_000, remainingMs: 2 * 60_000 })
+  assert.equal(buffer.level("i1"), "debug")
+  for (let i = 0; i < PluginLogs.LINES_KEPT + 50; i++) buffer.log(instance, "debug", `detail ${i}`)
+  assert.equal(buffer.recent("i1").length, PluginLogs.LINES_KEPT + 50)
+  buffer.setLevel("i1", "debug", 2)
+  t.mock.timers.tick(2 * 60_000)
+  assert.deepEqual(buffer.levelOf("i1"), { level: "info" })
+  assert.equal(buffer.recent("i1").length, PluginLogs.LINES_KEPT, "back to the normal ring, the newest lines stay")
+  assert.equal(buffer.recent("i1").at(-1)?.message, `detail ${PluginLogs.LINES_KEPT + 49}`)
+  assert.deepEqual(heard, ["debug", "info"], "extending it is no change")
+  stop()
+  buffer.setLevel("i1", "debug")
+  assert.deepEqual(heard, ["debug", "info"])
+  buffer.dispose()
+})
+
+test("a server log at debug already gets every plugin's debug lines; the ring still waits for the switch", () => {
+  const verbose = LoggerFactory.silent()
+  verbose.level = "debug"
+  const buffer = new PluginLogs(verbose, { now: () => 0 })
+  assert.equal(buffer.level("i1"), "debug")
+  buffer.log(instance, "debug", "server log only")
+  assert.deepEqual(buffer.recent("i1"), [])
+})
+
+test("forgetting an instance ends its debug logging; a throwing listener is logged, not thrown from the timer", t => {
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"] })
+  const buffer = logs()
+  buffer.onLevel("i1", () => {
+    throw new Error("boom")
+  })
+  buffer.setLevel("i1", "debug", 1)
+  t.mock.timers.tick(60_000)
+  assert.deepEqual(buffer.levelOf("i1"), { level: "info" })
+  buffer.setLevel("i2", "debug", 1)
+  buffer.forget("i2")
+  assert.deepEqual(buffer.levelOf("i2"), { level: "info" })
+  buffer.dispose()
+})

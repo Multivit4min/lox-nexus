@@ -6,7 +6,7 @@ import type { Value } from "../values/Value.ts"
 import type { HostMessage, HttpRequest } from "../wire/HostMessages.ts"
 import type { CatalogNode, HttpResponse, Panel, PluginDescription } from "../wire/Shapes.ts"
 import { WatchedValueSchema, type WatchedSignal, type WatchedValue } from "../wire/WatchShapes.ts"
-import type { WorkerMessage } from "../wire/WorkerMessages.ts"
+import type { LogLevel, WorkerMessage } from "../wire/WorkerMessages.ts"
 import { RejectionForwarder } from "./RejectionForwarder.ts"
 
 // taken when this module loads, before a test can mock timers (mock.timers): waits for the plugin
@@ -177,6 +177,11 @@ export class PluginTestHost<T extends PluginClass = PluginClass> {
    */
   unhandledRejection(reason: unknown) {
     this.runtime.rejected(reason)
+  }
+
+  /** the lowest log level the host keeps, as when the user switches debug logging on or off; lines below it aren't sent */
+  async logLevel(level: LogLevel) {
+    await this.runtime.handle({ type: "log.level", level })
   }
 
   /** the signals the user chose, for a plugin that declares `watches`; replaces the previous list */

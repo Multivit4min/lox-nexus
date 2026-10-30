@@ -69,9 +69,25 @@ test("a sensor for an unknown device, or one of the wrong type, fails with the r
   ])
 })
 
-test("an actuator for an unknown device, or one of the wrong type, is refused with the reason", async () => {
-  await assert.rejects(host.addActuator("contact", { device: "Garage" }), /the bridge has no device "Garage"/)
-  await assert.rejects(host.addActuator("temperature", { device: "contact-sensor" }), /"contact-sensor" is a contact sensor \(door, window\), which has no temperature state/)
+test("an actuator for an unknown device, or one of the wrong type, fails with the reason, and so does each command", async () => {
+  const before = signalErrors().length
+  const garage = await host.addActuator("contact", { device: "Garage" })
+  await host.addActuator("temperature", { device: "contact-sensor" })
+  assert.deepEqual(signalErrors().slice(before), [
+    "the bridge has no device \"Garage\" (any more); add it with Add device, or pick another",
+    "\"contact-sensor\" is a contact sensor (door, window), which has no temperature state"
+  ])
+  await assert.rejects(host.actuate(garage, Value.boolean(true)), /the bridge has no device "Garage"/)
+})
+
+test("an actuator whose device is removed while it runs fails the signal at once", async () => {
+  await host.action("add-device", { name: "Shed", type: "contact-sensor" })
+  const id = host.plugin.devices.named("Shed")!.id
+  const shed = await host.addActuator("contact", { device: id })
+  await host.actuate(shed, Value.boolean(true))
+  await host.action("remove-device", { device: id })
+  assert.ok(host.sent.some(message => message.type === "signal.error" && message.signalId === shed && /no device/.test(message.error)))
+  await host.remove(shed)
 })
 
 test("states from Nexus set the Matter attributes, converted and limited", async () => {

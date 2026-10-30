@@ -53,8 +53,9 @@ export abstract class Sensor<P extends Plugin = Plugin, Params = unknown> extend
     return this.plugin.clock
   }
 
-  // whether a fail() is still showing, so recover() only tells the host when there is something to clear
-  private failed = false
+  // the failure still showing: recover() only tells the host when there is one, and the same fail() isn't sent twice.
+  // ES-private, so a subclass's own `failed` can't collide with it
+  #failedWith: string | undefined
 
   /**
    * Starts producing values. Called once, right after construction, when the signal is added; the
@@ -71,7 +72,7 @@ export abstract class Sensor<P extends Plugin = Plugin, Params = unknown> extend
    */
   protected emit(value: Value) {
     if (this.isDisposed) return
-    this.failed = false
+    this.#failedWith = undefined
     this.output.emit(value)
   }
 
@@ -79,11 +80,11 @@ export abstract class Sensor<P extends Plugin = Plugin, Params = unknown> extend
    * Reports that the sensor can't deliver values anymore, e.g. the entity it follows was deleted.
    * The message shows on the signal and the instance's error topic until the next emit() or
    * recover(). The last value stays on the bus. For a temporary outage of the whole device use
-   * `plugin.status.set("degraded", …)` instead.
+   * `plugin.status.set("degraded", …)` instead. Repeating the same message sends nothing.
    */
   protected fail(message: string) {
-    if (this.isDisposed) return
-    this.failed = true
+    if (this.isDisposed || message === this.#failedWith) return
+    this.#failedWith = message
     this.output.fail(message)
   }
 
@@ -92,8 +93,8 @@ export abstract class Sensor<P extends Plugin = Plugin, Params = unknown> extend
    * (an entity back as "unavailable"). Cheap to call often: it only tells the host after a fail().
    */
   protected recover() {
-    if (this.isDisposed || !this.failed) return
-    this.failed = false
+    if (this.isDisposed || this.#failedWith === undefined) return
+    this.#failedWith = undefined
     this.output.recover?.()
   }
 }

@@ -23,6 +23,7 @@ import { ConfigController } from "./http/controllers/ConfigController.ts"
 import { HookController } from "./http/controllers/HookController.ts"
 import { MiniserverController } from "./http/controllers/MiniserverController.ts"
 import { PluginController } from "./http/controllers/PluginController.ts"
+import { PluginLogController } from "./http/controllers/PluginLogController.ts"
 import { PluginPackageController } from "./http/controllers/PluginPackageController.ts"
 import { SignalController } from "./http/controllers/SignalController.ts"
 import { ChangeLock } from "./http/ChangeLock.ts"
@@ -148,7 +149,7 @@ export class NexusApp extends Disposable {
     this.listen(this.signals, "unregistered", () => this.selections.invalidate())
     this.miniservers = this.own(new MiniserverManager({ bus: this.bus, signals: this.signals, clock: this.clock, loadHistory: this.persistence.loadSamples }))
     const transport = options.pluginTransport ?? new WorkerTransport()
-    this.pluginLogs = new PluginLogs(log.child({ component: "plugin" }), this.clock)
+    this.pluginLogs = this.own(new PluginLogs(log.child({ component: "plugin" }), this.clock))
     // the Loxone project's, kept by LoxoneProjectService; stateless, so each user makes its own
     const timeZone = new TimeZoneSetting(this.persistence.settings)
     this.plugins = this.own(new PluginManager({
@@ -229,7 +230,8 @@ export class NexusApp extends Disposable {
         new SignalController(this.signals, this.bus, wires),
         new BusController(this.bus, this.recorder),
         new ConfigController(transfer),
-        new PluginController(plugins, pluginSignals, this.pluginLogs, new PluginBridgeService(pluginSignals, loxoneSignals, wires, log), new PluginActionService(id => plugins.supervisor(id), this.pluginLogs)),
+        new PluginController(plugins, pluginSignals, new PluginBridgeService(pluginSignals, loxoneSignals, wires, log), new PluginActionService(id => plugins.supervisor(id), this.pluginLogs)),
+        new PluginLogController(plugins, this.pluginLogs),
         new PluginPackageController(this.pluginAssembly.packages(plugins), this.pluginAssembly.updates(plugins)),
         ...this.history.controllers(id => plugins.watches(id)),
         BackupAssembly.controller(config, { main: db.db, history: this.history.database.db }, this.options.restart, log),

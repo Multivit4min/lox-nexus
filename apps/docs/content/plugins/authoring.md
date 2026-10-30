@@ -476,6 +476,17 @@ What if a command arrives while the previous one is still running?
 `this.params`. `start()` is optional setup, called once before the first `run()`; a rejection makes
 adding the signal fail.
 
+### `fail(message)` and `recover()` for an actuator
+
+An actuator that can't work for a while, for example because the device it controls was deleted,
+calls `fail(message)`. The message shows on the signal and on the instance's error topic, like a
+sensor's, until `recover()`. Unlike a sensor, nothing clears it by itself: call `recover()` when
+the cause is gone. It only tells the host after a `fail()`, so it is cheap to call on every change.
+Commands still reach `run()` meanwhile; throw there with the same message.
+
+Prefer this to rejecting in `start()`: a rejected signal can't be added at all, while a failed one
+stays configured and recovers when the device comes back.
+
 ### Causes are automatic
 
 Whatever the plugin emits or logs while an actuator runs carries the bus message that triggered
@@ -560,6 +571,19 @@ the UI, so name the signal in the message with `this.signal.label` and the param
 
 ```ts
 this.plugin.log.warn("no value", { signal: this.signal.label, path: this.params.path })
+```
+
+**Debug lines** are kept only while the user switches on **Debug for 15 min** on the instance's
+page. The rest of the time `log.debug()` is dropped in the worker before anything is sent, so
+log as much detail at debug as helps finding a problem. A library with its own logging can follow
+the switch with `this.logLevel`:
+
+```ts
+override start() {
+  const apply = (level: LogLevel) => this.client.setVerbose(level === "debug")
+  apply(this.logLevel.current)
+  this.onDispose(this.logLevel.onChange(apply))
+}
 ```
 
 ### `store`

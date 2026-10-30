@@ -172,7 +172,7 @@ onUnmounted(() => {
     <WatchSelectionCard v-if="pkg?.description.watches" :instance-id="instance.id" :declaration="pkg.description.watches" />
     <PluginSignalsCard v-if="pkg && live && offersSignals" :instance="instance" :description="pkg.description" :signals="signals" :live="live" @changed="loadSignals" @wire="wire" />
     <WiresCard ref="wiresCard" :owner-id="instance.id" />
-    <PluginLogsCard :lines="logs" />
+    <PluginLogsCard :lines="logs" :instance-id="id" @changed="attempt(refresh)" />
     <PluginReadmeDialog v-if="pkg && readmeLoaded" :id="pkg.id" v-model:open="reading" :name="pkg.name" :version="pkg.version" />
     <Dialog v-model:open="editing">
       <DialogContent class="sm:max-w-4xl">

@@ -12,6 +12,17 @@ import type { LogLevel, PluginHealth } from "../wire/WorkerMessages.ts"
 export type PluginLogger = Record<LogLevel, (message: string, data?: unknown) => void>
 
 /**
+ * The lowest level the host keeps for this instance: "debug" while the user switched on debug
+ * logging for it, while the server's own log is at debug, and with older hosts; "info" otherwise. Lines below it are dropped in the worker, so debug calls cost
+ * little; a plugin can raise its library's own verbosity with it.
+ */
+export interface PluginLogLevel {
+  readonly current: LogLevel
+  /** calls `listener` when `current` changes; @returns the unsubscribe */
+  onChange(listener: (level: LogLevel) => void): () => void
+}
+
+/**
  * Small persisted key-value state of one instance (tokens, cursors, "last seen" ids). Reads are
  * synchronous from memory; writes are sent to the host, which stores them.
  */
@@ -88,4 +99,6 @@ export interface PluginContext {
   readonly clock?: Clock
   /** IANA name of the installation's time zone (Plugin.timeZone); absent when unknown and with older hosts */
   readonly timeZone?: string
+  /** which log lines the host keeps (Plugin.logLevel); absent with older runtimes */
+  readonly logLevel?: PluginLogLevel
 }

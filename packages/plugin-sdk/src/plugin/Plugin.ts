@@ -5,7 +5,7 @@ import type { CatalogNode, Panel } from "../wire/Shapes.ts"
 import type { WatchDeclaration, WatchedValue } from "../wire/WatchShapes.ts"
 import type { ActionClass } from "./Action.ts"
 import type { ActuatorClass } from "./Actuator.ts"
-import type { PluginContext, WatchView } from "./PluginContext.ts"
+import type { PluginContext, PluginLogLevel, WatchView } from "./PluginContext.ts"
 import type { SensorClass } from "./Sensor.ts"
 
 /**
@@ -87,6 +87,16 @@ export abstract class Plugin<Config = unknown> extends Disposable {
   }
 
   /**
+   * Which log lines the host keeps: `current` is "debug" while the user switched on debug logging
+   * for this instance, while the server's own log is at debug, and always with older hosts; "info"
+   * otherwise. For raising a library's own verbosity along with it; plain `log.debug()` calls need
+   * nothing, they are dropped cheaply while debug is off.
+   */
+  get logLevel(): PluginLogLevel {
+    return this.context.logLevel ?? Plugin.ALL_LINES
+  }
+
+  /**
    * Small persisted state of this instance, for what must survive a restart (a token, a cursor,
    * the id last seen). Reads are synchronous; writes are saved by the host in the background.
    */
@@ -130,6 +140,8 @@ export abstract class Plugin<Config = unknown> extends Disposable {
   }
 
   private static readonly NO_WATCH: WatchView = { signals: () => [], signal: () => undefined }
+  // older runtimes send every line and never change it
+  private static readonly ALL_LINES: PluginLogLevel = { current: "debug", onChange: () => () => undefined }
 
   /**
    * Starts the work. Called once per run, after the constructor and before the first signal is

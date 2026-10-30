@@ -9,6 +9,8 @@ import type { WorkerMessage } from "../wire/WorkerMessages.ts"
 import { ActuatorRunner } from "./ActuatorRunner.ts"
 import { CauseScope } from "./CauseScope.ts"
 import { Declarations } from "./Declarations.ts"
+import { MessageLimits } from "./MessageLimits.ts"
+import { SignalStatus } from "./SignalStatus.ts"
 
 type Entry =
   | { kind: "sensor"; instance: Sensor<Plugin, unknown> }
@@ -74,7 +76,7 @@ export class SignalHost {
     const params = SignalHost.parse(Declarations.params(type), spec.params)
     const output = {
       emit: (value: Value) => this.send({ type: "emit", signalId: spec.id, value, ...SignalHost.cause() }),
-      fail: (message: string) => this.send({ type: "signal.error", signalId: spec.id, error: message }),
+      fail: (message: string) => this.send({ type: "signal.error", signalId: spec.id, error: MessageLimits.clip(message) }),
       recover: () => this.send({ type: "signal.recovered", signalId: spec.id })
     }
     return { kind: "sensor", instance: new type(this.plugin as never, params as never, output, SignalHost.info(spec)) }
@@ -84,6 +86,10 @@ export class SignalHost {
     const type = Declarations.actuators(this.type).find(candidate => candidate.id === spec.capability)
     if (!type) throw new Error(`${this.type.name} has no actuator "${spec.capability}"`)
     const instance = new type(this.plugin as never, SignalHost.parse(Declarations.params(type), spec.params) as never, SignalHost.info(spec)) as unknown as Actuator<Plugin, unknown, Value>
+    SignalStatus.attach(instance, {
+      fail: message => this.send({ type: "signal.error", signalId: spec.id, error: MessageLimits.clip(message) }),
+      recover: () => this.send({ type: "signal.recovered", signalId: spec.id })
+    })
     return { kind: "actuator", instance, runner: new ActuatorRunner(instance, Declarations.concurrency(type)), accepts: Declarations.accepts(type) }
   }
 

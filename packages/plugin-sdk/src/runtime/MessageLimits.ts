@@ -1,5 +1,5 @@
 /**
- * Caps on what a plugin sends the host, besides message text (capped in PluginRuntime). Plugins are
+ * Caps on what a plugin sends the host. Plugins are
  * trusted code (ADR 0001), so these catch mistakes: a log line carrying a whole API response, a
  * store value that grows every poll, a catalog that tries to list everything. Sizes are JSON
  * lengths in characters, which is what the host stores and the UI receives.
@@ -11,6 +11,13 @@ export class MessageLimits {
   static readonly LOG_DATA = 64 * 1024
   /** an answer to the host (catalog, panel, webhook response) */
   static readonly ANSWER = 16 * 1024 * 1024
+  /** message text (log lines, status and signal errors); the host refuses longer text as a broken worker */
+  static readonly TEXT = 10_000
+
+  /** text cut to TEXT characters, ending in "…" when cut */
+  static clip(text: string) {
+    return text.length > MessageLimits.TEXT ? `${text.slice(0, MessageLimits.TEXT - 1)}…` : text
+  }
 
   /** the JSON length, or undefined when JSON can't hold the value (BigInt, cycles) */
   static size(value: unknown) {

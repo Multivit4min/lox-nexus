@@ -1,5 +1,6 @@
 import type { z } from "zod"
 import { Disposable } from "../lifecycle/Disposable.ts"
+import { SignalStatus } from "../runtime/SignalStatus.ts"
 import type { Value, ValueType } from "../values/Value.ts"
 import type { Plugin } from "./Plugin.ts"
 import type { SignalInfo } from "./SignalInfo.ts"
@@ -64,6 +65,30 @@ export abstract class Actuator<P extends Plugin = Plugin, Params = unknown, V ex
    * Throw an Error with a message a user can read; it is shown as the failure reason.
    */
   abstract run(value: V): void | Promise<void>
+
+  // the failure still showing: recover() only tells the host when there is one, and the same fail() isn't sent twice.
+  // ES-private, so a subclass's own `failed` can't collide with it
+  #failedWith: string | undefined
+
+  /**
+   * Reports that the actuator can't work at the moment, e.g. the device it controls was removed;
+   * the message shows on the signal and the instance's error topic until recover(). Commands still
+   * reach run(), which should refuse them with a readable error while the cause lasts. For an
+   * outage of the whole device use `plugin.status.set("degraded", …)` instead. Repeating the same
+   * message sends nothing. Works from start() on, not in the constructor.
+   */
+  protected fail(message: string) {
+    if (this.isDisposed || message === this.#failedWith) return
+    this.#failedWith = message
+    SignalStatus.of(this)?.fail(message)
+  }
+
+  /** Clears a failure reported with fail(). Cheap to call often: it only tells the host after a fail(). */
+  protected recover() {
+    if (this.isDisposed || this.#failedWith === undefined) return
+    this.#failedWith = undefined
+    SignalStatus.of(this)?.recover()
+  }
 }
 
 /** The static side of an actuator class, as the runtime sees it. */

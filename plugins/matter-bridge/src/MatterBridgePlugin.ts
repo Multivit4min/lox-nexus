@@ -58,7 +58,7 @@ export class MatterBridgePlugin extends Plugin<BridgeConfig> {
   override async start() {
     // teardowns run last first: close the node (its storage writes what is pending), write the
     // remembered states, end the environment, and stop routing matter.js's log last
-    this.onDispose(new MatterLog(this.log).install())
+    this.onDispose(new MatterLog(this.log, this.logLevel).install())
     this.onDispose(() => this.matter.close())
     this.onDispose(() => this.coalescer.flush())
     this.onDispose(() => this.bridge.close())

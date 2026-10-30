@@ -55,7 +55,7 @@ export interface PluginInstanceDto {
   secrets: string[]
 }
 
-/** GET /api/plugin-instances/:id/logs: one of the instance's recent log lines (kept in memory, about 200). */
+/** GET /api/plugin-instances/:id/logs: one of the instance's recent log lines (kept in memory: 200, 1000 while debug logging is on). */
 export interface PluginLogLineDto {
   /** epoch ms */
   ts: number
@@ -65,6 +65,19 @@ export interface PluginLogLineDto {
   /** the logged data as JSON, cut at 2000 characters */
   data?: string
 }
+
+/** GET/PUT /api/plugin-instances/:id/log-level: which lines the instance keeps; debug only for a while. */
+export interface PluginLogLevelDto {
+  level: "debug" | "info"
+  /** epoch ms when debug logging switches off by itself */
+  until?: number
+  /** how long until then, for a countdown that doesn't depend on the browser's clock */
+  remainingMs?: number
+}
+
+/** Body of PUT /api/plugin-instances/:id/log-level; debug lasts `minutes` (default 15), info ends it at once. */
+export const PluginLogLevelInputSchema = z.object({ level: z.enum(["debug", "info"]), minutes: z.int().min(1).max(60).optional() })
+export type PluginLogLevelInput = z.infer<typeof PluginLogLevelInputSchema>
 
 /** Body of POST /api/plugin-instances/:id/actions/:action: the form's values, checked by the plugin. */
 export const PluginActionRequestSchema = z.object({ input: z.record(z.string(), z.unknown()).default({}) })

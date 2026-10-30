@@ -6,8 +6,8 @@ import { deviceParamsSchema, type DeviceParams } from "./DeviceParams.ts"
 
 /**
  * A device's state from Nexus, shown to every paired controller. Nothing is sent back as a
- * command. A device that doesn't exist, or of a type without this state, refuses the signal with
- * the reason (actuators have no fail()); one removed while it runs fails each command.
+ * command. A device that doesn't exist (any more), or of a type without this state, fails the
+ * signal with the reason, and each command with it; adding the device clears the failure.
  */
 export abstract class StateActuator extends Actuator<MatterBridgePlugin, DeviceParams> {
   static readonly params = deviceParamsSchema
@@ -17,16 +17,21 @@ export abstract class StateActuator extends Actuator<MatterBridgePlugin, DeviceP
   protected abstract readonly kind: StateKind
 
   override start() {
-    this.device()
+    this.onDispose(this.plugin.devices.onChange(() => this.resolve()))
+    this.resolve()
   }
 
   async run(value: Value) {
-    await this.device().setState(this.kind, StateActuator.toKind(value))
+    const device = this.resolve()
+    if (typeof device === "string") throw new Error(device)
+    await device.setState(this.kind, StateActuator.toKind(value))
   }
 
-  private device() {
+  // the device, or why there is none; keeps the signal's failure in step either way
+  private resolve() {
     const device = this.plugin.devices.forState(this.params.device, this.kind)
-    if (typeof device === "string") throw new Error(device)
+    if (typeof device === "string") this.fail(device)
+    else this.recover()
     return device
   }
 

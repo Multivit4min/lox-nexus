@@ -18,7 +18,8 @@ const text = z.string().max(10_000)
  */
 export const WorkerMessageSchema = z.discriminatedUnion("type", [
   /** first message after loading; `version` is the wire version the plugin was built with */
-  z.object({ type: z.literal("hello"), version: z.int() }),
+  // features: additions to the version the worker understands, so the host sends them only to those that do ("log.level")
+  z.object({ type: z.literal("hello"), version: z.int(), features: z.array(z.string().max(50)).max(50).optional() }),
   /** init done and start() returned */
   z.object({ type: z.literal("ready") }),
   /** init failed (invalid config, start threw); the host does not restart it */

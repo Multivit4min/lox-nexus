@@ -928,6 +928,12 @@ above:
   - `PluginLogs` keeps each instance's last 200 log lines in memory (`GET :id/logs`), with
     messages and data (as JSON) cut at 2000 characters each. `PluginService.remove` drops an
     instance's lines.
+  - Debug lines only while the user switched debug logging on for the instance
+    (`PUT :id/log-level`, 1-60 minutes, default 15; the ring holds 1000 lines meanwhile).
+    `PluginLogs` is the `PluginLogSink`'s `level()`/`onLevel()`: the supervisor puts the level
+    into `init` and sends `log.level` to a running worker whose `hello` listed that feature, and
+    the worker drops lines below it. With the server log at debug every worker sends its debug
+    lines, which reach only the server log.
 - **Catalog.** `CatalogTree` flattens the tree into searchable rows ("Inverters ▸ Inverter 1").
   An entry counts as configured when a signal has its kind, capability and params, whatever the
   key order. "Add" takes an entry as it is; "customize" opens it in the signal form first.
