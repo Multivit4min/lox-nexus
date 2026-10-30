@@ -32,7 +32,7 @@
   "devDependencies": {
     "@eslint/js": "^9.0.0",
     "@stylistic/eslint-plugin": "^2.0.0",
-    "@types/node": "^24.0.0",
+    "@types/node": "^26.6.5",
     "eslint": "^9.0.0",
     "eslint-plugin-vue": "^10.11.1",
     "globals": "^14.0.0",
