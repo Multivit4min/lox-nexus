@@ -3,6 +3,7 @@ import { computed, ref } from "vue"
 import type { InstalledPluginDto } from "@lox-nexus/api"
 import { BookOpen, Check, Copy, RefreshCw, Trash2, Undo2 } from "@lucide/vue"
 import { Badge } from "@/components/ui/badge"
+import { AppContext } from "../../../AppContext.ts"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PluginSourceText } from "../../../lib/PluginSourceText.ts"
@@ -14,6 +15,8 @@ const props = defineProps<{ plugin: InstalledPluginDto }>()
 const emit = defineEmits<{ update: []; rollback: []; uninstall: [] }>()
 
 const active = computed(() => props.plugin.active)
+const { updates } = AppContext.use()
+const update = computed(() => updates.of(props.plugin.id))
 const when = computed(() => new Date(active.value.installedAt).toLocaleString())
 const inUse = computed(() => {
   const names = props.plugin.instanceNames
@@ -43,6 +46,9 @@ async function copy() {
         {{ plugin.name }} <span class="font-mono text-sm font-normal">{{ active.version }}</span>
         <Badge v-if="plugin.shadowedByDevelopment" variant="secondary" title="NEXUS_DEV_PLUGINS_DIR provides a copy with the same id">development copy runs instead</Badge>
         <Badge v-if="!active.available" variant="destructive" :title="active.problem">unavailable</Badge>
+        <Badge v-if="update" :title="update.source === 'git' ? `new commit ${update.available}` : `version ${update.available} in the local repository`">
+          update available{{ update.source === "local" ? `: ${update.available}` : "" }}
+        </Badge>
       </CardTitle>
       <span class="text-sm text-muted-foreground">{{ plugin.instances }} instance{{ plugin.instances === 1 ? "" : "s" }}</span>
     </CardHeader>

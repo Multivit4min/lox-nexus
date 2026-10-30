@@ -13,6 +13,7 @@ import { StreamConnection, type StreamHandlers } from "./api/StreamConnection.ts
 import { WireApi } from "./api/WireApi.ts"
 import { SelectionApi } from "./api/SelectionApi.ts"
 import { RecordedSignals } from "./stores/RecordedSignals.ts"
+import { PluginUpdates } from "./stores/PluginUpdates.ts"
 import { WiredSignals } from "./stores/WiredSignals.ts"
 import { SessionStore } from "./stores/SessionStore.ts"
 
@@ -33,6 +34,7 @@ export class AppContext {
   /** which signals the history records, shared by the signal lists */
   readonly recorded = new RecordedSignals(this.history)
   readonly wired = new WiredSignals(this.wires)
+  readonly updates = new PluginUpdates(this.pluginPackages)
   readonly session = new SessionStore(this.auth)
   /** set by main.ts once the router exists: true while the browser still has a session, else off to the login page */
   onSessionEnded: () => boolean | Promise<boolean> | void = () => {}

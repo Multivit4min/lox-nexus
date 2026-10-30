@@ -1,4 +1,7 @@
-import type { ActivateInput, GitInstallInput, InstallOutcomeDto, InstalledPluginDto, PluginReadmeDto, RepositoryPluginDto, StagedInstallDto, UpdateImpactDto } from "@lox-nexus/api"
+import type {
+  ActivateInput, BatchOutcomeDto, BatchReviewDto, GitInstallInput, InstallOutcomeDto, InstalledPluginDto, PluginReadmeDto, PluginUpdatesDto, RepositoryPluginDto,
+  StagedInstallDto, UpdateImpactDto
+} from "@lox-nexus/api"
 import type { Http } from "./Http.ts"
 
 /**
@@ -32,6 +35,26 @@ export class PluginPackageApi {
 
   stageZip(file: File) {
     return this.http.upload<StagedInstallDto>(`/api/plugin-packages/stage/zip?${new URLSearchParams({ name: file.name })}`, file)
+  }
+
+  /** plugins with a newer version: the local repository at once, git from the last check */
+  updates() {
+    return this.http.get<PluginUpdatesDto>("/api/plugin-packages/updates")
+  }
+
+  /** asks each git plugin's server for its newest commit, then answers like updates() */
+  checkUpdates() {
+    return this.http.post<PluginUpdatesDto>("/api/plugin-packages/updates/check")
+  }
+
+  /** one review of updating these plugins from the local repository */
+  reviewBatch(ids: string[]) {
+    return this.http.post<BatchReviewDto>("/api/plugin-packages/batch", { ids })
+  }
+
+  /** installs what the review showed; the batch id is only valid once */
+  confirmBatch(batchId: string) {
+    return this.http.post<BatchOutcomeDto>(`/api/plugin-packages/batch/${encodeURIComponent(batchId)}/confirm`, {})
   }
 
   /** @param expectedActive the active version the review showed, null for a new plugin */

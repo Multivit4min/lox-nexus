@@ -1,12 +1,16 @@
 <script setup lang="ts">
-import { ref } from "vue"
+import { onMounted, ref } from "vue"
 import { Cable, Puzzle, Server } from "@lucide/vue"
 import { useRoute, useRouter } from "vue-router"
 import { AppContext } from "../AppContext.ts"
+import { VisiblePolling } from "../lib/VisiblePolling.ts"
 import PasswordDialog from "./PasswordDialog.vue"
 import UserMenu from "./UserMenu.vue"
 
-const { session } = AppContext.use()
+const { session, updates } = AppContext.use()
+// plugin updates show as a count on Plugins; the plugin pages load it again after their changes
+onMounted(() => void updates.load())
+VisiblePolling.use(() => updates.load(), 30 * 60_000)
 const router = useRouter()
 const route = useRoute()
 const changingPassword = ref(false)
@@ -39,6 +43,10 @@ async function logout() {
         >
           <component :is="link.icon" class="size-4" />
           <span class="sr-only md:not-sr-only">{{ link.label }}</span>
+          <span
+            v-if="link.to === '/plugins' && updates.count.value" class="rounded-full bg-primary px-1.5 text-[10px] leading-4 font-medium text-primary-foreground"
+            :title="`${updates.count.value} plugin update${updates.count.value === 1 ? '' : 's'} available`"
+          >{{ updates.count.value }}<span class="sr-only"> updates available</span></span>
         </RouterLink>
       </nav>
       <div class="ml-auto">

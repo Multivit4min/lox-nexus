@@ -154,3 +154,49 @@ export interface PluginReadmeDto {
   markdown: string
   from: "version" | "development" | "repository"
 }
+
+/** A plugin that has a newer version: in the local repository, or a new commit of its git ref. */
+export interface PluginUpdateDto {
+  id: string
+  name: string
+  installedVersion: string
+  source: "local" | "git"
+  /** local: the repository's version; git: the commit the ref points at now */
+  available: string
+}
+
+/** GET /api/plugin-packages/updates */
+export interface PluginUpdatesDto {
+  updates: PluginUpdateDto[]
+  /** git plugins whose last check failed, and why */
+  problems: Array<{ id: string; name: string; problem: string }>
+  /** epoch ms of the last git check; absent before the first (git is only checked when asked) */
+  gitCheckedAt?: number
+}
+
+/** Body of POST /api/plugin-packages/batch: plugins installed from the local repository to update together. */
+export const BatchUpdateInputSchema = z.object({ ids: z.array(z.string().min(1).max(64)).min(1).max(50) })
+export type BatchUpdateInput = z.infer<typeof BatchUpdateInputSchema>
+
+/** One plugin of a batch review: what it would change, or why it can't be updated. */
+export interface BatchReviewItemDto {
+  id: string
+  name: string
+  from: string
+  to?: string
+  impact?: UpdateImpactDto
+  problem?: string
+}
+
+/** The review of a batch update, confirmed by its id while it hasn't expired. */
+export interface BatchReviewDto {
+  /** missing when no plugin can be updated: there is nothing to confirm */
+  batchId?: string
+  expiresAt: number
+  items: BatchReviewItemDto[]
+}
+
+/** POST /api/plugin-packages/batch/:batchId/confirm: one outcome per plugin; one failing doesn't stop the others. */
+export interface BatchOutcomeDto {
+  items: Array<{ id: string; name: string; ok: boolean; version?: string; error?: string }>
+}

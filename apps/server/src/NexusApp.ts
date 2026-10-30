@@ -230,7 +230,7 @@ export class NexusApp extends Disposable {
         new BusController(this.bus, this.recorder),
         new ConfigController(transfer),
         new PluginController(plugins, pluginSignals, this.pluginLogs, new PluginBridgeService(pluginSignals, loxoneSignals, wires, log), new PluginActionService(id => plugins.supervisor(id), this.pluginLogs)),
-        new PluginPackageController(this.pluginAssembly.packages(plugins)),
+        new PluginPackageController(this.pluginAssembly.packages(plugins), this.pluginAssembly.updates(plugins)),
         ...this.history.controllers(id => plugins.watches(id)),
         BackupAssembly.controller(config, { main: db.db, history: this.history.database.db }, this.options.restart, log),
         this.own(new DiagnosticsAssembly(this, config, clock, log)).controller(),

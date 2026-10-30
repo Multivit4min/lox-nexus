@@ -63,8 +63,8 @@ plugins live in `/data`, so they survive a new image.
 
 **Updating.** Pull the repository, rebuild and restart the container
 (`docker compose up -d --build`). The data volume stays; the database is migrated at startup. A
-new image may bring new versions of the first-party plugins: the **Installed** tab then offers
-**Update** for them.
+new image may bring new versions of the first-party plugins: **Plugins** then shows how many, and
+**Update all** installs them with one review (see **Updating** under [Installing a plugin](#installing-a-plugin)).
 
 **Forgot your password?** Run the command [below](#forgot-your-password) inside the container:
 
@@ -260,10 +260,27 @@ version. A plugin without any README says so. Each instance's page has the same 
 next to **Edit**, so the plugin's settings are explained where you change them. The plugin's icon
 also marks its instances on the **Instances** tab and on each instance's page.
 
-**Updating.** **Update** opens the same dialog, prefilled with where the plugin came from: the same
-git URL and ref, the same local folder, or the ZIP tab. Check the impact on the review step, then
-install. Running instances restart on the new version without a server restart, and instances that
-had failed start on it. Signals whose sensor or actuator is gone stay with their wires and are
+**Updating.** Nexus tells you when a plugin has a newer version: a count on **Plugins**, a banner on
+both Plugins tabs, and **update available** on the plugin's card.
+
+- **From the local repository** (the first-party plugins in the image) it knows at once.
+  **Update all** in the banner opens one review: per plugin, the version change and what it means
+  for its instances. **Update 3 plugins** (or **Update** and the plugin's name) installs them one
+  after another and shows a result per plugin; one that fails, or changed in the repository since
+  the review, doesn't stop the others. That is four clicks for any number of plugins: **Plugins**,
+  **Update all**, **Update 3 plugins**, **Close**. When a card shows **update available** from the
+  local repository, its **Update** does the same for that plugin alone. There is no trust question:
+  the repository is a folder on the server that only its administrator controls, and the plugin was
+  trusted when it was first installed from there.
+- **From git** Nexus looks only when you ask: **Check for updates** on the **Installed** tab asks
+  each repository which commit its branch or tag points at now (`git ls-remote`, nothing is
+  downloaded). A plugin with a new commit, or one that couldn't be checked, is named; its card's
+  **Update** opens the install dialog prefilled with the same URL and ref, with the trust question
+  and the review as for a new install.
+- **From a ZIP file** there is nothing to compare: **Update** opens the ZIP tab for the new file.
+
+The review shows the impact before anything is installed. Running instances restart on the new
+version without a server restart, and instances that had failed start on it. Signals whose sensor or actuator is gone stay with their wires and are
 marked orphaned until a version offers it again.
 
 **Rolling back.** **Roll back to** shows the impact of switching to the previous version and then
@@ -323,7 +340,7 @@ shows up without a restart. A subfolder that isn't built yet is listed with the 
 
 On the **Installed** tab, below the cards, **In the local plugin repository** lists the plugins of
 that folder that are not installed or are installed in another version, each with **Install** or
-**Update**.
+**Update**. A newer version of an installed plugin also shows in the update banner.
 
 - `npm run dev` points the repository at the workspace's `plugins/`.
 - `npm run plugins:build` builds the bundles of the first-party plugins, so they can be installed.

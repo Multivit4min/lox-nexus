@@ -40,22 +40,28 @@ export class PluginInstaller {
    * @throws InstallError exists for a stored version with another bundle, plus whatever the source throws; the staging folder is gone afterwards
    */
   async stage(source: PluginSource, by: string): Promise<StageResult> {
-    const { staging, pending, inspector, log } = this.deps
+    const { staging, pending, log } = this.deps
     await pending.discard()
-    const stagingDir = await staging.create()
+    const { stagingDir, staged, comparison } = await this.fetch(source, by)
     try {
-      const packageDir = path.join(stagingDir, "package")
-      const fetched = await source.fetch(packageDir)
-      const staged = await inspector.inspect(packageDir, fetched)
-      const comparison = this.compare(staged)
       const parked = await pending.put(stagingDir, staged, by)
       log.info({ by, source: staged.origin, plugin: staged.manifest.id, version: staged.manifest.version, bundleSha256: staged.bundleSha256 }, "plugin staged")
       return { pending: parked, ...comparison }
     } catch (error) {
       await staging.remove(stagingDir)
-      if (error instanceof InstallError) log.warn({ by, reason: error.reason, problem: error.message }, "plugin install refused")
       throw InstallError.fromFileSystem(error)
     }
+  }
+
+  /**
+   * Fetches, checks and describes the plugin like stage(), but parks nothing: an install someone
+   * else is reviewing stays. For telling what an update would change.
+   * @throws like stage()
+   */
+  async check(source: PluginSource, by: string): Promise<Omit<StageResult, "pending"> & { staged: StagedPackage }> {
+    const { stagingDir, staged, comparison } = await this.fetch(source, by)
+    await this.deps.staging.remove(stagingDir)
+    return { staged, ...comparison }
   }
 
   /**
@@ -93,6 +99,21 @@ export class PluginInstaller {
       throw InstallError.fromFileSystem(error)
     } finally {
       await staging.remove(install.stagingDir)
+    }
+  }
+
+  // the staging folder is removed when anything fails, so only a successful fetch leaves one to the caller
+  private async fetch(source: PluginSource, by: string) {
+    const { staging, inspector, log } = this.deps
+    const stagingDir = await staging.create()
+    try {
+      const packageDir = path.join(stagingDir, "package")
+      const staged = await inspector.inspect(packageDir, await source.fetch(packageDir))
+      return { stagingDir, staged, comparison: this.compare(staged) }
+    } catch (error) {
+      await staging.remove(stagingDir)
+      if (error instanceof InstallError) log.warn({ by, reason: error.reason, problem: error.message }, "plugin install refused")
+      throw InstallError.fromFileSystem(error)
     }
   }
 

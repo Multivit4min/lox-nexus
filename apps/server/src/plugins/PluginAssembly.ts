@@ -5,8 +5,10 @@ import type { Config } from "../config/Config.ts"
 import type { PluginPackageRepository } from "../db/repositories/PluginPackageRepository.ts"
 import type { PluginSignalRepository } from "../db/repositories/PluginSignalRepository.ts"
 import { PluginPackageService } from "../services/PluginPackageService.ts"
+import { PluginUpdateService } from "../services/PluginUpdateService.ts"
 import type { PluginService } from "../services/PluginService.ts"
 import { DevPluginLoader } from "./DevPluginLoader.ts"
+import { GitRemote } from "./install/GitRemote.ts"
 import { GitRunner } from "./install/GitRunner.ts"
 import { InstalledPluginLoader } from "./install/InstalledPluginLoader.ts"
 import { InstallLimits } from "./install/InstallLimits.ts"
@@ -44,7 +46,8 @@ export class PluginAssembly extends Disposable {
   /** throwaway workers with the install timings, for staged and installed bundles */
   private readonly describer: PackageDescriber
   private readonly log: Logger
-  private packageService: PluginPackageService | undefined
+  // built together on first use: the update service works through the package service
+  private services: { packages: PluginPackageService; updates: PluginUpdateService } | undefined
 
   constructor(
     private readonly config: Config,
@@ -78,11 +81,17 @@ export class PluginAssembly extends Disposable {
 
   /** the installer's service for the API; the first call builds it, later calls return the same one */
   packages(plugins: PluginService) {
-    this.packageService ??= this.buildPackages(plugins)
-    return this.packageService
+    this.services ??= this.buildServices(plugins)
+    return this.services.packages
   }
 
-  private buildPackages(plugins: PluginService) {
+  /** which plugins have updates, and batch updates from the local repository; built with packages() */
+  updates(plugins: PluginService) {
+    this.services ??= this.buildServices(plugins)
+    return this.services.updates
+  }
+
+  private buildServices(plugins: PluginService) {
     const installLog = this.log.child({ component: "installer" })
     const pending = this.own(new PendingInstalls(this.staging, this.limits.pendingMs))
     const runner = new GitRunner({ timeoutMs: this.limits.gitTimeoutMs, ...(this.options.gitBinary ? { binary: this.options.gitBinary } : {}), ...(this.options.gitSchemes ? { protocols: this.options.gitSchemes } : {}) }, installLog)
@@ -91,8 +100,9 @@ export class PluginAssembly extends Disposable {
     const sources = new PluginSources(this.limits, runner, new LocalRepository(this.config.pluginRepositoryDir, this.limits), this.options.gitSchemes)
     const installer = new PluginInstaller({ staging: this.staging, pending, inspector: new PackageInspector(this.describer, this.limits), versions: this.versions, repo: this.repo, log: installLog })
     const switcher = new PluginSwitch({ versions: this.versions, repo: this.repo, catalog: this.catalog, plugins, signals: this.signalRepo })
-    return new PluginPackageService({
+    const packages = new PluginPackageService({
       installer, versions: this.versions, repo: this.repo, catalog: this.catalog, sources, switcher, plugins, uploadBytes: this.limits.uploadBytes, readmeBytes: this.limits.readmeBytes, log: installLog
     })
+    return { packages, updates: new PluginUpdateService({ packages, git: new GitRemote(runner, this.options.gitSchemes), log: installLog }) }
   }
 }

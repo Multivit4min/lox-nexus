@@ -92,18 +92,31 @@ export class PluginPackageService {
    * that were waiting for it get a supervisor. Versions beyond active and previous are removed.
    */
   confirm(stagingId: string, expectedActive: string | null, by: string): Promise<InstallOutcomeDto> {
+    return this.lock.run(() => this.install(stagingId, expectedActive, by))
+  }
+
+  /** what installing this local-repository plugin would change, without parking it for review; @throws like stageLocal() */
+  async describeLocal(folder: string, by: string): Promise<{ version: string; bundleSha256: string; impact?: UpdateImpactDto }> {
+    const source = this.source(() => this.deps.sources.local(folder), by)
+    const { staged } = await this.lock.run(() => this.deps.installer.check(source, by))
+    const { manifest, description, bundleSha256 } = staged
+    return { version: manifest.version, bundleSha256, impact: await this.deps.switcher.impact(manifest.id, description) }
+  }
+
+  /**
+   * Stages and installs a plugin from the local repository in one step, so no other install can
+   * come between; only when it is still the version and bundle that was reviewed.
+   * @throws InstallError conflict when it changed, plus whatever stageLocal() and confirm() throw
+   */
+  updateLocal(folder: string, expected: { version: string; bundleSha256: string }, expectedActive: string, by: string): Promise<InstallOutcomeDto> {
+    const source = this.source(() => this.deps.sources.local(folder), by)
     return this.lock.run(async () => {
-      const before = this.deps.installer.staged(stagingId)
-      const pointers = before && this.deps.repo.get(before.manifest.id)
-      const { stored, changed } = await this.deps.installer.confirm(stagingId, expectedActive, by)
-      if (changed) {
-        await this.deps.switcher.apply(stored).catch(async (error: unknown) => {
-          await this.undo(stored.pluginId, pointers && { active: pointers.active.version, previous: pointers.previous?.version })
-          throw error
-        })
-        await this.deps.versions.prune(stored.pluginId)
+      const { pending } = await this.deps.installer.stage(source, by)
+      if (pending.staged.manifest.version !== expected.version || pending.staged.bundleSha256 !== expected.bundleSha256) {
+        await this.deps.installer.discard(pending.stagingId)
+        throw new InstallError("conflict", "it changed in the local repository since the review; check it again")
       }
-      return this.outcome(stored.pluginId)
+      return this.install(pending.stagingId, expectedActive, by)
     })
   }
 
@@ -162,19 +175,36 @@ export class PluginPackageService {
     })
   }
 
-  // a refused URL, ref or folder is logged like a refused package
-  private async stage(source: () => PluginSource, by: string): Promise<StagedInstallDto> {
-    let built: PluginSource
-    try {
-      built = source()
-    } catch (error) {
-      if (error instanceof InstallError) this.deps.log.warn({ by, reason: error.reason, problem: error.message }, "plugin install refused")
-      throw error
+  private async install(stagingId: string, expectedActive: string | null, by: string) {
+    const before = this.deps.installer.staged(stagingId)
+    const pointers = before && this.deps.repo.get(before.manifest.id)
+    const { stored, changed } = await this.deps.installer.confirm(stagingId, expectedActive, by)
+    if (changed) {
+      await this.deps.switcher.apply(stored).catch(async (error: unknown) => {
+        await this.undo(stored.pluginId, pointers && { active: pointers.active.version, previous: pointers.previous?.version })
+        throw error
+      })
+      await this.deps.versions.prune(stored.pluginId)
     }
+    return this.outcome(stored.pluginId)
+  }
+
+  private async stage(source: () => PluginSource, by: string): Promise<StagedInstallDto> {
+    const built = this.source(source, by)
     const result = await this.lock.run(() => this.deps.installer.stage(built, by))
     const { manifest, description } = result.pending.staged
     const known = this.deps.repo.get(manifest.id) !== undefined || this.deps.switcher.instances(manifest.id).length > 0
     return { ...PluginPackageDtos.staged(result), ...(known ? { impact: await this.deps.switcher.impact(manifest.id, description) } : {}) }
+  }
+
+  // a refused URL, ref or folder is logged like a refused package
+  private source(build: () => PluginSource, by: string) {
+    try {
+      return build()
+    } catch (error) {
+      if (error instanceof InstallError) this.deps.log.warn({ by, reason: error.reason, problem: error.message }, "plugin install refused")
+      throw error
+    }
   }
 
   // a confirmed version that can't be put into service must not stay active for the next boot

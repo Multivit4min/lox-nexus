@@ -1,12 +1,14 @@
-import { ActivateInputSchema, ConfirmInstallInputSchema, GitInstallInputSchema, LocalInstallInputSchema } from "@lox-nexus/api"
+import { ActivateInputSchema, BatchUpdateInputSchema, ConfirmInstallInputSchema, GitInstallInputSchema, LocalInstallInputSchema } from "@lox-nexus/api"
 import type { FastifyInstance } from "fastify"
 import { z } from "zod"
 import type { PluginPackageService } from "../../services/PluginPackageService.ts"
+import type { PluginUpdateService } from "../../services/PluginUpdateService.ts"
 import type { Controller } from "../Controller.ts"
 import { HttpError } from "../HttpError.ts"
 
 const IdParams = z.object({ id: z.string().min(1).max(64) })
 const StagingParams = z.object({ stagingId: z.uuid() })
+const BatchParams = z.object({ batchId: z.uuid() })
 const VersionParams = IdParams.extend({ version: z.string().min(1).max(64) })
 const ZipQuery = z.object({ name: z.string().min(1).max(255).regex(/^[^\p{Cc}]+$/u, "must not contain control characters").default("plugin.zip") })
 
@@ -26,6 +28,10 @@ const ZipQuery = z.object({ name: z.string().min(1).max(255).regex(/^[^\p{Cc}]+$
  *   to the stored previous version (rollback) or back.
  * - GET …/:id/versions/:version/impact: 200 with what switching to that stored version would do.
  * - DELETE …/:id: 204, or 409 while instances of the plugin exist.
+ * - GET …/updates: 200 with the plugins that have a newer version (local repository at once, git
+ *   from the last check); POST …/updates/check asks each git plugin's server first.
+ * - POST …/batch `{ ids }`: 201 with one review of updating those plugins from the local
+ *   repository; POST …/batch/:batchId/confirm: 200 with one outcome per plugin.
  *
  * Errors: 400 unusable source or package, or the plugin failed to load; 404 unknown or expired;
  * 409 busy, version installed with another bundle, changed meanwhile, or in use; 413 archive too
@@ -35,11 +41,17 @@ export class PluginPackageController implements Controller {
   /** what browsers and tools send for a .zip; Windows labels it x-zip-compressed */
   private static readonly ZIP_TYPES = ["application/zip", "application/x-zip-compressed", "application/octet-stream"]
 
-  constructor(private readonly packages: PluginPackageService) {}
+  constructor(private readonly packages: PluginPackageService, private readonly updates: PluginUpdateService) {}
 
   register(app: FastifyInstance) {
     app.get("/api/plugin-packages", () => this.packages.list())
     app.get("/api/plugin-packages/repository", () => this.packages.repository())
+    app.get("/api/plugin-packages/updates", () => this.updates.updates())
+    // asks git servers only, changes nothing: it must not hold up a config import
+    app.post("/api/plugin-packages/updates/check", { config: { lockFree: true } }, () => this.updates.checkGit())
+    app.post("/api/plugin-packages/batch", async (request, reply) =>
+      reply.code(201).send(await this.updates.review(BatchUpdateInputSchema.parse(request.body).ids, request.user!.username)))
+    app.post("/api/plugin-packages/batch/:batchId/confirm", request => this.updates.confirm(BatchParams.parse(request.params).batchId, request.user!.username))
     app.get("/api/plugin-packages/:id/readme", (request, reply) => {
       const readme = this.packages.readme((request.params as { id: string }).id)
       return readme ?? reply.code(404).send({ error: "this plugin has no README" })

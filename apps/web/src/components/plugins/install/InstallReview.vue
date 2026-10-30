@@ -3,7 +3,7 @@ import { computed } from "vue"
 import type { StagedInstallDto } from "@lox-nexus/api"
 import { Badge } from "@/components/ui/badge"
 import { PluginSourceText } from "../../../lib/PluginSourceText.ts"
-import { VersionChange } from "../../../lib/VersionChange.ts"
+import { VersionChange } from "@lox-nexus/api"
 import UpdateImpactList from "./UpdateImpactList.vue"
 
 /** Step 2 of an install: what was fetched (name, version change, exact source, hashes) and what confirming does. */

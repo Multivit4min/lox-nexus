@@ -8,6 +8,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { AppContext } from "../AppContext.ts"
 import { VisiblePolling } from "../lib/VisiblePolling.ts"
+import BatchUpdateDialog from "../components/plugins/install/BatchUpdateDialog.vue"
+import UpdatesBanner from "../components/plugins/install/UpdatesBanner.vue"
 import InstanceForm from "../components/plugins/InstanceForm.vue"
 import PluginIcon from "../components/plugins/PluginIcon.vue"
 import PluginStateBadge from "../components/plugins/PluginStateBadge.vue"
@@ -20,6 +22,8 @@ const router = useRouter()
 const instances = ref<PluginInstanceDto[]>([])
 const packages = ref<PluginPackageDto[]>([])
 const adding = ref(false)
+const batch = ref<string[]>([])
+const batchOpen = ref(false)
 // states arrive live; messages, errors and restart counts with the list every few seconds
 const live = new LiveValues(handlers => context.stream(handlers), "system/plugin/#")
 
@@ -70,6 +74,7 @@ onUnmounted(() => live.close())
         <Plus class="size-4" /> Add instance
       </Button>
     </div>
+    <UpdatesBanner @update-all="ids => ((batch = ids), (batchOpen = true))" />
     <Table>
       <TableHeader>
         <TableRow>
@@ -104,6 +109,8 @@ onUnmounted(() => live.close())
         </TableEmpty>
       </TableBody>
     </Table>
+    <!-- updated plugins restart their instances; the list follows with its next load -->
+    <BatchUpdateDialog v-if="batch.length" v-model:open="batchOpen" :ids="batch" @changed="context.updates.load()" />
     <Dialog v-model:open="adding">
       <DialogContent class="sm:max-w-4xl">
         <DialogHeader>
