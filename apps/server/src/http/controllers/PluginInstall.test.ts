@@ -39,7 +39,7 @@ test("a ZIP is staged, reviewed, installed and runs in a worker; uninstall waits
 
   // an instance of the installed plugin runs from the installed bundle
   const instance = (await admin.post("/api/plugin-instances", { plugin: "fixture", slug: "fx", label: "Fixture", config: { start: 21 } })).json<PluginInstanceDto>()
-  assert.equal(instance.state, "running", instance.lastError)
+  assert.equal(instance.state, "running", instance.lastError ?? "no lastError")
   const signal = (await admin.post(`/api/plugin-instances/${instance.id}/signals`, { kind: "sensor", capability: "b", label: "B" })).json<PluginSignalDto>()
   assert.deepEqual(await nexus.value(signal.topic), Value.number(42))
 

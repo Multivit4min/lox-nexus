@@ -55,7 +55,7 @@ test("context paths too long for a store key are hashed, and still read back", (
   const driver = new StoreStorageDriver(store, "bridge")
   driver.set(contexts, "value", "deep")
   const [key] = store.keys()
-  assert.ok(key && key.length <= StoreStorageDriver.MAX_KEY && key.includes("#"), key)
+  assert.ok(key && key.length <= StoreStorageDriver.MAX_KEY && key.includes("#"), String(key))
   assert.equal(new StoreStorageDriver(store, "bridge").get(contexts, "value"), "deep")
   driver.clearAll(contexts.slice(0, 3))
   assert.deepEqual(store.keys(), [])

@@ -128,7 +128,7 @@ export class BridgeNode {
       await node.act(agent => agent.get(QuietCommissioningServer).enterCommissionableMode())
     } catch (error) {
       if (node.env.get(DeviceCommissioner).isAdministratorWindowOpen) {
-        throw new Error("a controller has opened a pairing window right now (sharing the bridge from its app); use the code that app shows, or try again in 15 minutes")
+        throw new Error("a controller has opened a pairing window right now (sharing the bridge from its app); use the code that app shows, or try again in 15 minutes", { cause: error })
       }
       throw error
     }

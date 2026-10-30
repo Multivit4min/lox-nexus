@@ -15,6 +15,13 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    ignore:
+      # typescript-eslint accepts TypeScript below 6.1 only; lift this once it supports 7
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+      # the types must describe the Node version the image runs (node:24), not a newer one
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     groups:
       # majors come one by one: they may need code changes
       minor-and-patch:
@@ -24,3 +31,7 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      # a new Node major is moved to on purpose, together with @types/node and the engines field
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
