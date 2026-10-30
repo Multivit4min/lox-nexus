@@ -55,6 +55,8 @@ An unreachable feed at start only makes the instance degraded; it doesn't fail t
 invalid config does: a wrong URL scheme, unreadable credentials in the link, a password without a
 user name, or an unknown time zone. A failure is logged when its reason changes, not on every read.
 
+**Test connection** in the settings form reads the feed once and counts its events from yesterday on.
+
 ## Filter params (all sensors and `dismiss`)
 
 | Param | Shown as | Default | |

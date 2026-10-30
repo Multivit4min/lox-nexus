@@ -74,11 +74,12 @@ test("a UDP port in use fails the start with a message saying so, and leaves not
   }
 })
 
-test("devices of an old config are taken over once, keeping their Matter identity and their names as ids", { timeout: 30_000 }, async () => {
+test("devices of an old config (version 1) move into the store once, keeping their Matter identity and their names as ids", { timeout: 30_000 }, async () => {
   const port = await FreePort.udp()
   const legacy = { port, devices: [{ name: "Kitchen", type: "dimmable-light" }, { name: "Door", type: "contact-sensor" }] }
-  const host = await PluginTestHost.start(MatterBridgePlugin, { config: legacy })
+  const host = await PluginTestHost.start(MatterBridgePlugin, { config: legacy, configVersion: 1 })
   try {
+    assert.deepEqual(host.migratedConfig, { config: { port }, version: 2 }, "the host stores the config without the list")
     assert.deepEqual(host.store.devices, [
       { id: "Kitchen", name: "Kitchen", type: "dimmable-light", allowUnlock: false, seed: "dimmable-light\nKitchen" },
       { id: "Door", name: "Door", type: "contact-sensor", allowUnlock: false, seed: "contact-sensor\nDoor" }
@@ -97,12 +98,9 @@ test("devices of an old config are taken over once, keeping their Matter identit
   await again.stop()
 })
 
-test("pinned: a config saved from the form before the first start of this version has lost the old list (REFERENCE warns)", { timeout: 30_000 }, async () => {
-  // the form sends only name and port, so the old devices key is gone before the takeover could run
-  const host = await PluginTestHost.start(MatterBridgePlugin, { config: { name: "Lox Nexus", port: await FreePort.udp() } })
-  assert.deepEqual(host.plugin.devices.all(), [])
-  assert.equal(host.store.devices, undefined)
-  await host.stop()
+test("a settings check of an old config migrates it on a throwaway store and finds nothing wrong", async () => {
+  const checked = await PluginTestHost.checkConfig(MatterBridgePlugin, { port: 5541, devices: [{ name: "Kitchen", type: "dimmable-light" }] }, 1)
+  assert.deepEqual(checked, { issues: [], config: { port: 5541 }, version: 2 })
 })
 
 test("a stop with the paired controller gone ends within the deadline and still writes pending states", { timeout: 30_000 }, async () => {

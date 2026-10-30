@@ -14,6 +14,13 @@ export class FroniusPlugin extends Plugin<FroniusConfig> {
   static readonly config = froniusConfigSchema
   static readonly sensors = [ValueSensor]
 
+  /** Test connection: one power flow read, the call every Fronius system answers */
+  static async test(config: FroniusConfig) {
+    const flow = await new SolarApi(config.host, config.timeout * 1000).powerFlow()
+    const inverters = Object.keys(flow.Inverters ?? {}).length
+    return `Connected to ${config.host}: ${inverters} inverter${inverters === 1 ? "" : "s"}, PV ${Math.round(flow.Site.P_PV ?? 0)} W`
+  }
+
   readonly api = new SolarApi(this.config.host, this.config.timeout * 1000)
   readonly poller = this.own(new Poller(this.api, (part, problem) => this.problemChanged(part, problem)))
 

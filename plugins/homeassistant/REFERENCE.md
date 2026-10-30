@@ -27,6 +27,8 @@ Status of the instance:
 A rejected token is never retried because Home Assistant can ban an address after failed logins
 (`ip_ban_enabled`).
 
+**Test connection** in the settings form logs in over the WebSocket API with the URL and token, names Home Assistant's version and disconnects; it reads nothing. A refused token is a failed login like any other: check it before trying again, since repeated ones can get the Nexus address blocked (`ip_ban_enabled`), the running instance with it.
+
 ## Sensors
 
 Every sensor that follows an entity takes the entity's ID in **Entity ID** (`entityId`), e.g.

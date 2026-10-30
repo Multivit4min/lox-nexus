@@ -6,6 +6,7 @@ import { HostMessageSchema, WIRE_VERSION, type HostMessage } from "../wire/HostM
 import type { LogLevel, WorkerMessage } from "../wire/WorkerMessages.ts"
 import { ActionHost } from "./ActionHost.ts"
 import { CauseScope } from "./CauseScope.ts"
+import { ConfigHost } from "./ConfigHost.ts"
 import { Declarations } from "./Declarations.ts"
 import { LogLevels } from "./LogLevels.ts"
 import { PluginDescriber } from "./PluginDescriber.ts"
@@ -35,16 +36,18 @@ export class PluginRuntime {
   private actions: ActionHost | undefined
   private readonly routes = new RouteTable()
   private readonly watch: WatchHost
+  private readonly configs: ConfigHost
   private readonly levels = new LogLevels(error => this.log("error", `a log level listener threw: ${PluginRuntime.text(error)}`))
 
   /** @param clock what the plugin's timers and `clock.now()` run on; tests pass a TestClock */
   constructor(private readonly type: PluginClass, private readonly send: (message: WorkerMessage) => void, private readonly clock: Clock = SystemClock.instance) {
     this.watch = new WatchHost(send, error => this.log("error", `handling watched values failed: ${PluginRuntime.text(error)}`))
+    this.configs = new ConfigHost(type)
   }
 
   /** announces the wire version; the host sends `init` (or `describe`) after it */
   hello() {
-    this.send({ type: "hello", version: WIRE_VERSION, features: [LogLevels.FEATURE] })
+    this.send({ type: "hello", version: WIRE_VERSION, features: [LogLevels.FEATURE, ConfigHost.FEATURE] })
   }
 
   /** handles one host message; never throws (failures are answered as messages) */
@@ -65,9 +68,13 @@ export class PluginRuntime {
     if (this.plugin) return this.send({ type: "failed", error: "already initialized" })
     try {
       PluginDescriber.assertValid(this.type)
-      const config = Declarations.config(this.type).safeParse(message.config)
+      const store = new RuntimeStore(message.store, this.send)
+      const migrated = await this.configs.migrate(message.config, message.configVersion, store)
+      const config = Declarations.config(this.type).safeParse(migrated.config)
       if (!config.success) throw new Error(`invalid config: ${z.prettifyError(config.error)}`)
-      const plugin = this.plugin = new this.type(this.context(message, config.data))
+      // only a host that stores config versions sends one, and knows this message
+      if (migrated.migrated && message.configVersion !== undefined) this.send({ type: "config.migrated", config: migrated.config, version: this.configs.version })
+      const plugin = this.plugin = new this.type(this.context(message, config.data, store))
       this.signals = new SignalHost(this.type, plugin, this.send)
       this.actions = new ActionHost(this.type, plugin, message => this.log("error", message))
       await plugin.start()
@@ -102,6 +109,8 @@ export class PluginRuntime {
       case "panel": return this.started().plugin.panel()
       case "http.request": return this.routes.dispatch(message.request)
       case "action": return this.started().actions.run(message.action, message.input)
+      case "config.check": return this.configs.check(message.config, message.configVersion, message.store)
+      case "config.test": return this.configs.test(message.config)
     }
   }
 
@@ -120,14 +129,14 @@ export class PluginRuntime {
     return { plugin: this.plugin, signals: this.signals, actions: this.actions }
   }
 
-  private context(init: Extract<HostMessage, { type: "init" }>, config: unknown): PluginContext {
-    const { instanceId, slug, timeZone, store } = init
+  private context(init: Extract<HostMessage, { type: "init" }>, config: unknown, store: RuntimeStore): PluginContext {
+    const { instanceId, slug, timeZone } = init
     if (init.logLevel) this.levels.set(init.logLevel)
     const log = this.levels.logger((level, message, data) => this.log(level, message, data))
     return {
       instanceId, ...(slug === undefined ? {} : { slug }), ...(timeZone === undefined ? {} : { timeZone }), config, log, http: this.routes, watch: this.watch, clock: this.clock,
       logLevel: this.levels.view(),
-      store: new RuntimeStore(store, this.send),
+      store,
       status: { set: (status, message) => this.send({ type: "status", status, ...(message ? { message: PluginRuntime.clip(message) } : {}) }) }
     }
   }

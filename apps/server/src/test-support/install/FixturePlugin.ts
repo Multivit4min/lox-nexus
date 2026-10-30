@@ -6,13 +6,17 @@ import { SinkActuator } from "./FixtureSink.ts"
 
 /**
  * The plugin the installer tests build into a bundle and install: id "fixture", not in the
- * workspace. Version 1 refuses a negative start value, so an instance can be in error before an
- * update fixes it.
+ * workspace. Version 1 refuses a negative start value when it starts (a settings check can't
+ * tell), so an instance can be in error before an update fixes it.
  */
 class FixturePlugin extends Plugin<FixtureConfig> {
-  static readonly config = z.object({ start: z.number().min(0).default(1) })
+  static readonly config = z.object({ start: z.number().default(1) })
   static readonly sensors = [ASensor, BSensor]
   static readonly actuators = [SinkActuator]
+
+  override start() {
+    if (this.config.start < 0) throw new Error("start must not be negative")
+  }
 }
 
 export default PluginEntry.define(FixturePlugin)

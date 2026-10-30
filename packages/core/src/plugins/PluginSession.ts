@@ -125,6 +125,11 @@ export class PluginSession extends Disposable {
     if (!this.closing && !this.over) this.connection.send(message)
   }
 
+  /** whether the worker's hello listed this addition to the wire version, e.g. "config.check" */
+  supports(feature: string) {
+    return this.features.has(feature)
+  }
+
   /** a new lowest log level; dropped for workers that didn't announce they understand it (an older SDK would log it as invalid) */
   logLevel(level: LogLevel | undefined) {
     if (level === undefined || level === this.sentLevel || !this.features.has("log.level") || this.closing || this.over) return
@@ -135,7 +140,7 @@ export class PluginSession extends Disposable {
   private receive(message: WorkerMessage) {
     if (message.type === "response") return this.requests.settle(message)
     if (message.type === "pong") return void (this.unanswered = 0)
-    if (["emit", "log", "status", "store.set", "store.delete", "signal.error", "signal.recovered", "watch.ack"].includes(message.type)) this.events.emit("message", message)
+    if (["emit", "log", "status", "store.set", "store.delete", "signal.error", "signal.recovered", "watch.ack", "config.migrated"].includes(message.type)) this.events.emit("message", message)
   }
 
   // a hung plugin can't answer; terminating it makes the exit report the reason

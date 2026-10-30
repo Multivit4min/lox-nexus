@@ -152,7 +152,7 @@ export class NexusApp extends Disposable {
     this.plugins = this.own(new PluginManager({
       bus: this.bus, registry: this.signals, transport, store: this.persistence.pluginStore, timeZone: () => timeZone.get(),
       watch: { bus: this.bus, signals: this.signals, selection: id => this.selections.of(id), changes: this.selections },
-      logs: this.pluginLogs, ...(options.pluginTimings ? { timings: options.pluginTimings } : {})
+      logs: this.pluginLogs, configMigrated: ({ id, config, configVersion }) => this.persistence.pluginInstances.saveConfig(id, config, configVersion ?? 1), ...(options.pluginTimings ? { timings: options.pluginTimings } : {})
     }))
     this.pluginAssembly = this.own(new PluginAssembly(config, transport, this.persistence.pluginPackages, this.persistence.pluginSignals, log, options.install))
     this.pluginCatalog = this.pluginAssembly.catalog
@@ -171,7 +171,8 @@ export class NexusApp extends Disposable {
     const loxoneSignals = new LoxoneSignalService(db.loxoneSignals, this.miniservers, cleanup, unloadable, log)
     const wires = new WireService(db.wires, this.wires, this.signals, log)
     const miniservers = new MiniserverService(db.miniservers, this.miniservers, loxoneSignals, cleanup, unloadable, log, wires)
-    const plugins = new PluginService(db.pluginInstances, db.pluginSignals, this.plugins, this.pluginCatalog, cleanup, log, this.pluginLogs, wires, this.selections)
+    const plugins = new PluginService(db.pluginInstances, db.pluginSignals, this.plugins, this.pluginCatalog, cleanup, log, this.pluginLogs, wires, this.selections,
+      this.pluginAssembly.settingsCheck(id => db.pluginInstances.get(id), this.persistence.pluginStore))
     const pluginSignals = new PluginSignalService(db.pluginSignals, plugins, cleanup)
     const lock = new ChangeLock()
     const runtime = { cleanup, exists: (topic: string) => this.signals.atTopic(topic) !== undefined }

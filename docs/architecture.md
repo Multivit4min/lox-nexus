@@ -1997,3 +1997,35 @@ Native `fetch` and `WebSocket` replace axios and socket.io (`ws` comes in throug
   in `LiveValues.stale`, shows `StaleBadge` in signal lists and wire ends, and `WireHealth` says
   "source stale".
 
+## Implementation notes: settings checks, Test connection, migrations (P5)
+
+- SDK: `static configVersion`, `static migrateConfig({ config, from, store })`, `static test(config)`
+  (description `testable`). `ConfigHost` in the runtime migrates at `init` (with the real store;
+  reports `config.migrated` to hosts whose init carried `configVersion`), answers `config.check`
+  (migrate on a copy of the given store, or an empty one, then validate; issues keep zod's paths)
+  and `config.test`. Workers announce the feature `config.check` in `hello`; older plugins never
+  get the messages and are saved unchecked, as before.
+- Core: `PluginConfigChecker` (a throwaway worker, like `PackageDescriber`); the supervisor sends
+  `configVersion` in init, and `SupervisorDeps.configMigrated` stores a migrated config (migration
+  10: `plugin_instances.config_version`, NULL meaning 1). The supervisor keeps the migrated config,
+  so a restart doesn't migrate again.
+- Server: `PluginSettingsCheck` checks create and update (the form's config is taken as current;
+  issues come back as a 400 ZodError under `config`), and serves `POST /api/plugin-instances/check`
+  with the stored secrets merged in for edits. An edit of an instance stored with an older version
+  first runs its migration on a copy of the instance's store and applies the writes, so data that
+  only the migration moves (the Matter bridge's old device list) survives a save before the first
+  start.
+- A plugin that doesn't load is saved unchecked (its start then shows why); a check that fails
+  otherwise (its migration throws, a bad answer) is a 502 with the plugin's message. An edit's
+  migration writes are applied after the instance is saved. `config.migrated` is taken only while
+  the instance starts, and stored with an update-only write, so a deleted instance stays deleted.
+  Test connection gets the action timeout (2 min): plugins' own connect timeouts may be longer
+  than a request's 30 s.
+- Known limit: the edit form shows the stored config as it is. For an instance not started since
+  an update whose migration renamed settings, the renamed fields show empty; starting it once
+  migrates them.
+- Web: `InstanceForm` lists issues by field label (`ConfigIssues`) and has Test connection.
+- Tests per plugin: Home Assistant logs in over the WebSocket API, Fronius reads the power flow,
+  MQTT connects with its own client id, InfluxDB asks `/health` or `/ping` (the token is first
+  checked by a write), Calendar reads the feed once. The Matter bridge has config version 2.
+

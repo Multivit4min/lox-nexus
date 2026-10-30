@@ -1,4 +1,4 @@
-import { PluginActionRequestSchema, PluginInstanceInputSchema, PluginSignalInputSchema } from "@lox-nexus/api"
+import { PluginActionRequestSchema, PluginCheckInputSchema, PluginInstanceInputSchema, PluginSignalInputSchema } from "@lox-nexus/api"
 import type { FastifyInstance, FastifyRequest } from "fastify"
 import { z } from "zod"
 import type { PluginActionService } from "../../services/PluginActionService.ts"
@@ -19,7 +19,9 @@ const ActionParams = IdParams.extend({ action: z.string().min(1).max(100) })
  *
  * - GET /api/plugins: 200 with every available plugin and its description.
  * - GET/POST /api/plugin-instances, GET/PUT/DELETE :id: 200 / 201 / 200 / 200 / 204. Create and
- *   update start the instance when enabled; a refusal shows up as `state: "error"`.
+ *   update check the settings with the plugin first (400 with `issues` under `config`), then start
+ *   the instance when enabled; a refusal at start shows up as `state: "error"`.
+ * - POST /api/plugin-instances/check: 200 with the issues, and with `test` the connection test.
  * - POST :id/start, :id/stop: 200 with the instance.
  * - GET/POST :id/signals, PUT/DELETE :id/signals/:signalId: 200 / 201 / 200 / 204.
  * - GET :id/catalog, :id/panel: 200 with the plugin's answer.
@@ -41,6 +43,9 @@ export class PluginController implements Controller {
     app.get("/api/plugins", () => this.plugins.packages())
     app.get("/api/plugin-instances", () => this.plugins.list())
     app.post("/api/plugin-instances", async (request, reply) => reply.code(201).send(await this.plugins.create(PluginInstanceInputSchema.parse(request.body))))
+    // lock-free: a connection test may wait for an unreachable device, and changes nothing
+    app.post("/api/plugin-instances/check", { config: { lockFree: true } }, async request =>
+      this.plugins.settings?.check(PluginCheckInputSchema.parse(request.body)) ?? { checked: false, issues: [] })
     app.get("/api/plugin-instances/:id", request => this.plugins.get(PluginController.id(request)))
     app.put("/api/plugin-instances/:id", request =>
       this.plugins.update(PluginController.id(request), PluginInstanceInputSchema.parse(request.body), request.user!.username))

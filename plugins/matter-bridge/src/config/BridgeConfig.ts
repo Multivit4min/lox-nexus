@@ -6,13 +6,10 @@ export const nameSchema = () => z.string().trim().min(1).max(32)
 
 /**
  * Instance config: the bridge's name and port. The devices are managed with the Add, Edit and
- * Remove device actions and kept in the plugin store. Loose, so the device list of an old config
- * survives validation until the plugin has taken it over (the form shows only these two fields).
- * The price: other keys posted with a config are kept and returned too. Replace this with the SDK's
- * planned config migrations once they exist; a save from the form before the first start of this
- * version drops the old list (the form doesn't send it), which REFERENCE warns about.
+ * Remove device actions and kept in the plugin store; an old config's device list is moved there
+ * by the config migration (configVersion 2) before this schema sees it.
  */
-export const bridgeConfigSchema = z.looseObject({
+export const bridgeConfigSchema = z.object({
   name: nameSchema().default("Lox Nexus").meta({ title: "Bridge name", description: "How the bridge shows in Alexa, Google Home, Apple Home and Home Assistant" }),
   port: z.number().int().min(1024).max(65535).default(5540).meta({
     title: "UDP port",

@@ -8,6 +8,8 @@ interface PluginInstanceRow {
   slug: string
   label: string
   config: string
+  /** NULL: saved before plugins had config versions, i.e. version 1 */
+  config_version: number | null
   enabled: number
 }
 
@@ -29,10 +31,19 @@ export class PluginInstanceRepository {
   /** inserts or replaces by id; @throws on a slug another instance has (unique) */
   save(instance: PluginInstanceConfig) {
     this.db.run(
-      `INSERT INTO plugin_instances (id, plugin, slug, label, config, enabled) VALUES (:id, :plugin, :slug, :label, :config, :enabled)
-       ON CONFLICT (id) DO UPDATE SET slug = excluded.slug, label = excluded.label, config = excluded.config, enabled = excluded.enabled`,
-      { id: instance.id, plugin: instance.plugin, slug: instance.slug, label: instance.label, config: JSON.stringify(instance.config ?? {}), enabled: instance.enabled ? 1 : 0 }
+      `INSERT INTO plugin_instances (id, plugin, slug, label, config, config_version, enabled) VALUES (:id, :plugin, :slug, :label, :config, :configVersion, :enabled)
+       ON CONFLICT (id) DO UPDATE SET slug = excluded.slug, label = excluded.label, config = excluded.config, config_version = excluded.config_version,
+         enabled = excluded.enabled`,
+      {
+        id: instance.id, plugin: instance.plugin, slug: instance.slug, label: instance.label, config: JSON.stringify(instance.config ?? {}),
+        configVersion: instance.configVersion ?? null, enabled: instance.enabled ? 1 : 0
+      }
     )
+  }
+
+  /** the config a plugin migrated at start; nothing happens for an instance deleted meanwhile */
+  saveConfig(id: string, config: unknown, configVersion: number) {
+    this.db.run("UPDATE plugin_instances SET config = :config, config_version = :configVersion WHERE id = :id", { id, config: JSON.stringify(config ?? {}), configVersion })
   }
 
   /** deletes the instance with its signals (and through them their wires) and its store */
@@ -51,6 +62,9 @@ export class PluginInstanceRepository {
     } catch {
       // keep {}
     }
-    return { id: row.id, plugin: row.plugin, slug: row.slug, label: row.label, config, enabled: row.enabled === 1 }
+    return {
+      id: row.id, plugin: row.plugin, slug: row.slug, label: row.label, config, ...(row.config_version === null ? {} : { configVersion: row.config_version }),
+      enabled: row.enabled === 1
+    }
   }
 }

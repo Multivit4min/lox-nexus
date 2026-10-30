@@ -19,12 +19,10 @@ the instance page while the bridge runs; none of them restarts the instance or t
   device when it was added: rename it in the app too, or remove it there and discover again.
 - **Removing** takes the device from every app (routines using it stop working). Its signals in
   Nexus stay, in the error state ("the bridge has no device …"), until you remove them.
-- **From an older version.** Devices that the first version kept in the settings are taken over
-  once at start, with their name as id (what their signals refer to) and the Matter identity they
-  had, so a paired Alexa keeps them. After that the settings' list is ignored. **After updating
-  from the first version, start the bridge instance once before you edit its settings**: the
-  settings form doesn't send the old device list, so saving it first loses the devices (add them
-  again then; Alexa sees them as new devices).
+- **From an older version.** Devices that the first version kept in the settings move into the
+  bridge's own storage once (config version 2), with their name as id (what their signals refer
+  to) and the Matter identity they had, so a paired Alexa keeps them. That happens at the first
+  start, or when the settings are saved before it; either way nothing is lost.
 
 ## Device types
 

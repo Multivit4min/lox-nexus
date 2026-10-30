@@ -11,8 +11,8 @@ const issues = (config: unknown) => {
 
 test("defaults: the name Alexa shows and port 5540; devices are not settings any more", () => {
   assert.deepEqual(bridgeConfigSchema.parse({}), { name: "Lox Nexus", port: 5540 })
-  // an old config's device list passes through, unvalidated, for the one-time takeover
-  assert.deepEqual(bridgeConfigSchema.parse({ devices: [{ name: "x", type: "nope" }] }), { name: "Lox Nexus", port: 5540, devices: [{ name: "x", type: "nope" }] })
+  // the config migration has taken an old list out before validation; what is left over is dropped
+  assert.deepEqual(bridgeConfigSchema.parse({ devices: [{ name: "x", type: "nope" }] }), { name: "Lox Nexus", port: 5540 })
 })
 
 test("the bridge name is at most 32 bytes; the port above 1023", () => {

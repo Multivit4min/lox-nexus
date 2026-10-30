@@ -1,4 +1,4 @@
-import { Plugin } from "@lox-nexus/plugin-sdk"
+import { Plugin, type ConfigMigration } from "@lox-nexus/plugin-sdk"
 import { AddDeviceAction } from "./actions/AddDeviceAction.ts"
 import { EditDeviceAction } from "./actions/EditDeviceAction.ts"
 import { OpenPairingWindowAction } from "./actions/OpenPairingWindowAction.ts"
@@ -27,6 +27,11 @@ import { Capabilities } from "./signals/Capabilities.ts"
  */
 export class MatterBridgePlugin extends Plugin<BridgeConfig> {
   static readonly config = bridgeConfigSchema
+  /** 2: the devices moved from the settings into the store */
+  static readonly configVersion = 2
+  static migrateConfig({ config, from, store }: ConfigMigration) {
+    return from < 2 ? DeviceStore.takeOver(store, config) : config
+  }
   static readonly sensors = Capabilities.sensors
   static readonly actuators = Capabilities.actuators
   static readonly actions = [AddDeviceAction, EditDeviceAction, RemoveDeviceAction, OpenPairingWindowAction, RemovePairingAction]
@@ -78,9 +83,7 @@ export class MatterBridgePlugin extends Plugin<BridgeConfig> {
     return new BridgePanel(this.bridge, this.devices.all(), this.timeZone).build()
   }
 
-  /** the stored devices, after taking over those of an old config (the first versions kept them there) */
   private loadDevices() {
-    this.deviceStore.migrate(this.config)
     return this.deviceStore.load()
   }
 

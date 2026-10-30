@@ -51,6 +51,9 @@ static readonly config?: z.ZodType      // default: no config (empty object)
 static readonly sensors?: readonly SensorClass[]      // ids unique among sensors
 static readonly actuators?: readonly ActuatorClass[]  // ids unique among actuators
 static readonly watches?: { label: string; description?: string }  // receives values of signals the user chooses
+static readonly configVersion?: number  // the config's shape; default 1, raise it with migrateConfig
+static migrateConfig?({ config, from, store }: ConfigMigration): unknown  // older config → current shape
+static test?(config): Promise<string | void>  // Test connection; read only, throw a message the user can act on
 ```
 
 A watching plugin implements `watched(values, dropped)` (batches, oldest first; the next comes
@@ -394,7 +397,7 @@ sends them itself; the runtime does. Requests carry a `requestId` and are answer
 
 | Host → worker (`HostMessage`) | Fields | Answer |
 |---|---|---|
-| `init` | `instanceId`, `slug?`, `config`, `store`, `timeZone?`, `logLevel?` | `ready` or `failed` |
+| `init` | `instanceId`, `slug?`, `config`, `store`, `timeZone?`, `logLevel?`, `configVersion?` | `ready` or `failed` (after `config.migrated` when it migrated) |
 | `describe` | `requestId` | the `PluginDescription` |
 | `signal.add` | `requestId`, `signal` (`SignalSpec`) | ok once the sensor's or actuator's `start()` resolved |
 | `signal.remove` | `requestId`, `id` | ok once disposed |
@@ -406,12 +409,14 @@ sends them itself; the runtime does. Requests carry a `requestId` and are answer
 | `watch.signals` | `signals` (`WatchedSignal[]`) | none |
 | `watch.values` | `seq`, `values` (`WatchedValue[]`), `dropped?` | `watch.ack` |
 | `log.level` | `level` | none; only to workers whose `hello` lists the feature `log.level` |
+| `config.check` | `requestId`, `config`, `configVersion?`, `store?` | `{ issues, config, version, store? }`; feature `config.check` |
+| `config.test` | `requestId`, `config` | the test's message; feature `config.check` |
 | `ping` | `seq` | `pong` |
 | `shutdown` | | `stopped` |
 
 | Worker → host (`WorkerMessage`) | Fields | Meaning |
 |---|---|---|
-| `hello` | `version`, `features?` | the wire version, sent first; `features` names additions the worker understands (`log.level`) |
+| `hello` | `version`, `features?` | the wire version, sent first; `features` names additions the worker understands (`log.level`, `config.check`) |
 | `ready` | | `init` done |
 | `failed` | `error` | `init` failed |
 | `emit` | `signalId`, `value`, `causeId?` | a sensor's value |
@@ -423,6 +428,7 @@ sends them itself; the runtime does. Requests carry a `requestId` and are answer
 | `signal.error` | `signalId`, `error` | a sensor or actuator stopped working |
 | `signal.recovered` | `signalId` | the failure is over |
 | `watch.ack` | `seq` | a `watch.values` batch is handled |
+| `config.migrated` | `config`, `version` | init migrated the stored config; only when `init` carried `configVersion` |
 | `pong` | `seq` | answers `ping` |
 | `stopped` | | `shutdown` done |
 

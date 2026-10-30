@@ -46,7 +46,9 @@ export const HostMessageSchema = z.discriminatedUnion("type", [
     /** IANA name of the installation's time zone; absent when the host doesn't know it */
     timeZone: z.string().optional(),
     /** the lowest level the host keeps; lines below it aren't sent. Absent from older hosts: send everything */
-    logLevel: LogLevelSchema.optional()
+    logLevel: LogLevelSchema.optional(),
+    /** the version the config was stored with (1 when the plugin declared none). Absent from older hosts: no migration is reported */
+    configVersion: z.int().min(1).optional()
   }),
   /** what the plugin offers: config schema, sensors and actuators with their params (JSON Schema) */
   z.object({ type: z.literal("describe"), requestId }),
@@ -64,6 +66,19 @@ export const HostMessageSchema = z.discriminatedUnion("type", [
    * result. Sent only for actions the plugin's description declares.
    */
   z.object({ type: z.literal("action"), requestId, action: z.string().min(1).max(100), input: z.unknown() }),
+  /**
+   * Checks settings without starting the plugin: migrated from `configVersion` if older (absent:
+   * the current version, a new instance's form), then validated. Answered with
+   * { issues: [{ path, message }], config, version } (the migrated config). With `store` (the
+   * instance's), the migration works on a copy, and the answer adds `store`: { set, delete }, what
+   * it wrote, for the host to apply. Only to workers whose hello lists the feature "config.check".
+   */
+  z.object({
+    type: z.literal("config.check"), requestId, config: z.unknown(), configVersion: z.int().min(1).optional(),
+    store: z.record(z.string(), z.unknown()).optional()
+  }),
+  /** runs the plugin's `static test` with a valid config; answered with its message. Same feature as config.check */
+  z.object({ type: z.literal("config.test"), requestId, config: z.unknown() }),
   /** answered with a full HttpResponse */
   z.object({ type: z.literal("http.request"), requestId, request: HttpRequestSchema }),
   /**

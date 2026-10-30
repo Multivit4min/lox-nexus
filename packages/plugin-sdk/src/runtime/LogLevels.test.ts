@@ -33,7 +33,7 @@ test("debug lines pass until the host keeps info only; the plugin sees the level
 test("the worker announces the feature in hello", () => {
   const sent: WorkerMessage[] = []
   new PluginRuntime(Chatty, message => sent.push(message)).hello()
-  assert.deepEqual(sent, [{ type: "hello", version: 1, features: ["log.level"] }])
+  assert.deepEqual(sent, [{ type: "hello", version: 1, features: ["log.level", "config.check"] }])
 })
 
 test("a throwing listener is logged, the others still hear it", async () => {

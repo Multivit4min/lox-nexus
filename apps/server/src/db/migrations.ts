@@ -185,5 +185,11 @@ export const MIGRATIONS: readonly Migration[] = [
     name: "drop_lumitech",
     // the Lumitech option is gone; its signals are plain Analog ones (or RGBW inputs) again
     sql: "ALTER TABLE loxone_signals DROP COLUMN lumitech"
+  },
+  {
+    version: 10,
+    name: "plugin_config_version",
+    // the plugin's configVersion a config was saved with; NULL for older rows, which are version 1
+    sql: "ALTER TABLE plugin_instances ADD COLUMN config_version INTEGER"
   }
 ]

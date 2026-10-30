@@ -4,6 +4,7 @@ import { EventCatalog } from "./catalog/EventCatalog.ts"
 import { HassCatalog } from "./catalog/HassCatalog.ts"
 import { Registries } from "./catalog/Registries.ts"
 import { HassConnection } from "./connection/HassConnection.ts"
+import { HassAuthError, HassSocket } from "./connection/HassSocket.ts"
 import { EntityStore } from "./entities/EntityStore.ts"
 import { homeAssistantConfigSchema, websocketUrl, type HomeAssistantConfig } from "./HomeAssistantConfig.ts"
 import { HomeAssistantPanel } from "./HomeAssistantPanel.ts"
@@ -20,6 +21,17 @@ export class HomeAssistantPlugin extends Plugin<HomeAssistantConfig> {
   static readonly config = homeAssistantConfigSchema
   static readonly sensors = [StateSensor, LightSensor, EventSensor]
   static readonly actuators = Actuators.all
+
+  /** Test connection: logs in over the WebSocket API like the plugin does, then closes; reads nothing */
+  static async test(config: HomeAssistantConfig) {
+    const socket = await HassSocket.open(websocketUrl(config.url), config.token).catch((error: unknown) => {
+      // each refused login counts towards Home Assistant's ip_ban_enabled, which would also lock out the running instance
+      if (error instanceof HassAuthError) throw new Error(`${error.message}. Check the token before trying again: Home Assistant may block this address after repeated failed logins`)
+      throw error
+    })
+    await socket.dispose()
+    return `Connected to Home Assistant ${socket.version || ""}`.trim()
+  }
 
   readonly entities = new EntityStore()
   readonly connection = this.own(new HassConnection(websocketUrl(this.config.url), this.config.token, this.entities, this.log))

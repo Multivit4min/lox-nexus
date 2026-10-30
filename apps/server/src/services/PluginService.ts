@@ -8,6 +8,7 @@ import type { PluginSignalRepository } from "../db/repositories/PluginSignalRepo
 import { HttpError } from "../http/HttpError.ts"
 import type { PluginCatalog } from "../plugins/PluginCatalog.ts"
 import { SecretFields } from "../plugins/SecretFields.ts"
+import type { PluginSettingsCheck, PreparedConfig } from "./PluginSettingsCheck.ts"
 import type { PluginLogs } from "./PluginLogs.ts"
 import type { SelectionService } from "./SelectionService.ts"
 import type { TopicCleanup } from "./TopicCleanup.ts"
@@ -30,7 +31,9 @@ export class PluginService {
     private readonly logs: Pick<PluginLogs, "forget">,
     private readonly wires: Pick<WireService, "sendAll">,
     /** a watching instance's choice of signals goes with it */
-    private readonly selections?: Pick<SelectionService, "forget">
+    private readonly selections?: Pick<SelectionService, "forget">,
+    /** checks settings before they are saved; without it they are saved as they come */
+    readonly settings?: PluginSettingsCheck
   ) {}
 
   /** builds the runtime from the database at boot; a broken signal row is logged and skipped */
@@ -79,12 +82,13 @@ export class PluginService {
     return this.toDto(this.stored(id))
   }
 
-  /** @throws HttpError 400 for an unknown plugin, 409 for a taken slug */
+  /** @throws HttpError 400 for an unknown plugin, ZodError 400 for settings the plugin refuses, 409 for a taken slug */
   async create(input: PluginInstanceInput): Promise<PluginInstanceDto> {
     const parsed = PluginInstanceInputSchema.parse(input)
     const entry = this.available.get(parsed.plugin)
     if (!entry) throw HttpError.badRequest(`plugin "${parsed.plugin}" is not available`)
-    const instance: PluginInstanceConfig = { id: randomUUID(), ...parsed }
+    const { config, configVersion }: PreparedConfig = await this.settings?.prepare(parsed.plugin, parsed.config) ?? { config: parsed.config }
+    const instance: PluginInstanceConfig = { id: randomUUID(), ...parsed, config, ...(configVersion === undefined ? {} : { configVersion }) }
     const supervisor = PluginService.domain(() => this.manager.add(instance, entry.pkg))
     try {
       this.repo.save(instance)
@@ -99,7 +103,7 @@ export class PluginService {
   /**
    * Stores and applies the new config (omitted secrets keep their value); a running instance
    * restarts with it, and `enabled` decides whether it runs afterwards.
-   * @throws HttpError 404, 400 when `plugin` differs, 409 for a taken slug or an unavailable plugin
+   * @throws HttpError 404, 400 when `plugin` differs, 409 for a taken slug or an unavailable plugin; ZodError 400 for settings the plugin refuses
    */
   async update(id: string, input: PluginInstanceInput, by: string): Promise<PluginInstanceDto> {
     const previous = this.stored(id)
@@ -108,8 +112,9 @@ export class PluginService {
     // unavailable instances hold slugs too, and the manager doesn't know them
     if (this.repo.list().some(other => other.id !== id && other.slug === parsed.slug)) throw HttpError.conflict(`slug "${parsed.slug}" is already used by another plugin instance`)
     const supervisor = this.supervisor(id)
-    const config = this.secrets(previous.plugin).merge(parsed.config, previous.config)
-    const instance: PluginInstanceConfig = { ...parsed, id, config }
+    const merged = this.secrets(previous.plugin).merge(parsed.config, previous.config)
+    const { storeWrites, ...checked } = await this.settings?.prepare(previous.plugin, merged, previous) ?? { config: merged, ...PluginService.version(previous) }
+    const instance: PluginInstanceConfig = { ...parsed, id, ...checked }
     const topics = new Map(supervisor.signals.list().map(entry => [entry.config.id, entry.topic]))
     if (!instance.enabled) await supervisor.stop()
     await PluginService.domainAsync(() => this.manager.update(instance))
@@ -120,6 +125,7 @@ export class PluginService {
       if (previous.enabled) await supervisor.start()
       throw error
     }
+    this.settings?.applyStore(id, storeWrites)
     if (previous.slug !== instance.slug) this.moveTopics(supervisor, topics, previous.slug, by)
     if (instance.enabled) await supervisor.start()
     return this.toDto(instance)
@@ -222,6 +228,10 @@ export class PluginService {
       ...(lastError ? { lastError } : {}),
       ...(statusMessage ? { statusMessage } : {})
     }
+  }
+
+  private static version(instance: PluginInstanceConfig) {
+    return instance.configVersion === undefined ? {} : { configVersion: instance.configVersion }
   }
 
   // a plugin that throws in catalog() or panel() is a failing upstream: 502 with its message

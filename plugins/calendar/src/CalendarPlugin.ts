@@ -24,6 +24,14 @@ export class CalendarPlugin extends Plugin<CalendarConfig> {
   static readonly sensors = [ActiveSensor, TitleSensor, TimeSensor]
   static readonly actuators = [DismissActuator]
 
+  /** Test connection: reads the feed once and counts its events, as the plugin would see them */
+  static async test(config: CalendarConfig) {
+    const client = new FeedClient({ url: config.url, username: config.username, password: config.password, timeoutMs: config.timeout * 1000 })
+    const text = await client.fetch()
+    const { occurrences } = new IcsReader(new Zone(config.timeZone ?? "UTC")).read(text ?? "", new Date())
+    return `Read the calendar from ${client.host}: ${occurrences.length} event${occurrences.length === 1 ? "" : "s"} from yesterday on`
+  }
+
   // Plugin.timeZone is the Loxone project's, or the server's without one
   readonly zone = new Zone(this.config.timeZone ?? this.timeZone)
   readonly agenda = new Agenda(new Dismissals(this.store), error => this.log.error("a sensor failed to update", { error: String(error) }))

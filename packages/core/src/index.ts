@@ -36,6 +36,7 @@ export { PluginRequestError, PluginUnavailableError } from "./plugins/RequestTra
 export { PluginManager } from "./plugins/PluginManager.ts"
 export { PluginTopics } from "./plugins/PluginTopics.ts"
 export { PackageDescriber } from "./plugins/PackageDescriber.ts"
+export { PluginConfigChecker, type ConfigCheck } from "./plugins/PluginConfigChecker.ts"
 
 export { SignalSelection, type SelectionMode, type SelectionRule, type SelectionTarget } from "./selection/SignalSelection.ts"
 export { SelectedValues, type SelectedHandler } from "./selection/SelectedValues.ts"

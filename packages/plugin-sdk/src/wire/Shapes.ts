@@ -44,7 +44,9 @@ export const PluginDescriptionSchema = z.object({
   /** set when the plugin watches signals the user chooses (`static readonly watches`) */
   watches: WatchDeclarationSchema.optional(),
   /** set when the plugin declares `static actions`; older hosts drop it */
-  actions: z.array(ActionDescriptionSchema).optional()
+  actions: z.array(ActionDescriptionSchema).optional(),
+  /** set when the plugin has `static test`: the settings form offers Test connection */
+  testable: z.literal(true).optional()
 })
 export type PluginDescription = z.infer<typeof PluginDescriptionSchema>
 

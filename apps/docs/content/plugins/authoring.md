@@ -238,6 +238,48 @@ const config = z.object({
   the same; the form does not run the check, and the worker refuses a failing value at start (the
   instance goes to *error* with your message). The same holds for params.
 
+### Checking, testing and migrating settings
+
+Nexus asks the plugin to check settings before it saves them: your `config` schema runs in a
+throwaway worker, and its issues show in the form by field. The plugin doesn't start for that.
+
+`static test(config)` adds **Test connection** to the form. It gets a valid config, reaches the
+device or service, and resolves with a short message, or throws with one the user can act on.
+Only read: never write, never change anything on the device.
+
+```ts
+static async test(config: Config) {
+  const info = await new Client(config.host).version()
+  return `Connected to ${info.model} at ${config.host}`
+}
+```
+
+When a release changes the shape of the config, raise `static configVersion` (default 1) and
+give `static migrateConfig({ config, from, store })`. It gets the stored config of version
+`from` (not validated) and returns the current shape; it may move data into the store. Nexus
+stores the result with the new version. It runs when an instance starts, and when its settings
+are saved before that, on a copy of its store whose writes Nexus applies.
+
+**Make it safe to run again on the same data.** Older hosts don't store the result, so it runs at
+every start with `from: 1`, also on a config already in the current shape; and a start that
+fails after migrating repeats it. Take `from` as a lower bound, keep current fields that are
+already there, and never overwrite what the store already holds:
+
+```ts
+static readonly configVersion = 2
+static migrateConfig({ config, from, store }: ConfigMigration) {
+  if (from >= 2) return config
+  const { devices, ...rest } = config as { devices?: unknown }
+  // only once: later, the store's list is the plugin's own and may have changed
+  if (devices && store.get("devices") === undefined) store.set("devices", devices)
+  return rest
+}
+```
+
+In tests, `PluginTestHost.checkConfig(type, config, version?)` and `testConfig(type, config)`
+run these without starting the plugin, and `start(type, { config, configVersion })` with
+`host.migratedConfig` shows what init migrated.
+
 ### Helpers that change how a field is shown
 
 All of these wrap a zod schema, return it unchanged in type, and only add a marker to the JSON

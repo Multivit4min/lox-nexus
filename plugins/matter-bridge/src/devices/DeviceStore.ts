@@ -33,17 +33,17 @@ export class DeviceStore {
   }
 
   /**
-   * Takes over the devices of an old config once (when nothing is stored yet). Each keeps its
-   * Matter identity (derived from type and name, as before) and gets its name as id, which is
-   * what its signals refer to.
+   * Config version 1 kept the device list in the settings: it moves into the store once (when
+   * nothing is stored yet), and the config is returned without it. Each device keeps its Matter
+   * identity (derived from type and name, as before) and gets its name as id, which is what its
+   * signals refer to.
    */
-  migrate(config: unknown): number {
-    if (this.store.get(DeviceStore.KEY) !== undefined) return 0
-    const legacy = legacyConfigSchema.safeParse(config)
-    if (!legacy.success || legacy.data.devices.length === 0) return 0
-    const records = legacy.data.devices.map(({ name, type }) => ({ id: name, name, type, allowUnlock: false, seed: `${type}\n${name}` }))
-    this.save(records)
-    this.log.info(`took over ${records.length} devices from the settings; manage them with Add, Edit and Remove device now`)
-    return records.length
+  static takeOver(store: PluginStore, config: unknown): unknown {
+    const { devices, ...rest } = config && typeof config === "object" ? config as { devices?: unknown } : {}
+    const legacy = legacyConfigSchema.safeParse({ devices })
+    if (store.get(DeviceStore.KEY) === undefined && legacy.success && legacy.data.devices.length > 0) {
+      store.set(DeviceStore.KEY, legacy.data.devices.map(({ name, type }) => ({ id: name, name, type, allowUnlock: false, seed: `${type}\n${name}` })))
+    }
+    return rest
   }
 }

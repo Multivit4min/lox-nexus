@@ -9,6 +9,7 @@ import { PluginSignals, type PluginBus } from "./PluginSignals.ts"
 import { PluginTopics } from "./PluginTopics.ts"
 import type { PluginTransport } from "./PluginTransport.ts"
 import type { PluginInstanceConfig, PluginLogSink, PluginPackage, PluginState, PluginStateStore } from "./PluginTypes.ts"
+import { SessionInit } from "./SessionInit.ts"
 import { WatchFeed, type WatchDeps } from "./WatchFeed.ts"
 
 /** Session timeouts plus the restart policy, in ms. */
@@ -34,6 +35,8 @@ export interface SupervisorDeps {
   timings?: Partial<SupervisorTimings>
   /** for plugins that declare `watches`; without it they get no values */
   watch?: WatchDeps
+  /** stores a config the plugin migrated at init, with its new version */
+  configMigrated?: (instance: PluginInstanceConfig) => void
   /** the installation's IANA time zone, read at every start; plugins use the server's without one */
   timeZone?: () => string | undefined
 }
@@ -70,7 +73,9 @@ export class PluginSupervisor extends Disposable {
     this.signals = this.own(new PluginSignals(instance, () => this.currentPkg, deps.bus, deps.registry, (id, value, cause) => this.calls.actuate(id, value, cause)))
     this.inbox = new PluginInbox({
       instance: () => this.instance, signals: this.signals, store: deps.store, logs: deps.logs, report: text => this.report(text),
-      healthChanged: health => this.session && this.setState(health)
+      healthChanged: health => this.session && this.setState(health),
+      // kept here too, so a restart doesn't migrate (and move data into the store) again
+      migrated: (config, configVersion) => this.current === "starting" && !this.isDisposed && deps.configMigrated?.(this.instance = { ...this.instance, config, configVersion })
     })
     this.onDispose(() => this.serialize(() => this.close("stopped")))
     this.onDispose(deps.logs.onLevel?.(instance.id, level => this.session?.logLevel(level)) ?? (() => undefined))
@@ -156,10 +161,7 @@ export class PluginSupervisor extends Disposable {
     try {
       session = new PluginSession(this.deps.transport.open(this.currentPkg.entry, { heapMb: this.currentPkg.heapMb }), this.timings)
       this.wire(session)
-      await session.open({
-        instanceId: this.instance.id, slug: this.instance.slug, config: this.instance.config, store: this.deps.store.load(this.instance.id),
-        timeZone: this.deps.timeZone?.(), logLevel: this.deps.logs.level?.(this.instance.id)
-      })
+      await session.open(SessionInit.of(this.instance, this.deps))
     } catch (error) {
       await session?.dispose().catch(() => undefined)
       return error instanceof InitFailedError ? this.refused(error.message) : this.crashed(PluginSupervisor.message(error))

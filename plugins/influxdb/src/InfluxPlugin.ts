@@ -19,6 +19,17 @@ import { WriteEndpoint } from "./write/WriteEndpoint.ts"
  */
 export class InfluxPlugin extends Plugin<InfluxConfig> {
   static readonly config = influxConfigSchema
+
+  /**
+   * Test connection: asks the server's health endpoint (/health, /ping for version 1), which
+   * touches no data. It proves the address; whether the token may write shows at the first write.
+   */
+  static async test(config: InfluxConfig) {
+    const endpoint = WriteEndpoint.fromConfig(config)
+    const { status, body } = await endpoint.check(AbortSignal.timeout(10_000))
+    if (status >= 300) throw new Error(`${endpoint.healthUrl.href} answered ${status}${body ? `: ${body}` : ""}`)
+    return `Reached ${endpoint.description}. The ${config.api === "v2" ? "token" : "user"} is checked by the first write.`
+  }
   static readonly watches = { label: "Exported signals", description: "Values of these signals are written to InfluxDB" }
   /** a request's timeout, and the time a stop gives the last write */
   static readonly TIMEOUT_MS = 15_000

@@ -23,6 +23,11 @@ const host = [
   { type: "init", instanceId: "i", slug: "home", config: {}, store: {}, logLevel: "info" },
   // only sent to workers whose hello lists "log.level"
   { type: "log.level", level: "debug" },
+  { type: "init", instanceId: "i", config: {}, store: {}, configVersion: 2 },
+  // only sent to workers whose hello lists "config.check"
+  { type: "config.check", requestId: 10, config: { host: "x" }, configVersion: 1 },
+  { type: "config.check", requestId: 12, config: { address: "x" }, configVersion: 1, store: { rooms: [] } },
+  { type: "config.test", requestId: 11, config: { host: "x" } },
   { type: "signal.add", requestId: 8, signal: { id: "s", kind: "sensor", capability: "c", params: {}, label: "Kitchen" } },
   // only sent to plugins that declare `watches`, so older plugins never see them
   { type: "watch.signals", signals: [{ id: "s", topic: "loxone/home/in/t", label: "T", valueType: "number", owner: { kind: "miniserver", id: "m" } }] },
@@ -47,7 +52,9 @@ const worker = [
   // an addition within version 1: only an answer to watch.values, which older hosts never send
   { type: "watch.ack", seq: 0 },
   // older hosts ignore the features
-  { type: "hello", version: 1, features: ["log.level"] }
+  { type: "hello", version: 1, features: ["log.level", "config.check"] },
+  // only to hosts whose init carried configVersion
+  { type: "config.migrated", config: { host: "x" }, version: 2 }
 ]
 
 test("wire version 1 messages keep parsing", () => {

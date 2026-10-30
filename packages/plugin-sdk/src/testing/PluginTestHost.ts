@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { SystemClock, type Clock } from "../lifecycle/Clock.ts"
 import type { PluginClass } from "../plugin/Plugin.ts"
+import type { ConfigCheckResult } from "../runtime/ConfigHost.ts"
 import { PluginRuntime } from "../runtime/PluginRuntime.ts"
 import type { Value } from "../values/Value.ts"
 import type { HostMessage, HttpRequest } from "../wire/HostMessages.ts"
@@ -34,6 +35,8 @@ export interface TestHostOptions {
    * with them. One such host at a time. Default false.
    */
   forwardRejections?: boolean
+  /** the version the config was stored with, as a host passes it; migrateConfig runs when it is older than the plugin's */
+  configVersion?: number
 }
 
 type Waiter = { match: (message: WorkerMessage) => boolean; resolve: (message: WorkerMessage) => void }
@@ -81,7 +84,7 @@ export class PluginTestHost<T extends PluginClass = PluginClass> {
       // awaited together, so a timeout of `done` while init still runs is never unhandled
       const [, outcome] = await Promise.all([
         host.runtime.handle({ type: "init", instanceId: options.instanceId ?? "test", slug: options.slug ?? "test", config: options.config ?? {}, store: host.store,
-          ...(options.timeZone === undefined ? {} : { timeZone: options.timeZone }) }),
+          ...(options.timeZone === undefined ? {} : { timeZone: options.timeZone }), ...(options.configVersion === undefined ? {} : { configVersion: options.configVersion }) }),
         done
       ])
       if (outcome.type === "failed") throw new Error(outcome.error)
@@ -90,6 +93,28 @@ export class PluginTestHost<T extends PluginClass = PluginClass> {
       await host.rejections?.restore()
       throw error
     }
+  }
+
+  /**
+   * What a host's settings check answers: issues at their fields, and the (migrated) config to
+   * save; the plugin doesn't start. With `store`, also what the migration wrote to a copy of it.
+   */
+  static async checkConfig(type: PluginClass, config: unknown, configVersion?: number, store?: Record<string, unknown>) {
+    const host = new PluginTestHost(type, {})
+    const request = { type: "config.check" as const, requestId: host.nextRequest++, config, ...(configVersion === undefined ? {} : { configVersion }), ...(store ? { store } : {}) }
+    return await host.request(request) as ConfigCheckResult
+  }
+
+  /** runs the plugin's Test connection with this config; @throws Error with its message, also for an invalid config */
+  static async testConfig(type: PluginClass, config: unknown) {
+    const host = new PluginTestHost(type, {})
+    return await host.request({ type: "config.test", requestId: host.nextRequest++, config }) as string | undefined
+  }
+
+  /** the config init migrated and reported to be stored, if it did */
+  get migratedConfig() {
+    const last = this.sent.findLast(message => message.type === "config.migrated")
+    return last?.type === "config.migrated" ? { config: last.config, version: last.version } : undefined
   }
 
   /** the description the UI gets (config and params as JSON Schema), without starting the plugin; throws for invalid static declarations */

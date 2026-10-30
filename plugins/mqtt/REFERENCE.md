@@ -25,6 +25,8 @@ gives up after 10 s. Subscriptions use QoS 1.
   the same ID throw each other off the broker (each connect disconnects the other), so never give
   two instances, or a Nexus and a copy of it, the same ID.
 
+**Test connection** in the settings form connects with the broker settings under a client id of its own (so a running instance isn't disconnected), then disconnects. It publishes and subscribes nothing.
+
 ## Sensor params
 
 All three sensors read one **exact topic** (no wildcards: a value signal has one source). The topic

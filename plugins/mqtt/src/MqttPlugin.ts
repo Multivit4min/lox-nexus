@@ -3,6 +3,7 @@ import { JsonActuator } from "./actuators/JsonActuator.ts"
 import { NumberActuator } from "./actuators/NumberActuator.ts"
 import { SwitchActuator } from "./actuators/SwitchActuator.ts"
 import { TextActuator } from "./actuators/TextActuator.ts"
+import { ConnectionTest } from "./broker/ConnectionTest.ts"
 import { BrokerConnection } from "./broker/BrokerConnection.ts"
 import { BrokerTarget } from "./broker/BrokerTarget.ts"
 import { ClientId } from "./broker/ClientId.ts"
@@ -30,6 +31,11 @@ export class MqttPlugin extends Plugin<MqttConfig> {
   static readonly sensors = [NumberSensor, SwitchSensor, TextSensor]
   static readonly actuators = [TextActuator, NumberActuator, SwitchActuator, JsonActuator]
   static readonly watches = { label: "Exported signals", description: "Values of these signals are published to the broker under the export base topic" }
+  /** Test connection: connects to the broker with these settings and disconnects again */
+  static test(config: MqttConfig) {
+    return ConnectionTest.run(config)
+  }
+
   /** what a stop gives the offline status and the DISCONNECT */
   static readonly CLOSE_MS = 1500
 

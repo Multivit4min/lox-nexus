@@ -4,6 +4,8 @@ The plugin is an exporter. Which signals it writes is chosen on the instance's p
 *Exported signals*: all of them, whole Miniservers or plugin instances, or single signals. The
 config only says *where and how* to write. Until you choose, nothing is written.
 
+**Test connection** in the settings form asks the server's health endpoint (`/health`, or `/ping` for version 1), which touches no data. It shows the address works; whether the token or user may write shows at the first write.
+
 ## Config details
 
 - `org`, `bucket`, `token`, `database`, `retentionPolicy` and `username` are trimmed; `password`

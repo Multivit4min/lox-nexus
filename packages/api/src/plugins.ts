@@ -37,6 +37,27 @@ export const PluginInstanceInputSchema = z.object({
 })
 export type PluginInstanceInput = z.input<typeof PluginInstanceInputSchema>
 
+/**
+ * POST /api/plugin-instances/check: checks settings before they are saved, and with `test` runs
+ * the plugin's Test connection. For an edit, `instanceId` fills in the secrets the form left out.
+ */
+export const PluginCheckInputSchema = z.object({
+  plugin: z.string().min(1),
+  config: z.record(z.string(), z.unknown()).default({}),
+  instanceId: z.string().min(1).optional(),
+  test: z.boolean().default(false)
+})
+export type PluginCheckInput = z.input<typeof PluginCheckInputSchema>
+
+/** What a settings check found; `checked` is false for a plugin version that can't check before starting. */
+export interface PluginCheckDto {
+  checked: boolean
+  /** problems at their fields; the path starts inside the config */
+  issues: Array<{ path: Array<string | number>; message: string }>
+  /** with `test`, when the settings are fine: the plugin's message, or why it couldn't connect */
+  test?: { ok: true; message?: string } | { ok: false; error: string }
+}
+
 /** A plugin instance; secret config fields are never sent back. */
 export interface PluginInstanceDto {
   id: string

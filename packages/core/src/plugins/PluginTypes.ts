@@ -25,6 +25,8 @@ export interface PluginInstanceConfig {
   slug: string
   label: string
   config: unknown
+  /** the plugin's configVersion the config was saved with; absent: 1 */
+  configVersion?: number
   enabled: boolean
 }
 

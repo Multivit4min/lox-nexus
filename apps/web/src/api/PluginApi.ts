@@ -1,5 +1,5 @@
 import type {
-  BridgeRequest, BridgeResultDto, PluginActionResultDto, PluginInstanceDto, PluginInstanceInput, PluginLogLevelDto, PluginLogLevelInput, PluginLogLineDto,
+  BridgeRequest, BridgeResultDto, PluginActionResultDto, PluginCheckDto, PluginCheckInput, PluginInstanceDto, PluginInstanceInput, PluginLogLevelDto, PluginLogLevelInput, PluginLogLineDto,
   PluginPackageDto, PluginSignalDto, PluginSignalInput
 } from "@lox-nexus/api"
 import type { CatalogNode, Panel } from "@lox-nexus/plugin-sdk/wire"
@@ -81,6 +81,11 @@ export class PluginApi {
 
   logs(id: string) {
     return this.http.get<PluginLogLineDto[]>(`${this.url(id)}/logs`)
+  }
+
+  /** checks settings with the plugin before saving; with `test` it also tries to connect */
+  check(input: PluginCheckInput) {
+    return this.http.post<PluginCheckDto>("/api/plugin-instances/check", input)
   }
 
   /** the log as a text file, for a link the browser downloads */

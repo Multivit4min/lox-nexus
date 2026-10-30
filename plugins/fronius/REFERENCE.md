@@ -15,6 +15,8 @@ starting a second one. A successful poll keeps the result as the latest snapshot
 sensors, the catalog and the panel read. When the power flow can't be read, the previous snapshot
 stays and the meter and storage results of that poll are ignored.
 
+**Test connection** in the settings form reads the power flow once and says how many inverters answered and the PV power.
+
 ## Sensor `value`
 
 One value of the poll data, value type `any`.

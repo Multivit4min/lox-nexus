@@ -5,6 +5,7 @@ import type { CatalogNode, Panel } from "../wire/Shapes.ts"
 import type { WatchDeclaration, WatchedValue } from "../wire/WatchShapes.ts"
 import type { ActionClass } from "./Action.ts"
 import type { ActuatorClass } from "./Actuator.ts"
+import type { ConfigMigration } from "./ConfigMigration.ts"
 import type { PluginContext, PluginLogLevel, WatchView } from "./PluginContext.ts"
 import type { SensorClass } from "./Sensor.ts"
 
@@ -224,4 +225,23 @@ export type PluginClass = (new (context: PluginContext) => Plugin) & {
   readonly watches?: WatchDeclaration
   /** what users can start from the instance page (pair a device, open a pairing window); ids must be unique */
   readonly actions?: readonly ActionClass[]
+  /**
+   * The version of the config's shape, raised when a change needs `migrateConfig`; default 1.
+   * Configs are stored with the version they were saved with.
+   */
+  readonly configVersion?: number
+  /**
+   * Turns a config saved with an older version into the current shape; may also move data into
+   * the store. Runs before validation when an instance starts or its settings are checked, and the
+   * host stores the result. It must be safe to run again on the same data: older hosts run it at
+   * every start with `from` 1, also on a config already in the current shape. Keep current fields
+   * that are there, and don't overwrite what the store already holds.
+   */
+  readonly migrateConfig?: (migration: ConfigMigration) => unknown
+  /**
+   * Test connection: reaches the device or service with this config (already validated) and
+   * resolves with a short message ("Connected to Fronius GEN24 at 10.0.0.5"), or throws with one a
+   * user can act on. Runs in a throwaway worker without starting the plugin; read, never write.
+   */
+  readonly test?: (config: never) => Promise<string | void>
 }

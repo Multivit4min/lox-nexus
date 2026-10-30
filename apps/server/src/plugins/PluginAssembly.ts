@@ -1,4 +1,4 @@
-import { DEFAULT_TIMINGS, PackageDescriber, type PluginTransport } from "@lox-nexus/core"
+import { DEFAULT_TIMINGS, PackageDescriber, PluginConfigChecker, type PluginInstanceConfig, type PluginStateStore, type PluginTransport } from "@lox-nexus/core"
 import { Disposable } from "@lox-nexus/plugin-sdk"
 import type { Logger } from "pino"
 import type { Config } from "../config/Config.ts"
@@ -22,6 +22,7 @@ import { PluginSwitch } from "./install/PluginSwitch.ts"
 import { PluginVersions } from "./install/PluginVersions.ts"
 import { StagingArea } from "./install/StagingArea.ts"
 import { PluginCatalog } from "./PluginCatalog.ts"
+import { PluginSettingsCheck } from "../services/PluginSettingsCheck.ts"
 
 /** Installer overrides for tests; production uses the defaults. */
 export interface InstallOptions {
@@ -77,6 +78,11 @@ export class PluginAssembly extends Disposable {
       loader.watch()
     }
     this.log.info({ plugins: this.catalog.list().map(entry => `${entry.pkg.id} (${entry.source})`) }, "plugins loaded")
+  }
+
+  /** checks an instance's settings with its plugin before they are saved; `stored` gives an edited instance's secrets and version */
+  settingsCheck(stored: (id: string) => PluginInstanceConfig | undefined, store: PluginStateStore) {
+    return new PluginSettingsCheck(new PluginConfigChecker(this.transport), this.catalog, stored, store)
   }
 
   /** the installer's service for the API; the first call builds it, later calls return the same one */

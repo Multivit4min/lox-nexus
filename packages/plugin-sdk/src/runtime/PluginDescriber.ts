@@ -18,7 +18,8 @@ export class PluginDescriber {
         id: actuator.id, label: Declarations.label(actuator), ...Declarations.description(actuator), ...Declarations.display(actuator, "actuator"), params: PluginDescriber.schemaOf(Declarations.params(actuator)), valueType: Declarations.accepts(actuator)
       })),
       ...Declarations.watches(type),
-      ...PluginDescriber.actions(type)
+      ...PluginDescriber.actions(type),
+      ...(typeof type.test === "function" ? { testable: true as const } : {})
     }
   }
 
@@ -43,6 +44,10 @@ export class PluginDescriber {
         seen.add(capability.id)
       }
     }
+    const { configVersion, migrateConfig, test } = type
+    if (configVersion !== undefined && !(Number.isInteger(configVersion) && configVersion >= 1)) throw new Error(`${type.name}: static configVersion must be a whole number from 1`)
+    if (migrateConfig !== undefined && typeof migrateConfig !== "function") throw new Error(`${type.name}: static migrateConfig must be a function`)
+    if (test !== undefined && typeof test !== "function") throw new Error(`${type.name}: static test must be a function`)
   }
 
   // input side: what a user types, before defaults and transforms; transforms can't be described
