@@ -14,8 +14,8 @@
   "dependencies": {
     "@lox-nexus/api": "*",
     "@lox-nexus/plugin-sdk": "*",
-    "@lucide/vue": "^1.61.0",
-    "@tanstack/vue-virtual": "^3.13.48",
+    "@lucide/vue": "^1.62.0",
+    "@tanstack/vue-virtual": "^3.13.49",
     "@vueuse/core": "^14.4.0",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.0",
