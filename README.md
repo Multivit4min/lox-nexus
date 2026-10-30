@@ -103,8 +103,8 @@ curl -fsSLO https://raw.githubusercontent.com/Multivit4min/lox-nexus/main/compos
 docker compose up -d
 ```
 
-The image is `ghcr.io/multivit4min/lox-nexus`: `latest` is the newest release, `edge` follows
-the `main` branch.
+The image is `ghcr.io/multivit4min/lox-nexus`: `latest` is the newest release, `edge` a build of
+the `main` branch in between releases.
 
 Open `http://<host>:8080/`. The first visit asks you to create the admin account. Then:
 
@@ -196,6 +196,11 @@ proxy (such as code-server), use `dev` with `dev:web` and open `…/proxy/8080/`
 | `apps/docs` | Documentation site |
 | `plugins/*` | First-party plugins |
 | `docs/` | Architecture, decision records, roadmap |
+
+**Releasing:** set the version in `package.json` and `apps/server/package.json`, add it to
+`CHANGELOG.md`, push a `vX.Y.Z` tag, then run the **Docker image** workflow from that tag (Actions →
+Docker image → Run workflow). Images are only built that way; running it from `main` updates
+`edge`.
 
 Read [`docs/architecture.md`](docs/architecture.md) before larger changes. The conventions
 (class per file, short files, lifetimes through `Disposable`, package boundaries) are in

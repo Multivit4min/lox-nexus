@@ -2,7 +2,7 @@
 # Update: `docker compose pull && docker compose up -d`
 services:
   nexus:
-    # latest: the newest release; edge: the main branch
+    # latest: the newest release; edge: a build of the main branch in between releases
     image: ghcr.io/multivit4min/lox-nexus:latest
     # to build the image from a checkout of the repository instead, replace the line above with
     # `build: .` and run `docker compose up -d --build`

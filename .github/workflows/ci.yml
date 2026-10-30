@@ -1,12 +1,32 @@
-# Lint, typecheck, the SDK's API check and tests on every pull request and push to main: the
-# checks the project requires before a change is done. Tests against real devices and services
-# are skipped here: they only run when their variables (see .env.example) are set.
+# Lint, typecheck, the SDK's API check and tests on pull requests and pushes to main that touch
+# what they check: code, dependencies, compiler and lint settings. Changes to the README, the
+# changelog, docs/ or compose.yaml don't run them. Tests against real devices and services are
+# skipped here: they only run when their variables (see .env.example) are set.
 name: CI
 
 on:
   push:
     branches: [main]
+    # keep in sync with pull_request below
+    paths:
+      - "apps/**"
+      - "packages/**"
+      - "plugins/**"
+      - package.json
+      - package-lock.json
+      - "tsconfig*.json"
+      - eslint.config.js
+      - .github/workflows/ci.yml
   pull_request:
+    paths:
+      - "apps/**"
+      - "packages/**"
+      - "plugins/**"
+      - package.json
+      - package-lock.json
+      - "tsconfig*.json"
+      - eslint.config.js
+      - .github/workflows/ci.yml
   workflow_dispatch:
 
 concurrency:

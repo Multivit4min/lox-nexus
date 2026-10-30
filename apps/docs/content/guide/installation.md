@@ -4,7 +4,7 @@ Nexus runs in Docker or from a source checkout. Plugins are installed, updated a
 the web UI, see [Plugins](#plugins).
 
 The image is published at `ghcr.io/multivit4min/lox-nexus` for amd64 and arm64: `latest` is the
-newest release, `edge` follows the `main` branch.
+newest release, `edge` a build of the `main` branch in between releases.
 
 ## Requirements
 
