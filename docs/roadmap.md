@@ -256,8 +256,9 @@ Assistant) and a controller (Matter devices and hubs in Nexus, and so in Loxone)
   code and QR code in the panel, pairing window and pairing removal as actions. matter.js keeps
   everything in the plugin store; device state writes are merged. Tested against an in-process
   matter.js controller; about 150–200 MB RSS per instance.
-- **MB3: `matter-controller`.** Pair devices and hubs by code (multi-admin), a catalog of their
-  clusters, live values by subscription.
+- **MB3: `matter-controller`** (deferred, 2026-10-30). Pair devices and hubs by code (multi-admin),
+  a catalog of their clusters, live values by subscription. Until then, Matter devices reach Loxone
+  through Home Assistant's Matter integration and the `homeassistant` plugin.
 
 ## Top risks
 
