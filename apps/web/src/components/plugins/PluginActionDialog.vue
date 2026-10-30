@@ -21,7 +21,8 @@ const emit = defineEmits<{ done: [] }>()
 const api = AppContext.use().plugins
 
 const field = computed(() => SchemaFields.parse(props.action.input as JsonSchemaNode))
-const hasInput = computed(() => Object.keys((props.action.input.properties ?? {}) as object).length > 0)
+// by the parsed form, not the schema's properties: a union's fields sit in its branches
+const hasInput = computed(() => field.value.kind === "union" || (field.value.fields?.length ?? 0) > 0)
 // shallow: a deep ref over the recursive Draft type is too deep for the type checker
 const draft = shallowRef<Draft>(null)
 const result = ref<{ ok: boolean; text: string }>()

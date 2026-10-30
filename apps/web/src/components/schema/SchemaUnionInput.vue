@@ -22,7 +22,8 @@ const choice = computed<SchemaField>(() => ({
   ...(props.field.discriminatorDescription ? { description: props.field.discriminatorDescription } : {})
 }))
 
-const choose = (value: Draft) => emit("update:modelValue", SchemaDraft.choose(props.field, props.modelValue, String(value)))
+// the same choice again changes nothing; rebuilding the draft would only make the select flicker
+const choose = (value: Draft) => String(value) !== record.value[discriminator.value] && emit("update:modelValue", SchemaDraft.choose(props.field, props.modelValue, String(value)))
 const setChild = (name: string, value: Draft) => emit("update:modelValue", { ...record.value, [name]: value })
 </script>
 

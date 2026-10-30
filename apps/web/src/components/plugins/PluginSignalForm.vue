@@ -121,7 +121,7 @@ async function onSubmit() {
     <FormField id="signalLabel" label="Name" hint="How it is listed here, in wires and in the Bus Inspector">
       <Input id="signalLabel" v-model="label" required maxlength="100" @input="labelEdited = true" />
     </FormField>
-    <section v-if="capability.field.fields?.length" class="grid gap-2">
+    <section v-if="capability.field.fields?.length || capability.field.kind === 'union'" class="grid gap-2">
       <h3 class="text-sm font-medium">Settings</h3>
       <div class="max-h-[45vh] overflow-y-auto pr-1">
         <SchemaFieldInput id="params" v-model="draft" :field="capability.field" />
