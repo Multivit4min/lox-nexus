@@ -14,7 +14,7 @@ const ContactEndpoint = ContactSensorDevice.with(BridgedDeviceBasicInformationSe
 export class BridgedContact extends BridgedDevice {
   readonly endpoint = new Endpoint(ContactEndpoint, {
     id: this.identity.endpointId,
-    bridgedDeviceBasicInformation: this.identity.basicInformation(this.name),
+    bridgedDeviceBasicInformation: this.basicInformation(),
     booleanState: { stateValue: this.remembered("contact") !== true }
   })
 

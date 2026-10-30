@@ -2,7 +2,7 @@ import type { CatalogEntry, CatalogNode } from "@lox-nexus/plugin-sdk"
 import type { BridgedDevice } from "../devices/BridgedDevice.ts"
 import { Capabilities } from "../signals/Capabilities.ts"
 
-/** One folder per configured device with the signals that fit its type, commands first. */
+/** One folder per device with the signals that fit its type, commands first; params refer to the id. */
 export class BridgeCatalog {
   constructor(private readonly devices: readonly BridgedDevice[]) {}
 
@@ -11,7 +11,7 @@ export class BridgeCatalog {
   }
 
   private static entries(device: BridgedDevice): CatalogEntry[] {
-    const params = { device: device.name }
+    const params = { device: device.id }
     const label = (text: string) => `${device.name}: ${text.charAt(0).toLowerCase()}${text.slice(1)}`
     return [
       ...device.info.commands.map(kind => {

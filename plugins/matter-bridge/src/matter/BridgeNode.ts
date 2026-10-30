@@ -1,46 +1,29 @@
-import type { PluginLogger } from "@lox-nexus/plugin-sdk"
+import type { Clock, PluginLogger } from "@lox-nexus/plugin-sdk"
 import { Endpoint, FabricIndex, ServerNode, type Environment } from "@matter/main"
-import { AdministratorCommissioning } from "@matter/main/clusters/administrator-commissioning"
 import { AggregatorEndpoint } from "@matter/main/endpoints/aggregator"
 import { DeviceCommissioner, FabricManager } from "@matter/main/protocol"
 import type { BridgedDevice } from "../devices/BridgedDevice.ts"
 import type { BridgeIdentity } from "./BridgeIdentity.ts"
 import type { Secrets } from "./PairingSecrets.ts"
+import { Deadline } from "./Deadline.ts"
+import { PairingWindows, type Controller, type PairingStatus } from "./PairingWindows.ts"
 import { QuietCommissioningServer } from "./QuietCommissioningServer.ts"
 import { StartFailure } from "./StartFailure.ts"
 import { Vendors } from "./Vendors.ts"
 
 const BridgeRoot = ServerNode.RootEndpoint.with(QuietCommissioningServer)
-const { CommissioningWindowStatus } = AdministratorCommissioning
 
 export interface BridgeNodeOptions {
   environment: Environment
   port: number
   identity: BridgeIdentity
   secrets: Secrets
-  devices: readonly BridgedDevice[]
+  /** the devices now; devices added or removed later go through addDevice() and removeDevice() */
+  devices(): readonly BridgedDevice[]
   log: PluginLogger
-  now(): number
+  /** the plugin's clock: the pairing window's end, and the deadline of a stop */
+  clock: Clock
 }
-
-/**
- * Which pairing window is open: `basic` takes the bridge's own code; `enhanced` is one a paired
- * controller opened to share the bridge, with a code only that controller's app shows.
- */
-export type PairingWindow = "closed" | "basic" | "enhanced"
-
-/** where pairing stands, for the panel */
-export interface PairingStatus {
-  commissioned: boolean
-  manualCode: string
-  qrCode: string
-  window: PairingWindow
-  /** when the window opened with "Open pairing window" closes */
-  windowUntil?: number
-}
-
-/** a paired controller (a fabric), without matter.js's BigInt ids */
-export interface Controller { fabricIndex: number; vendorId: number; label: string }
 
 /**
  * The bridge as a Matter node: a root with an aggregator, one bridged endpoint per device. Starts,
@@ -49,9 +32,12 @@ export interface Controller { fabricIndex: number; vendorId: number; label: stri
 export class BridgeNode {
   /** a window for another ecosystem stays open this long (Matter's standard window) */
   static readonly WINDOW_MS = 15 * 60_000
+  /** how long a stop waits for matter.js; Nexus gives a plugin 5 s to stop */
+  static readonly CLOSE_MS = 3000
   static readonly RESETTING = "the bridge is resetting after its last controller was removed; try again in a few seconds"
 
   private node: ServerNode<typeof BridgeRoot> | undefined
+  private aggregator: Endpoint<typeof AggregatorEndpoint> | undefined
   private windowUntil: number | undefined
   private closed = false
   private onlineCount = 0
@@ -70,9 +56,9 @@ export class BridgeNode {
       productDescription: identity.productDescription(),
       basicInformation: identity.basicInformation()
     })
-    const aggregator = new Endpoint(AggregatorEndpoint, { id: "devices" })
+    const aggregator = this.aggregator = new Endpoint(AggregatorEndpoint, { id: "devices" })
     await node.add(aggregator)
-    for (const device of devices) await aggregator.add(device.endpoint)
+    for (const device of devices()) await this.attach(device)
     node.lifecycle.online.on(() => this.wentOnline())
     node.lifecycle.offline.on(() => {
       if (!this.closed) this.resetting = true
@@ -86,9 +72,29 @@ export class BridgeNode {
     log.info(node.state.commissioning.commissioned ? "Matter bridge started" : "Matter bridge started, not paired yet: the pairing code is on the instance page")
   }
 
+  /** adds a device to the running bridge; controllers see it appear (Alexa may need "Discover devices") */
+  async addDevice(device: BridgedDevice) {
+    this.assertRunning()
+    await this.attach(device)
+    device.watch()
+  }
+
+  /** removes a device from the running bridge and drops what matter.js stored of it */
+  async removeDevice(device: BridgedDevice) {
+    this.assertRunning()
+    await device.endpoint.delete()
+    device.attached = false
+  }
+
+  /** closes the node, at most CLOSE_MS: with a paired controller gone, matter.js waits ~5 s (Nexus's stop budget) */
   async close() {
     this.closed = true
-    await this.node?.close()
+    if (!this.node) return
+    const closing = this.node.close()
+    closing.catch(error => this.options.log.debug(`closing the Matter node: ${error instanceof Error ? error.message : String(error)}`))
+    if (!await Deadline.within(closing, BridgeNode.CLOSE_MS, this.options.clock)) {
+      this.options.log.warn(`the Matter bridge didn't close within ${BridgeNode.CLOSE_MS / 1000} s (a paired controller doesn't answer); stopped anyway`)
+    }
   }
 
   /** `resetting` between removing the last controller and the bridge being back, waiting for a pairing */
@@ -101,8 +107,8 @@ export class BridgeNode {
     const node = this.node
     if (this.state !== "running" || !node) return undefined
     const { commissioned, pairingCodes } = node.state.commissioning
-    const window = BridgeNode.window(node.env.get(DeviceCommissioner).windowStatus)
-    const windowUntil = window === "basic" && this.windowUntil !== undefined && this.windowUntil > this.options.now() ? this.windowUntil : undefined
+    const window = PairingWindows.of(node.env.get(DeviceCommissioner).windowStatus)
+    const windowUntil = window === "basic" && this.windowUntil !== undefined && this.windowUntil > this.options.clock.now() ? this.windowUntil : undefined
     return { commissioned, manualCode: pairingCodes.manualPairingCode, qrCode: pairingCodes.qrPairingCode, window, windowUntil }
   }
 
@@ -116,7 +122,7 @@ export class BridgeNode {
    * another ecosystem), Matter's long window while not paired.
    */
   async openPairingWindow(): Promise<PairingStatus> {
-    const node = this.online()
+    const node = this.assertRunning()
     const commissioned = node.state.commissioning.commissioned
     try {
       await node.act(agent => agent.get(QuietCommissioningServer).enterCommissionableMode())
@@ -126,7 +132,7 @@ export class BridgeNode {
       }
       throw error
     }
-    this.windowUntil = commissioned ? this.options.now() + BridgeNode.WINDOW_MS : undefined
+    this.windowUntil = commissioned ? this.options.clock.now() + BridgeNode.WINDOW_MS : undefined
     const status = this.pairing()
     if (!status) throw new Error(BridgeNode.RESETTING)
     return status
@@ -137,7 +143,7 @@ export class BridgeNode {
    * that controller's app. Removing the last one resets the bridge, which waits to be paired again.
    */
   async removeController(fabricIndex: number) {
-    const node = this.online()
+    const node = this.assertRunning()
     const fabric = node.env.get(FabricManager).maybeFor(FabricIndex(fabricIndex))
     if (!fabric) throw new Error(`no paired controller with fabric index ${fabricIndex}`)
     const described = this.describe(fabricIndex)
@@ -147,33 +153,44 @@ export class BridgeNode {
 
   /** "Amazon Alexa (fabric 1)" for logs and answers */
   describe(fabricIndex: number) {
-    const controller = this.controllers().find(candidate => candidate.fabricIndex === fabricIndex)
-    return controller ? `${Vendors.describe(controller.label, controller.vendorId)} (fabric ${fabricIndex})` : `fabric ${fabricIndex}`
+    return Vendors.describeFabric(this.controllers(), fabricIndex)
   }
+
 
   /**
    * Listens to the devices again each time the node is online: the factory reset after the last
-   * controller is removed rebuilds their events and puts their attributes back to the defaults,
-   * so the states Nexus sent are set again then.
+   * controller is removed rebuilds their events and puts the endpoints back to how they were
+   * created, so their settings (label, a lock's unlocking) and the states Nexus sent are set again.
    */
   private wentOnline() {
     const { devices, log } = this.options
     this.resetting = false
-    for (const device of devices) device.watch()
+    for (const device of devices()) device.watch()
     if (this.onlineCount++ === 0) return
-    for (const device of devices) {
-      device.restore().catch(error => log.warn(`could not set the states of "${device.name}" again after the reset: ${error instanceof Error ? error.message : String(error)}`))
+    for (const device of devices()) {
+      device.reconnect().catch(error => log.warn(`could not set up "${device.name}" again after the reset: ${error instanceof Error ? error.message : String(error)}`))
     }
   }
 
-  private online() {
+  /** an endpoint that was added but couldn't be set up is deleted again, so no half device stays */
+  private async attach(device: BridgedDevice) {
+    if (!this.aggregator) throw new Error("the Matter bridge is not running")
+    await this.aggregator.add(device.endpoint)
+    try {
+      device.attached = true
+      await device.sync()
+    } catch (error) {
+      device.attached = false
+      await device.endpoint.delete().catch(() => {})
+      throw error
+    }
+  }
+
+  /** the running node; throws otherwise, saying "resetting" during the reset after the last controller left */
+  assertRunning() {
     const state = this.state
     if (state === "running" && this.node) return this.node
     throw new Error(state === "resetting" ? BridgeNode.RESETTING : "the Matter bridge is not running")
   }
 
-  private static window(status: AdministratorCommissioning.CommissioningWindowStatus): PairingWindow {
-    if (status === CommissioningWindowStatus.BasicWindowOpen) return "basic"
-    return status === CommissioningWindowStatus.EnhancedWindowOpen ? "enhanced" : "closed"
-  }
 }

@@ -15,7 +15,7 @@ export class BridgedDimmer extends BridgedDevice {
 
   readonly endpoint = new Endpoint(DimmerEndpoint, {
     id: this.identity.endpointId,
-    bridgedDeviceBasicInformation: this.identity.basicInformation(this.name),
+    bridgedDeviceBasicInformation: this.basicInformation(),
     // off until Nexus or a controller says otherwise; the level only shows once it is on
     onOff: { onOff: false },
     levelControl: { currentLevel: BridgedDimmer.MAX_LEVEL }

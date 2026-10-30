@@ -1,8 +1,11 @@
 import type { Panel, PanelPart } from "@lox-nexus/plugin-sdk"
+import { EditDeviceAction } from "../actions/EditDeviceAction.ts"
+import { RemoveDeviceAction } from "../actions/RemoveDeviceAction.ts"
 import { RemovePairingAction } from "../actions/RemovePairingAction.ts"
 import type { BridgedDevice, Recorded } from "../devices/BridgedDevice.ts"
-import type { StateKind } from "../devices/DeviceKinds.ts"
-import type { BridgeNode, PairingStatus } from "../matter/BridgeNode.ts"
+import type { CommandKind, StateKind } from "../devices/DeviceKinds.ts"
+import type { BridgeNode } from "../matter/BridgeNode.ts"
+import type { PairingStatus } from "../matter/PairingWindows.ts"
 import { Vendors } from "../matter/Vendors.ts"
 import { KindFormat } from "./KindFormat.ts"
 
@@ -72,20 +75,25 @@ export class BridgePanel {
   }
 
   private deviceTable(): PanelPart {
-    if (this.devices.length === 0) return { type: "keyValue", items: [{ label: "Devices", value: "none yet: add them in the settings" }] }
+    if (this.devices.length === 0) return { type: "keyValue", items: [{ label: "Devices", value: "No devices yet: use Add device" }] }
     return {
       type: "table",
-      columns: ["Device", "Type", "Last command from a controller", "Last state from Nexus"],
+      columns: ["Device", "Id", "Type", "Last command from a controller", "Last state from Nexus"],
       rows: this.devices.map(device => {
         // a thermostat's "21 °C" could be either value: name it where a device has several
         const labeled = device.info.states.length > 1
-        return [device.name, device.info.label, this.recorded(device.lastCommand, labeled), this.recorded(device.lastState, labeled)]
-      })
+        return [device.name, device.id, device.info.label, this.recorded(device.lastCommand, labeled), this.recorded(device.lastState, labeled)]
+      }),
+      rowActions: this.devices.map(device => [
+        // Allow unlocking only where it means something, prefilled with what the lock has
+        { action: EditDeviceAction.id, label: "Edit", input: { device: device.id, name: device.name, ...device.type === "door-lock" ? { allowUnlock: device.allowUnlock } : {} } },
+        { action: RemoveDeviceAction.id, label: "Remove", input: { device: device.id } }
+      ])
     }
   }
 
   /** with the kind in front where the device has several ("temperature 21.5 °C" on a thermostat) */
-  private recorded(entry: Recorded<StateKind> | undefined, labeled: boolean) {
+  private recorded(entry: Recorded<StateKind | CommandKind> | undefined, labeled: boolean) {
     if (!entry) return "–"
     const value = labeled ? KindFormat.labeled(entry.kind, entry.value) : KindFormat.value(entry.kind, entry.value)
     return `${value} at ${this.time(entry.at)}`

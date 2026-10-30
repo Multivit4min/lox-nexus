@@ -11,7 +11,7 @@ const OccupancyEndpoint = OccupancySensorDevice.with(BridgedDeviceBasicInformati
 export class BridgedOccupancy extends BridgedDevice {
   readonly endpoint = new Endpoint(OccupancyEndpoint, {
     id: this.identity.endpointId,
-    bridgedDeviceBasicInformation: this.identity.basicInformation(this.name),
+    bridgedDeviceBasicInformation: this.basicInformation(),
     occupancySensing: { occupancy: { occupied: this.remembered("occupancy") === true } }
   })
 

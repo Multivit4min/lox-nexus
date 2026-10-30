@@ -1,13 +1,18 @@
 import type { Endpoint } from "@matter/main"
-import type { DeviceConfig } from "../config/BridgeConfig.ts"
+import { BridgedDeviceBasicInformationServer } from "@matter/main/behaviors/bridged-device-basic-information"
 import { DeviceTypes, type DeviceTypeInfo } from "../config/DeviceTypes.ts"
 import { DeviceIdentity } from "./DeviceIdentity.ts"
 import type { CommandKind, KindValue, StateKind } from "./DeviceKinds.ts"
 import type { DeviceMemory } from "./DeviceMemory.ts"
+import type { DeviceRecord } from "./DeviceRecord.ts"
 
 /** what a device needs from the plugin */
 export interface DeviceContext {
   now(): number
+  /** resolves after `ms` on the plugin's clock (a long press holds the button), or when the plugin stops */
+  wait(ms: number): Promise<void>
+  /** a warning in the instance log */
+  warn(message: string): void
   readonly memory: DeviceMemory
 }
 
@@ -26,9 +31,9 @@ interface Listenable<T extends unknown[]> {
 type ChangeContext = { fabric?: unknown } | undefined
 
 /**
- * One configured device as a bridged Matter endpoint. Commands from controllers update the
- * attribute (matter.js does that) and go to the command listeners; states from Nexus are set on
- * the attribute without coming back as commands.
+ * One device as a bridged Matter endpoint. Commands from controllers update the attribute
+ * (matter.js does that) and go to the command listeners; states from Nexus are set on the
+ * attribute without coming back as commands.
  */
 export abstract class BridgedDevice {
   readonly identity: DeviceIdentity
@@ -40,20 +45,69 @@ export abstract class BridgedDevice {
   private readonly unwatch: (() => void)[] = []
   /** the last value Nexus sent per state, oldest first, to set again after a factory reset */
   private readonly states = new Map<StateKind, KindValue>()
-  /** the controller action that sent the last command, to pass on each command of one action once */
-  private lastAction: { action: unknown; kind: CommandKind; value: KindValue } | undefined
+  /** per kind, the controller action that sent the last command, to pass on each command of one action once */
+  private readonly lastActions = new Map<CommandKind, { action: unknown; value: KindValue }>()
 
-  constructor(readonly config: DeviceConfig, protected readonly context: DeviceContext) {
-    this.identity = new DeviceIdentity(config)
-    this.info = DeviceTypes.info(config.type)
+  /** whether the endpoint is part of the running node, so attributes can be set */
+  attached = false
+  private readonly record: DeviceRecord
+
+  constructor(record: DeviceRecord, protected readonly context: DeviceContext) {
+    this.record = { ...record }
+    this.identity = new DeviceIdentity(record.seed ?? record.id)
+    this.info = DeviceTypes.info(record.type)
     for (const kind of this.info.states) {
       const value = this.remembered(kind)
       if (value !== undefined) this.states.set(kind, value)
     }
   }
 
+  get id() {
+    return this.record.id
+  }
+
   get name() {
-    return this.config.name
+    return this.record.name
+  }
+
+  get type() {
+    return this.record.type
+  }
+
+  /** door locks: whether controllers may unlock */
+  get allowUnlock() {
+    return this.record.allowUnlock
+  }
+
+  /** what the store keeps of this device */
+  toRecord(): DeviceRecord {
+    return { ...this.record }
+  }
+
+  /**
+   * Renames (the apps get the new label) or changes a lock's unlocking; the identity stays. The
+   * endpoint changes first: if it refuses, the device keeps what it had.
+   */
+  async update(changes: Partial<Pick<DeviceRecord, "name" | "allowUnlock">>) {
+    const next = { ...this.record, ...changes }
+    if (this.attached) await this.sync(next)
+    Object.assign(this.record, changes)
+  }
+
+  /**
+   * Brings the endpoint's settings in line with the record. matter.js restores what it stored,
+   * such as the label before a rename, over what the endpoint was created with, and a factory
+   * reset puts back what it was created with.
+   */
+  async sync(record: DeviceRecord = this.record) {
+    if (this.endpoint.stateOf(BridgedDeviceBasicInformationServer).nodeLabel !== record.name) {
+      await this.endpoint.setStateOf(BridgedDeviceBasicInformationServer, { nodeLabel: record.name })
+    }
+  }
+
+  /** the bridged basic information the endpoint starts with */
+  protected basicInformation() {
+    return this.identity.basicInformation(this.name, this.info.label)
   }
 
   /** subscribes to one kind of command; returns the unsubscribe */
@@ -86,6 +140,16 @@ export abstract class BridgedDevice {
   }
 
   /**
+   * After the factory reset that follows removing the last controller: the endpoint is as it was
+   * created (old label, a lock's unlocking as at start), so the record's settings go first, then
+   * the states Nexus sent.
+   */
+  async reconnect() {
+    await this.sync()
+    await this.restore()
+  }
+
+  /**
    * (Re)subscribes to the endpoint's changes. Called whenever the node comes online: the factory
    * reset after the last controller is removed rebuilds the endpoints' events.
    */
@@ -111,9 +175,9 @@ export abstract class BridgedDevice {
    * same action is passed on once.
    */
   protected command(kind: CommandKind, value: KindValue, action?: unknown) {
-    const last = this.lastAction
-    if (action !== undefined && last?.action === action && last.kind === kind && last.value === value) return
-    this.lastAction = { action, kind, value }
+    const last = this.lastActions.get(kind)
+    if (action !== undefined && last?.action === action && JSON.stringify(last.value) === JSON.stringify(value)) return
+    this.lastActions.set(kind, { action, value })
     this.lastCommand = { kind, value, at: this.context.now() }
     for (const listener of this.listeners.get(kind) ?? []) listener(value)
   }

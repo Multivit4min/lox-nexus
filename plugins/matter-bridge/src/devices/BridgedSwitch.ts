@@ -10,9 +10,9 @@ const PlugEndpoint = OnOffPlugInUnitDevice.with(BridgedDeviceBasicInformationSer
 
 /** An on/off light or plug: one on/off command, one on/off state. Starts off. */
 export class BridgedSwitch extends BridgedDevice {
-  readonly endpoint = this.config.type === "plug"
-    ? new Endpoint(PlugEndpoint, { id: this.identity.endpointId, bridgedDeviceBasicInformation: this.identity.basicInformation(this.name) })
-    : new Endpoint(LightEndpoint, { id: this.identity.endpointId, bridgedDeviceBasicInformation: this.identity.basicInformation(this.name) })
+  readonly endpoint = this.type === "plug"
+    ? new Endpoint(PlugEndpoint, { id: this.identity.endpointId, bridgedDeviceBasicInformation: this.basicInformation() })
+    : new Endpoint(LightEndpoint, { id: this.identity.endpointId, bridgedDeviceBasicInformation: this.basicInformation() })
 
   protected override subscribe() {
     this.listen(this.endpoint.events.onOff.onOff$Changed, (on, _old, context) => {

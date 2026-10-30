@@ -7,13 +7,14 @@ type Remembered = z.infer<typeof rememberedSchema>
 
 /**
  * The last state Nexus sent for the attributes matter.js doesn't persist itself (it does for
- * on/off, level, positions and setpoints). Without them a restart would show every door closed
+ * on/off, level, colour temperature, positions, fan speed and setpoints): contacts, motion, locks,
+ * alarms, leaks, temperatures and humidity. Without them a restart would show every door closed
  * until it next changes, and showing it open again would start "door opens" routines although
  * nothing happened; temperatures would be unknown until Loxone happens to send again.
  */
 export class DeviceMemory {
   static readonly PREFIX = "state:"
-  static readonly KINDS: readonly StateKind[] = ["contact", "occupancy", "temperature", "humidity"]
+  static readonly KINDS: readonly StateKind[] = ["contact", "occupancy", "temperature", "humidity", "locked", "smoke", "co", "leak"]
 
   private readonly cache = new Map<string, Remembered>()
 
@@ -26,7 +27,7 @@ export class DeviceMemory {
 
   /** keeps the value if it is one matter.js doesn't persist and it changed */
   remember(endpointId: string, kind: StateKind, value: KindValue) {
-    if (!DeviceMemory.KINDS.includes(kind)) return
+    if (!DeviceMemory.KINDS.includes(kind) || typeof value === "object") return
     const current = this.read(endpointId)
     if (current[kind] === value) return
     const next = { ...current, [kind]: value }
@@ -35,6 +36,14 @@ export class DeviceMemory {
     const write = () => this.store.set(key, next)
     if (this.coalescer) this.coalescer.write(key, write)
     else write()
+  }
+
+  /** drops what is kept for a removed device */
+  forget(endpointId: string) {
+    const key = DeviceMemory.PREFIX + endpointId
+    this.cache.delete(endpointId)
+    this.coalescer?.drop(key)
+    if (this.store.get(key) !== undefined) this.store.delete(key)
   }
 
   /** drops what is kept for devices no longer configured */

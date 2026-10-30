@@ -1,3 +1,5 @@
+import type { Controller } from "./PairingWindows.ts"
+
 /** Names for the vendor ids of the common Matter ecosystems, so the panel says "Amazon" instead of a number. */
 export class Vendors {
   private static readonly names: ReadonlyMap<number, string> = new Map([
@@ -19,5 +21,11 @@ export class Vendors {
   /** the fabric's label, else the vendor's name, else its id */
   static describe(label: string, vendorId: number) {
     return label || Vendors.name(vendorId) || `vendor ${Vendors.hex(vendorId)}`
+  }
+
+  /** a paired controller by its fabric index, for logs and answers: "Amazon Alexa (fabric 1)" */
+  static describeFabric(controllers: readonly Controller[], fabricIndex: number) {
+    const controller = controllers.find(candidate => candidate.fabricIndex === fabricIndex)
+    return controller ? `${Vendors.describe(controller.label, controller.vendorId)} (fabric ${fabricIndex})` : `fabric ${fabricIndex}`
   }
 }

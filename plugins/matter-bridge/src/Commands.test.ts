@@ -74,17 +74,19 @@ test("thermostat: a setpoint from a controller is a command; one from Nexus is s
   const panel = await bridge.host.panel()
   assert.ok(panel?.type === "sections" && panel.sections[2]!.panel.type === "table")
   const row = panel.sections[2]!.panel.rows.find(cells => cells[0] === "Heating")!
-  assert.match(row[2]!, /^heating setpoint 21\.5 °C at /)
-  assert.match(row[3]!, /^temperature 20\.4 °C at /)
+  assert.match(row[3]!, /^heating setpoint 21\.5 °C at /)
+  assert.match(row[4]!, /^temperature 20\.4 °C at /)
 })
 
 test("a blind moving through 20 positions from Nexus costs one store write, not twenty", { timeout: 20_000 }, async () => {
   const position = await bridge.host.addActuator("position", { device: "Blind" })
-  await new Promise(resolve => setTimeout(resolve, 1600))
+  const { coalescer } = bridge.host.plugin
+  // whatever earlier steps left waiting is written first
+  coalescer.flush()
   const before = writes()
   for (let step = 1; step <= 20; step++) await bridge.host.actuate(position, Value.number(step * 5))
   assert.equal(writes(), before, "nothing yet")
-  await until(() => writes() > before, 3000, "the coalesced write")
-  await new Promise(resolve => setTimeout(resolve, 1600))
+  assert.equal(coalescer.size, 1, "one key waits")
+  await until(() => coalescer.size === 0, 3000, "the coalesced write")
   assert.equal(writes() - before, 1)
 })

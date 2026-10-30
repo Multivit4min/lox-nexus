@@ -1,16 +1,21 @@
 /** what a controller (Alexa, Google, …) can command on a device; each becomes a sensor */
-export type CommandKind = "onOff" | "brightness" | "position" | "setpoint"
+export type CommandKind = "onOff" | "brightness" | "colorTemperature" | "tunableWhite" | "position" | "setpoint" | "fanSpeed" | "lock"
 
 /** what Nexus can tell controllers about a device; each becomes an actuator */
-export type StateKind = "onOff" | "brightness" | "position" | "temperature" | "humidity" | "contact" | "occupancy" | "setpoint"
+export type StateKind =
+  | "onOff" | "brightness" | "colorTemperature" | "tunableWhite" | "position" | "setpoint" | "fanSpeed"
+  | "temperature" | "humidity" | "contact" | "occupancy" | "locked" | "smoke" | "co" | "leak" | "press" | "longPress"
 
-/** a value of either: on/off, contact and occupancy are booleans, the rest numbers */
-export type KindValue = boolean | number
+/** a tunable white light's colour temperature (Kelvin) and brightness (%) */
+export interface TunableWhiteValue { temperature: number; brightness: number }
 
-/** the device types the bridge offers, as stored in the config */
+/** a value of a command or state: on/off-like kinds are booleans, tunable white an object, the rest numbers */
+export type KindValue = boolean | number | TunableWhiteValue
+
+/** the device types the bridge offers, as stored with each device */
 export const DEVICE_TYPE_IDS = [
-  "on-off-light", "dimmable-light", "plug", "window-covering", "thermostat",
-  "temperature-sensor", "humidity-sensor", "contact-sensor", "occupancy-sensor"
+  "on-off-light", "dimmable-light", "color-temperature-light", "plug", "window-covering", "thermostat", "fan", "door-lock",
+  "temperature-sensor", "humidity-sensor", "contact-sensor", "occupancy-sensor", "smoke-co-alarm", "water-leak-detector", "generic-switch"
 ] as const
 
 export type DeviceTypeId = typeof DEVICE_TYPE_IDS[number]

@@ -251,8 +251,9 @@ Assistant) and a controller (Matter devices and hubs in Nexus, and so in Loxone)
   time, 2-minute timeout, `POST /api/plugin-instances/:id/actions/:action`), a QR panel part, buttons
   per panel table row, `loxNexus.heapMb` (128–512 MB), answers JSON can't hold refused, and signal
   groups in the lists (`signalGroup()`, ADR 0018; Home Assistant groups by entity).
-- **MB2: `matter-bridge`** (done; the real-Echo pass is still to come). Devices from the config (nine
-  types, at most 50), commands as sensors and state as actuators grouped per device, the pairing
+- **MB2: `matter-bridge`** (done; the real-Echo pass is still to come). Devices managed with actions
+  (Add device, Edit, Remove; live, no restart; fifteen types incl. tunable white, fan, door lock,
+  smoke/CO alarm, water leak, button; at most 50), commands as sensors and state as actuators grouped per device, the pairing
   code and QR code in the panel, pairing window and pairing removal as actions. matter.js keeps
   everything in the plugin store; device state writes are merged. Tested against an in-process
   matter.js controller; about 150–200 MB RSS per instance.

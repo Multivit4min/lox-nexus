@@ -4,6 +4,7 @@ import { PluginTestHost } from "@lox-nexus/plugin-sdk/testing"
 import { Value } from "@lox-nexus/plugin-sdk/values"
 import { DEVICE_TYPE_IDS } from "../devices/DeviceKinds.ts"
 import { MatterBridgePlugin } from "../MatterBridgePlugin.ts"
+import { BridgeHarness } from "../test-support/BridgeHarness.ts"
 import { FreePort } from "../test-support/FreePort.ts"
 import { LoopbackMdns } from "../test-support/LoopbackMdns.ts"
 
@@ -15,7 +16,7 @@ const devices = DEVICE_TYPE_IDS.map(type => ({ name: type, type }))
 let host: PluginTestHost<typeof MatterBridgePlugin>
 
 before(async () => {
-  host = await PluginTestHost.start(MatterBridgePlugin, { config: { port: await FreePort.udp(), devices }, timeZone: "UTC" })
+  host = await PluginTestHost.start(MatterBridgePlugin, { config: { port: await FreePort.udp() }, store: BridgeHarness.store(devices), timeZone: "UTC" })
 })
 after(() => host.stop())
 
@@ -28,13 +29,22 @@ test("the catalog offers, per device, the commands and states its type has", asy
   assert.deepEqual(offered, {
     "on-off-light (On/off light)": ["sensor on-off", "actuator on-off"],
     "dimmable-light (Dimmable light)": ["sensor on-off", "sensor brightness", "actuator on-off", "actuator brightness"],
+    "color-temperature-light (Tunable white light)": [
+      "sensor on-off", "sensor brightness", "sensor color-temperature", "sensor tunable-white",
+      "actuator on-off", "actuator brightness", "actuator color-temperature", "actuator tunable-white"
+    ],
     "plug (Plug (on/off))": ["sensor on-off", "actuator on-off"],
     "window-covering (Window covering (lift position))": ["sensor position", "actuator position"],
     "thermostat (Thermostat (heating))": ["sensor setpoint", "actuator temperature", "actuator setpoint"],
+    "fan (Fan)": ["sensor on-off", "sensor fan-speed", "actuator on-off", "actuator fan-speed"],
+    "door-lock (Door lock)": ["sensor lock", "actuator locked"],
     "temperature-sensor (Temperature sensor)": ["actuator temperature"],
     "humidity-sensor (Humidity sensor)": ["actuator humidity"],
     "contact-sensor (Contact sensor (door, window))": ["actuator contact"],
-    "occupancy-sensor (Motion (occupancy) sensor)": ["actuator occupancy"]
+    "occupancy-sensor (Motion (occupancy) sensor)": ["actuator occupancy"],
+    "smoke-co-alarm (Smoke and CO alarm)": ["actuator smoke", "actuator co"],
+    "water-leak-detector (Water leak detector)": ["actuator leak"],
+    "generic-switch (Button (generic switch))": ["actuator press", "actuator long-press"]
   })
   const light = catalog[0]!.entries![0]!
   assert.deepEqual(light, { kind: "sensor", capability: "on-off", params: { device: "on-off-light" }, label: "on-off-light: on/off from controllers" })
@@ -54,13 +64,13 @@ test("a sensor for an unknown device, or one of the wrong type, fails with the r
   await host.addSensor("on-off", { device: "Garage" })
   await host.addSensor("brightness", { device: "plug" })
   assert.deepEqual(signalErrors(), [
-    "no device \"Garage\" in the bridge's settings (Devices); add it there or pick another",
+    "the bridge has no device \"Garage\" (any more); add it with Add device, or pick another",
     "\"plug\" is a plug (on/off), which gets no brightness commands"
   ])
 })
 
 test("an actuator for an unknown device, or one of the wrong type, is refused with the reason", async () => {
-  await assert.rejects(host.addActuator("contact", { device: "Garage" }), /no device "Garage"/)
+  await assert.rejects(host.addActuator("contact", { device: "Garage" }), /the bridge has no device "Garage"/)
   await assert.rejects(host.addActuator("temperature", { device: "contact-sensor" }), /"contact-sensor" is a contact sensor \(door, window\), which has no temperature state/)
 })
 
@@ -91,6 +101,26 @@ test("states from Nexus set the Matter attributes, converted and limited", async
   assert.equal(state("dimmable-light").onOff!.onOff, false, "0 % is off")
   await set("on-off", "plug", Value.boolean(true))
   assert.equal(state("plug").onOff!.onOff, true)
+  await set("tunable-white", "color-temperature-light", Value.tunableWhite({ temperature: 3000, brightness: 40, fadeTime: 0 }))
+  assert.equal(state("color-temperature-light").colorControl!.colorTemperatureMireds, 333)
+  assert.equal(state("color-temperature-light").levelControl!.currentLevel, 102)
+  assert.equal(state("color-temperature-light").onOff!.onOff, true)
+  await set("color-temperature", "color-temperature-light", Value.number(9000))
+  assert.equal(state("color-temperature-light").colorControl!.colorTemperatureMireds, 154, "limited to 6500 K")
+  await set("tunable-white", "color-temperature-light", Value.tunableWhite({ temperature: 3000, brightness: 40, fadeTime: 0 }))
+  await set("fan-speed", "fan", Value.number(50))
+  assert.deepEqual([state("fan").fanControl!.percentCurrent, state("fan").fanControl!.fanMode], [50, 2], "50 % is medium")
+  await set("on-off", "fan", Value.boolean(false))
+  assert.deepEqual([state("fan").fanControl!.percentCurrent, state("fan").fanControl!.fanMode], [0, 0])
+  await set("on-off", "fan", Value.boolean(true))
+  assert.equal(state("fan").fanControl!.percentCurrent, 50, "on goes back to the last speed")
+  assert.equal(state("door-lock").doorLock!.lockState, null, "a lock is unknown until Nexus says")
+  await set("locked", "door-lock", Value.boolean(true))
+  assert.equal(state("door-lock").doorLock!.lockState, 1)
+  await set("co", "smoke-co-alarm", Value.boolean(true))
+  assert.deepEqual([state("smoke-co-alarm").smokeCoAlarm!.coState, state("smoke-co-alarm").smokeCoAlarm!.expressedState], [2, 2])
+  await set("leak", "water-leak-detector", Value.boolean(true))
+  assert.equal(state("water-leak-detector").booleanState!.stateValue, true, "leak is BooleanState true")
 })
 
 test("states from Nexus don't come back as commands", async () => {
@@ -106,10 +136,19 @@ test("the panel shows each device with its last state; nothing in it is a BigInt
   assert.deepEqual(panel.sections.map(section => section.title), ["Pairing", "Controllers", "Devices"])
   const table = panel.sections[2]!.panel
   assert.ok(table.type === "table")
-  const rows = Object.fromEntries(table.rows.map(([name, , command, last]) => [name, `${command} | ${last?.replace(/ at \d\d:\d\d:\d\d$/, "")}`]))
+  assert.deepEqual(table.columns, ["Device", "Id", "Type", "Last command from a controller", "Last state from Nexus"])
+  const rows = Object.fromEntries(table.rows.map(([name, , , command, last]) => [name, `${command} | ${last?.replace(/ at \d\d:\d\d:\d\d$/, "")}`]))
   assert.equal(rows["contact-sensor"], "– | open")
   assert.equal(rows["thermostat"], "– | temperature 20.5 °C", "a thermostat names which value")
   assert.equal(rows["dimmable-light"], "– | brightness 0 %")
   assert.equal(rows["occupancy-sensor"], "– | occupied")
+  assert.equal(rows["color-temperature-light"], "– | tunable white 3000 K, 40 %")
+  assert.equal(rows["door-lock"], "– | locked")
+  assert.equal(rows["smoke-co-alarm"], "– | CO alarm")
+  // each row edits or removes its device, prefilled with what the edit form needs
+  assert.deepEqual(table.rowActions?.[table.rows.findIndex(row => row[0] === "door-lock")], [
+    { action: "edit-device", label: "Edit", input: { device: "door-lock", name: "door-lock", allowUnlock: false } },
+    { action: "remove-device", label: "Remove", input: { device: "door-lock" } }
+  ])
   assert.doesNotThrow(() => JSON.stringify(panel))
 })

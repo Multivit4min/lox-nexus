@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { Environment, Seconds, ServerNode, type ClientNode, type Endpoint } from "@matter/main"
+import { Environment, Logger, LogLevel, Seconds, ServerNode, type ClientNode, type Endpoint } from "@matter/main"
 import { FreePort } from "./FreePort.ts"
 
 /**
@@ -16,6 +16,8 @@ export class TestController {
   static async start() {
     const directory = await mkdtemp(join(tmpdir(), "matter-bridge-test-"))
     Environment.default.vars.set("storage.path", directory)
+    // matter.js logs to the console once no bridge routes its log; the tests' output stays clean
+    if ("default" in Logger.destinations) Logger.destinations.default.level = LogLevel.WARN
     const node = await ServerNode.create({
       id: `test-controller-${process.pid}-${++TestController.count}`,
       network: { port: await FreePort.udp() },

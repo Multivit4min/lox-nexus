@@ -25,6 +25,11 @@ export class WriteCoalescer {
     this.cancel = this.schedule(this.delayMs, () => this.flush())
   }
 
+  /** forgets a pending write (its key is being deleted) */
+  drop(key: string) {
+    this.pending.delete(key)
+  }
+
   /** writes everything pending now */
   flush() {
     const cancel = this.cancel

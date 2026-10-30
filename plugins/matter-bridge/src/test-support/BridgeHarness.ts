@@ -6,6 +6,7 @@ import { LoopbackMdns } from "./LoopbackMdns.ts"
 import { TestController } from "./TestController.ts"
 
 type DeviceState = Record<string, Record<string, unknown> | undefined>
+export interface TestDevice { id?: string; name: string; type: string; allowUnlock?: boolean }
 
 /**
  * A bridge under PluginTestHost on a free port and a matter.js controller in the same process, for
@@ -14,11 +15,17 @@ type DeviceState = Record<string, Record<string, unknown> | undefined>
 export class BridgeHarness {
   private constructor(public host: PluginTestHost<typeof MatterBridgePlugin>, readonly controller: TestController, readonly config: unknown) {}
 
-  static async start(devices: { name: string; type: string }[]) {
+  /** a bridge with these devices in its store; a device's id is its name unless given */
+  static async start(devices: TestDevice[]) {
     LoopbackMdns.use()
-    const config = { port: await FreePort.udp(), devices }
-    const host = await PluginTestHost.start(MatterBridgePlugin, { config })
+    const config = { port: await FreePort.udp() }
+    const host = await PluginTestHost.start(MatterBridgePlugin, { config, store: BridgeHarness.store(devices) })
     return new BridgeHarness(host, await TestController.start(), config)
+  }
+
+  /** a plugin store holding these devices */
+  static store(devices: TestDevice[]) {
+    return { devices: devices.map(({ id, name, type, allowUnlock }) => ({ id: id ?? name, name, type, allowUnlock: allowUnlock ?? false })) }
   }
 
   /** stops the bridge and starts it again on the same store, like a config change does */
@@ -49,14 +56,15 @@ export class BridgeHarness {
     return TestController.device(peer, name).state as DeviceState
   }
 
-  /** a device's attributes on the bridge */
-  state(name: string) {
-    return this.host.plugin.devices.get(name)!.endpoint.state as unknown as DeviceState
+  /** a device's attributes on the bridge, by id (seeded devices have their name as id) */
+  state(id: string) {
+    return this.host.plugin.devices.get(id)!.endpoint.state as unknown as DeviceState
   }
 
+  /** the bridge first, while the controller still answers; the other way round its stop waits for it (see BridgeNode.close) */
   async close() {
-    await this.controller.close()
     await this.host.stop()
+    await this.controller.close()
   }
 
   /** polls until the check holds; real time, the network is real */

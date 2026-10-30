@@ -16,7 +16,7 @@ const ThermostatEndpoint = ThermostatDevice.with(BridgedDeviceBasicInformationSe
 export class BridgedThermostat extends BridgedDevice {
   readonly endpoint = new Endpoint(ThermostatEndpoint, {
     id: this.identity.endpointId,
-    bridgedDeviceBasicInformation: this.identity.basicInformation(this.name),
+    bridgedDeviceBasicInformation: this.basicInformation(),
     thermostat: {
       controlSequenceOfOperation: Thermostat.ControlSequenceOfOperation.HeatingOnly,
       systemMode: Thermostat.SystemMode.Heat,

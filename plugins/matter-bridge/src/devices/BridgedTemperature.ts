@@ -10,7 +10,7 @@ const TemperatureEndpoint = TemperatureSensorDevice.with(BridgedDeviceBasicInfor
 export class BridgedTemperature extends BridgedDevice {
   readonly endpoint = new Endpoint(TemperatureEndpoint, {
     id: this.identity.endpointId,
-    bridgedDeviceBasicInformation: this.identity.basicInformation(this.name),
+    bridgedDeviceBasicInformation: this.basicInformation(),
     // what Nexus sent before the restart, else unknown
     temperatureMeasurement: { measuredValue: BridgedTemperature.hundredths(this.remembered("temperature")) }
   })

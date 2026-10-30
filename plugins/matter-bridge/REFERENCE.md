@@ -1,7 +1,35 @@
+## Managing devices
+
+Devices are kept in the plugin store (`devices`), not in the settings, and changed with actions on
+the instance page while the bridge runs; none of them restarts the instance or touches a pairing.
+
+| Action | Input | What it does |
+|---|---|---|
+| Add device (`add-device`) | `name`, `type`, `allowUnlock` (door locks; default off) | Adds a device, at most 50 per bridge (Alexa's limit). Names are unique ignoring case, at most 32 bytes. |
+| Edit device (`edit-device`) | `device` (id), `name`, `allowUnlock` (optional) | Renames a device, or allows or forbids unlocking a lock; without `allowUnlock` a lock keeps what it had. Asks before saving. The **Edit** button on each row of the Devices table fills it in (`allowUnlock` only for locks). The type can't change: remove the device and add a new one. Turning unlocking on is written to the instance log as a warning. If the endpoint refuses a change, the device keeps what it had. |
+| Remove device (`remove-device`) | `device` (id) | Removes a device after a confirmation, with what the bridge remembered of it. The **Remove** button on each row fills it in. |
+
+- **Ids.** A new device gets an id from its name and a short random suffix, e.g.
+  `kitchen-light-3f2a`. Its signals refer to it, and its Matter identity (endpoint, unique id,
+  serial number) derives from it, so neither changes when the device is renamed.
+- **Adding** shows the device to every paired app at once: a Matter controller sees it within a
+  second (measured with matter.js). The Alexa app may take a minute or need **Discover devices**.
+- **Renaming** keeps the device, its routines and its signals. The bridge reports the new label
+  (Matter's NodeLabel) to the paired apps right away, but apps often keep the name they gave the
+  device when it was added: rename it in the app too, or remove it there and discover again.
+- **Removing** takes the device from every app (routines using it stop working). Its signals in
+  Nexus stay, in the error state ("the bridge has no device …"), until you remove them.
+- **From an older version.** Devices that the first version kept in the settings are taken over
+  once at start, with their name as id (what their signals refer to) and the Matter identity they
+  had, so a paired Alexa keeps them. After that the settings' list is ignored. **After updating
+  from the first version, start the bridge instance once before you edit its settings**: the
+  settings form doesn't send the old device list, so saving it first loses the devices (add them
+  again then; Alexa sees them as new devices).
+
 ## Device types
 
-Each configured device becomes one bridged Matter device. Its type decides what the apps show and
-which signals it has.
+Each device is one bridged Matter device. Its type decides what the apps show and which signals
+it has.
 
 | Type (`type`) | In the apps | Sensors (commands) | Actuators (states) | Starts as |
 |---|---|---|---|---|
@@ -14,14 +42,20 @@ which signals it has.
 | Humidity sensor (`humidity-sensor`) | a humidity sensor | | `humidity` | unknown |
 | Contact sensor (door, window) (`contact-sensor`) | a contact sensor | | `contact` | closed |
 | Motion (occupancy) sensor (`occupancy-sensor`) | a motion sensor | | `occupancy` | no motion |
+| Tunable white light (`color-temperature-light`) | a light with brightness and white tone | `on-off`, `brightness`, `color-temperature`, `tunable-white` | the same four | off, 4000 K |
+| Fan (`fan`) | a fan with speed (off, low, medium, high, or %) | `on-off`, `fan-speed` | `on-off`, `fan-speed` | off |
+| Door lock (`door-lock`) | a lock | `lock` | `locked` | unknown |
+| Smoke and CO alarm (`smoke-co-alarm`) | a smoke and carbon monoxide alarm | | `smoke`, `co` | normal |
+| Water leak detector (`water-leak-detector`) | a leak sensor | | `leak` | dry |
+| Button (generic switch) (`generic-switch`) | a button for routines | | `press`, `long-press` | |
 
 "Unknown" is Matter's empty value: the apps show no reading rather than a made-up one; "Starts
 as" is what a new device shows before Nexus sends anything.
 
 After a restart (a config change, an update) each device shows what it showed before, although
 Nexus doesn't replay values to actuators when an instance starts. matter.js stores on/off,
-brightness, positions and setpoints itself. For contacts, motion, temperatures and humidity the
-plugin keeps the last state Nexus sent (store keys `state:<device id>`): without it a restart
+brightness, colour temperature, positions, fan speeds and setpoints itself. For contacts, motion,
+locks, alarms, leaks, temperatures and humidity the plugin keeps the last state Nexus sent (store keys `state:<device id>`): without it a restart
 would show every door closed and then "open" it again, which starts "door opens" routines although
 nothing happened, and temperatures would be unknown until Loxone happens to send again. After the
 factory reset that follows removing the last app, the bridge sets every state Nexus sent in this
@@ -29,6 +63,19 @@ run again, in the order it sent them.
 
 Sensors-only types are what start routines in Alexa ("when the front door opens, announce …").
 Values without a Matter device type, such as PV power, can't be shown sensibly.
+
+What the apps do with a type is up to them, and only real hardware shows it:
+
+- **Smoke and CO alarm:** it forwards an alarm state from Nexus, for example Loxone's fire and
+  water alarm; it detects nothing itself and is no replacement for a certified smoke detector.
+  Alexa announces smoke and CO alarms of Matter devices as proactive notifications.
+- **Water leak detector:** Amazon's list of Matter device types has no Alexa interface for it, so
+  Alexa may show it without routines; Google Home, Apple Home and Home Assistant support it.
+- **Door lock:** Alexa asks for its own voice code before unlocking by voice (set in the Alexa
+  app); Nexus keeps no PIN codes. Unlocking from any app is refused unless **Allow unlocking** is
+  on for the lock.
+- **Button:** apps that support Matter buttons (generic switches) offer presses as routine
+  triggers; whether Alexa does for a bridged button could not be checked without an Echo.
 
 ## How values convert
 
@@ -42,6 +89,14 @@ Values without a Matter device type, such as PV power, can't be shown sensibly.
 | `contact` | `true` while **open** | BooleanState `stateValue`, which Matter defines the other way round (`true` = contact closed). The plugin flips it, so a Loxone digital input "door open" wires directly. |
 | `occupancy` | `true` while motion is detected | OccupancySensing `occupied` (passive infrared) |
 | `setpoint` | °C | `occupiedHeatingSetpoint` in 1/100 °C, limited to the thermostat's 7–30 °C; a value outside is shown as the nearest limit |
+| `color-temperature` | Kelvin, e.g. `3000` | ColorControl `colorTemperatureMireds` (1 000 000 / K), limited to 2700–6500 K; a command comes back in steps of 10 K |
+| `tunable-white` | Nexus's `tunableWhite` (temperature K, brightness %, fade time) | Colour temperature, level and on/off together; brightness 0 is off. An app's action ("on at 30 %") can change several attributes, one after the other: the light reports once, as it ends up (fade time 0), with on/off and colour temperature only if they changed. The fade time Nexus sends is not used |
+| `fan-speed` | 0–100 % | FanControl `percentSetting` (commands) and `percentCurrent` (state). Off, low, medium and high from an app become 0, 33, 66 and 100 %; a speed sets the mode (up to 33 % low, up to 66 % medium, above high). On/off is the speed above 0, sent only when it changes; "on" from Nexus goes back to the last speed above 0, from Nexus or an app (kept while the bridge runs) |
+| `lock` | `true` lock, `false` unlock | DoorLock lock and unlock commands, sent on every request (also when the lock already shows that state). An unlock without **Allow unlocking** is answered with FAILURE and a LockOperationError event (restricted) and reaches nothing. A timed unlock (an app's "unlock for N seconds", only with **Allow unlocking**) arrives as `false`, and after the time matter.js relocks on its own: `true` arrives, and the apps show the lock locked at once, possibly before Loxone has locked it |
+| `locked` | `true` locked, `false` unlocked | DoorLock `lockState` (unknown until Nexus first sends one) |
+| `smoke`, `co` | `true` while alarmed | SmokeCoAlarm `smokeState` / `coState` critical or normal, `expressedState` (smoke before CO), and the SmokeAlarm, COAlarm and AllClear events |
+| `leak` | `true` while a leak is detected | BooleanState `stateValue` (true = leak) |
+| `press`, `long-press` | each `true` is one press; `false` does nothing | Switch events: InitialPress, ShortRelease and MultiPressComplete (two presses within 300 ms count as a double press); a long press holds for 1.2 s: InitialPress, LongPress, LongRelease. Presses are events, not states: nothing is remembered or replayed |
 
 A command from an app updates the bridge at once (Matter needs that) and goes to the sensor. A
 state from Nexus updates the bridge and is never sent back as a command, so a sensor and an
@@ -59,17 +114,17 @@ Every sensor and actuator has one param:
 
 | Param | Description |
 |---|---|
-| `device` | The device's **Name** exactly as in the settings. Signal lists group the signals of one device under this name. |
+| `device` | The device's id, as the Devices table shows it (e.g. `kitchen-light-3f2a`). Signal lists group the signals of one device under it. |
 
-A sensor for a device that isn't configured, or whose type has no such command, goes into the
-error state with the reason (for example `"Hall" is a plug (on/off), which gets no brightness
-commands`). An actuator in that case is refused with the same message when it is added or when
-the instance starts. Renaming a device or removing it from the settings therefore shows on its
-signals; change their `device` param or remove them.
+A sensor for a device that doesn't exist, or whose type has no such command, goes into the error
+state with the reason (for example `"Hall" is a plug (on/off), which gets no brightness
+commands`); it follows devices removed while it runs. An actuator in that case is refused with the
+same message when it is added or the instance starts, and a device removed while it runs fails
+each command. Renaming never affects signals.
 
 ## Catalog
 
-One folder per configured device, labelled `<name> (<type>)`, with the sensors first, then the
+One folder per device, labelled `<name> (<type>)`, with the sensors first, then the
 actuators, e.g. `Kitchen light: on/off from controllers` and `Kitchen light: brightness % to
 controllers`. Every entry can be added as it is.
 
@@ -92,15 +147,15 @@ Alexa and Apple warn that the bridge is not certified (it uses the Matter test v
   the app loses all the bridge's devices and its routines with them. Removing the bridge in the app
   itself works as well.
 - **Removing the last app** resets the bridge to factory settings: it forgets every pairing and
-  waits to be paired again, with the same code. The reset takes a fraction of a second; a request
+  waits to be paired again, with the same code. The reset puts every device back to how it was
+  created; the bridge then sets their names, each lock's **Allow unlocking** and the states Nexus
+  sent again. The reset takes a fraction of a second; a request
   that still meets it is answered "the bridge is resetting … try again in a few seconds".
 - **The code** (passcode and discriminator) is chosen once per instance and kept in the store
   (`pairing`). The keys and certificates of the pairings are kept there too (`matter:bridge/…`),
   so they survive restarts, config changes and updates, and travel in Nexus's backup.
-- **Device identity** comes from the device's name and type. Renaming a device or changing its
-  type makes a new device in every app (the old one may stay there as unresponsive until you
-  remove it), and its routines have to be set up again. A config change restarts the instance; the
-  pairing is kept.
+- **Device identity** comes from the device's id (see Managing devices): renaming keeps it, removing
+  and adding a device makes a new one. A config change restarts the instance; the pairing is kept.
 
 ## Panel
 
@@ -108,7 +163,7 @@ Alexa and Apple warn that the bridge is not certified (it uses the Matter test v
 |---|---|
 | Pairing | While not paired, or while a window opened with **Open pairing window** is open: the QR code, with the manual code (as `1234-567-8901`) and when the window closes. While a paired app shares the bridge (its own window and code): a note to use the code that app shows. Otherwise "Paired: yes". If the pairing window of an unpaired bridge has closed (after 48 hours), it says so: run **Open pairing window**. During the reset after the last app was removed: "resetting". |
 | Controllers | One row per paired app: its name (the fabric's label, else the vendor: Amazon Alexa, Google Home, Apple Home), its vendor id in hex and its fabric index, with a **Remove** button. |
-| Devices | One row per device: name, type, the last command from an app and the last state from Nexus, each with its time. Devices with several values name the one, e.g. `temperature 20.5 °C` or `heating setpoint 21 °C` on a thermostat. The last state is the value Nexus sent, before any limit (a setpoint of 35 °C shows as sent and is shown to the apps as 30 °C). |
+| Devices | One row per device: name, id, type, the last command from an app and the last state from Nexus, each with its time, and the **Edit** and **Remove** buttons. Without devices: "No devices yet: use Add device". Devices with several values name the one, e.g. `temperature 20.5 °C` or `heating setpoint 21 °C` on a thermostat. The last state is the value Nexus sent, before any limit (a setpoint of 35 °C shows as sent and is shown to the apps as 30 °C). |
 
 ## Actions
 
@@ -116,6 +171,8 @@ Alexa and Apple warn that the bridge is not certified (it uses the Matter test v
 |---|---|---|
 | Open pairing window (`open-pairing-window`) | none | Opens a 15-minute window for another app (while not paired: restarts the 48-hour window). Answers with the manual pairing code. |
 | Remove pairing (`remove-pairing`) | `fabricIndex` (1–254) | Removes that app's pairing, after a confirmation. Also offered as **Remove** on each row of the Controllers table. |
+
+Add, Edit and Remove device are described under Managing devices.
 
 ## Networking
 
@@ -143,9 +200,10 @@ hides mDNS and IPv6 link-local addresses.
 |---|---|
 | The instance doesn't start: "UDP port 5540 is in use" | Another Matter program listens there; choose another **UDP port**. |
 | The app searches and never finds the bridge | Same VLAN? IPv6 on the host? Host networking? Firewall open for UDP 5353 and the port? Wi-Fi multicast filtering? Is the pairing window still open (the panel says so)? |
-| "Device is unresponsive" in Alexa after it worked | Nexus or the instance is stopped, or the host's address changed; the app reconnects once the bridge runs again. A renamed device may stay as an unresponsive old one; remove it in the app. |
+| "Device is unresponsive" in Alexa after it worked | Nexus or the instance is stopped, or the host's address changed; the app reconnects once the bridge runs again. A device removed in Nexus may stay as an unresponsive one; remove it in the app. |
 | A routine doesn't start | Alexa starts routines on changes only; the state actuator must change (for a contact: off → on). |
 | A command does nothing | The bridge already showed that state, so no change was sent (see How values convert); wire the state actuator. |
+| Stopping the instance takes 3 s, with "didn't close within 3 s" in the log | A paired app (an Echo) doesn't answer, e.g. it is unplugged. The bridge waits at most 3 s for it, then writes what is pending and stops. |
 
 The instance log shows matter.js's lines prefixed `matter.js:`: its notices as info, its warnings
 and errors as warnings and errors, its info lines as debug. Its debug lines are not logged.
@@ -153,7 +211,7 @@ and errors as warnings and errors, its info lines as debug. Its debug lines are 
 ## Storage and writes
 
 Everything the plugin keeps is in the instance's store, so in Nexus's database: the pairing code
-(`pairing`), matter.js's data (`matter:bridge/<context>`, one key per storage context) and the
+(`pairing`), the devices (`devices`), matter.js's data (`matter:bridge/<context>`, one key per storage context) and the
 remembered states (`state:<device id>`). Nothing is written to files.
 
 Fabrics, sessions, access control, commissioning data, endpoint numbers and the pairing code are
@@ -173,9 +231,9 @@ Measured with the plugin's tests (store writes):
 
 ## Memory
 
-One instance uses about 40–50 MB of JavaScript heap and adds about 150–200 MB to the memory of
-the Nexus process (RSS; measured with 5 and 50 devices), mostly matter.js itself and its own
-engine in the plugin's worker. The plugin asks for a heap limit of 256 MB (`heapMb`). On a small
+One instance uses about 45–55 MB of JavaScript heap and adds about 180 MB (5 devices) to 230 MB
+(50 devices of all types) to the memory of the Nexus process (RSS), mostly matter.js itself and
+its own engine in the plugin's worker. The plugin asks for a heap limit of 256 MB (`heapMb`). On a small
 machine (1–2 GB) run a single instance; one bridge carries up to 50 devices.
 
 ## Limits
@@ -186,7 +244,7 @@ machine (1–2 GB) run a single instance; one bridge carries up to 50 devices.
 | Device and bridge names | 32 bytes (letters like ä count twice), unique per bridge ignoring case |
 | Pairing window | 15 minutes once paired; 48 hours while not paired |
 | Paired apps | in practice a handful; each app is one Matter fabric |
-| Device types | the nine above; colour lights, fans, locks and cooling are not in this version |
+| Device types | the fifteen above; colour (hue) lights, cooling, garage doors and air purifiers are not in this version |
 
 ## Security notes
 
@@ -200,6 +258,10 @@ machine (1–2 GB) run a single instance; one bridge carries up to 50 devices.
   stop one of them.
 - Every paired app can switch every device of the bridge. Put devices that must not be switched
   by voice into no bridge, or only as sensors.
+- A door lock in the bridge can be locked by every paired app and anyone who can talk to them.
+  Unlocking is refused unless **Allow unlocking** is on; with it on, an app's own protection
+  (Alexa's voice code) is all that stands between a voice command and an open door. Wire the lock
+  request to Loxone only where that is acceptable.
 
 ## Development
 

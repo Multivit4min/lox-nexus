@@ -106,6 +106,15 @@ MB0 also showed what the runtime lacks:
   message is logged. Stored descriptions are re-described once (`PluginVersions.FORMAT` 3), so
   plugins described by an older Nexus show their actions.
 
+**Bridge devices are managed by actions (2026-10-30).** The bridge's devices live in the plugin
+store, not the instance config: Add device in the header, Edit and Remove per row of the panel's
+Devices table, applied live to the running aggregator without a restart. Each device has a stable
+id (a slug of its first name plus a short suffix) from which its Matter identity derives, so a
+rename keeps the device in the apps. Devices from the first version's config list are taken over
+once with their old identity. The config keeps only the bridge name and UDP port. Door locks accept
+unlocking from the apps only with the per-lock "Allow unlocking" setting (off by default); the
+plugin drops any other unlock request.
+
 ## Consequences
 
 - Plugins gain a third way to be driven from the UI. It is a request, not state: nothing about

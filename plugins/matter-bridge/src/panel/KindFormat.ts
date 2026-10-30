@@ -1,31 +1,43 @@
 import type { CommandKind, KindValue, StateKind } from "../devices/DeviceKinds.ts"
 
+type Kind = StateKind | CommandKind
+
+const UNITS: Partial<Record<Kind, string>> = { temperature: "°C", setpoint: "°C", colorTemperature: "K" }
+const FLAGS: Partial<Record<Kind, [string, string]>> = {
+  contact: ["open", "closed"], occupancy: ["occupied", "clear"], locked: ["locked", "unlocked"], lock: ["lock", "unlock"],
+  smoke: ["smoke alarm", "no smoke"], co: ["CO alarm", "no CO"], leak: ["leak", "dry"], press: ["pressed", "released"],
+  longPress: ["long press", "released"]
+}
+
 /** Commands and states as the panel and messages show them: "on", "45 %", "21.5 °C", "open". */
 export class KindFormat {
-  static readonly LABELS: Readonly<Record<StateKind, string>> = {
-    onOff: "on/off", brightness: "brightness", position: "position", setpoint: "heating setpoint",
-    temperature: "temperature", humidity: "humidity", contact: "contact", occupancy: "occupancy"
+  static readonly LABELS: Readonly<Record<Kind, string>> = {
+    onOff: "on/off", brightness: "brightness", colorTemperature: "colour temperature", tunableWhite: "tunable white",
+    position: "position", setpoint: "heating setpoint", fanSpeed: "speed", lock: "lock", temperature: "temperature",
+    humidity: "humidity", contact: "contact", occupancy: "occupancy", locked: "locked", smoke: "smoke", co: "CO",
+    leak: "leak", press: "press", longPress: "long press"
   }
 
-  static label(kind: StateKind | CommandKind) {
+  static label(kind: Kind) {
     return KindFormat.LABELS[kind]
   }
 
-  static value(kind: StateKind, value: KindValue) {
-    if (typeof value === "boolean") return KindFormat.flag(kind, value)
-    const number = Number.isInteger(value) ? String(value) : value.toFixed(1)
-    return kind === "temperature" || kind === "setpoint" ? `${number} °C` : `${number} %`
+  static value(kind: Kind, value: KindValue) {
+    if (typeof value === "object") return `${Math.round(value.temperature)} K, ${KindFormat.number(value.brightness)} %`
+    if (typeof value === "boolean") {
+      const [yes, no] = FLAGS[kind] ?? ["on", "off"]
+      return value ? yes : no
+    }
+    return `${KindFormat.number(value)} ${UNITS[kind] ?? "%"}`
   }
 
   /** with the kind in front, for devices with more than one ("heating setpoint 21 °C"); on, off, open say enough */
-  static labeled(kind: StateKind, value: KindValue) {
+  static labeled(kind: Kind, value: KindValue) {
     const text = KindFormat.value(kind, value)
     return typeof value === "boolean" ? text : `${KindFormat.label(kind)} ${text}`
   }
 
-  private static flag(kind: StateKind, value: boolean) {
-    if (kind === "contact") return value ? "open" : "closed"
-    if (kind === "occupancy") return value ? "occupied" : "clear"
-    return value ? "on" : "off"
+  private static number(value: number) {
+    return Number.isInteger(value) ? String(value) : value.toFixed(1)
   }
 }

@@ -14,7 +14,7 @@ const CoverEndpoint = WindowCoveringDevice.with(BridgedDeviceBasicInformationSer
 export class BridgedCover extends BridgedDevice {
   readonly endpoint = new Endpoint(CoverEndpoint, {
     id: this.identity.endpointId,
-    bridgedDeviceBasicInformation: this.identity.basicInformation(this.name)
+    bridgedDeviceBasicInformation: this.basicInformation()
   })
 
   protected override subscribe() {

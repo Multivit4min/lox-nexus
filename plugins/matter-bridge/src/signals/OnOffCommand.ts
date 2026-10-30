@@ -4,7 +4,7 @@ import { CommandSensor } from "./CommandSensor.ts"
 export class OnOffCommand extends CommandSensor {
   static readonly id = "on-off"
   static readonly label = "On/off from controllers"
-  static readonly description = "On or off when Alexa, Google, Apple or Home Assistant switches the device"
+  static readonly description = "On or off when Alexa, Google, Apple or Home Assistant switches a light, plug or fan"
   static readonly valueType = "boolean"
   protected readonly kind = "onOff"
 }
