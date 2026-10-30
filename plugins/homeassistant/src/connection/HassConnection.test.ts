@@ -126,7 +126,8 @@ describe("HassConnection", { timeout: 10_000 }, () => {
     connection.busEvents.add("zha_event", listener)
     await waitFor(() => events.includes("disconnected: didn't confirm subscribe_events for zha_event"))
     await waitFor(() => ha.subscriptions("zha_event") === 1, "subscribed on the new connection")
-    assert.equal(connection.busEvents.status("zha_event"), "subscribed")
+    // the fake counts the subscription before the client has read its answer
+    await waitFor(() => connection.busEvents.status("zha_event") === "subscribed", "confirmed on the client")
     ha.fire("zha_event", { command: "on" })
     await waitFor(() => received.length === 1)
   })
