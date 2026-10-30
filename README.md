@@ -8,6 +8,8 @@ of values the Miniserver reads and writes. It uses Loxone's own **Network Interc
 Nexus is a self-hosted server with a web UI. It runs in Docker (amd64 and arm64, e.g. a
 Raspberry Pi 4 or 5) or straight from a checkout with Node.js.
 
+![A Miniserver's page: its inputs and outputs with live values and units, and the wires connecting them](docs/screenshots/miniserver.png)
+
 > **Status:** pre-1.0 and under active development. There is no published Docker image or SDK
 > package yet: you build the image from this repository (see [Quick start](#quick-start)).
 > Lox Nexus is a rewrite of the earlier
@@ -37,6 +39,28 @@ Raspberry Pi 4 or 5) or straight from a checkout with Node.js.
   passphrase if you include them.
 - **Diagnostics.** Memory, CPU, event loop, each plugin's worker, bus and Miniserver traffic, and
   disk use, on one page.
+
+## Screenshots
+
+**Wires** connect any source to any target, with the value they carry right now.
+
+![The Wires page: seven wires between Loxone, Home Assistant, a calendar, a webhook and a script](docs/screenshots/wires.png)
+
+**Bus Inspector:** every message with its cause. Here a Loxone dimmer moved, the wire sent the new
+brightness to Home Assistant, and Home Assistant confirmed it in 3 ms.
+
+![The Bus Inspector's detail of a message, with its cause chain from the Loxone dimmer to the Home Assistant light](docs/screenshots/bus-inspector.png)
+
+**A plugin instance:** its status, its sensors and actuators with live values, and their wires.
+
+![The Home Assistant plugin instance: connection status, and sensors and actuators with their values](docs/screenshots/plugin-homeassistant.png)
+
+**Plugins bring their own panel.** The calendar shows how reading the feed goes and the next
+events, each with a button to dismiss it.
+
+![The Calendar plugin instance: feed status and the next five events with Dismiss buttons](docs/screenshots/plugin-calendar.png)
+
+The screenshots show a demo installation with made-up data.
 
 ## Plugins
 
