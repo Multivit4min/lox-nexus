@@ -208,7 +208,8 @@ first-party plugins load from the workspace until then.
   covers only Miniservers, signals and wires) (done, ADR 0014).
 - A Dockerfile for amd64 and arm64 (written; `Dockerfile` and `compose.yaml` at the root, the
   the image builds and runs on a Docker host, 2026-10-29).
-- A publish pipeline for the SDK, and a plugin template repo.
+- A publish pipeline for the SDK, and a plugin template repo. The SDK starts at 1.0.0 with a
+  changelog; compatibility rules in [ADR 0019](adr/0019-sdk-and-wire-evolution.md).
 - Licensing: the app GPL-3.0-or-later; the SDK, the ICI library and the first-party plugins MIT
   (done, ADR 0015).
 

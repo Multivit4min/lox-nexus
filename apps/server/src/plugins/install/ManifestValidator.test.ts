@@ -28,7 +28,7 @@ test("ids, names and icons are restricted; reserved ids are refused", () => {
   for (const id of ["Fixture", ".staging", "-x", "loxone", "system", "a".repeat(65), "a/b"]) refused(FixtureBundle.manifest({}, { id }), /id/)
   refused(FixtureBundle.manifest({}, { name: "" }), /name/)
   refused(FixtureBundle.manifest({}, { icon: "<svg>" }), /icon/)
-  refused(FixtureBundle.manifest({}, { apiVersion: 2 }), /apiVersion/)
+  refused(FixtureBundle.manifest({}, { apiVersion: 2 }), /apiVersion 2 is newer than this Nexus reads \(1\): update Nexus/)
 })
 
 test("plugins must be ES modules", () => {

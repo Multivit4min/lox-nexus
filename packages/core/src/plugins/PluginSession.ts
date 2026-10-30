@@ -1,8 +1,9 @@
 import { EventEmitter } from "node:events"
 import { Disposable } from "@lox-nexus/plugin-sdk"
-import { WIRE_VERSION, type HostMessage, type LogLevel, type WorkerMessage } from "@lox-nexus/plugin-sdk/wire"
+import type { HostMessage, LogLevel, WorkerMessage } from "@lox-nexus/plugin-sdk/wire"
 import type { PluginConnection } from "./PluginTransport.ts"
 import { PluginUnavailableError, RequestTracker } from "./RequestTracker.ts"
+import { WireVersions } from "./WireVersions.ts"
 
 /** Timeouts of a session, in ms; tests shorten them. */
 export interface SessionTimings {
@@ -85,12 +86,13 @@ export class PluginSession extends Disposable {
   /**
    * Waits for the plugin's hello and checks its wire version. open() starts with it; on its own
    * it is enough for `describe`, which needs no init.
-   * @throws InitFailedError for another wire version; Error on timeout or exit
+   * @throws InitFailedError for a wire version this host doesn't run; Error on timeout or exit
    */
   async greet() {
     const hello = await this.waitFor("hello", this.timings.helloMs, "say hello (does its entry call PluginEntry.define()?)")
     if (hello.type !== "hello") return
-    if (hello.version !== WIRE_VERSION) throw new InitFailedError(`the plugin speaks wire version ${hello.version}, this Nexus ${WIRE_VERSION}`)
+    const refusal = WireVersions.refusal(hello.version)
+    if (refusal) throw new InitFailedError(refusal)
     this.features = new Set(hello.features ?? [])
   }
 

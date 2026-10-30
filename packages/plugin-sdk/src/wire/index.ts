@@ -7,7 +7,7 @@
  * @module @lox-nexus/plugin-sdk/wire
  */
 export { HostMessageSchema, HttpRequestSchema, SignalSpecSchema, WIRE_VERSION, type HostMessage, type HttpRequest, type SignalSpec } from "./HostMessages.ts"
-export { LogLevelSchema, PluginHealthSchema, WorkerMessageSchema, type LogLevel, type PluginHealth, type WorkerMessage } from "./WorkerMessages.ts"
+export { HelloSchema, LogLevelSchema, PluginHealthSchema, WorkerMessageSchema, type LogLevel, type PluginHealth, type WorkerMessage } from "./WorkerMessages.ts"
 export {
   ActionDescriptionSchema, CapabilityDescriptionSchema, CatalogEntrySchema, CatalogNodeSchema, HttpResponseSchema, PanelPartSchema, PanelSchema,
   PluginDescriptionSchema, RowActionSchema,

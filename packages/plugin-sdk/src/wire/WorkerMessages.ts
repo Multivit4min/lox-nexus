@@ -13,13 +13,18 @@ export type LogLevel = z.infer<typeof LogLevelSchema>
 const text = z.string().max(10_000)
 
 /**
+ * The worker's first message: the wire version it was built with, and the additions to that
+ * version it understands, so the host sends them only to workers that do ("log.level"). Frozen
+ * across wire versions (ADR 0019): a host reads it before it knows which version's messages follow.
+ */
+export const HelloSchema = z.object({ type: z.literal("hello"), version: z.int(), features: z.array(z.string().max(50)).max(50).optional() })
+
+/**
  * Messages from a plugin worker to the host. The host validates every one of them: a worker that
  * sends something else is treated as broken.
  */
 export const WorkerMessageSchema = z.discriminatedUnion("type", [
-  /** first message after loading; `version` is the wire version the plugin was built with */
-  // features: additions to the version the worker understands, so the host sends them only to those that do ("log.level")
-  z.object({ type: z.literal("hello"), version: z.int(), features: z.array(z.string().max(50)).max(50).optional() }),
+  HelloSchema,
   /** init done and start() returned */
   z.object({ type: z.literal("ready") }),
   /** init failed (invalid config, start threw); the host does not restart it */

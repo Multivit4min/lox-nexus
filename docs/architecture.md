@@ -209,6 +209,11 @@ Each class lives in its own file under `packages/core/src/plugins/`:
   - Host to worker: `init`, `describe`, `signal.add/remove`, `actuate`, `catalog`, `panel`,
     `http.request`, `ping`, `shutdown`.
   - Worker to host: `hello`, `ready`, `emit`, `status`, `log`, `store.set`, `response`, `pong`.
+  - Compatibility (ADR 0019): changes are additive within a wire version (optional fields, new
+    messages gated by `hello` features or the description); a breaking change bumps
+    `WIRE_VERSION`, and the host keeps accepting the previous version through an adapter for at
+    least one release. The manifest's `apiVersion` versions only the `loxNexus` block of
+    package.json, and the SDK's semver major is independent of both.
 - **`PluginSupervisor`**: manages states `stopped → starting → running ⇄ degraded`, plus `error`
   (no auto-restart), `crashed` (worker exit, 3 missed pings or OOM, restarted with backoff from 1 s
   to 5 min) and `stopping`. Stopping sends `shutdown`, waits a 5 s grace period, then calls

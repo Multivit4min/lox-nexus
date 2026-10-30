@@ -35,7 +35,7 @@ A plugin is an npm package whose `package.json` has a `loxNexus` block:
 
 | Field | Rules |
 |---|---|
-| `apiVersion` | Must be `1`, the plugin API this Nexus implements. Another number is refused. |
+| `apiVersion` | `1`. The version of this manifest format, not of the SDK: a Nexus refuses a format it can't read. The protocol your bundle speaks comes from the SDK it was built with; Nexus checks that at every start and says whether to update Nexus or the plugin. |
 | `id` | The plugin's topic segment and stable reference (`example/<instance>/sensor/...`). Lowercase letters, digits, `.`, `_` and `-`, starting with a letter or digit. `loxone` and `system` are **reserved** for Nexus. Never change it after release: instances and topics refer to it. |
 | `name` | Display name, not empty. |
 | `entry` | The built bundle, relative to the package. In development `src/index.ts` runs instead. To install: a relative path such as `dist/plugin.js` (no leading `/` or `./`, no `..`, backslashes or empty segments), at most 512 characters, ending in `.js` or `.mjs`. |

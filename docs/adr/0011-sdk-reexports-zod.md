@@ -22,3 +22,7 @@ format (the JSON Schema zod writes) changes.
   keep running (each bundle carries its own copy), but must be rebuilt to use the new SDK.
 - If zod is ever replaced, the SDK keeps `z` as its schema API only if the replacement is
   compatible; otherwise that is a new `apiVersion`.
+
+Superseded in part by [ADR 0019](0019-sdk-and-wire-evolution.md): `apiVersion` versions only the
+manifest format. A change to the description format travels over the wire, so it is a wire version
+bump, and a zod major is an SDK major.
