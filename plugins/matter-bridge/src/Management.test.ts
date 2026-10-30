@@ -84,14 +84,20 @@ test("an edit the endpoint refuses changes nothing", { timeout: 20_000 }, async 
   assert.equal((bridge.host.store.devices as { id: string; name: string }[]).find(entry => entry.id === id)?.name, "Porch")
 })
 
-test("Allow unlocking: kept when an edit leaves it out, logged as a warning when turned on", { timeout: 20_000 }, async () => {
+test("Allow unlocking: kept by a rename, set with Edit lock, logged as a warning when turned on", { timeout: 20_000 }, async () => {
   const id = await add("Back door", "door-lock", true)
-  assert.match(await bridge.host.action("edit-device", { device: id, name: "Garden door" }) ?? "", /unlocking from the apps is allowed/)
+  assert.match(await bridge.host.action("edit-device", { device: id, name: "Garden door" }) ?? "", /^Saved Garden door\./)
   assert.equal(bridge.host.plugin.devices.get(id)!.allowUnlock, true, "a rename keeps it")
-  await bridge.host.action("edit-device", { device: id, name: "Garden door", allowUnlock: false })
+  assert.match(await bridge.host.action("edit-lock", { device: id, name: "Garden door", allowUnlock: false }) ?? "", /unlocking from the apps is refused/)
   assert.equal(bridge.host.plugin.devices.get(id)!.allowUnlock, false)
-  await bridge.host.action("edit-device", { device: id, name: "Garden door", allowUnlock: true })
+  await bridge.host.action("edit-lock", { device: id, name: "Garden door", allowUnlock: true })
   assert.ok(bridge.host.sent.some(message => message.type === "log" && message.level === "warn" && message.message === `unlocking from the paired apps is now allowed for "Garden door" (${id}), by an action`))
+})
+
+test("Edit lock refuses a device that isn't a lock, before changing anything", { timeout: 20_000 }, async () => {
+  const id = await add("Hall plug", "plug")
+  await assert.rejects(bridge.host.action("edit-lock", { device: id, name: "Hall", allowUnlock: true }), /not a door lock; use Edit device/)
+  assert.equal(bridge.host.plugin.devices.get(id)!.name, "Hall plug")
 })
 
 test("a device that fails to set up is not left half-added", { timeout: 20_000 }, async () => {

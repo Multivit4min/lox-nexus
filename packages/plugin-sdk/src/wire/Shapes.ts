@@ -32,7 +32,9 @@ export const ActionDescriptionSchema = z.object({
   /** JSON Schema of the form; an empty object schema when the action takes no input */
   input: z.record(z.string(), z.unknown()),
   /** a sentence to confirm before it runs */
-  confirm: z.string().optional()
+  confirm: z.string().optional(),
+  /** "panel": no button at the top of the page, only where the panel puts it; older hosts show it at the top */
+  placement: z.enum(["toolbar", "panel"]).optional()
 })
 export type ActionDescription = z.infer<typeof ActionDescriptionSchema>
 
@@ -102,8 +104,10 @@ export const CatalogNodeSchema: z.ZodType<CatalogNode> = z.lazy(() => z.object({
  * ```
  *
  * A table may offer actions per row (`rowActions`, one list per row), e.g. "Remove" next to each
- * paired controller: the button opens the action's dialog with `input` filled in. Hosts before
- * `qr` refuse a panel with one, which fails only the panel request; they ignore `rowActions`.
+ * paired controller: the button opens the action's dialog with `input` filled in. A section may
+ * have buttons in its heading (`actions`), e.g. "Add device" above the device table. Hosts before
+ * `qr` refuse a panel with one, which fails only the panel request; they ignore `rowActions`
+ * and a section's `actions`.
  * Answers must be JSON: format BigInt and dates as text. Never put secrets in a panel.
  */
 const KeyValuePanel = z.object({ type: z.literal("keyValue"), items: z.array(z.object({ label: z.string(), value: z.string() })) })
@@ -130,7 +134,10 @@ export const PanelSchema = z.discriminatedUnion("type", [
    * titled parts shown one below the other, e.g. facts as key-value pairs above a table. Hosts
    * before this type refuse it, which fails only the panel request.
    */
-  z.object({ type: z.literal("sections"), sections: z.array(z.object({ title: z.string(), panel: PanelPartSchema })).max(20) })
+  z.object({
+    type: z.literal("sections"),
+    sections: z.array(z.object({ title: z.string(), panel: PanelPartSchema, actions: z.array(RowActionSchema).max(4).optional() })).max(20)
+  })
 ])
 /** A status view: a key-value list, a table, a JSON tree, a QR code, or titled sections of those; see PanelSchema. */
 export type Panel = z.infer<typeof PanelSchema>

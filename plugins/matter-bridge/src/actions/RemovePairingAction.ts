@@ -15,6 +15,8 @@ const input = z.object({
 export class RemovePairingAction extends Action<MatterBridgePlugin, z.infer<typeof input>> {
   static readonly id = "remove-pairing"
   static readonly label = "Remove pairing"
+  /** a button on each row of the Controllers table */
+  static readonly placement = "panel"
   static readonly description = "The controller loses the bridge and all its devices. Removing the last one resets the bridge for a new pairing"
   static readonly input = input
   static readonly confirm = "Remove this controller? Its app loses all devices of this bridge, and its routines with them stop working."

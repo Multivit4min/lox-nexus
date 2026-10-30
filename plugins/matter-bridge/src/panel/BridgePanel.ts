@@ -1,5 +1,8 @@
 import type { Panel, PanelPart } from "@lox-nexus/plugin-sdk"
+import { AddDeviceAction } from "../actions/AddDeviceAction.ts"
 import { EditDeviceAction } from "../actions/EditDeviceAction.ts"
+import { EditLockAction } from "../actions/EditLockAction.ts"
+import { OpenPairingWindowAction } from "../actions/OpenPairingWindowAction.ts"
 import { RemoveDeviceAction } from "../actions/RemoveDeviceAction.ts"
 import { RemovePairingAction } from "../actions/RemovePairingAction.ts"
 import type { BridgedDevice, Recorded } from "../devices/BridgedDevice.ts"
@@ -23,9 +26,9 @@ export class BridgePanel {
     return {
       type: "sections",
       sections: [
-        { title: "Pairing", panel: this.pairing() },
+        { title: "Pairing", panel: this.pairing(), actions: [{ action: OpenPairingWindowAction.id }] },
         { title: "Controllers", panel: this.controllers() },
-        { title: "Devices", panel: this.deviceTable() }
+        { title: "Devices", panel: this.deviceTable(), actions: [{ action: AddDeviceAction.id }] }
       ]
     }
   }
@@ -75,7 +78,7 @@ export class BridgePanel {
   }
 
   private deviceTable(): PanelPart {
-    if (this.devices.length === 0) return { type: "keyValue", items: [{ label: "Devices", value: "No devices yet: use Add device" }] }
+    if (this.devices.length === 0) return { type: "keyValue", items: [{ label: "Devices", value: "No devices yet: Add device above" }] }
     return {
       type: "table",
       columns: ["Device", "Id", "Type", "Last command from a controller", "Last state from Nexus"],
@@ -85,8 +88,10 @@ export class BridgePanel {
         return [device.name, device.id, device.info.label, this.recorded(device.lastCommand, labeled), this.recorded(device.lastState, labeled)]
       }),
       rowActions: this.devices.map(device => [
-        // Allow unlocking only where it means something, prefilled with what the lock has
-        { action: EditDeviceAction.id, label: "Edit", input: { device: device.id, name: device.name, ...device.type === "door-lock" ? { allowUnlock: device.allowUnlock } : {} } },
+        // a lock's form has Allow unlocking, prefilled with what the lock has
+        device.type === "door-lock"
+          ? { action: EditLockAction.id, label: "Edit", input: { device: device.id, name: device.name, allowUnlock: device.allowUnlock } }
+          : { action: EditDeviceAction.id, label: "Edit", input: { device: device.id, name: device.name } },
         { action: RemoveDeviceAction.id, label: "Remove", input: { device: device.id } }
       ])
     }

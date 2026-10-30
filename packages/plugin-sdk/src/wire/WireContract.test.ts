@@ -77,12 +77,14 @@ test("the host refuses what a worker must not send", () => {
 test("descriptions and panels of version 1 keep parsing, with the later optional parts", () => {
   const plain = { config: {}, sensors: [], actuators: [] }
   const withActions = { ...plain, actions: [{ id: "pair", label: "Pair device", input: { type: "object" }, description: "d", confirm: "c" }] }
-  for (const description of [plain, withActions]) assert.ok(PluginDescriptionSchema.safeParse(description).success, JSON.stringify(description))
+  const placed = { ...plain, actions: [{ id: "add", label: "Add", input: { type: "object" }, placement: "panel" }], testable: true }
+  for (const description of [plain, withActions, placed]) assert.ok(PluginDescriptionSchema.safeParse(description).success, JSON.stringify(description))
   const panels = [
     { type: "table", columns: ["Controller"], rows: [["Alexa"]] },
     { type: "table", columns: ["Controller"], rows: [["Alexa"]], rowActions: [[{ action: "unpair", label: "Remove", input: { fabric: 1 } }]] },
     { type: "qr", data: "MT:Y.K90IRV01HIBM1SR10", caption: "Scan in the Alexa app" },
-    { type: "sections", sections: [{ title: "Pairing", panel: { type: "qr", data: "MT:x" } }] }
+    { type: "sections", sections: [{ title: "Pairing", panel: { type: "qr", data: "MT:x" } }] },
+    { type: "sections", sections: [{ title: "Devices", panel: { type: "table", columns: ["Name"], rows: [] }, actions: [{ action: "add", label: "Add device" }] }] }
   ]
   for (const panel of panels) assert.ok(PanelSchema.safeParse(panel).success, JSON.stringify(panel))
 })

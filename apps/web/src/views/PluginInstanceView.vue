@@ -168,7 +168,10 @@ onUnmounted(() => {
       <AlertTitle>Degraded</AlertTitle>
       <AlertDescription>{{ instance.statusMessage }}</AlertDescription>
     </Alert>
-    <PanelCard v-if="panel" :panel="panel" :loading="panelLoading" @refresh="refreshPanel" @action="a => actionButtons?.open(a.action, a.input)" />
+    <PanelCard
+      v-if="panel" :panel="panel" :loading="panelLoading" :actions="pkg?.description.actions" @refresh="refreshPanel"
+      @action="a => actionButtons?.open(a.action, a.input)"
+    />
     <WatchSelectionCard v-if="pkg?.description.watches" :instance-id="instance.id" :declaration="pkg.description.watches" />
     <PluginSignalsCard v-if="pkg && live && offersSignals" :instance="instance" :description="pkg.description" :signals="signals" :live="live" @changed="loadSignals" @wire="wire" />
     <WiresCard ref="wiresCard" :owner-id="instance.id" />

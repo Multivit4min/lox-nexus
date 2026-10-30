@@ -9,6 +9,8 @@ const input = z.object({
 export class RemoveDeviceAction extends Action<MatterBridgePlugin, z.infer<typeof input>> {
   static readonly id = "remove-device"
   static readonly label = "Remove device"
+  /** a button on each row of the Devices table */
+  static readonly placement = "panel"
   static readonly description = "The apps lose the device. Its signals in Nexus stay, in the error state, until you remove them"
   static readonly input = input
   static readonly confirm = "Remove this device? Alexa and the other apps lose it, and their routines with it stop working."

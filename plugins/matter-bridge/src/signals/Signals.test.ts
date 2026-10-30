@@ -161,10 +161,14 @@ test("the panel shows each device with its last state; nothing in it is a BigInt
   assert.equal(rows["color-temperature-light"], "– | tunable white 3000 K, 40 %")
   assert.equal(rows["door-lock"], "– | locked")
   assert.equal(rows["smoke-co-alarm"], "– | CO alarm")
-  // each row edits or removes its device, prefilled with what the edit form needs
+  // each row edits or removes its device, prefilled with what the edit form needs; a lock's form has Allow unlocking
   assert.deepEqual(table.rowActions?.[table.rows.findIndex(row => row[0] === "door-lock")], [
-    { action: "edit-device", label: "Edit", input: { device: "door-lock", name: "door-lock", allowUnlock: false } },
+    { action: "edit-lock", label: "Edit", input: { device: "door-lock", name: "door-lock", allowUnlock: false } },
     { action: "remove-device", label: "Remove", input: { device: "door-lock" } }
+  ])
+  assert.deepEqual(table.rowActions?.[table.rows.findIndex(row => row[0] === "plug")]?.[0], { action: "edit-device", label: "Edit", input: { device: "plug", name: "plug" } })
+  assert.deepEqual(panel.sections.map(section => [section.title, section.actions?.map(button => button.action)]), [
+    ["Pairing", ["open-pairing-window"]], ["Controllers", undefined], ["Devices", ["add-device"]]
   ])
   assert.doesNotThrow(() => JSON.stringify(panel))
 })

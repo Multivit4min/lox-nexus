@@ -19,7 +19,7 @@ test("after the factory reset (last controller removed), a lock forbidden to unl
   const { host } = bridge
   await bridge.pair()
   const request = await host.addSensor("lock", { device: "Front door" })
-  await host.action("edit-device", { device: "Front door", name: "Front door", allowUnlock: false })
+  await host.action("edit-lock", { device: "Front door", name: "Front door", allowUnlock: false })
   await host.action("edit-device", { device: "Kitchen", name: "Pantry" })
   await host.action("remove-pairing", { fabricIndex: host.plugin.bridge.controllers()[0]!.fabricIndex })
   await until(() => host.plugin.bridge.pairing()?.commissioned === false, 10_000, "the reset")

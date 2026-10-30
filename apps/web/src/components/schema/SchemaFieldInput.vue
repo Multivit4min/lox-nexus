@@ -11,6 +11,7 @@ import { SchemaDraft, type Draft } from "../../lib/schema/SchemaDraft.ts"
 import type { SchemaField } from "../../lib/schema/SchemaField.ts"
 import FormField from "../FormField.vue"
 import CodeEditor from "./CodeEditor.vue"
+import SchemaUnionInput from "./SchemaUnionInput.vue"
 
 /**
  * One field of a schema form, recursive for objects and arrays. Updates are emitted as new
@@ -57,6 +58,10 @@ function generate() {
       :secret-set="secrets?.includes(child.name)" @update:model-value="value => setChild(child.name, value)"
     />
   </fieldset>
+  <SchemaUnionInput
+    v-else-if="field.kind === 'union'" :id="id" :field="field" :model-value="modelValue" :secrets="secrets"
+    @update:model-value="value => emit('update:modelValue', value)"
+  />
   <FormField v-else-if="field.kind === 'array'" :id="id" :label="label" :hint="hint">
     <div class="grid gap-2">
       <div v-for="(item, i) in items" :key="i" class="flex items-start gap-2">

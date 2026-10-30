@@ -2,11 +2,15 @@
 
 Devices are kept in the plugin store (`devices`), not in the settings, and changed with actions on
 the instance page while the bridge runs; none of them restarts the instance or touches a pairing.
+Their buttons are in the Status card: **Add device** above the Devices table, **Edit** and
+**Remove** on each row, **Open pairing window** in the Pairing section and **Remove** on each
+controller's row.
 
 | Action | Input | What it does |
 |---|---|---|
-| Add device (`add-device`) | `name`, `type`, `allowUnlock` (door locks; default off) | Adds a device, at most 50 per bridge (Alexa's limit). Names are unique ignoring case, at most 32 bytes. |
-| Edit device (`edit-device`) | `device` (id), `name`, `allowUnlock` (optional) | Renames a device, or allows or forbids unlocking a lock; without `allowUnlock` a lock keeps what it had. Asks before saving. The **Edit** button on each row of the Devices table fills it in (`allowUnlock` only for locks). The type can't change: remove the device and add a new one. Turning unlocking on is written to the instance log as a warning. If the endpoint refuses a change, the device keeps what it had. |
+| Add device (`add-device`) | `type`, `name`, and for a door lock `allowUnlock` (default off) | Adds a device, at most 50 per bridge (Alexa's limit). Names are unique ignoring case, at most 32 bytes. The form shows **Allow unlocking** only when Door lock is chosen. |
+| Edit device (`edit-device`) | `device` (id), `name` | Renames a device; a door lock keeps whether it may be unlocked. Asks before saving. The **Edit** button on each row of the Devices table fills it in. The type can't change: remove the device and add a new one. If the endpoint refuses a change, the device keeps what it had. |
+| Edit lock (`edit-lock`) | `device` (id), `name`, `allowUnlock` | A door lock's **Edit**: renames it and allows or forbids unlocking from the apps. Refuses a device that isn't a lock. Turning unlocking on is written to the instance log as a warning. |
 | Remove device (`remove-device`) | `device` (id) | Removes a device after a confirmation, with what the bridge remembered of it. The **Remove** button on each row fills it in. |
 
 - **Ids.** A new device gets an id from its name and a short random suffix, e.g.

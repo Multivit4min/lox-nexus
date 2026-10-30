@@ -75,10 +75,10 @@ test("door lock: locking arrives; unlocking is refused with a Matter failure unl
   assert.deepEqual(bridge.values(request), [true], "a refused unlock reaches nothing")
   await until(() => seen(peer, "Front door").doorLock?.lockState === 1, 3000, "locked at once, as Matter wants")
 
-  await bridge.host.action("edit-device", { device: "Front door", name: "Front door", allowUnlock: true })
+  await bridge.host.action("edit-lock", { device: "Front door", name: "Front door", allowUnlock: true })
   await lock.unlockDoor({})
   await until(() => bridge.last(request) === false, 3000, "unlock requested")
-  await bridge.host.action("edit-device", { device: "Front door", name: "Front door", allowUnlock: false })
+  await bridge.host.action("edit-lock", { device: "Front door", name: "Front door", allowUnlock: false })
   await assert.rejects(lock.unlockDoor({}), /FAILURE|Failure|failure/)
 })
 

@@ -43,9 +43,14 @@ test("forms: fields, params and action inputs have titles, descriptions and labe
     assert.equal(checkFields(capability.params, capability.id).device?.signalGroup, true, capability.id)
   }
   const actions = description.actions ?? []
-  assert.deepEqual(actions.map(action => action.id), ["add-device", "edit-device", "remove-device", "open-pairing-window", "remove-pairing"])
-  for (const action of actions) checkFields(action.input, action.id)
-  assert.equal(Object.keys(checkFields(actions[0]!.input, "add-device").type?.enumLabels ?? {}).length, 15)
+  assert.deepEqual(actions.map(action => action.id), ["add-device", "edit-device", "edit-lock", "remove-device", "open-pairing-window", "remove-pairing"])
+  assert.ok(actions.every(action => action.placement === "panel"), "every button is in the panel: above its section or on its row")
+  for (const action of actions.slice(1)) checkFields(action.input, action.id)
+  // add-device is a union by type: the other types, and the door lock with Allow unlocking
+  const [others, lock] = (actions[0]!.input as { oneOf: Schema[] }).oneOf
+  assert.equal(Object.keys(checkFields(others, "add-device").type?.enumLabels ?? {}).length, 14)
+  assert.deepEqual(Object.keys(lock!.properties ?? {}), ["type", "name", "allowUnlock"])
+  assert.equal(lock!.properties!.type!.title, "Door lock")
   assert.ok(actions.find(action => action.id === "remove-device")?.confirm)
   assert.ok(actions.find(action => action.id === "remove-pairing")?.confirm)
 })

@@ -34,6 +34,7 @@ export class SchemaDraft {
         return Object.fromEntries((field.fields ?? []).map(child => [child.name, SchemaDraft.from(child, record[child.name])]))
       }
       case "array": return Array.isArray(source) ? source.map(item => SchemaDraft.from(field.items!, item)) : []
+      case "union": return SchemaDraft.union(field, source)
       case "json": return source === undefined ? "" : JSON.stringify(source, null, 2)
       default:
         if (field.secret || source === undefined || source === null) return ""
@@ -59,6 +60,7 @@ export class SchemaDraft {
       case "const": return field.required ? { present: true, value: field.constValue } : absent
       case "object": return SchemaDraft.object(field, draft, path)
       case "array": return SchemaDraft.array(field, draft, path)
+      case "union": return SchemaDraft.unionValue(field, draft, path)
     }
     const text = typeof draft === "string" ? draft : ""
     if (text.trim() === "") return SchemaDraft.empty(field, path)
@@ -131,8 +133,42 @@ export class SchemaDraft {
         const record = SchemaDraft.isRecord(draft) ? draft : {}
         return (field.fields ?? []).every(child => SchemaDraft.blank(child, record[child.name] ?? SchemaDraft.from(child)))
       }
+      case "union": return SchemaDraft.blank(SchemaDraft.variant(field, draft).field, draft)
       default: return typeof draft !== "string" || draft.trim() === ""
     }
+  }
+
+  /**
+   * A union's draft after another choice: the discriminator as text, and the new branch's fields,
+   * those with the same name as before keeping what was typed.
+   */
+  static choose(field: SchemaField, draft: Draft, value: string): Draft {
+    const record = SchemaDraft.isRecord(draft) ? draft : {}
+    const variant = field.variants!.find(candidate => String(candidate.value) === value) ?? field.variants![0]!
+    const fields = (variant.field.fields ?? []).map(child => [child.name, record[child.name] ?? SchemaDraft.from(child)] as const)
+    return { [field.discriminator!]: String(variant.value), ...Object.fromEntries(fields) }
+  }
+
+  /** the union's branch the draft has chosen; the first one when it names none */
+  static variant(field: SchemaField, draft: Draft) {
+    const chosen = SchemaDraft.isRecord(draft) ? draft[field.discriminator!] : undefined
+    return field.variants!.find(candidate => String(candidate.value) === chosen) ?? field.variants![0]!
+  }
+
+  // the stored or default value's branch, else the first
+  private static union(field: SchemaField, source: unknown): Draft {
+    const record = SchemaDraft.isRecord(source) ? source as Record<string, unknown> : {}
+    const chosen = field.variants!.find(candidate => candidate.value === record[field.discriminator!]) ?? field.variants![0]!
+    const fields = SchemaDraft.from(chosen.field, record) as Record<string, Draft>
+    return { [field.discriminator!]: String(chosen.value), ...fields }
+  }
+
+  private static unionValue(field: SchemaField, draft: Draft, path: string): Result {
+    const record = SchemaDraft.isRecord(draft) ? draft : {}
+    const chosen = field.variants!.find(candidate => String(candidate.value) === record[field.discriminator!])
+    if (!chosen) throw new SchemaInputError(SchemaDraft.join(path, field.discriminator!), "choose one of the options")
+    const rest = SchemaDraft.object(chosen.field, record, path)
+    return { present: true, value: { [field.discriminator!]: chosen.value, ...(rest.present ? rest.value as object : {}) } }
   }
 
   private static join(path: string, name: string) {

@@ -1,6 +1,7 @@
 import { Plugin, type ConfigMigration } from "@lox-nexus/plugin-sdk"
 import { AddDeviceAction } from "./actions/AddDeviceAction.ts"
 import { EditDeviceAction } from "./actions/EditDeviceAction.ts"
+import { EditLockAction } from "./actions/EditLockAction.ts"
 import { OpenPairingWindowAction } from "./actions/OpenPairingWindowAction.ts"
 import { RemoveDeviceAction } from "./actions/RemoveDeviceAction.ts"
 import { RemovePairingAction } from "./actions/RemovePairingAction.ts"
@@ -34,7 +35,7 @@ export class MatterBridgePlugin extends Plugin<BridgeConfig> {
   }
   static readonly sensors = Capabilities.sensors
   static readonly actuators = Capabilities.actuators
-  static readonly actions = [AddDeviceAction, EditDeviceAction, RemoveDeviceAction, OpenPairingWindowAction, RemovePairingAction]
+  static readonly actions = [AddDeviceAction, EditDeviceAction, EditLockAction, RemoveDeviceAction, OpenPairingWindowAction, RemovePairingAction]
 
   /** merges bursts of device state writes (a moving blind) into one store write per 1.5 s */
   readonly coalescer = new WriteCoalescer((ms, run) => this.schedule(ms, run))

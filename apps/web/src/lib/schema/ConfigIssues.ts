@@ -28,7 +28,14 @@ export class ConfigIssues {
         field = field?.items
         continue
       }
-      field = field?.fields?.find(candidate => candidate.name === part)
+      if (field?.kind === "union" && part === field.discriminator) {
+        parts.push(field.discriminatorLabel ?? String(part))
+        field = undefined
+        continue
+      }
+      // a union's field may be in any branch
+      const candidates = field?.kind === "union" ? field.variants!.flatMap(variant => variant.field.fields ?? []) : field?.fields ?? []
+      field = candidates.find(candidate => candidate.name === part)
       parts.push(field?.label || String(part))
     }
     return parts.join(" › ")

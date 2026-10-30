@@ -48,4 +48,9 @@ export type ActionClass = (new (plugin: never, input: never) => Action<Plugin, u
   readonly input?: z.ZodType
   /** a sentence the user confirms before it runs, for actions that undo something */
   readonly confirm?: string
+  /**
+   * where its button is: "toolbar" (default) at the top of the instance page, or "panel" only
+   * where the panel puts it, as a section's button (`actions`) or a table row's (`rowActions`)
+   */
+  readonly placement?: "toolbar" | "panel"
 }

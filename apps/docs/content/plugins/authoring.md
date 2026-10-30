@@ -280,6 +280,22 @@ In tests, `PluginTestHost.checkConfig(type, config, version?)` and `testConfig(t
 run these without starting the plugin, and `start(type, { config, configVersion })` with
 `host.migratedConfig` shows what init migrated.
 
+### Fields that depend on a choice
+
+A `z.discriminatedUnion` shows as a choice of its discriminator followed by the chosen branch's
+fields, in settings, params and action forms. A literal names its value with `.meta({ title })`;
+an enum branch names its values with `enumLabels`, and its title and description are the choice's:
+
+```ts
+const input = z.discriminatedUnion("type", [
+  z.object({ type: z.enum(["light", "plug"]).meta({ title: "Type", enumLabels: { light: "Light", plug: "Plug" } }), name: z.string() }),
+  z.object({ type: z.literal("door-lock").meta({ title: "Door lock" }), name: z.string(), allowUnlock: z.boolean().default(false) })
+])
+```
+
+**Allow unlocking** shows only while Door lock is chosen; fields both branches have keep what was
+typed when the choice changes. Other unions are edited as JSON.
+
 ### Helpers that change how a field is shown
 
 All of these wrap a zod schema, return it unchanged in type, and only add a marker to the JSON

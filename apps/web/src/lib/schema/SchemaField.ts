@@ -1,3 +1,5 @@
+import { SchemaUnion, type UnionShape } from "./SchemaUnion.ts"
+
 /** A JSON Schema node as zod's toJSONSchema writes it; only the keywords the form uses are typed. */
 export interface JsonSchemaNode {
   type?: string | string[]
@@ -15,14 +17,15 @@ export interface JsonSchemaNode {
   required?: string[]
   items?: JsonSchemaNode | JsonSchemaNode[]
   anyOf?: JsonSchemaNode[]
+  oneOf?: JsonSchemaNode[]
   minimum?: number
   maximum?: number
   format?: string
   contentMediaType?: string
 }
 
-/** json: anything the form has no input for (records, unions, tuples), edited as JSON text */
-export type FieldKind = "string" | "number" | "integer" | "boolean" | "enum" | "const" | "object" | "array" | "json"
+/** union: a discriminated union, one branch at a time. json: anything the form has no input for (records, other unions, tuples), edited as JSON text */
+export type FieldKind = "string" | "number" | "integer" | "boolean" | "enum" | "const" | "object" | "array" | "union" | "json"
 
 /** One input of a schema form, normalized from its JSON Schema. */
 export interface SchemaField {
@@ -57,6 +60,13 @@ export interface SchemaField {
   fields?: SchemaField[]
   /** array: the item */
   items?: SchemaField
+  /** union: the property that picks the branch, e.g. "type"; shown as a choice */
+  discriminator?: string
+  /** union: the choice's title and description, from the discriminator's schema */
+  discriminatorLabel?: string
+  discriminatorDescription?: string
+  /** union: one entry per discriminator value, its branch's other fields as an object */
+  variants?: Array<{ value: string | number | boolean; label: string; field: SchemaField }>
 }
 
 /** The languages a code field can be shown as; unknown media types are plain text. */
@@ -93,7 +103,22 @@ export class SchemaFields {
       field.fields = Object.entries(node.properties ?? {}).map(([key, child]) => SchemaFields.parse(child, key, needed.has(key)))
     }
     if (field.kind === "array") field.items = SchemaFields.parse(node.items as JsonSchemaNode, "", true)
+    const union = SchemaUnion.detect(node)
+    if (union) Object.assign(field, SchemaFields.union(union))
     return field
+  }
+
+  // each value gets its branch, without the discriminator: the form shows that as the choice
+  private static union(union: UnionShape): Partial<SchemaField> {
+    const variants = union.branches.flatMap(({ node, values, labels }) => {
+      const branch = SchemaFields.parse(node, "", true)
+      const field = { ...branch, fields: branch.fields?.filter(child => child.name !== union.discriminator) ?? [] }
+      return values.map(value => ({ value, label: labels[String(value)] ?? String(value), field }))
+    })
+    return {
+      kind: "union", discriminator: union.discriminator, variants,
+      ...(union.label ? { discriminatorLabel: union.label } : {}), ...(union.description ? { discriminatorDescription: union.description } : {})
+    }
   }
 
   /** "pollInterval" → "Poll interval", "api_key" → "API key", "entityId" → "Entity ID" */

@@ -146,7 +146,10 @@ In the guide: [Actuators](authoring.md#actuators-commands-to-the-device).
 
 Something a user starts from the instance page with a small form: pair a device, open a pairing
 window, remove a paired controller. Declared in the plugin's `static actions`; the page shows a
-button per action, and a panel table's `rowActions` open one with its input filled in.
+button per action at the top, and a panel table's `rowActions` open one with its input filled in.
+`static placement = "panel"` takes it off the top: its buttons are then only where the panel puts
+them, in a section's heading (`actions`) or on a table row. An input that is a
+`z.discriminatedUnion` shows as a choice of its discriminator and the chosen branch's fields.
 
 | Member | Notes |
 |---|---|
@@ -162,6 +165,7 @@ static readonly label?: string        // the button's text; default: id
 static readonly description?: string  // one sentence in the dialog
 static readonly input?: z.ZodType     // the form; default: no input
 static readonly confirm?: string      // asked before it runs, for actions that undo something
+static readonly placement?: "toolbar" | "panel"  // "panel": no button at the top, only where the panel puts it
 ```
 
 Actions run only while the instance runs or is degraded; a reverse proxy in front of Nexus should
@@ -376,7 +380,7 @@ type PanelPart =
   | { type: "table"; columns: string[]; rows: string[][]; rowActions?: RowAction[][] }  // up to 4 buttons per row
   | { type: "qr"; data: string; caption?: string }  // e.g. a Matter pairing payload; hosts before it refuse the panel
   | { type: "json"; data: unknown }
-type Panel = PanelPart | { type: "sections"; sections: { title: string; panel: PanelPart }[] }  // at most 20 sections
+type Panel = PanelPart | { type: "sections"; sections: { title: string; panel: PanelPart; actions?: RowAction[] }[] }  // at most 20 sections; up to 4 buttons in a heading
 type RowAction = { action: string; label?: string; input?: Record<string, unknown> }  // opens the action's dialog filled in
 type HttpRequest = { method: string; path: string; query: Record<string, string>; headers: Record<string, string>; body: string }
 type HttpResponse = { status: number; headers?: Record<string, string>; body?: string }

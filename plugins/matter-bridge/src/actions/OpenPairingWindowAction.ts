@@ -9,6 +9,8 @@ import { BridgePanel } from "../panel/BridgePanel.ts"
 export class OpenPairingWindowAction extends Action<MatterBridgePlugin> {
   static readonly id = "open-pairing-window"
   static readonly label = "Open pairing window"
+  /** its button is in the Pairing section */
+  static readonly placement = "panel"
   static readonly description = "For 15 minutes, another app (Google Home, Apple Home, Home Assistant, …) can add the bridge with the pairing code. Anyone on your network could pair during that time"
 
   async run() {

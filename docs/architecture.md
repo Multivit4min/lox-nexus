@@ -2029,3 +2029,13 @@ Native `fetch` and `WebSocket` replace axios and socket.io (`ws` comes in throug
   MQTT connects with its own client id, InfluxDB asks `/health` or `/ping` (the token is first
   checked by a write), Calendar reads the feed once. The Matter bridge has config version 2.
 
+## Implementation notes: union forms and panel buttons
+
+- Schema forms show a discriminated union (zod's `oneOf` of objects sharing a property with a
+  `const` or `enum` value; `SchemaUnion.detect`) as a choice plus the chosen branch's fields
+  (`SchemaUnionInput.vue`, `SchemaDraft.choose`/`variant`). Drafts keep the discriminator as text;
+  shared fields keep their values across a switch.
+- Actions declare `placement: "panel"` to leave the top of the instance page; panel sections may
+  list buttons in their heading (`actions`, RowAction shape, at most 4). The Matter bridge places
+  all its actions there and splits Edit lock (with Allow unlocking) from Edit device.
+

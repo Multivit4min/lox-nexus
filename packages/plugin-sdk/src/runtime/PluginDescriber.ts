@@ -28,7 +28,8 @@ export class PluginDescriber {
     const actions = Declarations.actions(type).map(action => ({
       id: action.id, label: Declarations.actionLabel(action), input: PluginDescriber.schemaOf(Declarations.actionInput(action)),
       ...(typeof action.description === "string" && action.description ? { description: action.description } : {}),
-      ...(typeof action.confirm === "string" && action.confirm ? { confirm: action.confirm } : {})
+      ...(typeof action.confirm === "string" && action.confirm ? { confirm: action.confirm } : {}),
+      ...(action.placement === "panel" ? { placement: "panel" as const } : {})
     }))
     return actions.length > 0 ? { actions } : {}
   }
