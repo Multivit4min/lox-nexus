@@ -1,8 +1,9 @@
 # Live captures, 2026-10-23
 
-Captured from the test Miniserver (10.10.10.205, own ID `server`) sending to remote systems
-`claude` and `red` at the same host and port. Each line is `{ t: epoch ms, from, hex }` (received
-datagrams), or a tx/rx record in the probe file.
+Captured from the test Miniserver (its LAN address replaced with 192.0.2.205, a documentation
+address; own ID `server`) sending to remote systems `claude` and `red` at the same host and port.
+Each line is `{ t: epoch ms, from, hex }` (received datagrams), or a tx/rx record in the probe
+file.
 
 | File | Contents |
 |---|---|

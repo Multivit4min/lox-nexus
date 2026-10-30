@@ -21,6 +21,6 @@ export class Fixtures {
   }
 
   static remote(port = 65534): RemoteInfo {
-    return { address: "10.10.10.205", family: "IPv4", port, size: 0 }
+    return { address: "192.0.2.205", family: "IPv4", port, size: 0 }
   }
 }

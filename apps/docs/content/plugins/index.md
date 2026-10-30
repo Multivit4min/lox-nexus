@@ -15,8 +15,8 @@ The user adds an **instance** of your plugin with its settings, then adds **sign
 Look at the [Fronius plugin](fronius.md) for a complete, small example (read-only, polling), and the
 [Home Assistant plugin](homeassistant.md) for one with a persistent connection and actuators.
 
-> **Today** you build and run plugins inside a Nexus checkout. Installing from a ZIP or git URL and the
-> published SDK package are not available yet, see [Publishing a plugin](publishing.md).
+> **Today** you develop plugins inside a Nexus checkout, because the SDK isn't on npm yet. A built
+> plugin installs from a ZIP file or a git repository, see [Publishing a plugin](publishing.md).
 
 ## Quick start
 
