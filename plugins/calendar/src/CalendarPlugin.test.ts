@@ -71,7 +71,7 @@ describe("CalendarPlugin", { timeout: 20_000 }, () => {
     h.server.serve("/flaky.ics", "weekly.ics")
     await plugin.source.refresh()
     assert.deepEqual(host.status, { status: "running", message: undefined })
-    const logs = host.sent.flatMap(message => (message.type === "log" ? [message.message] : []))
+    const logs = host.sent.flatMap(message => (message.type === "log" && message.level !== "debug" ? [message.message] : []))
     assert.deepEqual(logs, ["can't read the calendar; keeping the last one read", "reading the calendar again"])
   })
 

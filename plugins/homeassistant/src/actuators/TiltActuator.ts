@@ -13,6 +13,8 @@ export class TiltActuator extends EntityActuator<ValueOf<"number">> {
   static readonly label = "Tilt position"
   static readonly description = "Tilts a cover's slats, 0 (closed) to 100 (open)"
   static readonly accepts = "number"
+  static readonly unit = "%"
+  static readonly decimals = 0
   static readonly domains = ["cover"]
   static readonly params = EntityId.paramsFor("cover.living_room")
   static readonly concurrency = "latest"

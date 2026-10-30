@@ -54,8 +54,13 @@ export class CalendarSource extends Disposable {
   }
 
   private async run() {
+    const started = this.currentClock().now()
     const read = await this.read()
     if (this.isDisposed) return
+    const took = this.currentClock().now() - started
+    // the host only, never the link: it may carry a secret token
+    if (read.ok) this.log.debug(`read the feed of ${this.client.host} in ${took} ms`, { occurrences: read.result.occurrences.length, skipped: read.result.skipped.length })
+    else this.log.debug(`reading the feed failed after ${took} ms`, { problem: read.problem })
     if (read.ok) {
       this.lastSuccess = read.at
       // outside the read's error handling: a sensor's failure is not a problem of the feed

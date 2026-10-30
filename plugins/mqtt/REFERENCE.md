@@ -115,7 +115,7 @@ messages come at once). Further requests within two minutes show what arrived si
 after the last request the plugin unsubscribes and forgets the topics. At most `browseLimit` topics
 are kept, each with the first 1024 characters of its last payload; an empty message removes a
 topic, and topics longer than 1024 characters are ignored. At most 20 000 entries are shown; narrow
-the filter for more (the log says so). A browse filter the broker refuses ends browsing with an
+the filter for more (the log says so, once each time the tree starts being cut). A browse filter the broker refuses ends browsing with an
 error. `#` and `+` don't match topics starting with `$`, as on the broker.
 
 Only sensors are offered: a topic says nothing about where commands go (zigbee2mqtt takes them on
@@ -210,6 +210,12 @@ dropped at the limit. **Export**: watched signals, where values are published, d
 number of configs), values published, the last publish, failed and skipped values (null, or a
 signal not in the list), values dropped by Nexus, and retained topics removed (and still waiting).
 The counters live in memory and start at zero with every start.
+
+### Debug log
+
+With **Debug for 15 min** on the instance's log card, the log also gets each subscribe (how many filters the
+broker took, and the first ten) and unsubscribe, every failed connection attempt with its retry
+delay (the warning appears only once per outage).
 
 ## Security notes
 

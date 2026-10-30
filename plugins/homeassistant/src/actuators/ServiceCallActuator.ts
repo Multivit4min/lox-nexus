@@ -1,6 +1,7 @@
 import { Actuator, signalGroup, z } from "@lox-nexus/plugin-sdk"
 import type { Value } from "@lox-nexus/plugin-sdk/values"
 import { EntityId } from "../entities/EntityId.ts"
+import { EntityPresence } from "../entities/EntityPresence.ts"
 import type { HomeAssistantPlugin } from "../HomeAssistantPlugin.ts"
 
 const name = /^[a-z0-9_]+$/
@@ -27,9 +28,20 @@ export class ServiceCallActuator extends Actuator<HomeAssistantPlugin, z.infer<t
   static readonly params = params
   static readonly accepts = "any"
 
+  // with a target entity, a missing one marks the signal failed like the entity actuators
+  override start() {
+    const { entityId } = this.params
+    if (!entityId) return
+    EntityPresence.follow(this.plugin.entities, entityId, {
+      fail: message => this.fail(message), recover: () => this.recover(), listen: (emitter, event, listener) => this.listen(emitter, event, listener)
+    })
+  }
+
   async run(value: Value) {
     const { domain, service, entityId, field, data } = this.params
     if (field === undefined && !ServiceCallActuator.isTrue(value)) return
+    const missing = entityId && EntityPresence.missing(this.plugin.entities, entityId)
+    if (missing) throw new Error(missing)
     const payload = field === undefined ? data : { ...data, [field]: ServiceCallActuator.json(value) }
     await this.plugin.connection.callService(domain, service, payload, entityId)
   }

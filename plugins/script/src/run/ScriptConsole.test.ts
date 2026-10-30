@@ -56,4 +56,17 @@ describe("ScriptLog", () => {
     assert.equal(formatted, ScriptLog.LIMIT)
     assert.deepEqual(data[0], { stack: `${"s".repeat(ScriptLog.MAX_LENGTH)}… (clipped)` })
   })
+
+  test("debug lines are skipped while the instance keeps no debug lines, and leave the budget to the others", () => {
+    const lines: string[] = []
+    const log = Object.fromEntries(["debug", "info", "warn", "error"].map(level => [level, (message: string) => void lines.push(`${level} ${message}`)])) as unknown as PluginLogger
+    const level = { current: "info" as "info" | "debug" }
+    const scriptLog = new ScriptLog(log, () => 0, level)
+    for (let i = 0; i < ScriptLog.LIMIT * 2; i++) scriptLog.write("debug", () => assert.fail("a skipped line is not formatted"))
+    scriptLog.write("info", "still logged")
+    assert.deepEqual(lines, ["info still logged"])
+    level.current = "debug"
+    scriptLog.write("debug", "now kept")
+    assert.equal(lines.at(-1), "debug now kept")
+  })
 })

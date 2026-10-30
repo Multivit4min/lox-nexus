@@ -21,7 +21,7 @@ describe("HassConnection", { timeout: 10_000 }, () => {
     cleanup.push(() => ha.close())
     const warnings: string[] = []
     const entities = new EntityStore()
-    const connection = new HassConnection(websocketUrl(ha.url), FakeHomeAssistant.TOKEN, entities, { warn: message => void warnings.push(message) }, { ...timings(), ...adjusted })
+    const connection = new HassConnection(websocketUrl(ha.url), FakeHomeAssistant.TOKEN, entities, { warn: message => void warnings.push(message), debug: () => undefined }, { ...timings(), ...adjusted })
     cleanup.push(() => connection.dispose())
     const events: string[] = []
     connection.events.on("connected", () => events.push("connected"))
@@ -55,7 +55,7 @@ describe("HassConnection", { timeout: 10_000 }, () => {
     const ha = await FakeHomeAssistant.start()
     const url = ha.url
     await ha.close()
-    const unreachable = new HassConnection(websocketUrl(url), "t", new EntityStore(), { warn: () => undefined }, timings())
+    const unreachable = new HassConnection(websocketUrl(url), "t", new EntityStore(), { warn: () => undefined, debug: () => undefined }, timings())
     cleanup.push(() => unreachable.dispose())
     const reports: string[] = []
     unreachable.events.on("disconnected", reason => reports.push(reason))
@@ -74,7 +74,7 @@ describe("HassConnection", { timeout: 10_000 }, () => {
 
     const url = ha.url
     await ha.close()
-    const waiting = new HassConnection(websocketUrl(url), "t", new EntityStore(), { warn: () => undefined }, timings())
+    const waiting = new HassConnection(websocketUrl(url), "t", new EntityStore(), { warn: () => undefined, debug: () => undefined }, timings())
     await waiting.start()
     await waiting.dispose()
     const reconnects = waiting.reconnects

@@ -6,5 +6,7 @@ export class HumidityState extends StateActuator {
   static readonly label = "Humidity % to controllers"
   static readonly description = "The relative humidity in % (0–100)"
   static readonly accepts = "number"
+  static readonly unit = "%"
+  static readonly decimals = 0
   protected readonly kind = "humidity"
 }

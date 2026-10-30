@@ -24,7 +24,7 @@ export class InfluxPanel {
     return {
       type: "sections",
       sections: [
-        { title: "Export", panel: { type: "keyValue", items: this.export() } },
+        { title: "Export", panel: { type: "keyValue", items: this.export() }, actions: [{ action: "retry-now" }] },
         { title: "Points", panel: { type: "keyValue", items: this.points() } }
       ]
     }

@@ -39,7 +39,7 @@ export class ScriptPlugin extends Plugin<ScriptConfig> {
   readonly zone = this.config.timeZone ?? this.timeZone
   // registered after the outbox, so stopping ends the script before its throttle
   private readonly runner: ScriptRunner = this.own(new ScriptRunner({
-    log: new ScriptLog(this.log),
+    log: new ScriptLog(this.log, Date.now, this.logLevel),
     status: this.status,
     state: this.state,
     timeZone: this.zone,

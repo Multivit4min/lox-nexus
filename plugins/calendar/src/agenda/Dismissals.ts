@@ -5,7 +5,7 @@ import type { Occurrence } from "../ics/Occurrence.ts"
 const storedSchema = z.record(z.string(), z.number())
 
 /**
- * Occurrences dismissed by a `dismiss` actuator, persisted so a restart doesn't bring them back.
+ * Occurrences dismissed by a `dismiss` actuator or the panel, persisted so a restart doesn't bring them back.
  * Keyed per occurrence (UID plus start), so dismissing one occurrence of a series leaves the
  * others. Each entry is forgotten once its occurrence is over, so the store doesn't grow (the old
  * integration kept every dismissed UID forever).
@@ -37,6 +37,13 @@ export class Dismissals {
     for (const occurrence of fresh) this.entries.set(occurrence.key, keepUntil(occurrence))
     if (fresh.length > 0) this.save()
     return fresh.length > 0
+  }
+
+  /** brings a dismissed occurrence back; @returns whether it was dismissed */
+  remove(key: string) {
+    if (!this.entries.delete(key)) return false
+    this.save()
+    return true
   }
 
   /** forgets dismissals whose occurrence is over */

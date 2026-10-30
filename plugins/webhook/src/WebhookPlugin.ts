@@ -25,7 +25,7 @@ export class WebhookPlugin extends Plugin<WebhookConfig> {
   readonly hooks = new HookRegistry()
   readonly stats = new CallStats()
   private readonly warnings = this.own(new AuthWarnings(this.log))
-  private readonly dispatcher = new HookDispatcher(this.hooks, new TokenGuard(this.config.token), this.stats, this.warnings)
+  private readonly dispatcher = new HookDispatcher(this.hooks, new TokenGuard(this.config.token), this.stats, this.warnings, (message, data) => this.log.debug(message, data))
 
   override start() {
     this.http.route("*", "/*", request => this.dispatcher.handle(request))

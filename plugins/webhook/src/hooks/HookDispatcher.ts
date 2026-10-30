@@ -22,10 +22,21 @@ export class HookDispatcher {
     private readonly hooks: HookRegistry,
     private readonly guard: TokenGuard,
     private readonly stats: CallStats,
-    private readonly warnings: AuthWarnings
+    private readonly warnings: AuthWarnings,
+    private readonly debug: (message: string, data?: unknown) => void = () => {}
   ) {}
 
+  // the hook, method and outcome only: query, headers and body may carry the token or private data;
+  // a 400's problems may quote a refused value, as the panel does
   handle(request: HttpRequest): HttpResponse {
+    const response = this.answer(request)
+    const hook = HookName.fromPath(request.path) ?? "(no hook)"
+    const problems = response.status === 400 ? { problems: response.body?.trim() } : undefined
+    this.debug(`${request.method} ${hook}: ${response.status}`, problems)
+    return response
+  }
+
+  private answer(request: HttpRequest): HttpResponse {
     const name = HookName.fromPath(request.path)
     const known = name !== undefined && this.hooks.has(name) ? name : undefined
     const token = this.guard.check(request)

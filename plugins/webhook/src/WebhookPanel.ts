@@ -3,7 +3,7 @@ import type { CallStats, Tally } from "./hooks/CallStats.ts"
 import type { HookRegistry } from "./hooks/HookRegistry.ts"
 
 /**
- * Three sections: how callers send the token (with the token, which is a plain config field, or a
+ * Three sections: how callers send the token (with the token, which the settings form keeps hidden, or a
  * warning without one), a table with a row per configured hook (its signals and counters), and the
  * calls refused before reaching a hook (wrong or missing token, unknown name).
  *

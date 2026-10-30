@@ -44,7 +44,7 @@ export class HassConnection extends Disposable {
     private readonly url: string,
     private readonly token: string,
     private readonly entities: EntityStore,
-    private readonly log: Pick<PluginLogger, "warn">,
+    private readonly log: Pick<PluginLogger, "warn" | "debug">,
     private readonly timings = HassConnection.TIMINGS()
   ) {
     super()
@@ -74,6 +74,8 @@ export class HassConnection extends Disposable {
    */
   async callService(domain: string, service: string, data: Record<string, unknown>, entityId?: string) {
     const target = entityId ? { target: { entity_id: entityId } } : {}
+    // field names only: the values may be a lock's or an alarm's code
+    this.log.debug(`call ${domain}.${service}`, { entityId, fields: Object.keys(data) })
     await this.request({ type: "call_service", domain, service, service_data: data, ...target }, this.timings.serviceTimeoutMs)
   }
 
@@ -118,6 +120,7 @@ export class HassConnection extends Disposable {
         return
       }
       this.entities.apply(parsed.data, initial)
+      if (initial) this.log.debug(`loaded ${Object.keys(parsed.data.a ?? {}).length} entities`)
       initial = false
     }
   }
@@ -147,7 +150,9 @@ export class HassConnection extends Disposable {
     if (this.isDisposed) return
     if (reason !== this.lastProblem) this.events.emit("disconnected", reason)
     this.lastProblem = reason
-    this.after(this.timings.backoff.next(), () => {
+    const delay = this.timings.backoff.next()
+    this.log.debug(`reconnecting in ${Math.round(delay / 1000)} s`, { reason })
+    this.after(delay, () => {
       this.reconnects++
       void this.connect(false)
     })

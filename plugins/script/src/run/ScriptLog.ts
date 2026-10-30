@@ -1,4 +1,4 @@
-import type { PluginLogger } from "@lox-nexus/plugin-sdk"
+import type { PluginLogger, PluginLogLevel } from "@lox-nexus/plugin-sdk"
 
 type Level = keyof PluginLogger
 
@@ -8,6 +8,8 @@ type Level = keyof PluginLogger
  * logged together with the first line of a later window (measured with the clock instead of a
  * timer, so nothing has to be cleaned up; a script that falls silent reports its count never).
  * Messages are built only when they fit the budget, so dropped lines cost no formatting.
+ * `console.debug` lines count only while the instance keeps debug lines; otherwise they would use
+ * up the budget for lines nobody sees.
  */
 export class ScriptLog {
   static readonly LIMIT = 100
@@ -17,9 +19,10 @@ export class ScriptLog {
   private lines = 0
   private dropped = 0
 
-  constructor(private readonly log: PluginLogger, private readonly now: () => number = Date.now) {}
+  constructor(private readonly log: PluginLogger, private readonly now: () => number = Date.now, private readonly level?: Pick<PluginLogLevel, "current">) {}
 
   write(level: Level, message: string | (() => string), data?: { stack: string }) {
+    if (level === "debug" && this.level && this.level.current !== "debug") return
     this.rollWindow()
     if (this.lines >= ScriptLog.LIMIT) {
       this.dropped++

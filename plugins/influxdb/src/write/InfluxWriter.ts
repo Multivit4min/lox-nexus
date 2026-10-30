@@ -22,6 +22,8 @@ export interface WriterParts {
   buffer: WriteBuffer
   policy: RetryPolicy
   health: ExportHealth
+  /** one line per batch, for the instance's debug log */
+  debug?: (message: string, data?: unknown) => void
 }
 
 /**
@@ -79,6 +81,18 @@ export class InfluxWriter extends Disposable {
       this.again = false
       this.flush()
     })
+  }
+
+  /**
+   * Sends the batch waiting for a retry now, e.g. after the user fixed the token or the bucket.
+   * @returns whether one was waiting
+   */
+  retryNow() {
+    if (!this.cancelRetry || this.closing || this.isDisposed) return false
+    this.cancelRetry()
+    this.cancelRetry = undefined
+    this.flush()
+    return true
   }
 
   /** resolves when no request is running (also one started by the last one finishing) */
@@ -142,6 +156,8 @@ export class InfluxWriter extends Disposable {
   }
 
   private apply(outcome: Outcome, batch: string[], latencyMs: number) {
+    const reason = "reason" in outcome ? { reason: outcome.reason } : undefined
+    this.parts.debug?.(`wrote ${batch.length} points in ${Math.round(latencyMs)} ms: ${outcome.kind}`, reason)
     // failures while stopping (often the stop's own abort) aren't reported: close() says what is left
     if (outcome.kind === "retry" || outcome.kind === "split") {
       if (this.closing || this.isDisposed) return

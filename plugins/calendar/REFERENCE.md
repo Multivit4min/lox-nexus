@@ -150,6 +150,21 @@ Two sections.
 - **Next 5 events:** a table of when, in the plugin's time zone ("2026-11-02 18:00 – 19:00", or
   "2026-11-02, all day"), the title ("(no title)" without one), and "dismissed" where it applies.
 
+Buttons:
+
+- **Read now** (Feed section) reads the feed at once instead of at the next interval, e.g. right
+  after editing the calendar, and says how many occurrences it read, or why it failed. A read already running is let finish
+  first, since it may have fetched the feed before the edit.
+- **Dismiss** on an event's row hides that occurrence from every sensor, as the `dismiss` actuator
+  does, until a day after it ends. A dismissed row offers **Restore** instead, which shows it to
+  the sensors again; the actuator has no way to undo a dismissal.
+
+### Debug log
+
+With **Debug for 15 min** on the instance's log card, the log also gets a line per read of the feed: the
+host (never the link, which may hold credentials), how long it took, and the number of occurrences
+and events left out, or the reason it failed.
+
 ## Limits
 
 - A series keeps its first 1000 occurrences in the window (an hourly one about six weeks), so dense

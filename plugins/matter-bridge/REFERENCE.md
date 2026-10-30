@@ -81,6 +81,10 @@ What the apps do with a type is up to them, and only real hardware shows it:
 
 ## How values convert
 
+New signals suggest the unit and decimals of their value: °C with one decimal for temperatures
+and setpoints, % without decimals for humidity, brightness, position and fan speed, and K for
+color temperature.
+
 | Signal | Nexus | Matter |
 |---|---|---|
 | `on-off` | `true` on, `false` off | OnOff `onOff` |

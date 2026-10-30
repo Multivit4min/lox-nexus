@@ -42,6 +42,8 @@ export class MqttPlugin extends Plugin<MqttConfig> {
   readonly target = BrokerTarget.describe(this.config.url)
   readonly clientId = ClientId.resolve(this.config.clientId, this.slug, this.store)
   private readonly statusTopic = this.config.onlineStatus ? `${this.config.baseTopic}/status` : undefined
+  // the catalog is asked for on every browse; the cut is news only when it starts
+  private catalogCut = false
   readonly connection = this.own(new BrokerConnection(
     { ...this.config, clientId: this.clientId, statusTopic: this.statusTopic },
     new ConnectionHealth(this.log, this.status, this.target)
@@ -75,7 +77,8 @@ export class MqttPlugin extends Plugin<MqttConfig> {
   override async catalog() {
     const tree = new CatalogTree()
     for (const topic of await this.browser.topics()) tree.add(topic)
-    if (tree.truncated) this.log.info(`the catalog shows the first ${CatalogTree.MAX_ENTRIES} entries; narrow "Browse topics" to see the rest`)
+    if (tree.truncated && !this.catalogCut) this.log.info(`the catalog shows the first ${CatalogTree.MAX_ENTRIES} entries; narrow "Browse topics" to see the rest`)
+    this.catalogCut = tree.truncated
     return tree.nodes()
   }
 

@@ -22,7 +22,7 @@ export class FroniusPlugin extends Plugin<FroniusConfig> {
   }
 
   readonly api = new SolarApi(this.config.host, this.config.timeout * 1000)
-  readonly poller = this.own(new Poller(this.api, (part, problem) => this.problemChanged(part, problem)))
+  readonly poller = this.own(new Poller(this.api, (part, problem) => this.problemChanged(part, problem), (message, data) => this.log.debug(message, data)))
 
   // The first poll isn't awaited: an inverter that is off (many sleep at night) must not fail the
   // start, and a hanging one must not hold it up. The instance starts degraded instead.

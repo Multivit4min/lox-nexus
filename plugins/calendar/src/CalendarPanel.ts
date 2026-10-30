@@ -34,14 +34,23 @@ export class CalendarPanel {
     if (error) items.push({ label: "Last error", value: `${error.message} (${error.at.toISOString()})` })
     if (this.source.skipped.length > 0) items.push({ label: "Left out (unreadable or repeating too often)", value: this.source.skipped.join(", ") })
     if (this.source.truncated.length > 0) items.push({ label: "Cut short (too many occurrences)", value: this.source.truncated.join(", ") })
-    const rows = upcoming.slice(0, CalendarPanel.UPCOMING).map(occurrence => this.row(occurrence))
+    const next = upcoming.slice(0, CalendarPanel.UPCOMING)
     return {
       type: "sections",
       sections: [
-        { title: "Feed", panel: { type: "keyValue", items } },
-        { title: `Next ${CalendarPanel.UPCOMING} events`, panel: { type: "table", columns: ["When", "Event", ""], rows } }
+        { title: "Feed", panel: { type: "keyValue", items }, actions: [{ action: "read-now" }] },
+        {
+          title: `Next ${CalendarPanel.UPCOMING} events`,
+          panel: { type: "table", columns: ["When", "Event", ""], rows: next.map(occurrence => this.row(occurrence)), rowActions: next.map(occurrence => [this.rowAction(occurrence)]) }
+        }
       ]
     }
+  }
+
+  // dismissed ones can be brought back here, which the dismiss actuator can't
+  private rowAction(occurrence: Occurrence) {
+    const dismissed = this.agenda.isDismissed(occurrence)
+    return { action: dismissed ? "restore-event" : "dismiss-event", label: dismissed ? "Restore" : "Dismiss", input: { event: occurrence.key } }
   }
 
   private row(occurrence: Occurrence) {

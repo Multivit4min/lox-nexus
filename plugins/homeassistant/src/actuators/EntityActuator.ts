@@ -1,6 +1,7 @@
 import { Actuator, type z } from "@lox-nexus/plugin-sdk"
 import type { Value } from "@lox-nexus/plugin-sdk/values"
 import { EntityId } from "../entities/EntityId.ts"
+import { EntityPresence, type PresenceTarget } from "../entities/EntityPresence.ts"
 import type { EntityState } from "../entities/EntityStore.ts"
 import type { HomeAssistantPlugin } from "../HomeAssistantPlugin.ts"
 
@@ -26,7 +27,8 @@ export interface CurrentValue {
 
 /**
  * Commands one entity through Home Assistant services. Adding the signal fails for an entity of
- * another domain; a call while disconnected or one Home Assistant refuses fails the command.
+ * another domain; a call while disconnected or one Home Assistant refuses fails the command. An
+ * entity that doesn't exist (any more) marks the signal failed, and each command with it.
  */
 export abstract class EntityActuator<V extends Value> extends Actuator<HomeAssistantPlugin, { entityId: string }, V> {
   override start() {
@@ -34,6 +36,12 @@ export abstract class EntityActuator<V extends Value> extends Actuator<HomeAssis
     if (!type.domains.includes(this.domain)) {
       throw new Error(`${type.label} works with ${type.domains.join(", ")} entities, not ${this.domain}`)
     }
+    EntityPresence.follow(this.plugin.entities, this.params.entityId, this.presence())
+  }
+
+  // the protected members the shared helper needs
+  private presence(): PresenceTarget {
+    return { fail: message => this.fail(message), recover: () => this.recover(), listen: (emitter, event, listener) => this.listen(emitter, event, listener) }
   }
 
   protected get domain() {
@@ -46,6 +54,8 @@ export abstract class EntityActuator<V extends Value> extends Actuator<HomeAssis
   }
 
   protected call(service: string, data: Record<string, unknown> = {}, domain = this.domain) {
+    const missing = EntityPresence.missing(this.plugin.entities, this.params.entityId)
+    if (missing) return Promise.reject(new Error(missing))
     return this.plugin.connection.callService(domain, service, data, this.params.entityId)
   }
 

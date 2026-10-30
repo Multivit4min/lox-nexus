@@ -22,6 +22,8 @@ export class ConnectionHealth {
   lost(failure: ConnectFailure, retryMs: number) {
     const seconds = Math.round(retryMs / 1000)
     this.status.set("degraded", `${this.wasConnected ? "disconnected" : "can't connect"}: ${failure.message}; retrying in ${seconds} s`)
+    // every attempt at debug; at warn only a new reason, so a long outage isn't a line a minute
+    this.log.debug(`MQTT broker ${this.target}: ${failure.message}; retrying in ${seconds} s`)
     if (failure.message === this.lastLogged) return
     this.lastLogged = failure.message
     this.log.warn(`MQTT broker ${this.target}: ${failure.message}`)

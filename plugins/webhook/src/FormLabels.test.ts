@@ -16,7 +16,7 @@ test("every form field has a title and a description, and every choice a label",
   const description = await PluginTestHost.describe(WebhookPlugin)
   const token = (description.config as Schema).properties?.token
   assert.equal(token?.title, "Token")
-  assert.equal(token?.writeOnly, undefined, "visible in the form, for copying into the caller")
+  assert.equal(token?.writeOnly, true, "hidden in the form; the panel shows it for copying")
   assert.equal(token?.format, "token", "the form offers to generate one")
   const [trigger, ...values] = description.sensors
   assert.deepEqual(titles(trigger?.params), { hook: "Hook name", method: "HTTP method", pulseMs: "Pulse length (ms)" })

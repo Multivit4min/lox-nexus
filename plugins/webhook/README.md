@@ -25,7 +25,7 @@ and hand values from the call to the bus. Values only flow in; the plugin sends 
 
 | Field | | Description |
 |---|---|---|
-| **Token** (`token`) | optional; no default; not secret (shown in the form and the panel for copying) | The shared token every call must carry. 16 to 512 visible ASCII characters, no spaces. **Generate** next to the field fills in a random one (48 hex characters, e.g. `3f6c0a…`); save to use it. Empty: every call is accepted. One token per instance; callers that shouldn't share one get their own instance. |
+| **Token** (`token`) | optional; no default; secret (hidden in the form, sealed in a config export; the panel shows it for copying) | The shared token every call must carry. 16 to 512 visible ASCII characters, no spaces. **Generate** next to the field fills in a random one (48 hex characters, e.g. `3f6c0a…`); save to use it, then copy it from the panel. Empty on a new instance: every call is accepted. Once set, a token can be replaced but not removed: an empty field keeps it. One token per instance; callers that shouldn't share one get their own instance. |
 
 ## Sensors and actuators
 

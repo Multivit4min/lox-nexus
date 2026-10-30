@@ -11,10 +11,10 @@ describe("WebhookPlugin answers", () => {
   const harness = new WebhookHarness()
   afterEach(() => harness.cleanup())
 
-  test("the token is visible, not secret, and at least 16 characters when set", async () => {
+  test("the token is secret and at least 16 characters when set", async () => {
     await assert.rejects(PluginTestHost.start(WebhookPlugin, { config: { token: "too-short-token" } }))
     const description = await PluginTestHost.describe(WebhookPlugin)
-    assert.doesNotMatch(JSON.stringify(description), /writeOnly/)
+    assert.equal((description.config.properties as { token?: { writeOnly?: boolean } }).token?.writeOnly, true, "sealed in a config export")
   })
 
   test("without a token every call is accepted, and the instance is degraded with a warning", async () => {
@@ -46,6 +46,10 @@ describe("WebhookPlugin answers", () => {
     assert.equal((await call(host, { hook: "door", headers: { authorization: `Bearer ${TOKEN}` } })).status, 204)
     assert.equal((await call(host, { hook: "door", headers: { "x-webhook-token": TOKEN } })).status, 204)
     assert.equal((await call(host, { hook: "door", method: "GET", query: { token: TOKEN } })).status, 204)
+    assert.equal((await call(host, { hook: "door", query: { token: TOKEN.slice(1) } })).status, 401)
+    const debug = host.sent.filter(message => message.type === "log" && message.level === "debug")
+    assert.deepEqual(debug.map(message => message.type === "log" && message.message), ["POST door: 204", "POST door: 204", "GET door: 204", "POST door: 401"])
+    assert.ok(!JSON.stringify(host.sent).includes(TOKEN.slice(1)), "no log line or status carries the token, nor a mistyped one")
   })
 
   test("401 with WWW-Authenticate for a missing or wrong token, and nothing fires", async () => {

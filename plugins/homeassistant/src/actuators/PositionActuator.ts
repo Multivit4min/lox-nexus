@@ -16,6 +16,8 @@ export class PositionActuator extends EntityActuator<ValueOf<"number">> {
   static readonly label = "Position"
   static readonly description = "Moves a cover or valve to a position, 0 (closed) to 100 (open)"
   static readonly accepts = "number"
+  static readonly unit = "%"
+  static readonly decimals = 0
   static readonly domains = ["cover", "valve"]
   static readonly params = EntityId.paramsFor("cover.living_room")
   static readonly concurrency = "latest"

@@ -36,6 +36,7 @@ export class Subscriptions extends Disposable {
     if (count === undefined) return
     if (count > 1) return void this.counts.set(filter, count - 1)
     this.counts.delete(filter)
+    this.log.debug("unsubscribed", { filter })
     this.connection.unsubscribe([filter]).catch((error: unknown) => this.warn("unsubscribing failed", [filter], error))
   }
 
@@ -49,6 +50,7 @@ export class Subscriptions extends Disposable {
   private async subscribe(filters: string[]) {
     try {
       const refused = await this.connection.subscribe(filters)
+      this.log.debug(`subscribed to ${filters.length - refused.length} of ${filters.length} topic filters`, { filters: filters.slice(0, 10) })
       for (const filter of refused) {
         this.log.warn("the broker refused a subscription", { filter })
         this.events.emit("refused", filter)

@@ -1,4 +1,4 @@
-import { z } from "@lox-nexus/plugin-sdk"
+import { signalGroup, z } from "@lox-nexus/plugin-sdk"
 
 /** which text of an event `match` looks at; `summary` is what calendars show as the title */
 export const fieldSchema = z.enum(["summary", "description", "location", "any"])
@@ -12,7 +12,8 @@ export class FilterParams {
   static readonly MAX_LEAD_MINUTES = 43_200
 
   static readonly shape = {
-    match: z.string().min(1).optional().meta({
+    // signal lists group the signals that look for the same text
+    match: signalGroup(z.string().min(1).optional()).meta({
       title: "Text to look for", description: "Only events whose text contains this, ignoring case. Empty: every event"
     }),
     field: fieldSchema.default("summary").meta({

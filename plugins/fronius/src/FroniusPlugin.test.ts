@@ -83,7 +83,7 @@ describe("FroniusPlugin", () => {
     mock.timers.tick(5_000)
     await pluginOf(host).poller.idle()
     assert.deepEqual(host.status, { status: "running", message: undefined })
-    const logs = host.sent.flatMap(message => (message.type === "log" ? [message.message] : []))
+    const logs = host.sent.flatMap(message => (message.type === "log" && message.level !== "debug" ? [message.message] : []))
     assert.deepEqual(logs, ["can't read the inverter", "reading the inverter again"])
     await host.stop()
   })

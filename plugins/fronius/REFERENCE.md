@@ -104,6 +104,11 @@ A key-value view:
 
 Meter and battery endpoint failures don't appear in the panel; they are in the log.
 
+### Debug log
+
+With **Debug for 15 min** on the instance's log card, the log also gets a line per poll: how long it took
+and the outcome of the power flow, meter and storage endpoints.
+
 ## Status and errors
 
 - The instance is **degraded** with the reason while the power flow can't be read, and goes back to

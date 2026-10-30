@@ -26,7 +26,7 @@ export class Poller extends Disposable implements Listenable {
   private readonly events = new EventEmitter()
   private readonly abort = new AbortController()
 
-  constructor(private readonly api: SolarApi, private readonly report: ProblemReport) {
+  constructor(private readonly api: SolarApi, private readonly report: ProblemReport, private readonly debug: (message: string, data?: unknown) => void = () => {}) {
     super()
     // waits for the running poll, so nothing of it is left once dispose() resolves
     this.onDispose(async () => {
@@ -65,10 +65,14 @@ export class Poller extends Disposable implements Listenable {
 
   private async run() {
     const signal = this.abort.signal
+    const started = this.currentClock().now()
     const [powerflow, meter, storage] = await Promise.allSettled([
       this.api.powerFlow(signal), this.api.meters(signal), this.api.storages(signal)
     ])
     if (this.isDisposed) return
+    const outcome = (result: PromiseSettledResult<unknown>) => (result.status === "fulfilled" ? "ok" : Poller.message(result.reason))
+    const took = this.currentClock().now() - started
+    this.debug(`polled in ${took} ms`, { powerflow: outcome(powerflow), meter: outcome(meter), storage: outcome(storage) })
     this.track("powerflow", powerflow)
     // with the inverter down, the optional endpoints fail too; that says nothing about the devices
     if (powerflow.status === "rejected") return

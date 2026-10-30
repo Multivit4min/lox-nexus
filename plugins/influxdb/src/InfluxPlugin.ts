@@ -4,6 +4,7 @@ import { influxConfigSchema, type InfluxConfig } from "./InfluxConfig.ts"
 import { InfluxPanel } from "./InfluxPanel.ts"
 import { LineProtocol } from "./line/LineProtocol.ts"
 import { PointMapper } from "./line/PointMapper.ts"
+import { RetryNowAction } from "./RetryNowAction.ts"
 import { InfluxWriter } from "./write/InfluxWriter.ts"
 import { ExportHealth } from "./write/ExportHealth.ts"
 import { RetryPolicy } from "./write/RetryPolicy.ts"
@@ -31,6 +32,7 @@ export class InfluxPlugin extends Plugin<InfluxConfig> {
     return `Reached ${endpoint.description}. The ${config.api === "v2" ? "token" : "user"} is checked by the first write.`
   }
   static readonly watches = { label: "Exported signals", description: "Values of these signals are written to InfluxDB" }
+  static readonly actions = [RetryNowAction]
   /** a request's timeout, and the time a stop gives the last write */
   static readonly TIMEOUT_MS = 15_000
   static readonly CLOSE_MS = 1500
@@ -46,7 +48,8 @@ export class InfluxPlugin extends Plugin<InfluxConfig> {
       endpoint: this.endpoint,
       buffer: this.buffer,
       policy: new RetryPolicy(this.config.api === "v2" ? "the token" : "the user and password"),
-      health: new ExportHealth(this.stats, this.log, this.status)
+      health: new ExportHealth(this.stats, this.log, this.status),
+      debug: (message, data) => this.log.debug(message, data)
     },
     { flushMs: this.config.flushSeconds * 1000, batchSize: this.config.batchSize, gzip: this.config.gzip, timeoutMs: InfluxPlugin.TIMEOUT_MS }
   ))

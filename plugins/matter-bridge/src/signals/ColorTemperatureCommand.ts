@@ -6,5 +6,7 @@ export class ColorTemperatureCommand extends CommandSensor {
   static readonly label = "Colour temperature K from controllers"
   static readonly description = "The colour temperature a controller set, in Kelvin (2700 warm to 6500 cold)"
   static readonly valueType = "number"
+  static readonly unit = "K"
+  static readonly decimals = 0
   protected readonly kind = "colorTemperature"
 }

@@ -1,4 +1,7 @@
 import { Plugin } from "@lox-nexus/plugin-sdk"
+import { DismissEventAction } from "./actions/DismissEventAction.ts"
+import { ReadNowAction } from "./actions/ReadNowAction.ts"
+import { RestoreEventAction } from "./actions/RestoreEventAction.ts"
 import { DismissActuator } from "./actuators/DismissActuator.ts"
 import { Agenda } from "./agenda/Agenda.ts"
 import { Dismissals } from "./agenda/Dismissals.ts"
@@ -23,6 +26,7 @@ export class CalendarPlugin extends Plugin<CalendarConfig> {
   static readonly config = calendarConfigSchema
   static readonly sensors = [ActiveSensor, TitleSensor, TimeSensor]
   static readonly actuators = [DismissActuator]
+  static readonly actions = [ReadNowAction, DismissEventAction, RestoreEventAction]
 
   /** Test connection: reads the feed once and counts its events, as the plugin would see them */
   static async test(config: CalendarConfig) {

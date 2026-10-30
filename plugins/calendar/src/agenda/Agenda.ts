@@ -5,7 +5,7 @@ import type { Dismissals } from "./Dismissals.ts"
 
 /**
  * The occurrences the sensors work on: the last calendar read successfully, minus what was
- * dismissed. Emits "changed" after every successful read and every dismissal, so sensors
+ * dismissed. Emits "changed" after every successful read, dismissal and restore, so sensors
  * re-evaluate. Held in memory only; a calendar can be megabytes, too much for the store.
  */
 export class Agenda implements Listenable {
@@ -52,6 +52,18 @@ export class Agenda implements Listenable {
     this.visibleCache = undefined
     if (added) this.changed()
     return added
+  }
+
+  /** the occurrence with this key (UID plus start) of the last good read */
+  find(key: string) {
+    return this.all.find(occurrence => occurrence.key === key)
+  }
+
+  /** shows a dismissed occurrence again; @returns whether it was dismissed */
+  restore(key: string) {
+    const removed = this.dismissals.remove(key)
+    if (removed) this.changed()
+    return removed
   }
 
   /** only "changed" exists; this makes the agenda usable with Disposable.listen() */

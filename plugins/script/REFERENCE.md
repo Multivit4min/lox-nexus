@@ -153,7 +153,7 @@ nexus.store.set("state", state)
 | Global | |
 |---|---|
 | `nexus` | the API above |
-| `console.log`, `info`, `debug`, `warn`, `error` | one line in the instance's log at the matching level (`log` is `info`). Arguments are joined with spaces: strings as they are, objects as indented JSON, errors with the script's part of their stack (and the message of their cause, where `fetch` puts the network error). |
+| `console.log`, `info`, `debug`, `warn`, `error` | one line in the instance's log at the matching level (`log` is `info`). `console.debug` lines show only while the instance keeps debug lines (**Debug for 15 min** on its Log card); otherwise they cost nothing and don't count against the limit. Arguments are joined with spaces: strings as they are, objects as indented JSON, errors with the script's part of their stack (and the message of their cause, where `fetch` puts the network error). |
 | `setTimeout`, `setInterval`, `clearTimeout`, `clearInterval` | as in browsers: ids are numbers, extra arguments are passed to the callback, a missing or invalid delay means "as soon as possible". Stopping the instance clears all of them. Intervals shorter than 10 ms run every 10 ms. |
 | `fetch`, `Headers`, `Request`, `Response`, `AbortController`, `AbortSignal` | Node's fetch. Your own signal works, given in the options or with a `Request`. Stopping the instance aborts requests still in flight. |
 | `URL`, `URLSearchParams`, `TextEncoder`, `TextDecoder`, `structuredClone`, `atob`, `btoa`, `crypto` | the web standard ones; `crypto` is Web Crypto (`crypto.randomUUID()`, `crypto.subtle`) |

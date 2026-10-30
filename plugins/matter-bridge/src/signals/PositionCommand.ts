@@ -6,5 +6,7 @@ export class PositionCommand extends CommandSensor {
   static readonly label = "Target position % from controllers"
   static readonly description = "Where a controller wants the blind, in % closed (0 open, 100 closed); stop sends the current position"
   static readonly valueType = "number"
+  static readonly unit = "%"
+  static readonly decimals = 0
   protected readonly kind = "position"
 }

@@ -118,6 +118,12 @@ Every actuator but `service` follows one entity: its only param is **Entity ID**
 Adding one for an entity of another domain fails. A call while disconnected, or one Home
 Assistant refuses (e.g. a number out of range), fails the command with Home Assistant's message.
 
+An actuator whose entity doesn't exist in Home Assistant (renamed or removed) shows the error
+"Home Assistant has no entity …" (or "… was removed from Home Assistant") on its signal and refuses
+commands, which Home Assistant would otherwise answer with success while doing nothing. It clears
+by itself once the entity is back. A `service` actuator with an entity ID does the same, one without isn't
+checked. `position` and `tilt` suggest the unit `%` for new signals.
+
 Home Assistant answers a service call only once the service has finished, and a call that takes
 longer than 60 s fails. A script called as `script.<name>` (through `service`) runs to its end
 first. Use `trigger` (`script.turn_on`) for long scripts: it returns as soon as the script
@@ -237,6 +243,12 @@ connection.
 | Last problem | the last connection problem, shown only until the next successful connection |
 
 The token never appears on the panel or in the log.
+
+### Debug log
+
+With **Debug for 15 min** on the instance's log card, the log also gets the entities loaded at login, each
+event type subscribed, each reconnect with its delay and reason, and each service call with its
+entity and the names of its data fields; not their values, which may be a lock's or an alarm's code.
 
 ## Limits
 

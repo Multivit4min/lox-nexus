@@ -26,7 +26,7 @@ export class EventSubscriptions {
   private readonly types = new Map<string, Subscription>()
   private socket: HassSocket | undefined
 
-  constructor(private readonly log: Pick<PluginLogger, "warn">) {}
+  constructor(private readonly log: Pick<PluginLogger, "warn" | "debug">) {}
 
   /** the event types in use, subscribed or about to be */
   get eventTypes() {
@@ -87,6 +87,7 @@ export class EventSubscriptions {
     if (!this.current(eventType, subscription, socket)) return void socket.unsubscribe(id).catch(() => undefined)
     subscription.id = id
     delete subscription.refusal
+    this.log.debug(`subscribed to ${eventType}`)
     for (const listener of subscription.listeners) listener.subscribed()
   }
 

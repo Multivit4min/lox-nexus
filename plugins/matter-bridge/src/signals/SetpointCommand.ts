@@ -6,5 +6,7 @@ export class SetpointCommand extends CommandSensor {
   static readonly label = "Heating setpoint °C from controllers"
   static readonly description = "The temperature a controller set on the thermostat, in °C"
   static readonly valueType = "number"
+  static readonly unit = "°C"
+  static readonly decimals = 1
   protected readonly kind = "setpoint"
 }

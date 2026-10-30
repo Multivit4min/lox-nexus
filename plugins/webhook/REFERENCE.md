@@ -152,6 +152,12 @@ Three sections.
 The counters live in memory and start at zero with every start of the instance. Times are shown in
 UTC (ISO 8601).
 
+### Debug log
+
+With **Debug for 15 min** on the instance's log card, the log also gets a line per call: the method, the hook
+name (`(no hook)` for a path that isn't one) and the status, with the problems of a `400`, which
+may quote a refused value as the panel does. Never the headers, nor the query or body themselves.
+
 ## Security notes
 
 - Webhook URLs are reachable **without a Nexus login**; the token is the only protection. Use a
@@ -160,9 +166,10 @@ UTC (ISO 8601).
   start, and the panel says so too.
 - The token is compared in constant time: both sides are hashed with SHA-256 and compared with
   `timingSafeEqual`, so neither the content nor the length of the token leaks through timing.
-- The token is a plain config field, not a secret one: it is visible in the instance form, the
-  panel and the config export to whoever is logged in to Nexus, since the caller has to keep it in
-  plain text anyway. It is never logged.
+- The token is a secret config field: hidden in the instance form, and in a config export only
+  sealed with the export's passphrase. The panel shows it to whoever is logged in to Nexus, for
+  copying into the caller. Once set it can be replaced but not removed: an empty field keeps it.
+  It is never logged.
 - Calls with a wrong or missing token are logged at `warn`: the first right away, then at most one
   line a minute with the count, so a brute force can't flood the log. The status stays as it is.
   The line says whether the hook exists, never the path, which may hold a token typed into it by

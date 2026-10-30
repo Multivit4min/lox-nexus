@@ -6,5 +6,7 @@ export class SetpointState extends StateActuator {
   static readonly label = "Heating setpoint °C to controllers"
   static readonly description = "The thermostat's setpoint in °C; Matter limits it to 7–30 °C"
   static readonly accepts = "number"
+  static readonly unit = "°C"
+  static readonly decimals = 1
   protected readonly kind = "setpoint"
 }

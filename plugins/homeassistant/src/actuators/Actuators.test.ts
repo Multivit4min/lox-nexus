@@ -18,6 +18,8 @@ describe("HomeAssistantPlugin: actuators", { timeout: 15_000 }, () => {
     ha.set("light.rgbw", "on", { supported_color_modes: ["rgbw"] })
     ha.set("input_datetime.alarm", "06:30:00", { has_date: false, has_time: true })
     ha.set("input_datetime.holiday", "2026-12-24", { has_date: true, has_time: false })
+    // commands to an entity Home Assistant doesn't have fail now, so every target exists
+    for (const entityId of ["button.restart", "climate.living", "cover.blind", "date.birthday", "datetime.next_run", "input_datetime.party", "input_number.level", "lock.door", "media_player.kitchen", "scene.movie", "select.mode", "switch.pump", "time.wake_up", "todo.shopping_list", "valve.garden"]) ha.set(entityId, "unknown")
     host = await PluginTestHost.start(HomeAssistantPlugin, { config: { url: ha.url, token: FakeHomeAssistant.TOKEN } })
     await waitFor(() => ha.clients === 1)
   })
@@ -116,5 +118,40 @@ describe("HomeAssistantPlugin: actuators", { timeout: 15_000 }, () => {
     await assert.rejects(host.actuate(id, Value.number(500)), /outside of range/)
     await host.remove(id)
     await assert.rejects(host.addActuator("position", { entityId: "switch.pump" }), /works with cover, valve entities, not switch/)
+  })
+
+  test("an entity that doesn't exist (any more) fails the signal and each command; its return clears that", async () => {
+    const id = await host.addActuator("onOff", { entityId: "switch.gone" })
+    const errors = () => host.sent.flatMap(message => (message.type === "signal.error" && message.signalId === id ? [message.error] : []))
+    assert.deepEqual(errors(), ["Home Assistant has no entity switch.gone"])
+    await assert.rejects(host.actuate(id, Value.boolean(true)), /no entity switch.gone/)
+    assert.deepEqual(ha.calls.splice(0), [], "nothing was sent")
+    ha.set("switch.gone", "off")
+    await waitFor(() => host.sent.some(message => message.type === "signal.recovered" && message.signalId === id))
+    await host.actuate(id, Value.boolean(true))
+    ha.remove("switch.gone")
+    await waitFor(() => errors().includes("switch.gone was removed from Home Assistant"))
+    await host.remove(id)
+  })
+
+  test("a service call with a target entity checks it like the others; one without has nothing to check", async () => {
+    const id = await host.addActuator("service", { domain: "lock", service: "unlock", entityId: "lock.gone", field: "code" })
+    const errors = host.sent.flatMap(message => (message.type === "signal.error" && message.signalId === id ? [message.error] : []))
+    assert.deepEqual(errors, ["Home Assistant has no entity lock.gone"])
+    await assert.rejects(host.actuate(id, Value.string("1234")), /no entity lock.gone/)
+    await host.remove(id)
+    const notify = await host.addActuator("service", { domain: "notify", service: "notify", data: { message: "hi" } })
+    await host.actuate(notify, Value.boolean(true))
+    assert.ok(!host.sent.some(message => message.type === "signal.error" && message.signalId === notify))
+    await host.remove(notify)
+    assert.deepEqual(ha.calls.splice(0).map(call => `${call.domain}.${call.service}`), ["notify.notify"])
+  })
+
+  test("the debug line of a call names the data fields, never their values (a lock's code)", async () => {
+    const before = host.sent.length
+    await run("service", { domain: "lock", service: "unlock", entityId: "lock.door", field: "code" }, Value.string("4711"))
+    const debug = host.sent.slice(before).filter(message => message.type === "log" && message.level === "debug" && message.message === "call lock.unlock")
+    assert.deepEqual(debug.map(message => message.type === "log" && message.data), [{ entityId: "lock.door", fields: ["code"] }])
+    assert.ok(!JSON.stringify(debug).includes("4711"))
   })
 })

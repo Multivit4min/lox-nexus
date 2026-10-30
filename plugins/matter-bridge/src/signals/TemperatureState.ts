@@ -6,5 +6,7 @@ export class TemperatureState extends StateActuator {
   static readonly label = "Temperature °C to controllers"
   static readonly description = "The temperature in °C (a thermostat's room temperature)"
   static readonly accepts = "number"
+  static readonly unit = "°C"
+  static readonly decimals = 1
   protected readonly kind = "temperature"
 }

@@ -134,6 +134,16 @@ zero with every start.
   (export behind)*, *Rejected by InfluxDB*, and *Skipped (null or unknown signal)*, which also
   counts points without a writable field.
 
+**Retry now** (Export section) writes the batch waiting for a retry at once instead of after the
+delay, e.g. after fixing the token, bucket or database. Without a waiting batch it says so.
+
+### Debug log
+
+With **Debug for 15 min** on the instance's log card, the log also gets a line per written batch: the number
+of points, the latency and the outcome, with InfluxDB's reason when it wasn't `ok`. Never the
+token or password. A rejected batch's reason is InfluxDB's answer, which may quote the line it
+could not parse, as the warning does.
+
 ## Grafana
 
 **InfluxDB 2 (Flux)**, by signal id (stable) or by name:
