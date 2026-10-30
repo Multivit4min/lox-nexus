@@ -3,7 +3,7 @@ import { describe, test } from "node:test"
 import { Converter } from "./Converter.ts"
 import { Value, type ValueType } from "./Value.ts"
 
-/** golden expectations ported from tests/conversion/VariableConverter.spec.ts of the previous Nexus (github.com/Multivit4min/loxone-nexus) */
+/** golden expectations ported from tests/conversion/VariableConverter.spec.ts of the previous Nexus (github.com/Multivit4min/lox-nexus/tree/legacy) */
 const to = (value: Value, type: ValueType) => {
   const result = Converter.convert(value, type)
   return result.type === "null" ? null : result.value

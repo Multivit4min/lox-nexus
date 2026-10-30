@@ -3,7 +3,8 @@
 Nexus runs in Docker or from a source checkout. Plugins are installed, updated and rolled back in
 the web UI, see [Plugins](#plugins).
 
-There is no published image yet: you build it from the repository, as described below.
+The image is published at `ghcr.io/multivit4min/lox-nexus` for amd64 and arm64: `latest` is the
+newest release, `edge` follows the `main` branch.
 
 ## Requirements
 
@@ -14,22 +15,31 @@ There is no published image yet: you build it from the repository, as described 
 
 ## Run with Docker
 
-The `Dockerfile` at the repository root builds one image for amd64 and arm64 (a Raspberry Pi 4 or 5
-with a 64-bit OS). It contains the server, the web UI, this documentation and the first-party
-plugins, ready to install. Build and start it with compose:
+The image runs on amd64 and arm64 (a Raspberry Pi 4 or 5 with a 64-bit OS). It contains the
+server, the web UI, this documentation and the first-party plugins, ready to install. Start it with
+the repository's `compose.yaml`, which lists every setting as a comment:
 
 ```sh
-git clone <repository-url> lox-nexus
-cd lox-nexus
-docker compose up -d --build
+mkdir lox-nexus && cd lox-nexus
+curl -fsSLO https://raw.githubusercontent.com/Multivit4min/lox-nexus/main/compose.yaml
+docker compose up -d
 ```
 
 Then open `http://<host>:8080/`. Without compose:
 
 ```sh
-docker build -t lox-nexus .
 docker run -d --name nexus --restart unless-stopped --network host --init \
-  -v nexus-data:/data lox-nexus
+  -v nexus-data:/data ghcr.io/multivit4min/lox-nexus:latest
+```
+
+**Building it yourself.** The `Dockerfile` at the repository root builds the same image. In a
+checkout, replace `image:` in `compose.yaml` with `build: .` and run `docker compose up -d --build`,
+or without compose:
+
+```sh
+git clone https://github.com/Multivit4min/lox-nexus.git
+cd lox-nexus
+docker build -t lox-nexus .
 ```
 
 To build for both architectures at once, for example to push to your own registry:
@@ -61,8 +71,9 @@ the UI, the documentation and the plugin repository.
 first-party plugins, so they can be installed from the **Plugins** page right away. Installed
 plugins live in `/data`, so they survive a new image.
 
-**Updating.** Pull the repository, rebuild and restart the container
-(`docker compose up -d --build`). The data volume stays; the database is migrated at startup. A
+**Updating.** `docker compose pull && docker compose up -d` (a self-built image: pull the
+repository and run `docker compose up -d --build`). The data volume stays; the database is
+migrated at startup. A
 new image may bring new versions of the first-party plugins: **Plugins** then shows how many, and
 **Update all** installs them with one review (see **Updating** under [Installing a plugin](#installing-a-plugin)).
 
@@ -76,7 +87,7 @@ docker compose exec nexus npm run reset-password             # compose
 ## Run from source
 
 ```sh
-git clone <repository-url> lox-nexus
+git clone https://github.com/Multivit4min/lox-nexus.git
 cd lox-nexus
 npm install
 npm run build          # builds the web UI, the documentation site and the plugin bundles

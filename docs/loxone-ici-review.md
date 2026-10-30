@@ -5,7 +5,7 @@ Review of the `loxone-ici` npm package (github.com/Multivit4min/loxone-intercomm
 replaced by `packages/ici`. **Each item below must have a regression test in `packages/ici`.**
 The items can also be filed as issues upstream.
 
-Line references point at the upstream repository. `loxone-nexus/…` references point at the previous Nexus (github.com/Multivit4min/loxone-nexus).
+Line references point at the upstream repository. `loxone-nexus/…` references point at the previous Nexus (github.com/Multivit4min/lox-nexus/tree/legacy).
 
 **Bugs**
 1. **Payload length mismatch.** `toBuffer` in both `LoxoneInput` and `LoxoneOutput` writes the payload

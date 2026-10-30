@@ -1,6 +1,6 @@
 # Builds the documentation site and publishes it on GitHub Pages
 # (Settings → Pages → Source: GitHub Actions). The site has relative links, so it works under
-# https://<owner>.github.io/<repo>/ as it does at /docs/ in Nexus itself.
+# https://multivit4min.github.io/lox-nexus/ as it does at /docs/ in Nexus itself.
 name: Documentation
 
 on:

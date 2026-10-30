@@ -1,6 +1,6 @@
 # The previous Nexus: unported integrations
 
-The previous implementation lives at github.com/Multivit4min/loxone-nexus (server, commit `53fd946`)
+The previous implementation lives at github.com/Multivit4min/lox-nexus/tree/legacy (server, commit `53fd946`)
 and github.com/Multivit4min/loxone-nexus-frontend (UI, commit `22d9a54`). It is no longer kept in
 this repository. File references below (`src/…:line`) point into the server repository at that
 commit. This page keeps what future plugins need from it. (Its export format isn't imported: Lox Nexus

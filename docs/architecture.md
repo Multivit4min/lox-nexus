@@ -95,7 +95,7 @@ explains it.
 The `Value` class provides factories (`Value.boolean(true)`) and `Value.equals()`. A
 `Converter` class with one small `*Conversion` class per target type replaces the old 274-line
 converter. The old conversion rules are kept as behaviour (golden tests ported from
-`tests/conversion/*.spec.ts` of the previous Nexus, github.com/Multivit4min/loxone-nexus), with these known bugs fixed deliberately, one test each:
+`tests/conversion/*.spec.ts` of the previous Nexus, github.com/Multivit4min/lox-nexus/tree/legacy), with these known bugs fixed deliberately, one test each:
 - RGBW→TunableWhite spreads `this.defaults` (`VariableConverter.ts:185` in the previous Nexus)
 - `fallback || 0` swallows a fallback of 0
 - default fadeTime is inconsistent (0 in one place, 0.2 in another)

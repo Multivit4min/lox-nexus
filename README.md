@@ -1,5 +1,10 @@
 # Lox Nexus
 
+[![CI](https://github.com/Multivit4min/lox-nexus/actions/workflows/ci.yml/badge.svg)](https://github.com/Multivit4min/lox-nexus/actions/workflows/ci.yml)
+[![Docker image](https://github.com/Multivit4min/lox-nexus/actions/workflows/docker.yml/badge.svg)](https://github.com/Multivit4min/lox-nexus/pkgs/container/lox-nexus)
+[![Docs](https://github.com/Multivit4min/lox-nexus/actions/workflows/docs.yml/badge.svg)](https://multivit4min.github.io/lox-nexus/)
+[![License: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue)](LICENSE)
+
 Lox Nexus connects other systems to your **Loxone Miniserver**. Home Assistant, a Fronius
 inverter, an iCal calendar, an MQTT broker or anything else you write a plugin for becomes a set
 of values the Miniserver reads and writes. It uses Loxone's own **Network Intercommunication**
@@ -10,10 +15,11 @@ Raspberry Pi 4 or 5) or straight from a checkout with Node.js.
 
 ![A Miniserver's page: its inputs and outputs with live values and units, and the wires connecting them](docs/screenshots/miniserver.png)
 
-> **Status:** pre-1.0 and under active development. There is no published Docker image or SDK
-> package yet: you build the image from this repository (see [Quick start](#quick-start)).
-> Lox Nexus is a rewrite of the earlier
-> [loxone-nexus](https://github.com/Multivit4min/loxone-nexus) and doesn't read its configuration.
+> **Status:** under active development. The Docker image is published for amd64 and arm64; the
+> plugin SDK isn't on npm yet, so plugins are developed in a checkout of this repository.
+> Lox Nexus is a rewrite of the earlier Nexus, which stays available on the
+> [`legacy` branch](https://github.com/Multivit4min/lox-nexus/tree/legacy). It doesn't read the
+> old configuration.
 
 ## Features
 
@@ -85,10 +91,13 @@ through messages.
 With Docker on Linux:
 
 ```sh
-git clone <repository-url> lox-nexus
-cd lox-nexus
-docker compose up -d --build
+mkdir lox-nexus && cd lox-nexus
+curl -fsSLO https://raw.githubusercontent.com/Multivit4min/lox-nexus/main/compose.yaml
+docker compose up -d
 ```
+
+The image is `ghcr.io/multivit4min/lox-nexus`: `latest` is the newest release, `edge` follows
+the `main` branch.
 
 Open `http://<host>:8080/`. The first visit asks you to create the admin account. Then:
 
@@ -102,12 +111,12 @@ host (61263 by default), and Nexus sees the Miniservers' real addresses. With a 
 publish the web port and every intercommunication port yourself. All data lives in the `/data`
 volume.
 
-To update, pull the repository and run `docker compose up -d --build` again. The database is
-migrated at startup, and the **Plugins** page then offers the new versions of the first-party
-plugins with **Update all**.
+To update, run `docker compose pull && docker compose up -d`. The database is migrated at startup,
+and the **Plugins** page then offers the new versions of the first-party plugins with **Update
+all**.
 
-Running from source, building for other architectures and running behind a reverse proxy are
-covered in the [installation guide](apps/docs/content/guide/installation.md).
+Building the image yourself, running from source and running behind a reverse proxy are covered
+in the [installation guide](apps/docs/content/guide/installation.md).
 
 ## Configuration
 
@@ -131,8 +140,8 @@ Forgot your password? `npm run reset-password` sets a new one, in Docker with
 
 ## Documentation
 
-The full documentation is built into the server: open `http://<host>:8080/docs/`. Its sources are
-in [`apps/docs/content`](apps/docs/content):
+The full documentation is online at **https://multivit4min.github.io/lox-nexus/**, and built into
+the server at `http://<host>:8080/docs/`. Its sources are in [`apps/docs/content`](apps/docs/content):
 
 - [Installation](apps/docs/content/guide/installation.md), [Concepts](apps/docs/content/guide/concepts.md),
   [Setting up a Miniserver](apps/docs/content/guide/loxone.md), [Wires](apps/docs/content/guide/wires.md)
