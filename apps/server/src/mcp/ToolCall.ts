@@ -49,7 +49,10 @@ export class ToolCall {
       if (!parsed.success) return ToolCall.refusal(`invalid arguments: ${z.prettifyError(parsed.error)}`)
       const confirmation = tool.confirm ? (parsed.data as { confirmation?: unknown }).confirmation : undefined
       if (tool.confirm && !this.confirmations) return ToolCall.refusal("this tool needs confirmations, which this server doesn't offer")
-      if (tool.confirm && typeof confirmation !== "string") return await this.ask(tool, parsed.data, context)
+      if (tool.confirm && typeof confirmation !== "string") {
+        const asked = await this.ask(tool, parsed.data, context)
+        if (asked) return asked
+      }
       const outcome = await this.execute(tool, parsed.data, context, confirmation as string | undefined)
       settled = outcome.settled
       return outcome.result
@@ -59,10 +62,12 @@ export class ToolCall {
     }
   }
 
-  // the first call of a destructive tool: what it would take along, and the id for the second
-  private async ask(tool: McpTool, input: unknown, context: ToolContext): Promise<ToolResult> {
+  // the first call of a destructive tool: what it would take along, and the id for the second; undefined when this call needs none
+  private async ask(tool: McpTool, input: unknown, context: ToolContext): Promise<ToolResult | undefined> {
     try {
-      const { summary, bind } = await tool.confirm!(input, context)
+      const step = await tool.confirm!(input, context)
+      if (!step) return undefined
+      const { summary, bind } = step
       const id = this.confirmations!.create(context.access.tokenId, tool.name, { args: ToolCall.args(input), bind })
       return { content: [{ type: "text", text: JSON.stringify({ needsConfirmation: true, summary, confirmation: id, expiresInS: 300, then: "call again with the same arguments and this confirmation to do it" }) }] }
     } catch (error) {
@@ -72,8 +77,9 @@ export class ToolCall {
 
   // inside the lock, so an import can't change what the refs resolve to, and a busy lock doesn't use the id up
   private async confirmed(tool: McpTool, input: unknown, context: ToolContext, id: string) {
-    const { bind } = await tool.confirm!(input, context)
-    return this.confirmations!.consume(id, context.access.tokenId, tool.name, { args: ToolCall.args(input), bind })
+    const step = await tool.confirm!(input, context)
+    // a call that needs no confirmation runs with or without one
+    return !step || this.confirmations!.consume(id, context.access.tokenId, tool.name, { args: ToolCall.args(input), bind: step.bind })
   }
 
   private async execute(tool: McpTool, input: unknown, context: ToolContext, confirmation?: string): Promise<Outcome> {
@@ -83,7 +89,7 @@ export class ToolCall {
       return { result, settled: Promise.resolve() }
     }
     try {
-      if (tool.changes) unlock = this.lock?.enter() ?? unlock
+      if (tool.changes && !tool.lockFree) unlock = this.lock?.enter() ?? unlock
       if (confirmation !== undefined && !await this.confirmed(tool, input, context, confirmation)) {
         return done(ToolCall.refusal("unknown or expired confirmation, other arguments than the first call, or the signals changed since: call again without `confirmation`"))
       }

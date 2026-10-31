@@ -22,8 +22,10 @@ export interface McpTool<Input = unknown> {
   readonly description: string
   /** the scope a token needs to see and call it */
   readonly scope: AccessScope
-  /** changes configuration: takes the ChangeLock and counts against the stricter rate limit */
+  /** changes configuration or acts on devices: takes the ChangeLock, is audited, and counts against the stricter rate limit */
   readonly changes?: boolean
+  /** a change that doesn't take the ChangeLock, as its REST route doesn't (a plugin action may wait minutes for a pairing) */
+  readonly lockFree?: boolean
   readonly annotations?: ToolAnnotations
   readonly input: z.ZodType<Input>
   /** how long the agent waits for an answer; default ToolCall.TIMEOUT_MS */
@@ -35,8 +37,9 @@ export interface McpTool<Input = unknown> {
    * accept an optional `confirmation`, which ToolCall handles; `run` never sees an unconfirmed call.
    * `bind` is what the refs resolved to (ids): it is asked again for the confirmed call, and the
    * confirmation only holds while it is the same, so a renamed topic can't redirect a delete.
+   * Undefined: this call needs no confirmation (a plugin action without a confirm sentence).
    */
-  confirm?(input: Input, context: ToolContext): ConfirmStep | Promise<ConfirmStep>
+  confirm?(input: Input, context: ToolContext): ConfirmStep | undefined | Promise<ConfirmStep | undefined>
 }
 
 /** what a destructive tool's first call answers */

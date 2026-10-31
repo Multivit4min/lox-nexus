@@ -6,8 +6,8 @@ the web UI shows, through an **access token** you create for them.
 
 Agents can **read** everything and, with the **configure** permission, set up Miniservers, plugin
 instances, signals and wires, and connect plugins to a Miniserver. They also say what to create in
-Loxone Config, so both sides match. Operating devices comes in a later version; the token's
-permission for it is already there.
+Loxone Config, so both sides match. With the **operate** permission they also act on the house:
+force a value for a while, send one, or run a plugin action.
 
 ## Create an access token
 
@@ -24,7 +24,7 @@ changes (yours, or one another user sets for you), which ends all your tokens. E
 |---|---|
 | read (always) | see everything the web UI shows, including values, which can tell who is home |
 | configure | set up Miniservers, plugin instances, signals and wires; connect plugins to a Miniserver |
-| operate | act on devices: force values, run plugin actions (coming; off by default) |
+| operate | act on the house: force or send values, run plugin actions (off by default) |
 
 Agents never see secrets: passwords, plugin settings and signal settings marked secret aren't in
 any answer, and no tool accepts them (an agent that tries is told to leave them to you). You enter
@@ -114,6 +114,20 @@ while the names still point at the same signals or wires.
 
 Changes show up in the Nexus log as "*user* via MCP (*token name*)". While a configuration import
 runs, agents can read but not change anything.
+
+## What agents can do in the house
+
+With the **operate** permission:
+
+| Tool | Does |
+|---|---|
+| `force` | pins a value on a signal, with a reason, for at most 24 hours (default 1 hour); then it releases itself |
+| `release` | ends a force |
+| `inject` | sends one value; on an actuator the device acts on it, on a Nexus out signal the Miniserver gets it |
+| `run_plugin_action` | runs a plugin action like its button; one that asks you first asks the agent for a confirmation too |
+
+A value must match the signal's type (a lamp switch takes true or false). Forces made by an agent
+show "*user* via MCP (*token name*)" in the Bus Inspector, where you can release them.
 
 ### Recipes
 

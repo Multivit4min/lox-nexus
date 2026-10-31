@@ -48,6 +48,10 @@ Nexus names each Loxone signal by Miniserver, direction and packet id; the Loxon
 - "create_plugin_instance" adds an instance of an installed plugin (describe_plugin first). Without its required secrets it is saved but not started: tell the user which ones (missingSecrets) and where (page). "check_plugin_settings" and "discover_setting" help find the right settings.
 - "add_plugin_signals", "update_plugin_signal" and "delete_plugin_signals" change an instance's sensors and actuators.
 
+## Operating (scope operate)
+- "force" pins a value (with a reason) for at most 24 h; "release" ends it early. "inject" sends one value: on an actuator the device acts.
+- "run_plugin_action" runs an action like its button; get_panel's buttons give the action and input. Ask the user before acting on the house.
+
 ## Wires
 "preview_wire" tries transforms on a sample value. "create_wire", "update_wire" (only the fields given) and "delete_wires" change wires; a wire is named by its id or its target's topic.
 

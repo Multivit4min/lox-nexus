@@ -12,8 +12,7 @@ import { AuthService } from "./auth/AuthService.ts"
 import { LoginThrottle } from "./auth/LoginThrottle.ts"
 import { AppVersion } from "./AppVersion.ts"
 import { McpAssembly } from "./mcp/McpAssembly.ts"
-import { McpToolset } from "./mcp/McpToolset.ts"
-import { SecretRedactor } from "./mcp/SecretRedactor.ts"
+import { McpServices } from "./mcp/McpServices.ts"
 import { AccessTokenService } from "./auth/AccessTokenService.ts"
 import { PasswordHasher } from "./auth/PasswordHasher.ts"
 import { SessionPruner } from "./auth/SessionPruner.ts"
@@ -48,7 +47,6 @@ import { BackupService } from "./backup/BackupService.ts"
 import { RestoreApplier } from "./backup/RestoreApplier.ts"
 import { HistoryAssembly } from "./history/HistoryAssembly.ts"
 import { SelectionService } from "./services/SelectionService.ts"
-import { PluginBridgeService } from "./services/PluginBridgeService.ts"
 import { ServiceAssembly } from "./services/ServiceAssembly.ts"
 import { SnapshotWriter } from "./services/SnapshotWriter.ts"
 import { SystemEventLogger } from "./services/SystemEventLogger.ts"
@@ -239,7 +237,8 @@ export class NexusApp extends Disposable {
         ...this.history.controllers(id => plugins.watches(id)),
         BackupAssembly.controller(config, { main: db.db, history: this.history.database.db }, this.options.restart, log),
         diagnostics.controller(),
-        this.own(new McpAssembly({ ...new McpToolset({ now: () => clock.now(), miniservers, loxoneSignals, plugins, pluginSignals, wires, bridges: new PluginBridgeService(pluginSignals, loxoneSignals, wires, log), readmes: this.pluginAssembly.packages(plugins), logs: this.pluginLogs, history: this.history.service, settings: plugins.settings, signals: this.signals, bus: this.bus, stale, recorder: this.recorder, diagnostics: diagnostics.sampler, lock, version }), lock, log, version, redactor: SecretRedactor.of(db, this.pluginAssembly.catalog) })).controller(),
+        this.own(new McpAssembly({ ...McpServices.assemble({ now: () => clock.now(), miniservers, loxoneSignals, plugins, pluginSignals, wires, signals: this.signals, bus: this.bus, stale, recorder: this.recorder,
+          diagnostics: diagnostics.sampler, history: this.history.service, logs: this.pluginLogs, events: this.pluginEvents, readmes: this.pluginAssembly.packages(plugins), db, catalog: this.pluginAssembly.catalog, lock, log, version }), lock })).controller(),
         stream
       ],
       publicControllers: [new HookController(this.plugins)]

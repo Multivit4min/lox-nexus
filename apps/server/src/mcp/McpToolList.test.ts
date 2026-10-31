@@ -16,6 +16,9 @@ const CONFIGURE = [
   "plugin_instance_lifecycle", "start_miniserver", "stop_miniserver d", "update_loxone_signal", "update_miniserver", "update_plugin_instance", "update_plugin_signal", "update_wire"
 ]
 
+// these act on the house: devices, the Miniserver's inputs
+const OPERATE = ["force", "inject", "release", "run_plugin_action"]
+
 describe("tools/list per scope", { timeout: 20_000 }, () => {
   let app: TestApp
   let admin: ApiClient
@@ -34,6 +37,6 @@ describe("tools/list per scope", { timeout: 20_000 }, () => {
 
   test("read", async () => assert.deepEqual(await listed([]), READ))
   test("read and configure", async () => assert.deepEqual(await listed(["configure"]), [...READ, ...CONFIGURE].sort()))
-  // operate's tools arrive with A3
-  test("read and operate", async () => assert.deepEqual(await listed(["operate"]), READ))
+  test("read and operate", async () => assert.deepEqual(await listed(["operate"]), [...READ, ...OPERATE].sort()))
+  test("all three", async () => assert.deepEqual(await listed(["configure", "operate"]), [...READ, ...CONFIGURE, ...OPERATE].sort()))
 })

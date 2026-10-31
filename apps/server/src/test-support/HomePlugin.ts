@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events"
-import { Actuator, Plugin, Sensor, secret, z, type CatalogNode, type Panel } from "@lox-nexus/plugin-sdk"
+import { Action, Actuator, Plugin, Sensor, secret, z, type CatalogNode, type Panel } from "@lox-nexus/plugin-sdk"
 import { Value } from "@lox-nexus/plugin-sdk/values"
 
 class Reading extends Sensor<HomePlugin, { entity: string; apiKey?: string }> {
@@ -21,6 +21,23 @@ class Switch extends Actuator<HomePlugin, { entity: string }, Extract<Value, { t
   }
 }
 
+class RefreshAction extends Action<HomePlugin, { entity: string }> {
+  static readonly id = "refresh"
+  static readonly input = z.object({ entity: z.string() })
+  run() {
+    return `refreshed ${this.input.entity}`
+  }
+}
+
+// asks first, and answers with a code, like opening a Matter pairing window
+class PairAction extends Action<HomePlugin> {
+  static readonly id = "pair"
+  static readonly confirm = "Open a pairing window for 3 minutes?"
+  run() {
+    return { message: "pairing code 3497-011-2332", panel: { type: "qr" as const, data: "MT:planted-qr", caption: "Scan to pair" } }
+  }
+}
+
 /**
  * A Home Assistant stand-in for the MCP tests: a catalog with a sensor, an actuator and an entry
  * with a secret param, and a secret setting with a default, so tests can check none of them leaks.
@@ -33,6 +50,7 @@ export class HomePlugin extends Plugin<{ url: string; token: string }> {
   static readonly config = z.object({ url: z.string().default("http://ha"), token: secret(z.string()).default("planted-config-secret") })
   static readonly sensors = [Reading]
   static readonly actuators = [Switch]
+  static readonly actions = [RefreshAction, PairAction]
 
   // an instance whose url mentions "leak" writes its token into its status, as a careless plugin might
   override start() {
