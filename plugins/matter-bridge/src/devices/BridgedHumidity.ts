@@ -8,7 +8,7 @@ const HumidityEndpoint = HumiditySensorDevice.with(BridgedDeviceBasicInformation
 
 /** A relative humidity sensor in %; unknown until Nexus sends a value. */
 export class BridgedHumidity extends BridgedDevice {
-  readonly endpoint = new Endpoint(HumidityEndpoint, {
+  readonly endpoint = new Endpoint(this.withBattery(HumidityEndpoint), {
     id: this.identity.endpointId,
     bridgedDeviceBasicInformation: this.basicInformation(),
     // what Nexus sent before the restart, else unknown

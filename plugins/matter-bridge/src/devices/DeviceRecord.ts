@@ -10,6 +10,8 @@ export const deviceRecordSchema = z.object({
   type: z.enum(DEVICE_TYPE_IDS),
   /** door locks: whether controllers may unlock */
   allowUnlock: z.boolean().default(false),
+  /** sensors and buttons: whether the device reports a battery level (chosen when it is added) */
+  battery: z.boolean().default(false),
   /** what the Matter identity derives from when it isn't the id (devices taken over from the old config) */
   seed: z.string().optional()
 })

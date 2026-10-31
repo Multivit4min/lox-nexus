@@ -5,6 +5,7 @@ export type CommandKind = "onOff" | "brightness" | "colorTemperature" | "tunable
 export type StateKind =
   | "onOff" | "brightness" | "colorTemperature" | "tunableWhite" | "position" | "setpoint" | "fanSpeed"
   | "temperature" | "humidity" | "contact" | "occupancy" | "locked" | "smoke" | "co" | "leak" | "press" | "longPress"
+  | "illuminance" | "pressure" | "flow" | "rain" | "freeze" | "battery"
 
 /** a tunable white light's colour temperature (Kelvin) and brightness (%) */
 export interface TunableWhiteValue { temperature: number; brightness: number }
@@ -15,7 +16,8 @@ export type KindValue = boolean | number | TunableWhiteValue
 /** the device types the bridge offers, as stored with each device */
 export const DEVICE_TYPE_IDS = [
   "on-off-light", "dimmable-light", "color-temperature-light", "plug", "window-covering", "thermostat", "fan", "door-lock",
-  "temperature-sensor", "humidity-sensor", "contact-sensor", "occupancy-sensor", "smoke-co-alarm", "water-leak-detector", "generic-switch"
+  "temperature-sensor", "humidity-sensor", "contact-sensor", "occupancy-sensor", "smoke-co-alarm", "water-leak-detector", "generic-switch",
+  "light-sensor", "pressure-sensor", "flow-sensor", "rain-sensor", "water-freeze-detector", "dimmable-plug", "wall-switch", "wall-dimmer"
 ] as const
 
 export type DeviceTypeId = typeof DEVICE_TYPE_IDS[number]

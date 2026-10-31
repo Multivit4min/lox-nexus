@@ -1,4 +1,5 @@
 import type { CommandKind, StateKind } from "../devices/DeviceKinds.ts"
+import { BatteryState } from "./BatteryState.ts"
 import { BrightnessCommand } from "./BrightnessCommand.ts"
 import { BrightnessState } from "./BrightnessState.ts"
 import { CoState } from "./CoState.ts"
@@ -7,7 +8,10 @@ import { ColorTemperatureState } from "./ColorTemperatureState.ts"
 import { ContactState } from "./ContactState.ts"
 import { FanSpeedCommand } from "./FanSpeedCommand.ts"
 import { FanSpeedState } from "./FanSpeedState.ts"
+import { FlowState } from "./FlowState.ts"
+import { FreezeState } from "./FreezeState.ts"
 import { HumidityState } from "./HumidityState.ts"
+import { IlluminanceState } from "./IlluminanceState.ts"
 import { LeakState } from "./LeakState.ts"
 import { LockCommand } from "./LockCommand.ts"
 import { LockedState } from "./LockedState.ts"
@@ -18,6 +22,8 @@ import { OnOffState } from "./OnOffState.ts"
 import { PositionCommand } from "./PositionCommand.ts"
 import { PositionState } from "./PositionState.ts"
 import { PressState } from "./PressState.ts"
+import { PressureState } from "./PressureState.ts"
+import { RainState } from "./RainState.ts"
 import { SetpointCommand } from "./SetpointCommand.ts"
 import { SetpointState } from "./SetpointState.ts"
 import { SmokeState } from "./SmokeState.ts"
@@ -36,7 +42,8 @@ export class Capabilities {
     onOff: OnOffState, brightness: BrightnessState, colorTemperature: ColorTemperatureState, tunableWhite: TunableWhiteState,
     position: PositionState, setpoint: SetpointState, fanSpeed: FanSpeedState, temperature: TemperatureState,
     humidity: HumidityState, contact: ContactState, occupancy: OccupancyState, locked: LockedState, smoke: SmokeState,
-    co: CoState, leak: LeakState, press: PressState, longPress: LongPressState
+    co: CoState, leak: LeakState, press: PressState, longPress: LongPressState, illuminance: IlluminanceState,
+    pressure: PressureState, flow: FlowState, rain: RainState, freeze: FreezeState, battery: BatteryState
   } as const satisfies Record<StateKind, unknown>
 
   static readonly sensors = Object.values(Capabilities.sensorFor)

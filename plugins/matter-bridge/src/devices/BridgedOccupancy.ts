@@ -9,7 +9,7 @@ const OccupancyEndpoint = OccupancySensorDevice.with(BridgedDeviceBasicInformati
 
 /** A motion (occupancy) sensor. Starts with the state Nexus sent last, or unoccupied. */
 export class BridgedOccupancy extends BridgedDevice {
-  readonly endpoint = new Endpoint(OccupancyEndpoint, {
+  readonly endpoint = new Endpoint(this.withBattery(OccupancyEndpoint), {
     id: this.identity.endpointId,
     bridgedDeviceBasicInformation: this.basicInformation(),
     occupancySensing: { occupancy: { occupied: this.remembered("occupancy") === true } }

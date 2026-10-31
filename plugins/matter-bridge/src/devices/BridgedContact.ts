@@ -12,7 +12,7 @@ const ContactEndpoint = ContactSensorDevice.with(BridgedDeviceBasicInformationSe
  * the state Nexus sent last, or closed, the state that starts no routine.
  */
 export class BridgedContact extends BridgedDevice {
-  readonly endpoint = new Endpoint(ContactEndpoint, {
+  readonly endpoint = new Endpoint(this.withBattery(ContactEndpoint), {
     id: this.identity.endpointId,
     bridgedDeviceBasicInformation: this.basicInformation(),
     booleanState: { stateValue: this.remembered("contact") !== true }

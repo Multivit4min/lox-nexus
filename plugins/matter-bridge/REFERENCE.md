@@ -8,7 +8,7 @@ controller's row.
 
 | Action | Input | What it does |
 |---|---|---|
-| Add device (`add-device`) | `type`, `name`, and for a door lock `allowUnlock` (default off) | Adds a device, at most 50 per bridge (Alexa's limit). Names are unique ignoring case, at most 32 bytes. The form shows **Allow unlocking** only when Door lock is chosen. |
+| Add device (`add-device`) | `type`, `name`, for a door lock `allowUnlock` (default off), for sensors and buttons `battery` (default off) | Adds a device, at most 50 per bridge (Alexa's limit). Names are unique ignoring case, at most 32 bytes. The form shows **Allow unlocking** only when Door lock is chosen, and **Battery** only for sensors and buttons; neither the type nor the battery can be changed later. |
 | Edit device (`edit-device`) | `device` (id), `name` | Renames a device; a door lock keeps whether it may be unlocked. Asks before saving. The **Edit** button on each row of the Devices table fills it in. The type can't change: remove the device and add a new one. If the endpoint refuses a change, the device keeps what it had. |
 | Edit lock (`edit-lock`) | `device` (id), `name`, `allowUnlock` | A door lock's **Edit**: renames it and allows or forbids unlocking from the apps. Refuses a device that isn't a lock. Turning unlocking on is written to the instance log as a warning. |
 | Remove device (`remove-device`) | `device` (id) | Removes a device after a confirmation, with what the bridge remembered of it. The **Remove** button on each row fills it in. |
@@ -38,6 +38,9 @@ it has.
 | On/off light (`on-off-light`) | a light with on/off | `on-off` | `on-off` | off |
 | Dimmable light (`dimmable-light`) | a light with brightness | `on-off`, `brightness` | `on-off`, `brightness` | off |
 | Plug (on/off) (`plug`) | a smart plug | `on-off` | `on-off` | off |
+| Dimmable plug (`dimmable-plug`) | a plug with brightness | `on-off`, `brightness` | `on-off`, `brightness` | off |
+| Wall switch (on/off) (`wall-switch`) | a mounted on/off control (Matter 1.4) | `on-off` | `on-off` | off |
+| Wall dimmer (`wall-dimmer`) | a mounted dimmable load control (Matter 1.4) | `on-off`, `brightness` | `on-off`, `brightness` | off |
 | Window covering (lift position) (`window-covering`) | a blind or shutter with a position | `position` | `position` | position unknown |
 | Thermostat (heating) (`thermostat`) | a heating thermostat | `setpoint` | `temperature`, `setpoint` | room temperature unknown, setpoint 20 °C |
 | Temperature sensor (`temperature-sensor`) | a temperature sensor | | `temperature` | unknown |
@@ -49,7 +52,16 @@ it has.
 | Door lock (`door-lock`) | a lock | `lock` | `locked` | unknown |
 | Smoke and CO alarm (`smoke-co-alarm`) | a smoke and carbon monoxide alarm | | `smoke`, `co` | normal |
 | Water leak detector (`water-leak-detector`) | a leak sensor | | `leak` | dry |
+| Light sensor (lux) (`light-sensor`) | an illuminance sensor | | `illuminance` | unknown |
+| Pressure sensor (`pressure-sensor`) | a pressure sensor | | `pressure` | unknown |
+| Flow sensor (`flow-sensor`) | a flow sensor | | `flow` | unknown |
+| Rain sensor (`rain-sensor`) | a rain sensor (Matter 1.3) | | `rain` | dry |
+| Water freeze detector (`water-freeze-detector`) | a frost sensor (Matter 1.3) | | `freeze` | no frost |
 | Button (generic switch) (`generic-switch`) | a button for routines | | `press`, `long-press` | |
+
+**Battery.** Sensors and buttons can be added with **Battery** on: the device then also has a
+`battery` actuator, and the apps show its level (Matter's power source with a battery) and warn
+when it is low. Without it the device has no battery at all, as a mains-powered one.
 
 "Unknown" is Matter's empty value: the apps show no reading rather than a made-up one; "Starts
 as" is what a new device shows before Nexus sends anything.
@@ -57,7 +69,7 @@ as" is what a new device shows before Nexus sends anything.
 After a restart (a config change, an update) each device shows what it showed before, although
 Nexus doesn't replay values to actuators when an instance starts. matter.js stores on/off,
 brightness, colour temperature, positions, fan speeds and setpoints itself. For contacts, motion,
-locks, alarms, leaks, temperatures and humidity the plugin keeps the last state Nexus sent (store keys `state:<device id>`): without it a restart
+locks, alarms, leaks, rain, frost, measurements and battery levels the plugin keeps the last state Nexus sent (store keys `state:<device id>`): without it a restart
 would show every door closed and then "open" it again, which starts "door opens" routines although
 nothing happened, and temperatures would be unknown until Loxone happens to send again. After the
 factory reset that follows removing the last app, the bridge sets every state Nexus sent in this
@@ -82,8 +94,8 @@ What the apps do with a type is up to them, and only real hardware shows it:
 ## How values convert
 
 New signals suggest the unit and decimals of their value: °C with one decimal for temperatures
-and setpoints, % without decimals for humidity, brightness, position and fan speed, and K for
-color temperature.
+and setpoints, % without decimals for humidity, brightness, position, fan speed and battery, K for
+color temperature, lx and hPa without decimals, and m³/h with one.
 
 | Signal | Nexus | Matter |
 |---|---|---|
@@ -101,7 +113,11 @@ color temperature.
 | `lock` | `true` lock, `false` unlock | DoorLock lock and unlock commands, sent on every request (also when the lock already shows that state). An unlock without **Allow unlocking** is answered with FAILURE and a LockOperationError event (restricted) and reaches nothing. A timed unlock (an app's "unlock for N seconds", only with **Allow unlocking**) arrives as `false`, and after the time matter.js relocks on its own: `true` arrives, and the apps show the lock locked at once, possibly before Loxone has locked it |
 | `locked` | `true` locked, `false` unlocked | DoorLock `lockState` (unknown until Nexus first sends one) |
 | `smoke`, `co` | `true` while alarmed | SmokeCoAlarm `smokeState` / `coState` critical or normal, `expressedState` (smoke before CO), and the SmokeAlarm, COAlarm and AllClear events |
-| `leak` | `true` while a leak is detected | BooleanState `stateValue` (true = leak) |
+| `leak`, `rain`, `freeze` | `true` while a leak, rain or frost is detected | BooleanState `stateValue` (true = detected), with its StateChange event |
+| `illuminance` | lux | IlluminanceMeasurement `measuredValue` = 10 000 × log10(lx) + 1; below 1 lx is 0 (too dark to measure) |
+| `pressure` | hPa (mbar) | PressureMeasurement `measuredValue` in 0.1 kPa, the same number as hPa |
+| `flow` | m³/h | FlowMeasurement `measuredValue` in 0.1 m³/h, at least 0 |
+| `battery` | 0–100 % | PowerSource `batPercentRemaining` in half percent; `batChargeLevel` warning below 20 %, critical below 10 %, with `batReplacementNeeded` |
 | `press`, `long-press` | each `true` is one press; `false` does nothing | Switch events: InitialPress, ShortRelease and MultiPressComplete (two presses within 300 ms count as a double press); a long press holds for 1.2 s: InitialPress, LongPress, LongRelease. Presses are events, not states: nothing is remembered or replayed |
 
 A command from an app updates the bridge at once (Matter needs that) and goes to the sensor. A

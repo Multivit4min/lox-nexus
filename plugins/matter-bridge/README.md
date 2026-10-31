@@ -36,8 +36,9 @@ Loxone output); what those apps command comes back into Nexus as sensors.
 | **Bridge name** (`name`) | optional; default `Lox Nexus` | How the bridge shows in the apps, at most 32 bytes. |
 | **UDP port** (`port`) | optional; default `5540` | The Matter port, 1024 to 65535. Change it only when another Matter program on the host uses 5540, e.g. to `5550`. |
 
-Devices are not settings: add them with **Add device** on the instance page (name, type, and for
-door locks **Allow unlocking**), at most 50 (Alexa's limit for one bridge).
+Devices are not settings: add them with **Add device** on the instance page (name, type, for door
+locks **Allow unlocking**, for sensors and buttons **Battery**), at most 50 (Alexa's limit for one
+bridge).
 
 ## Sensors and actuators
 
@@ -66,6 +67,12 @@ door locks **Allow unlocking**), at most 50 (Alexa's limit for one bridge).
 | actuator | Smoke alarm to controllers (`smoke`) | `boolean` | A smoke alarm Nexus reports, e.g. from Loxone's fire alarm. |
 | actuator | CO alarm to controllers (`co`) | `boolean` | A carbon monoxide alarm Nexus reports. |
 | actuator | Leak to controllers (`leak`) | `boolean` | On while a water leak is detected. |
+| actuator | Illuminance lx to controllers (`illuminance`) | `number` | A light sensor's brightness in lux. |
+| actuator | Pressure hPa to controllers (`pressure`) | `number` | A pressure sensor's value in hPa. |
+| actuator | Flow m³/h to controllers (`flow`) | `number` | A flow sensor's value in m³/h. |
+| actuator | Rain to controllers (`rain`) | `boolean` | On while rain is detected. |
+| actuator | Frost to controllers (`freeze`) | `boolean` | On while a water freeze detector warns of frost. |
+| actuator | Battery % to controllers (`battery`) | `number` | The battery level of a sensor or button added with **Battery**. |
 | actuator | Press to controllers (`press`) | `boolean` | Each `true` is a short button press, to start routines. |
 | actuator | Long press to controllers (`long-press`) | `boolean` | Each `true` is a long button press. |
 

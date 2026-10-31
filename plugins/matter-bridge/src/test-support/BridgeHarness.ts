@@ -6,7 +6,7 @@ import { LoopbackMdns } from "./LoopbackMdns.ts"
 import { TestController } from "./TestController.ts"
 
 type DeviceState = Record<string, Record<string, unknown> | undefined>
-export interface TestDevice { id?: string; name: string; type: string; allowUnlock?: boolean }
+export interface TestDevice { id?: string; name: string; type: string; allowUnlock?: boolean; battery?: boolean }
 
 /**
  * A bridge under PluginTestHost on a free port and a matter.js controller in the same process, for
@@ -25,7 +25,7 @@ export class BridgeHarness {
 
   /** a plugin store holding these devices */
   static store(devices: TestDevice[]) {
-    return { devices: devices.map(({ id, name, type, allowUnlock }) => ({ id: id ?? name, name, type, allowUnlock: allowUnlock ?? false })) }
+    return { devices: devices.map(({ id, name, type, allowUnlock, battery }) => ({ id: id ?? name, name, type, allowUnlock: allowUnlock ?? false, battery: battery ?? false })) }
   }
 
   /** stops the bridge and starts it again on the same store, like a config change does */

@@ -19,7 +19,7 @@ export class BridgedButton extends BridgedDevice {
   /** how long a long press holds the button, a little past the long-press time */
   static readonly HOLD_MS = BridgedButton.LONG_PRESS_MS + 200
 
-  readonly endpoint = new Endpoint(ButtonEndpoint, {
+  readonly endpoint = new Endpoint(this.withBattery(ButtonEndpoint), {
     id: this.identity.endpointId,
     bridgedDeviceBasicInformation: this.basicInformation(),
     switch: { numberOfPositions: 2, currentPosition: 0, multiPressMax: 2, longPressDelay: Millis(BridgedButton.LONG_PRESS_MS) }
@@ -27,6 +27,7 @@ export class BridgedButton extends BridgedDevice {
 
   /** a press is an event, not a state: nothing to remember or set again after a reset */
   override async setState(kind: StateKind, value: KindValue) {
+    if (kind === "battery") return super.setState(kind, value)
     if (value !== true) return
     await this.apply(kind, value)
     this.lastState = { kind, value, at: this.context.now() }

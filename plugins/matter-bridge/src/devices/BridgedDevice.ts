@@ -1,6 +1,7 @@
-import type { Endpoint } from "@matter/main"
+import type { Endpoint, MutableEndpoint } from "@matter/main"
 import { BridgedDeviceBasicInformationServer } from "@matter/main/behaviors/bridged-device-basic-information"
 import { DeviceTypes, type DeviceTypeInfo } from "../config/DeviceTypes.ts"
+import { BatteryServer } from "./BatteryServer.ts"
 import { DeviceIdentity } from "./DeviceIdentity.ts"
 import type { CommandKind, KindValue, StateKind } from "./DeviceKinds.ts"
 import type { DeviceMemory } from "./DeviceMemory.ts"
@@ -55,7 +56,7 @@ export abstract class BridgedDevice {
   constructor(record: DeviceRecord, protected readonly context: DeviceContext) {
     this.record = { ...record }
     this.identity = new DeviceIdentity(record.seed ?? record.id)
-    this.info = DeviceTypes.info(record.type)
+    this.info = DeviceTypes.info(record.type, record.battery)
     for (const kind of this.info.states) {
       const value = this.remembered(kind)
       if (value !== undefined) this.states.set(kind, value)
@@ -77,6 +78,11 @@ export abstract class BridgedDevice {
   /** door locks: whether controllers may unlock */
   get allowUnlock() {
     return this.record.allowUnlock
+  }
+
+  /** whether the device reports a battery level */
+  get battery() {
+    return this.info.states.includes("battery")
   }
 
   /** what the store keeps of this device */
@@ -103,6 +109,14 @@ export abstract class BridgedDevice {
     if (this.endpoint.stateOf(BridgedDeviceBasicInformationServer).nodeLabel !== record.name) {
       await this.endpoint.setStateOf(BridgedDeviceBasicInformationServer, { nodeLabel: record.name })
     }
+    // matter.js doesn't persist the battery level; it starts with what Nexus sent last
+    const battery = this.battery ? this.remembered("battery") : undefined
+    if (battery !== undefined) await this.applyState("battery", battery)
+  }
+
+  /** the endpoint type, with the battery's power source for a device that has one */
+  protected withBattery<T extends MutableEndpoint>(type: T): T {
+    return (this.battery ? type.with(BatteryServer) : type) as T
   }
 
   /** the bridged basic information the endpoint starts with */
@@ -123,7 +137,7 @@ export abstract class BridgedDevice {
   /** sets an attribute from a state Nexus sent */
   async setState(kind: StateKind, value: KindValue) {
     if (!this.info.states.includes(kind)) throw new Error(`a ${this.info.label.toLowerCase()} has no ${kind} state`)
-    await this.apply(kind, value)
+    await this.applyState(kind, value)
     this.lastState = { kind, value, at: this.context.now() }
     this.states.delete(kind)
     this.states.set(kind, value)
@@ -136,7 +150,13 @@ export abstract class BridgedDevice {
    * attributes back to their defaults.
    */
   async restore() {
-    for (const [kind, value] of this.states) await this.apply(kind, value)
+    for (const [kind, value] of this.states) await this.applyState(kind, value)
+  }
+
+  /** the battery level is the same on every type; the rest is the type's own */
+  private async applyState(kind: StateKind, value: KindValue) {
+    if (kind === "battery") await this.endpoint.setStateOf(BatteryServer, BatteryServer.level(BridgedDevice.number(value)))
+    else await this.apply(kind, value)
   }
 
   /**

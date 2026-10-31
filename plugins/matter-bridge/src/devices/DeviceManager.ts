@@ -1,4 +1,5 @@
 import type { PluginLogger } from "@lox-nexus/plugin-sdk"
+import { DeviceTypes } from "../config/DeviceTypes.ts"
 import type { BridgeNode } from "../matter/BridgeNode.ts"
 import type { BridgedDevice } from "./BridgedDevice.ts"
 import { DeviceId } from "./DeviceId.ts"
@@ -23,12 +24,15 @@ export class DeviceManager {
     private readonly log: PluginLogger
   ) {}
 
-  async add(name: string, type: DeviceTypeId, allowUnlock: boolean) {
+  /** a lock's unlocking and a battery only where the type has them */
+  async add(name: string, type: DeviceTypeId, options: { allowUnlock?: boolean; battery?: boolean } = {}) {
     this.bridge.assertRunning()
     if (this.registry.size >= DeviceManager.MAX_DEVICES) throw new Error(`the bridge has ${DeviceManager.MAX_DEVICES} devices, Alexa's limit for one bridge; remove one first`)
     this.assertFree(name)
     const id = DeviceId.create(name, new Set(this.registry.all().map(device => device.id)))
-    const device = this.registry.create({ id, name, type, allowUnlock: type === "door-lock" && allowUnlock })
+    const allowUnlock = type === "door-lock" && options.allowUnlock === true
+    const battery = DeviceTypes.info(type).battery === true && options.battery === true
+    const device = this.registry.create({ id, name, type, allowUnlock, battery })
     await this.bridge.addDevice(device)
     this.registry.add(device)
     this.save()
