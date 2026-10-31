@@ -4,6 +4,8 @@ import { test } from "node:test"
 import { KindFormat } from "../panel/KindFormat.ts"
 import { WriteCoalescer } from "../matter/WriteCoalescer.ts"
 import { MemoryStore } from "../test-support/MemoryStore.ts"
+import { ColorControl } from "@matter/main/clusters/color-control"
+import { AirQualityLevel } from "./AirQualityLevel.ts"
 import { BatteryServer } from "./BatteryServer.ts"
 import { BridgedDimmer } from "./BridgedDimmer.ts"
 import { BridgedFlow } from "./BridgedFlow.ts"
@@ -15,6 +17,7 @@ import { DeviceId } from "./DeviceId.ts"
 import { DeviceIdentity } from "./DeviceIdentity.ts"
 import { DeviceMemory } from "./DeviceMemory.ts"
 import { DeviceStore } from "./DeviceStore.ts"
+import { RgbColor } from "./RgbColor.ts"
 
 test("brightness % and Matter levels (1–254) map both ways; 1 % stays on", () => {
   assert.deepEqual([0.1, 1, 50, 100, 150].map(BridgedDimmer.level), [1, 3, 127, 254, 254])
@@ -31,6 +34,26 @@ test("battery levels count half percent; the charge level warns below 20 % and i
   assert.deepEqual(BatteryServer.level(55), { batPercentRemaining: 110, batChargeLevel: 0, batReplacementNeeded: false })
   assert.deepEqual(BatteryServer.level(15), { batPercentRemaining: 30, batChargeLevel: 1, batReplacementNeeded: false })
   assert.deepEqual(BatteryServer.level(-5), { batPercentRemaining: 0, batChargeLevel: 2, batReplacementNeeded: true })
+})
+
+test("colours: RGB with the brightness from hue and saturation, x/y and colour temperatures, and back", () => {
+  const { ColorMode } = ColorControl
+  assert.deepEqual(RgbColor.of({ colorMode: ColorMode.CurrentHueAndCurrentSaturation, currentHue: 0, currentSaturation: 254 }, 50), { red: 50, green: 0, blue: 0 })
+  assert.deepEqual(RgbColor.of({ colorMode: ColorMode.CurrentHueAndCurrentSaturation, currentHue: 254, currentSaturation: 254 }, 100), { red: 100, green: 0, blue: 0 }, "hue 360° is red again")
+  const green = RgbColor.of({ colorMode: ColorMode.CurrentXAndCurrentY, currentX: Math.round(0.17 * 65536), currentY: Math.round(0.7 * 65536) }, 100)
+  assert.ok(green.green === 100 && green.red < 20, JSON.stringify(green))
+  const warm = RgbColor.of({ colorMode: ColorMode.ColorTemperatureMireds, colorTemperatureMireds: 370 }, 100)
+  assert.ok(warm.red === 100 && warm.blue < warm.green, `2700 K is warm: ${JSON.stringify(warm)}`)
+  assert.deepEqual(RgbColor.toHueSaturation({ red: 0, green: 0, blue: 80 }), { currentHue: 169, currentSaturation: 254, brightness: 80 })
+  assert.deepEqual(RgbColor.toHueSaturation({ red: 100, green: 100, blue: 100 }), { currentHue: 0, currentSaturation: 0, brightness: 100 })
+})
+
+test("air quality levels: the worse of CO₂ and PM2.5, by their band edges", () => {
+  assert.equal(AirQualityLevel.of(undefined, undefined), 0)
+  assert.deepEqual([750, 751, 1000, 1500, 2000, 5000, 5001].map(co2 => AirQualityLevel.of(co2, undefined)), [1, 2, 2, 3, 4, 5, 6])
+  assert.deepEqual([10, 10.1, 25, 75, 76].map(pm25 => AirQualityLevel.of(undefined, pm25)), [1, 2, 3, 5, 6])
+  assert.equal(AirQualityLevel.of(600, 60), 5)
+  assert.throws(() => AirQualityLevel.level(7), /not an air quality level/)
 })
 
 test("a device's identity follows its id, not its name; its serial number differs from its unique id", () => {

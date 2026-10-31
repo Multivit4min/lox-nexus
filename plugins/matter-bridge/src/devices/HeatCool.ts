@@ -1,17 +1,14 @@
 import type { Endpoint } from "@matter/main"
-import { ThermostatServer } from "@matter/main/behaviors/thermostat"
 import { Thermostat } from "@matter/main/clusters/thermostat"
-import { BridgedDevice } from "./BridgedDevice.ts"
+import { BridgedDevice, type Listenable } from "./BridgedDevice.ts"
 import { BridgedTemperature } from "./BridgedTemperature.ts"
 import type { CommandKind, KindValue, StateKind, ThermostatMode } from "./DeviceKinds.ts"
-
-/** a thermostat that heats and cools, and switches between them on its own in auto mode */
-export const HeatCoolServer = ThermostatServer.with("Heating", "Cooling", "AutoMode")
+import { HeatCoolServer } from "./HeatCoolServer.ts"
 
 const { SystemMode } = Thermostat
 const MODES: Record<ThermostatMode, Thermostat.SystemMode> = { off: SystemMode.Off, heat: SystemMode.Heat, cool: SystemMode.Cool, auto: SystemMode.Auto }
 
-type Listen = <T extends unknown[]>(event: { on(listener: (...args: T) => void): void; off(listener: (...args: T) => void): void }, listener: (...args: T) => void) => void
+type Listen = <T extends unknown[]>(event: Listenable<T>, listener: (...args: T) => void) => void
 type Command = (kind: CommandKind, value: KindValue) => void
 
 /**
@@ -21,8 +18,11 @@ type Command = (kind: CommandKind, value: KindValue) => void
  * doesn't know (fan only, dry, …) is passed on as Matter names it.
  */
 export class HeatCool {
-  /** auto mode keeps the setpoints at least this far apart (°C) */
-  static readonly DEAD_BAND = 2
+  /**
+   * matter.js keeps the setpoints at least this far apart (°C) in every mode, also moving one Nexus
+   * sets; small, so room controllers' close setpoints stay as they are
+   */
+  static readonly DEAD_BAND = 1
 
   constructor(private readonly endpoint: Endpoint) {}
 
@@ -64,7 +64,8 @@ export class HeatCool {
   }
 
   static mode(value: KindValue) {
-    const mode = typeof value === "string" ? MODES[value.toLowerCase() as ThermostatMode] : undefined
+    const name = typeof value === "string" ? value.trim().toLowerCase() : ""
+    const mode = Object.hasOwn(MODES, name) ? MODES[name as ThermostatMode] : undefined
     if (mode === undefined) throw new Error(`not a thermostat mode: ${JSON.stringify(value)}; one of ${Object.keys(MODES).join(", ")}`)
     return mode
   }

@@ -3,7 +3,7 @@ import { ColorControl } from "@matter/main/clusters/color-control"
 import type { ColorValue } from "./DeviceKinds.ts"
 
 /** the ColorControl attributes a colour is read from */
-export interface ColorState {
+export interface ColorAttributes {
   colorMode: ColorControl.ColorMode
   currentHue?: number
   currentSaturation?: number
@@ -21,7 +21,7 @@ export class RgbColor {
   static readonly MAX = 254
 
   /** the colour a light shows at a brightness in %, from whichever mode it is in; a white light as its RGB */
-  static of(state: ColorState, brightness: number): ColorValue {
+  static of(state: ColorAttributes, brightness: number): ColorValue {
     const [red, green, blue] = RgbColor.full(state)
     const scale = brightness / 100 / Math.max(red, green, blue, 1e-9)
     const percent = (channel: number) => Math.round(Math.min(1, channel * scale) * 100)
@@ -30,7 +30,7 @@ export class RgbColor {
 
   /** a colour from Nexus as Matter's hue and saturation, and its brightness in % (the brightest channel) */
   static toHueSaturation(color: ColorValue) {
-    const [hue, saturation, value] = rgbToHsv(...[color.red, color.green, color.blue].map(RgbColor.unit) as [number, number, number])
+    const [hue, saturation, value] = rgbToHsv(RgbColor.unit(color.red), RgbColor.unit(color.green), RgbColor.unit(color.blue))
     return {
       currentHue: Math.round(hue / 360 * RgbColor.MAX) % (RgbColor.MAX + 1),
       currentSaturation: Math.round(saturation * RgbColor.MAX),
@@ -39,7 +39,7 @@ export class RgbColor {
   }
 
   /** the colour at full brightness, each channel 0–1 */
-  private static full(state: ColorState): [number, number, number] {
+  private static full(state: ColorAttributes): [number, number, number] {
     const { ColorMode } = ColorControl
     if (state.colorMode === ColorMode.CurrentXAndCurrentY) return xyToRgb((state.currentX ?? 0) / 65536, (state.currentY ?? 0) / 65536)
     if (state.colorMode === ColorMode.ColorTemperatureMireds) {

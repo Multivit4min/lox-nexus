@@ -7,6 +7,7 @@ import { BridgedDevice } from "./BridgedDevice.ts"
 import { BridgedDimmer } from "./BridgedDimmer.ts"
 import { ColorTemperature } from "./ColorTemperature.ts"
 import type { KindValue, StateKind, TunableWhiteValue } from "./DeviceKinds.ts"
+import { SettledReport } from "./SettledReport.ts"
 
 const ColorLightEndpoint = ColorTemperatureLightDevice.with(BridgedDeviceBasicInformationServer, ColorControlServer.with("ColorTemperature"))
 const { ColorMode, EnhancedColorMode } = ColorControl
@@ -34,7 +35,7 @@ export class BridgedColorLight extends BridgedDevice {
   })
 
   /** what a controller changed since the light last reported, sent together once things settle */
-  private pending: Set<"onOff" | "colorTemperature"> | undefined
+  private readonly reports = new SettledReport<"onOff" | "colorTemperature">(() => this.context.wait(0), changed => this.report(changed), message => this.context.warn(message))
 
   protected override subscribe() {
     const events = this.endpoint.events
@@ -53,22 +54,12 @@ export class BridgedColorLight extends BridgedDevice {
     await this.endpoint.set({ onOff: { onOff: true }, levelControl: { currentLevel: BridgedDimmer.level(percent) } })
   }
 
-  /**
-   * One controller action ("on", "warm white at 30 %") changes several attributes, and the level
-   * may follow on/off a moment later (matter.js's on-level coupling): the light reports once, with
-   * how it ends up, after the changes of this turn have settled.
-   */
+  /** one controller action changes several attributes: the light reports once, as it ends up */
   private changed(context: { fabric?: unknown } | undefined, kind?: "onOff" | "colorTemperature") {
-    if (!BridgedDevice.fromController(context)) return
-    const flush = !this.pending
-    this.pending ??= new Set()
-    if (kind) this.pending.add(kind)
-    if (flush) void this.context.wait(0).then(() => this.report())
+    if (BridgedDevice.fromController(context)) this.reports.changed(kind)
   }
 
-  private report() {
-    const changed = this.pending ?? new Set()
-    this.pending = undefined
+  private report(changed: ReadonlySet<"onOff" | "colorTemperature">) {
     const { onOff, levelControl, colorControl } = this.endpoint.state
     const brightness = onOff.onOff ? BridgedDimmer.percent(levelControl.currentLevel ?? BridgedDimmer.MAX_LEVEL) : 0
     const temperature = ColorTemperature.kelvin(colorControl.colorTemperatureMireds)

@@ -3,7 +3,8 @@ import { BridgedDeviceBasicInformationServer } from "@matter/main/behaviors/brid
 import { ThermostatDevice } from "@matter/main/devices/thermostat"
 import { BridgedDevice } from "./BridgedDevice.ts"
 import type { KindValue, StateKind } from "./DeviceKinds.ts"
-import { HeatCool, HeatCoolServer } from "./HeatCool.ts"
+import { HeatCool } from "./HeatCool.ts"
+import { HeatCoolServer } from "./HeatCoolServer.ts"
 
 const ClimateEndpoint = ThermostatDevice.with(BridgedDeviceBasicInformationServer, HeatCoolServer)
 

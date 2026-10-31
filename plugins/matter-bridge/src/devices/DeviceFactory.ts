@@ -22,6 +22,11 @@ import { BridgedThermostat } from "./BridgedThermostat.ts"
 import { BridgedValve } from "./BridgedValve.ts"
 import { BridgedWaterSensor } from "./BridgedWaterSensor.ts"
 import type { DeviceRecord } from "./DeviceRecord.ts"
+import { BridgedBatteryStorage } from "./energy/BridgedBatteryStorage.ts"
+import { BridgedEvse } from "./energy/BridgedEvse.ts"
+import { BridgedHeatPump } from "./energy/BridgedHeatPump.ts"
+import { BridgedMeter } from "./energy/BridgedMeter.ts"
+import { BridgedSolar } from "./energy/BridgedSolar.ts"
 
 /** Builds the bridged device for a stored one. */
 export class DeviceFactory {
@@ -58,6 +63,11 @@ export class DeviceFactory {
       case "water-valve": return new BridgedValve(record, this.context)
       case "air-quality-sensor": return new BridgedAirQuality(record, this.context)
       case "thermostat-heat-cool": return new BridgedClimate(record, this.context)
+      case "electrical-meter": return new BridgedMeter(record, this.context)
+      case "solar-power": return new BridgedSolar(record, this.context)
+      case "battery-storage": return new BridgedBatteryStorage(record, this.context)
+      case "evse": return new BridgedEvse(record, this.context)
+      case "heat-pump": return new BridgedHeatPump(record, this.context)
     }
   }
 }

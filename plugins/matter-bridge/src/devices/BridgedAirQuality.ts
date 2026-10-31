@@ -20,7 +20,8 @@ const { MeasurementUnit, MeasurementMedium } = ConcentrationMeasurement
 /**
  * An air quality sensor: Matter's air quality level, CO₂ in ppm and PM2.5 in µg/m³, each unknown
  * until Nexus sends it. Without a level of its own from Nexus, the level follows the worse of the
- * CO₂ and PM2.5 readings (see AirQualityLevel); once Nexus sends a level, that one is shown.
+ * CO₂ and PM2.5 readings (see AirQualityLevel); once Nexus sends a level, that one is shown, until
+ * it sends 0 (unknown), which hands the level back to the readings.
  */
 export class BridgedAirQuality extends BridgedDevice {
   readonly endpoint = new Endpoint(this.withBattery(AirEndpoint), {
@@ -32,19 +33,27 @@ export class BridgedAirQuality extends BridgedDevice {
   })
 
   protected async apply(kind: StateKind, value: KindValue) {
-    if (kind === "airQuality") return this.endpoint.set({ airQuality: { airQuality: AirQualityLevel.level(BridgedDevice.number(value)) } })
     const number = BridgedDevice.number(value)
+    if (kind === "airQuality") {
+      const level = AirQualityLevel.level(number)
+      return this.endpoint.set({ airQuality: { airQuality: level === 0 ? this.fromReadings() : level } })
+    }
     if (kind === "co2") await this.endpoint.set({ carbonDioxideConcentrationMeasurement: { measuredValue: Math.max(0, number) } })
     else await this.endpoint.set({ pm25ConcentrationMeasurement: { measuredValue: Math.max(0, number) } })
-    if (this.remembered("airQuality") !== undefined) return
+    const sent = this.remembered("airQuality")
+    if (sent === undefined || sent === 0) await this.endpoint.set({ airQuality: { airQuality: this.fromReadings() } })
+  }
+
+  /** the level the readings shown now stand for */
+  private fromReadings() {
     const { carbonDioxideConcentrationMeasurement: co2, pm25ConcentrationMeasurement: pm25 } = this.endpoint.state
-    await this.endpoint.set({ airQuality: { airQuality: AirQualityLevel.of(co2.measuredValue ?? undefined, pm25.measuredValue ?? undefined) } })
+    return AirQualityLevel.of(co2.measuredValue ?? undefined, pm25.measuredValue ?? undefined)
   }
 
   /** the level Nexus sent last, else the one the remembered readings stand for */
   private initialLevel() {
     const [level, co2, pm25] = (["airQuality", "co2", "pm25"] as const).map(kind => this.remembered(kind))
-    if (typeof level === "number") return AirQualityLevel.level(level)
+    if (typeof level === "number" && level !== 0) return AirQualityLevel.level(level)
     return AirQualityLevel.of(typeof co2 === "number" ? co2 : undefined, typeof pm25 === "number" ? pm25 : undefined)
   }
 

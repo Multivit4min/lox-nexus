@@ -3,6 +3,7 @@ import { after, before, test } from "node:test"
 import { Value } from "@lox-nexus/plugin-sdk/values"
 import type { ClientNode } from "@matter/main"
 import { ColorControlClient } from "@matter/main/behaviors/color-control"
+import { OnOffClient } from "@matter/main/behaviors/on-off"
 import { ThermostatClient } from "@matter/main/behaviors/thermostat"
 import { ValveConfigurationAndControlClient } from "@matter/main/behaviors/valve-configuration-and-control"
 import { WindowCoveringClient } from "@matter/main/behaviors/window-covering"
@@ -61,6 +62,24 @@ test("colour light: a hue from a controller arrives as RGB with the brightness; 
   await until(() => seen(peer, "Strip").onOff?.onOff === false, 3000, "black is off")
 })
 
+test("colour light: black keeps the colour for the next on; one app action is one colour; white alone is white", { timeout: 20_000 }, async () => {
+  const colour = await bridge.host.addSensor("color", { device: "Strip" })
+  const brightness = await bridge.host.addSensor("brightness", { device: "Strip" })
+  const set = await actuator("color", "Strip")
+  await bridge.host.actuate(set, Value.rgbw(color(100, 0, 0)))
+  await bridge.host.actuate(set, Value.rgbw(color(0, 0, 0)))
+  await until(() => seen(peer, "Strip").onOff?.onOff === false, 3000, "off")
+  await device("Strip").commandsOf(OnOffClient).on()
+  await until(() => bridge.values(colour).length > 0, 3000, "on")
+  await new Promise(resolve => setTimeout(resolve, 100))
+  assert.deepEqual(bridge.values(colour), [color(100, 0, 0)], "red again, reported once")
+  await device("Strip").commandsOf(ColorControlClient).moveToHueAndSaturation({ hue: 85, saturation: 254, transitionTime: 0, optionsMask: {}, optionsOverride: {} })
+  await until(() => bridge.values(colour).length === 2, 3000, "green")
+  assert.deepEqual(bridge.values(brightness), [100], "a hue alone sends no brightness")
+  await bridge.host.actuate(set, Value.rgbw({ ...color(0, 0, 0), white: 40 }))
+  await until(() => seen(peer, "Strip").colorControl?.currentSaturation === 0 && seen(peer, "Strip").levelControl?.currentLevel === 102, 3000, "white at 40 %")
+})
+
 test("water valve: open from a controller is a command and shows moving until Nexus reports", { timeout: 20_000 }, async () => {
   const request = await bridge.host.addSensor("valve", { device: "Main valve" })
   await device("Main valve").commandsOf(ValveConfigurationAndControlClient).open({})
@@ -68,6 +87,7 @@ test("water valve: open from a controller is a command and shows moving until Ne
   await until(() => seen(peer, "Main valve").valveConfigurationAndControl?.currentState === 2, 3000, "transitioning")
   await bridge.host.actuate(await actuator("valve", "Main valve"), Value.boolean(true))
   await until(() => seen(peer, "Main valve").valveConfigurationAndControl?.currentState === 1, 3000, "open")
+  assert.equal(seen(peer, "Main valve").valveConfigurationAndControl?.targetState, null, "no target once it is there")
   await device("Main valve").commandsOf(ValveConfigurationAndControlClient).close()
   await until(() => bridge.last(request) === false, 3000, "close requested")
 })
@@ -83,6 +103,8 @@ test("air quality: CO₂ and PM2.5 set the level until Nexus sends one of its ow
   await until(() => seen(peer, "Office air").carbonDioxideConcentrationMeasurement?.measuredValue === 3000, 3000, "CO₂ 3000")
   assert.equal(seen(peer, "Office air").airQuality?.airQuality, 1, "the level Nexus sent stays")
   await assert.rejects(bridge.host.actuate(await actuator("air-quality", "Office air"), Value.number(9)), /not an air quality level/)
+  await bridge.host.actuate(await actuator("air-quality", "Office air"), Value.number(0))
+  await until(() => seen(peer, "Office air").airQuality?.airQuality === 5, 3000, "0 hands the level back to the readings")
 })
 
 test("heating and cooling thermostat: mode and both setpoints both ways", { timeout: 20_000 }, async () => {

@@ -63,7 +63,21 @@ test("the catalog offers, per device, the commands and states its type has", asy
     ],
     "water-valve (Water valve)": ["sensor valve", "actuator valve"],
     "air-quality-sensor (Air quality sensor)": ["actuator air-quality", "actuator co2", "actuator pm25"],
-    "doorbell (Doorbell)": ["actuator press"]
+    "doorbell (Doorbell)": ["actuator press"],
+    "electrical-meter (Electricity meter)": [
+      "actuator power", "actuator energy-imported", "actuator energy-exported", "actuator voltage", "actuator current"
+    ],
+    "solar-power (Solar power (PV))": ["actuator production", "actuator energy-exported"],
+    "battery-storage (Battery storage)": ["actuator power", "actuator battery", "actuator energy-imported", "actuator energy-exported"],
+    "evse (Wallbox (EV charger))": [
+      "sensor charging-enabled", "sensor max-current", "sensor charging-mode",
+      "actuator plugged-in", "actuator charging", "actuator charging-enabled", "actuator max-current", "actuator charging-mode",
+      "actuator power", "actuator energy-imported", "actuator session-energy"
+    ],
+    "heat-pump (Heat pump)": [
+      "sensor setpoint", "sensor cooling-setpoint", "sensor mode",
+      "actuator temperature", "actuator setpoint", "actuator cooling-setpoint", "actuator mode", "actuator power", "actuator energy-imported"
+    ]
   })
   const light = catalog[0]!.entries![0]!
   assert.deepEqual(light, { kind: "sensor", capability: "on-off", params: { device: "on-off-light" }, label: "on-off-light: on/off from controllers" })

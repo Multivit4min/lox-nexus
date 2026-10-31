@@ -5,13 +5,15 @@ type Kind = StateKind | CommandKind
 
 const UNITS: Partial<Record<Kind, string>> = {
   temperature: "°C", setpoint: "°C", coolingSetpoint: "°C", colorTemperature: "K", illuminance: "lx", pressure: "hPa", flow: "m³/h",
-  co2: "ppm", pm25: "µg/m³"
+  co2: "ppm", pm25: "µg/m³", power: "W", production: "W", energyImported: "kWh", energyExported: "kWh", voltage: "V", current: "A",
+  maxCurrent: "A", sessionEnergy: "kWh"
 }
 const FLAGS: Partial<Record<Kind, [string, string]>> = {
   contact: ["open", "closed"], occupancy: ["occupied", "clear"], locked: ["locked", "unlocked"], lock: ["lock", "unlock"],
   smoke: ["smoke alarm", "no smoke"], co: ["CO alarm", "no CO"], leak: ["leak", "dry"], press: ["pressed", "released"],
   longPress: ["long press", "released"], rain: ["rain", "dry"], freeze: ["frost", "no frost"],
-  valve: ["open", "closed"]
+  valve: ["open", "closed"], pluggedIn: ["plugged in", "no car"], charging: ["charging", "not charging"],
+  chargingEnabled: ["charging enabled", "charging disabled"]
 }
 
 /** Commands and states as the panel and messages show them: "on", "45 %", "21.5 °C", "open". */
@@ -22,7 +24,10 @@ export class KindFormat {
     humidity: "humidity", contact: "contact", occupancy: "occupancy", locked: "locked", smoke: "smoke", co: "CO",
     leak: "leak", press: "press", longPress: "long press", illuminance: "illuminance", pressure: "pressure", flow: "flow",
     rain: "rain", freeze: "frost", battery: "battery", tilt: "slat angle", color: "colour", coolingSetpoint: "cooling setpoint",
-    mode: "mode", valve: "valve", airQuality: "air quality", co2: "CO₂", pm25: "PM2.5"
+    mode: "mode", valve: "valve", airQuality: "air quality", co2: "CO₂", pm25: "PM2.5", power: "power", production: "PV power",
+    energyImported: "energy imported", energyExported: "energy exported", voltage: "voltage", current: "current", pluggedIn: "car",
+    charging: "charging", chargingEnabled: "charging enabled", maxCurrent: "maximum current", sessionEnergy: "session energy",
+    chargingMode: "charging mode"
   }
 
   static label(kind: Kind) {

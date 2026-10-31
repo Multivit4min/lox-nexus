@@ -8,10 +8,11 @@ import { BridgedDimmer } from "./BridgedDimmer.ts"
 import { ColorTemperature } from "./ColorTemperature.ts"
 import type { ColorValue, KindValue, StateKind } from "./DeviceKinds.ts"
 import { RgbColor } from "./RgbColor.ts"
+import { SettledReport } from "./SettledReport.ts"
 
 const RgbEndpoint = ExtendedColorLightDevice.with(BridgedDeviceBasicInformationServer, ColorControlServer.with("HueSaturation", "Xy", "ColorTemperature"))
 const { ColorMode, EnhancedColorMode } = ColorControl
-type Changed = "onOff" | "colorTemperature" | "color"
+type Changed = "onOff" | "level" | "colorTemperature" | "color"
 
 /**
  * A colour light (Matter's extended colour light): on/off, brightness, a colour temperature and a
@@ -42,12 +43,12 @@ export class BridgedRgbLight extends BridgedDevice {
   })
 
   /** what a controller changed since the light last reported, sent together once things settle */
-  private pending: Set<Changed> | undefined
+  private readonly reports = new SettledReport<Changed>(() => this.context.wait(0), changed => this.report(changed), message => this.context.warn(message))
 
   protected override subscribe() {
     const { onOff, levelControl, colorControl } = this.endpoint.events
     this.listen(onOff.onOff$Changed, (_on, _old, context) => this.changed(context, "onOff"))
-    this.listen(levelControl.currentLevel$Changed, (_level, _old, context) => this.changed(context))
+    this.listen(levelControl.currentLevel$Changed, (_level, _old, context) => this.changed(context, "level"))
     this.listen(colorControl.colorTemperatureMireds$Changed, (_mireds, _old, context) => this.changed(context, "colorTemperature"))
     for (const event of [colorControl.currentHue$Changed, colorControl.currentSaturation$Changed, colorControl.currentX$Changed, colorControl.currentY$Changed]) {
       this.listen(event, (_value: unknown, _old: unknown, context: { fabric?: unknown } | undefined) => this.changed(context, "color"))
@@ -64,9 +65,20 @@ export class BridgedRgbLight extends BridgedDevice {
     await this.setBrightness(BridgedDevice.number(value))
   }
 
+  /**
+   * Black switches the light off and keeps its colour, so the next "on" from an app comes back in
+   * it; white only (an RGBW actuator in white mode, or a plain number wired to the colour) is white
+   * at that brightness.
+   */
   private async setColor(color: ColorValue) {
-    const { currentHue, currentSaturation, brightness } = RgbColor.toHueSaturation(color)
     const mode = { colorMode: ColorMode.CurrentHueAndCurrentSaturation, enhancedColorMode: EnhancedColorMode.CurrentHueAndCurrentSaturation }
+    if (Math.max(color.red, color.green, color.blue) <= 0) {
+      const white = color.white ?? 0
+      if (white <= 0) return this.endpoint.set({ onOff: { onOff: false } })
+      await this.endpoint.set({ colorControl: { ...mode, currentSaturation: 0 } })
+      return this.setBrightness(white)
+    }
+    const { currentHue, currentSaturation, brightness } = RgbColor.toHueSaturation(color)
     await this.endpoint.set({ colorControl: { ...mode, currentHue, currentSaturation } })
     await this.setBrightness(brightness)
   }
@@ -76,18 +88,13 @@ export class BridgedRgbLight extends BridgedDevice {
     await this.endpoint.set({ onOff: { onOff: true }, levelControl: { currentLevel: BridgedDimmer.level(percent) } })
   }
 
-  /** one controller action changes several attributes: the light reports once, as it ends up, after this turn */
-  private changed(context: { fabric?: unknown } | undefined, kind?: Changed) {
-    if (!BridgedDevice.fromController(context)) return
-    const flush = !this.pending
-    this.pending ??= new Set()
-    if (kind) this.pending.add(kind)
-    if (flush) void this.context.wait(0).then(() => this.report())
+  /** one controller action changes several attributes: the light reports once, as it ends up */
+  private changed(context: { fabric?: unknown } | undefined, kind: Changed) {
+    if (BridgedDevice.fromController(context)) this.reports.changed(kind)
   }
 
-  private report() {
-    const changed = this.pending ?? new Set()
-    this.pending = undefined
+  /** the colour always (it carries the brightness); on/off, brightness and colour temperature when they changed */
+  private report(changed: ReadonlySet<Changed>) {
     const { onOff, levelControl, colorControl } = this.endpoint.state
     const brightness = onOff.onOff ? BridgedDimmer.percent(levelControl.currentLevel ?? BridgedDimmer.MAX_LEVEL) : 0
     const action = {}
@@ -95,7 +102,7 @@ export class BridgedRgbLight extends BridgedDevice {
     if (changed.has("colorTemperature") && colorControl.colorMode === ColorMode.ColorTemperatureMireds) {
       this.command("colorTemperature", ColorTemperature.kelvin(colorControl.colorTemperatureMireds), action)
     }
-    this.command("brightness", brightness, action)
+    if (changed.has("onOff") || changed.has("level")) this.command("brightness", brightness, action)
     this.command("color", RgbColor.of(colorControl, brightness), action)
   }
 

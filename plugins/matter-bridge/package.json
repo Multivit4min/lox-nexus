@@ -1,6 +1,6 @@
 {
   "name": "@lox-nexus/plugin-matter-bridge",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "MIT",
   "private": true,
   "description": "Matter bridge plugin for Lox Nexus: Nexus devices in Alexa, Google Home, Apple Home and Home Assistant",

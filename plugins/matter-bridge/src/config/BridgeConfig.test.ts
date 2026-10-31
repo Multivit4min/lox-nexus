@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 import { PluginTestHost } from "@lox-nexus/plugin-sdk/testing"
+import { DEVICE_TYPE_IDS } from "../devices/DeviceKinds.ts"
 import { MatterBridgePlugin } from "../MatterBridgePlugin.ts"
 import { bridgeConfigSchema } from "./BridgeConfig.ts"
 
@@ -46,13 +47,16 @@ test("forms: fields, params and action inputs have titles, descriptions and labe
   assert.deepEqual(actions.map(action => action.id), ["add-device", "edit-device", "edit-lock", "remove-device", "open-pairing-window", "remove-pairing"])
   assert.ok(actions.every(action => action.placement === "panel"), "every button is in the panel: above its section or on its row")
   for (const action of actions.slice(1)) checkFields(action.input, action.id)
-  // add-device is a union by type: the other types, sensors and buttons with Battery, and the door lock with Allow unlocking
-  const [others, lock, battery] = (actions[0]!.input as { oneOf: Schema[] }).oneOf
-  assert.equal(Object.keys(checkFields(others, "add-device").type?.enumLabels ?? {}).length, 15)
-  assert.equal(Object.keys(checkFields(battery, "add-device").type?.enumLabels ?? {}).length, 13)
-  assert.deepEqual(Object.keys(battery!.properties ?? {}), ["type", "name", "battery"])
-  assert.deepEqual(Object.keys(lock!.properties ?? {}), ["type", "name", "allowUnlock"])
-  assert.equal(lock!.properties!.type!.title, "Door lock")
+  // add-device is a union by type, in runs of types with the same fields, in the types' order
+  const branches = (actions[0]!.input as { oneOf: Schema[] }).oneOf
+  const types = branches.map(branch => Object.keys(checkFields(branch, "add-device").type?.enumLabels ?? {}))
+  assert.deepEqual(types.flat(), [...DEVICE_TYPE_IDS])
+  for (const [index, branch] of branches.entries()) {
+    const fields = Object.keys(branch.properties ?? {})
+    if (types[index]!.includes("door-lock")) assert.deepEqual(fields, ["type", "name", "allowUnlock"])
+    else if (types[index]!.includes("temperature-sensor") || types[index]!.includes("doorbell")) assert.deepEqual(fields, ["type", "name", "battery"])
+    else assert.deepEqual(fields, ["type", "name"], types[index]!.join())
+  }
   assert.ok(actions.find(action => action.id === "remove-device")?.confirm)
   assert.ok(actions.find(action => action.id === "remove-pairing")?.confirm)
 })

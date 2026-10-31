@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### Matter bridge plugin 0.2.0
+
+- **More device types:** colour light (RGB), dimmable plug, wall switch and wall dimmer, blind
+  with slats (lift and tilt), thermostat with heating, cooling and modes, water valve, light,
+  pressure, flow and air quality sensors (CO₂, PM2.5), rain sensor, water freeze detector and
+  doorbell.
+- **Energy devices:** electricity meter, solar power (PV), battery storage, wallbox (EV charger,
+  with enable, current and charging mode from the apps) and heat pump.
+- **Batteries:** sensors and buttons can be added with a battery level the apps show and warn on.
+- The plugin's README lists every Matter device type up to Matter 1.5 and whether the bridge
+  offers it.
+
 ## 0.8.0 (2026-10-30)
 
 Lox Nexus 0.8.0 is a complete rewrite of Nexus. It connects Home Assistant, Fronius inverters,

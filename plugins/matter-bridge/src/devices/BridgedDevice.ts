@@ -23,7 +23,7 @@ export interface Recorded<K> { kind: K; value: KindValue; at: number }
 type CommandListener = (value: KindValue) => void
 
 /** a matter.js change event */
-interface Listenable<T extends unknown[]> {
+export interface Listenable<T extends unknown[]> {
   on(listener: (...args: T) => void): void
   off(listener: (...args: T) => void): void
 }

@@ -63,7 +63,12 @@ it has.
 | Rain sensor (`rain-sensor`) | a rain sensor (Matter 1.3) | | `rain` | dry |
 | Water freeze detector (`water-freeze-detector`) | a frost sensor (Matter 1.3) | | `freeze` | no frost |
 | Button (generic switch) (`generic-switch`) | a button for routines | | `press`, `long-press` | |
-| Doorbell (`doorbell`) | a doorbell (Matter 1.4) | | `press` | |
+| Doorbell (`doorbell`) | a doorbell (a newer Matter type) | | `press` | |
+| Electricity meter (`electrical-meter`) | an electrical meter (Matter 1.5) and electrical sensor | | `power`, `energy-imported`, `energy-exported`, `voltage`, `current` | unknown |
+| Solar power (PV) (`solar-power`) | a PV system (Matter 1.4) with its power source and electrical sensor | | `production`, `energy-exported` | unknown |
+| Battery storage (`battery-storage`) | a home battery (Matter 1.4) with its battery, electrical sensor and energy management | | `power`, `battery`, `energy-imported`, `energy-exported` | unknown |
+| Wallbox (EV charger) (`evse`) | an EV charger (Matter 1.3) with its electrical sensor, power source and energy management | `charging-enabled`, `max-current`, `charging-mode` | `plugged-in`, `charging`, `charging-enabled`, `max-current`, `charging-mode`, `power`, `energy-imported`, `session-energy` | no car, charging enabled at 16 A, manual |
+| Heat pump (`heat-pump`) | a heat pump (Matter 1.4) with a heating and cooling thermostat below it | `setpoint`, `cooling-setpoint`, `mode` | `temperature`, `setpoint`, `cooling-setpoint`, `mode`, `power`, `energy-imported` | as the heating and cooling thermostat; measurements unknown |
 
 **Battery.** Sensors, buttons and doorbells (every type above with actuators only, except the
 smoke and CO alarm, which reports itself as wired) can be added with **Battery** on: the device then also has a
@@ -76,15 +81,23 @@ as" is what a new device shows before Nexus sends anything.
 After a restart (a config change, an update) each device shows what it showed before, although
 Nexus doesn't replay values to actuators when an instance starts. matter.js stores on/off,
 brightness, colour, positions, fan speeds, setpoints and thermostat modes itself. For contacts,
-motion, locks, valves, alarms, leaks, rain, frost, measurements, air quality and battery levels the
-plugin keeps the last state Nexus sent (store keys `state:<device id>`): without it a restart
+motion, locks, valves, alarms, leaks, rain, frost, measurements, air quality, battery levels,
+electrical measurements and a wallbox's car, supply and current the plugin keeps the last state Nexus sent (store keys `state:<device id>`): without it a restart
 would show every door closed and then "open" it again, which starts "door opens" routines although
 nothing happened, and temperatures would be unknown until Loxone happens to send again. After the
 factory reset that follows removing the last app, the bridge sets every state Nexus sent in this
 run again, in the order it sent them.
 
 Sensors-only types are what start routines in Alexa ("when the front door opens, announce …").
-Values without a Matter device type, such as PV power, can't be shown sensibly.
+Values without a Matter device type, such as a single power value of a device that is no energy
+device, can't be shown sensibly.
+
+**Energy devices.** Matter composes its energy device types from utility types: a PV system is
+also a power source and an electrical sensor; battery storage, a wallbox and a heat pump add
+device energy management. The bridge puts these on the device's own endpoint (matter.js lists
+them), and the heat pump's thermostat on an endpoint below it. Energy management only says what
+kind of device it is and that it is online: the bridge offers no forecasts and no power
+adjustment, and a battery's AC and battery sides, which Matter describes as two, are one.
 
 What the apps do with a type is up to them, and only real hardware shows it:
 
@@ -97,10 +110,14 @@ What the apps do with a type is up to them, and only real hardware shows it:
   app); Nexus keeps no PIN codes. Unlocking from any app is refused unless **Allow unlocking** is
   on for the lock.
 - **Rain sensor, water freeze detector, water valve, doorbell, wall switch and wall dimmer:**
-  newer Matter types (1.3 and 1.4). Apps that don't know them yet may show them as an unknown
+  newer Matter types (1.3 and later). Apps that don't know them yet may show them as an unknown
   device or not at all; Home Assistant shows them.
 - **Colour light:** Alexa, Google Home and Apple Home set colours by hue and saturation or by x/y;
   both arrive as the same RGB value.
+- **Energy devices (meter, PV, battery, wallbox, heat pump):** Matter 1.3 to 1.5 types for energy
+  dashboards. Which apps show them, and what they show, varies and changes with their updates;
+  Home Assistant reads the power and energy measurements. A device an app doesn't know may be
+  missing in it or shown as unknown.
 - **Button:** apps that support Matter buttons (generic switches) offer presses as routine
   triggers; whether Alexa does for a bridged button could not be checked without an Echo.
 
@@ -132,11 +149,19 @@ color temperature, lx and hPa without decimals, and m³/h with one.
 | `flow` | m³/h | FlowMeasurement `measuredValue` in 0.1 m³/h, at least 0 |
 | `battery` | 0–100 % | PowerSource `batPercentRemaining` in half percent; `batChargeLevel` warning below 20 %, critical below 10 % (with `batReplacementNeeded`); its `endpointList` names the device. A battery level doesn't replace the reading in the panel's "last state" |
 | `tilt` | 0–100 % closed (0 open, slats horizontal; 100 closed) | WindowCovering tilt position in 1/100 %, like `position`: go to sends the target, stop sends lift and slat positions Nexus last reported |
-| `color` | Nexus's `rgbw`: red, green and blue in %, brightness included | A command is the light's colour at its brightness (all 0 when off; white 0), from whichever mode the app used: hue and saturation, CIE x/y, or a colour temperature as its RGB (matter.js's conversions). A state sets hue and saturation from the colour, and the brightness from its brightest channel (all 0 switches the light off); the white channel is not used |
-| `cooling-setpoint` | °C | `occupiedCoolingSetpoint` in 1/100 °C, limited to 16–32 °C. In auto mode Matter keeps the setpoints at least 2 °C apart, so an app moving one may move the other: both come as commands |
+| `color` | Nexus's `rgbw`: red, green and blue in %, brightness included | A command is the light's colour at its brightness (all 0 when off; white 0), from whichever mode the app used: hue and saturation, CIE x/y, or a colour temperature as its RGB (matter.js's conversions). A state sets hue and saturation from the colour, and the brightness from its brightest channel. All 0 switches the light off and keeps its colour, so the next "on" from an app comes back in it; white alone (RGB 0, e.g. a number wired to the colour) is white at that brightness |
+| `cooling-setpoint` | °C | `occupiedCoolingSetpoint` in 1/100 °C, limited to 16–32 °C. matter.js keeps the heating and cooling setpoints at least 1 °C apart in every mode: an app moving one may move the other (both come as commands), and a setpoint from Nexus closer than that moves the other one in the apps, without a command |
 | `mode` | text: `off`, `heat`, `cool`, `auto` | Thermostat `systemMode`. A mode Nexus doesn't know (an app's fan only, dry) comes as Matter names it, e.g. `fanonly`; a state other than the four is refused. Map it to Loxone's numbers with a Map transform |
-| `valve` | `true` open, `false` closed | ValveConfigurationAndControl Open and Close commands (sent on every request); the valve shows "transitioning" until Nexus reports `currentState`. A duration an app gives with Open is not kept: the valve stays open until closed |
-| `air-quality` | 1 good, 2 fair, 3 moderate, 4 poor, 5 very poor, 6 extremely poor, 0 unknown | AirQuality `airQuality`. Until Nexus sends a level, it follows the worse of the readings: CO₂ up to 750, 1000, 1500, 2000 and 5000 ppm, PM2.5 up to 10, 20, 25, 50 and 75 µg/m³ (European Air Quality Index) |
+| `valve` | `true` open, `false` closed | ValveConfigurationAndControl Open and Close commands (sent on every request); the valve shows "transitioning" until Nexus reports `currentState`, or for at most a minute, after which it shows the last state Nexus sent again. A duration an app gives with Open is not kept: the valve stays open until closed |
+| `air-quality` | 1 good, 2 fair, 3 moderate, 4 poor, 5 very poor, 6 extremely poor, 0 unknown | AirQuality `airQuality`. Until Nexus sends a level, and again after it sends 0, the level follows the worse of the readings: CO₂ up to 750, 1000, 1500, 2000 and 5000 ppm, PM2.5 up to 10, 20, 25, 50 and 75 µg/m³ (the European Air Quality Index's bands before the EEA's 2024 revision). For another scale, send a level of your own |
+| `power`, `production` | W | ElectricalPowerMeasurement `activePower` in mW. `power` counts as Matter does: positive while the device takes power (a battery charging, a meter importing), negative while it gives power. `production`, a PV system's positive output, is shown negative, as power fed in. Invert a Fronius battery's power (positive while discharging) on the wire |
+| `voltage`, `current` | V, A | `voltage` and `activeCurrent` in mV and mA |
+| `energy-imported`, `energy-exported` | kWh, totals | ElectricalEnergyMeasurement `cumulativeEnergyImported` / `Exported` in mWh, each with the CumulativeEnergyMeasured event. A PV system's produced energy is its exported energy |
+| `plugged-in`, `charging` | `true`, `false` | EnergyEvse `state`: no car, plugged in (waiting while charging is enabled, wanting while it is disabled), charging. A car charging is plugged in. Plugging in starts a session (`sessionId` counts up) with the EVConnected event; charging starts and stops send EnergyTransferStarted and Stopped, unplugging EVNotDetected. The session's duration follows each report from Nexus |
+| `charging-enabled` | `true`, `false` | A command: an app's Enable charging (`true`, with `max-current`) or Disable (`false`); the supply state changes at once. A state: the supply state (charging enabled or disabled). `chargingEnabledUntil` stays null: a time an app gives is not kept |
+| `max-current` | A | EnergyEvse `maximumChargeCurrent` in mA, limited to 6 A and the 32 A circuit |
+| `session-energy` | kWh | `sessionEnergyCharged` in mWh |
+| `charging-mode` | text: `manual`, `time-of-use`, `solar` | EnergyEvseMode `currentMode` (modes 0, 1 and 2, with Matter's Manual, TimeOfUse and SolarCharging tags); an app's mode change is a command |
 | `co2`, `pm25` | ppm, µg/m³ | The concentration measurements' `measuredValue` (numeric, in air), at least 0 |
 | `press`, `long-press` | each `true` is one press; `false` does nothing | Switch events: InitialPress, ShortRelease and MultiPressComplete (two presses within 300 ms count as a double press); a long press holds for 1.2 s: InitialPress, LongPress, LongRelease. Presses are events, not states: nothing is remembered or replayed |
 
@@ -285,7 +310,7 @@ machine (1–2 GB) run a single instance; one bridge carries up to 50 devices.
 | Device and bridge names | 32 bytes (letters like ä count twice), unique per bridge ignoring case |
 | Pairing window | 15 minutes once paired; 48 hours while not paired |
 | Paired apps | in practice a handful; each app is one Matter fabric |
-| Device types | the ones above; the README lists every Matter device type and which the bridge has |
+| Device types | the 34 above; garage doors and gates (Matter 1.5 closures), air purifiers, air conditioners, water heaters, pumps and appliances are not in this version |
 
 ## Security notes
 

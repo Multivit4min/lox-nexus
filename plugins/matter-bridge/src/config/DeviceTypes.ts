@@ -55,7 +55,20 @@ export class DeviceTypes {
     "smoke-co-alarm": { label: "Smoke and CO alarm", commands: [], states: ["smoke", "co"] },
     "water-leak-detector": battery("Water leak detector", "leak"),
     "generic-switch": battery("Button (generic switch)", "press", "longPress"),
-    "doorbell": battery("Doorbell", "press")
+    "doorbell": battery("Doorbell", "press"),
+    "electrical-meter": { label: "Electricity meter", commands: [], states: ["power", "energyImported", "energyExported", "voltage", "current"] },
+    "solar-power": { label: "Solar power (PV)", commands: [], states: ["production", "energyExported"] },
+    "battery-storage": { label: "Battery storage", commands: [], states: ["power", "battery", "energyImported", "energyExported"] },
+    "evse": {
+      label: "Wallbox (EV charger)",
+      commands: ["chargingEnabled", "maxCurrent", "chargingMode"],
+      states: ["pluggedIn", "charging", "chargingEnabled", "maxCurrent", "chargingMode", "power", "energyImported", "sessionEnergy"]
+    },
+    "heat-pump": {
+      label: "Heat pump",
+      commands: ["setpoint", "coolingSetpoint", "mode"],
+      states: ["temperature", "setpoint", "coolingSetpoint", "mode", "power", "energyImported"]
+    }
   }
 
   /** a type's info; with a battery, its states end with the battery level */
