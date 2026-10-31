@@ -1,14 +1,15 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 import type { CatalogNode, Panel, PanelPart } from "@lox-nexus/plugin-sdk"
-import { cellText } from "@lox-nexus/plugin-sdk/testing"
+import { cellText, PluginTestHost } from "@lox-nexus/plugin-sdk/testing"
 import { UnifiHarness } from "./test-support/UnifiHarness.ts"
+import { UnifiPlugin } from "./UnifiPlugin.ts"
 
 function part(panel: Panel | undefined, title: string): PanelPart | undefined {
   return panel?.type === "sections" ? panel.sections.filter(section => section.title === title).at(-1)?.panel : undefined
 }
 
-test("the panel shows the console, Wi-Fi switches, devices with Restart, PoE ports with Power-cycle and the clients", async () => {
+test("the panel shows the console, Wi-Fi switches, devices with Restart, ports without Power-cycle and the clients", async () => {
   const unifi = await UnifiHarness.start()
   try {
     const panel = await unifi.host.panel()
@@ -34,8 +35,8 @@ test("the panel shows the console, Wi-Fi switches, devices with Restart, PoE por
 
     const ports = part(panel, "Ports")
     assert.ok(ports?.type === "table")
-    assert.deepEqual(ports.rowActions?.map(actions => actions.length), [1, 1, 0, 0], "only ports with PoE on can be power-cycled")
-    assert.deepEqual(ports.rowActions?.[1]?.[0], { action: "power-cycle-port", label: "Power-cycle", instant: true, input: { device: "02:00:00:00:00:02", port: 2 } })
+    assert.equal(ports.rowActions, undefined, "cutting PoE power is left to the actuator")
+    assert.ok(!(await PluginTestHost.describe(UnifiPlugin)).actions?.some(action => action.id === "power-cycle-port"))
 
     const clients = part(panel, "Connected clients")
     assert.ok(clients?.type === "table")
@@ -56,7 +57,6 @@ test("the Wi-Fi switch runs set-wifi and the panel follows", async () => {
     assert.ok(wifi?.type === "keyValue")
     assert.deepEqual(wifi.items.find(item => item.label === "Guests")?.control?.switch, { checked: true })
     assert.equal(await unifi.host.action("restart-device", { device: "02:00:00:00:00:01" }), "Hall AP is restarting")
-    assert.equal(await unifi.host.action("power-cycle-port", { device: "02:00:00:00:00:02", port: 1 }), "Port 1 of Garage Switch is power-cycling")
     assert.equal(await unifi.host.action("guest-access", { client: "02:00:00:00:10:03", authorize: true, minutes: 60 }), "Authorized Guest Tablet for 60 min")
   } finally {
     await unifi.stop()

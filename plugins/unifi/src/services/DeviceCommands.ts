@@ -4,7 +4,7 @@ import type { NetworkApi } from "../api/NetworkApi.ts"
 import type { SiteResolver } from "../poll/SiteResolver.ts"
 
 /**
- * Restarts a device and power-cycles a PoE port, for the actuators and the panel's buttons alike.
+ * Restarts a device (for the actuator and the panel's button) and power-cycles a PoE port (for the actuator).
  * Devices are named by MAC address; the API's id is looked up in a fresh device list, so a
  * command never goes to a stale id.
  */

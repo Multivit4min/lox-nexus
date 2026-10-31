@@ -7,7 +7,7 @@ import { WifiSection } from "./WifiSection.ts"
 
 /**
  * The instance page, from what the last poll read (never a request of its own): how polling
- * goes, Wi-Fi switches, devices with Restart, switch ports with Power-cycle, and the connected
+ * goes, Wi-Fi switches, devices with Restart, switch ports, and the connected
  * clients. Nothing secret: no API key, no Wi-Fi passphrase.
  */
 export class UnifiPanel {

@@ -3,7 +3,6 @@ import { CreateVoucherAction } from "./actions/CreateVoucherAction.ts"
 import { DeleteVoucherAction } from "./actions/DeleteVoucherAction.ts"
 import { GuestAccessAction } from "./actions/GuestAccessAction.ts"
 import { ListVouchersAction } from "./actions/ListVouchersAction.ts"
-import { PowerCycleAction } from "./actions/PowerCycleAction.ts"
 import { RestartDeviceAction } from "./actions/RestartDeviceAction.ts"
 import { WifiSwitchAction } from "./actions/WifiSwitchAction.ts"
 import { ACTUATORS, SENSORS } from "./Capabilities.ts"
@@ -34,7 +33,7 @@ export class UnifiPlugin extends Plugin<UnifiConfig> {
   static readonly config = unifiConfigSchema
   static readonly sensors = SENSORS
   static readonly actuators = ACTUATORS
-  static readonly actions = [CreateVoucherAction, ListVouchersAction, DeleteVoucherAction, WifiSwitchAction, RestartDeviceAction, PowerCycleAction, GuestAccessAction]
+  static readonly actions = [CreateVoucherAction, ListVouchersAction, DeleteVoucherAction, WifiSwitchAction, RestartDeviceAction, GuestAccessAction]
   static readonly panelUpdates = "push"
 
   /** Test connection: reads the application info and finds the site; read only */

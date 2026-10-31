@@ -18,7 +18,7 @@ the other way.
   network on the panel has a **Signals** button that offers just its signals.
 - **Panel:** whether the console can be read, its Network version and site, the number of clients
   and devices online, a switch per Wi-Fi network, the devices with a Restart button, the switch
-  ports with Power-cycle on PoE ports, and the connected clients. It refreshes after every poll.
+  ports (no Power-cycle button: that is the actuator's), and the connected clients. It refreshes after every poll.
 - **Actions:** Create voucher (answers with the code and a QR code of it), List vouchers, Delete
   voucher.
 

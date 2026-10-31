@@ -190,8 +190,9 @@ Pushed after every poll and after actions (`panelUpdates: "push"`).
 - **Devices:** name, model, state (green online; red offline, connection interrupted, isolated,
   incorrect topology; yellow updating, getting ready, adopting, pending adoption; grey deleting), IP and MAC address, firmware (yellow with an update),
   and an instant **Restart** button with a confirm.
-- **Ports:** ports of switching devices (and of devices with a port signal): link, speed, PoE, and
-  an instant **Power-cycle** button with a confirm where PoE is on.
+- **Ports:** ports of switching devices (and of devices with a port signal): link, speed and PoE.
+  The page has no Power-cycle button: cutting a port's power is left to the `port-power-cycle`
+  actuator, wired on purpose.
 - **Ports not shown** (a warning, only when needed): devices whose ports couldn't be read, with
   the reason, and devices with ports in a form the plugin doesn't read (left out one by one; debug
   logging names the port and the field). Missing values sent as `null` (e.g. an empty SFP cage's
@@ -210,7 +211,6 @@ No secrets: neither the API key nor a Wi-Fi passphrase.
 | Delete voucher (`delete-voucher`) | top | `code` (letters, digits, dashes) | how many were deleted; asks first |
 | Switch Wi-Fi network (`set-wifi`) | panel | `network` (id), `enabled` | the new state; asks first |
 | Restart (`restart-device`) | panel | `device` (MAC) | asks first |
-| Power-cycle (`power-cycle-port`) | panel | `device`, `port` | asks first |
 | Guest access (`guest-access`) | panel | `client`, `matchBy`, `authorize`, `minutes` | what happened |
 
 Voucher limits follow the API: minutes 1 to 1 000 000, data 1 to 1 048 576 MB, rates 2 to

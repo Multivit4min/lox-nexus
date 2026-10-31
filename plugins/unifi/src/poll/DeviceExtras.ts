@@ -5,7 +5,7 @@ import type { DeviceExtrasData } from "./NetworkSnapshot.ts"
 import type { PollDemand } from "./PollDemand.ts"
 
 /**
- * Reads port details of switching devices (for the panel's ports and their power-cycle buttons)
+ * Reads port details of switching devices (for the panel's ports)
  * and of devices a port signal needs, and latest statistics only of devices a signal needs them
  * of. Statistics are read of online devices only: an offline device has none to report. A device
  * whose read fails gets a problem; the poll and the other devices go on.

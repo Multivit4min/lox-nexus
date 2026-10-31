@@ -1,5 +1,4 @@
 import type { Cell, RowAction } from "@lox-nexus/plugin-sdk"
-import { PowerCycleAction } from "../actions/PowerCycleAction.ts"
 import { RestartDeviceAction } from "../actions/RestartDeviceAction.ts"
 import type { Device, Port } from "../api/ApiSchemas.ts"
 import { MacAddress } from "../api/MacAddress.ts"
@@ -9,7 +8,10 @@ import { CatalogIds } from "../catalog/CatalogIds.ts"
 import { PanelText } from "./PanelText.ts"
 import { StateTone } from "./StateTone.ts"
 
-/** The adopted devices with a Restart button each, and the ports of switches with Power-cycle on PoE ports. */
+/**
+ * The adopted devices with a Restart button each, and the ports of switches. Ports have no
+ * Power-cycle button: cutting PoE power is left to the actuator, wired on purpose.
+ */
 export class DevicesSection {
   constructor(private readonly snapshot: NetworkSnapshot) {}
 
@@ -32,7 +34,7 @@ export class DevicesSection {
         title: "Ports",
         panel: {
           type: "table", columns: ["Device", "Port", "Link", "Speed", "PoE"],
-          rows: ports.map(entry => entry.row), rowActions: ports.map(entry => entry.actions), rowCatalog: ports.map(entry => entry.catalog)
+          rows: ports.map(entry => entry.row), rowCatalog: ports.map(entry => entry.catalog)
         }
       })
     }
@@ -66,18 +68,12 @@ export class DevicesSection {
   private ports(devices: Device[]) {
     return devices.flatMap(device => (this.snapshot.extras.ports.get(device.id) ?? [])
       .slice().sort((a, b) => a.idx - b.idx)
-      .map(port => ({ row: DevicesSection.portRow(device, port), actions: DevicesSection.portActions(device, port), catalog: CatalogIds.port(device.id, port.idx) })))
+      .map(port => ({ row: DevicesSection.portRow(device, port), catalog: CatalogIds.port(device.id, port.idx) })))
   }
 
   private static portRow(device: Device, port: Port): Cell[] {
     const speed = port.state === "UP" && port.speedMbps !== undefined ? `${port.speedMbps} Mbit/s` : ""
     const poe: Cell = port.poe ? StateTone.poe(port.poe.enabled, port.poe.state) : { text: "none", tone: "muted" }
     return [device.name, String(port.idx), StateTone.link(port.state), speed, poe]
-  }
-
-  // only a port with PoE switched on has power to cut
-  private static portActions(device: Device, port: Port): RowAction[] {
-    if (!port.poe?.enabled) return []
-    return [{ action: PowerCycleAction.id, label: "Power-cycle", instant: true, input: { device: MacAddress.normalize(device.macAddress), port: port.idx } }]
   }
 }
