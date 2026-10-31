@@ -201,7 +201,8 @@ first-party plugins load from the workspace until then.
 
 ### M6: hardening and release
 
-- Recorder to disk.
+- ~~Recorder to disk~~: dropped (2026-10-31). The value history (S1–S4) keeps values on disk;
+  the Recorder stays a ring buffer for tracing the last few thousand messages.
 - ~~Importer for the old v1 export~~: dropped (2026-10-28). Nexus starts fresh; old installations
   are set up again.
 - Backup of the whole data directory, including plugins, users and values (the config export

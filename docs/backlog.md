@@ -36,14 +36,8 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
 
 ## Server
 
-- **`Miniserver.ts` is near the size limit** (about 170 of 200 counted lines). Split signal
+- **`Miniserver.ts` is near the size limit** (183 of 200 counted lines). Split signal
   management into its own class with the next feature there.
-
-## Config export and import
-
-- **Plugins are left out.** The export has no plugin instances and no wires to plugin signals, and
-  an import removes Loxone↔plugin wires. Export plugin instances (without secrets), their signals
-  and those wires, so a backup is complete.
 
 ## Plugin SDK
 
@@ -54,12 +48,10 @@ Details and current findings: `packages/ici/PROTOCOL.md`. Captures go to
 ## Plugin installer and UI (M5e leftovers)
 
 - **Left out on purpose** (see `architecture.md`, "Left out on purpose"): ZIPs from URLs, private
-  repositories with tokens, update checks, commit SHAs as refs, signatures.
+  repositories with tokens, automatic update checks, commit SHAs as refs, signatures.
 
 ## Statistics (history and exports)
 
-- **Watching instances' choices aren't exported.** The config export carries only the history's
-  selection; add the others once plugin instances are part of the export.
 - **More exporters** on the same watching capability: Prometheus, CSV.
 
 ## First-party plugins

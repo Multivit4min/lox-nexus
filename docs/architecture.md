@@ -1760,7 +1760,8 @@ admin-only). DTOs and input schemas go into `packages/api/src/pluginPackages.ts`
 
 - ZIPs from URLs, private repositories and tokens, commit SHAs as refs, plugins in a subdirectory
   of a repository, signatures.
-- Update checks, automatic rollback, more than two versions, a free-space check before installing.
+- Automatic update checks (the Installed page checks when asked: `PluginUpdateService`), automatic
+  rollback, more than two versions, a free-space check before installing.
 - Built-in first-party plugins in production (open question below).
 
 ### Open questions (recommendations in the M5e report; to be confirmed by the user)
