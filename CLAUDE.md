@@ -79,6 +79,7 @@ a task matches:
 | `plugin-dev` | building plugins against the public SDK only; where it gets stuck, the SDK lacks something |
 | `reviewer` | read-only review of a change against these conventions, plus running checks |
 | `sdk-compat` | read-only check of changes to `packages/plugin-sdk` or the plugin protocol: old plugins on a new host, new plugins on an old host, gating, API report, contract tests |
+| `security-auditor` | security audit of the whole app or one area, with local proofs of concept; reports, never fixes (runs on Fable) |
 | `doc-writer` | JSDoc for classes, methods and exported functions after a change, and the pages of the docs site; never behaviour |
 | `Explore` | broad read-only searches when only the conclusion is needed |
 
