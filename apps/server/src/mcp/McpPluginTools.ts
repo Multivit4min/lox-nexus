@@ -34,9 +34,10 @@ export interface McpPluginSources {
 export class McpPluginTools {
   readonly tools: McpTool[]
   readonly templates: McpResourceTemplate[]
+  readonly refs: PluginRefs
 
   constructor(sources: McpPluginSources, miniservers: Pick<McpRefs, "miniserver">) {
-    const refs = new PluginRefs(sources)
+    const refs = this.refs = new PluginRefs(sources)
     const catalogs = new CatalogCache(sources.plugins, sources.now ?? (() => Date.now()))
     const describe = new DescribePluginTool(refs, sources.plugins, sources.readmes)
     this.tools = [

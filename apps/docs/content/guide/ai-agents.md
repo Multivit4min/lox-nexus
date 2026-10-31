@@ -4,10 +4,10 @@ AI agents such as Claude Code, Gemini CLI or Cursor can look at your Nexus insta
 Model Context Protocol (MCP): its Miniservers, signals, values, wires and plugins. They see what
 the web UI shows, through an **access token** you create for them.
 
-Agents can **read** everything and, with the **configure** permission, set up Loxone signals and
-wires and connect plugins to a Miniserver. They also say what to create in Loxone Config, so both
-sides match. Setting up Miniservers and plugin instances, and operating devices, come in a later
-version; the token's permission for operating is already there.
+Agents can **read** everything and, with the **configure** permission, set up Miniservers, plugin
+instances, signals and wires, and connect plugins to a Miniserver. They also say what to create in
+Loxone Config, so both sides match. Operating devices comes in a later version; the token's
+permission for it is already there.
 
 ## Create an access token
 
@@ -23,7 +23,7 @@ changes (yours, or one another user sets for you), which ends all your tokens. E
 | Permission | What an agent may do |
 |---|---|
 | read (always) | see everything the web UI shows, including values, which can tell who is home |
-| configure | set up Loxone signals and wires, connect plugin signals to a Miniserver |
+| configure | set up Miniservers, plugin instances, signals and wires; connect plugins to a Miniserver |
 | operate | act on devices: force values, run plugin actions (coming; off by default) |
 
 Agents never see secrets: passwords, plugin settings and signal settings marked secret aren't in
@@ -96,7 +96,16 @@ With the **configure** permission:
 | `bridge` | per item: the plugin signal, a Loxone signal for it and the wire between them |
 | `create_loxone_signals`, `update_loxone_signal`, `adopt_discovered` | add and change Loxone signals |
 | `create_wire`, `update_wire` | connect two signals, change a wire (only what is given) |
-| `delete_loxone_signals`, `delete_wires` | delete, in two steps (see below) |
+| `create_miniserver`, `update_miniserver`, `start_miniserver`, `stop_miniserver` | Miniservers, without their password |
+| `create_plugin_instance`, `update_plugin_instance`, `plugin_instance_lifecycle` | plugin instances, without their secret settings; start, stop, restart |
+| `check_plugin_settings`, `discover_setting` | the settings form's check and connection test, and Find on the network |
+| `add_plugin_signals`, `update_plugin_signal` | sensors and actuators of an instance, without a Miniserver |
+| `delete_loxone_signals`, `delete_wires`, `delete_plugin_signals`, `delete_plugin_instance`, `delete_miniserver` | delete, in two steps (see below); stopping a Miniserver asks first too |
+
+**Secrets stay with you.** An agent that sets up a plugin needing a token (Home Assistant,
+InfluxDB) creates the instance without it. The instance is saved but not started, and the agent
+tells you to enter the token on the instance's page; saving there starts it. A Miniserver's ICI
+password is entered on its page the same way.
 
 **Deleting asks first.** The first call deletes nothing: it answers what would go (for a signal,
 also its wires and force) and a confirmation. Only a second call with the same items and that

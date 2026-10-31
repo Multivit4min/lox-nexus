@@ -96,7 +96,7 @@ async function copy(text: string | undefined, what: string) {
         <fieldset class="grid gap-2 text-sm">
           <legend class="mb-1 font-medium">It may</legend>
           <label class="flex items-start gap-2 text-muted-foreground"><Checkbox :model-value="true" disabled /> read everything (signals, values, wires), which can show who is home</label>
-          <label class="flex items-start gap-2"><Checkbox v-model="configure" /> set up Loxone signals and wires, connect plugins to a Miniserver</label>
+          <label class="flex items-start gap-2"><Checkbox v-model="configure" /> set up Miniservers, plugin instances, signals and wires</label>
           <label class="flex items-start gap-2"><Checkbox v-model="operate" /> <span>operate devices: force values, run plugin actions <span class="text-amber-600 dark:text-amber-400">(acts on your house)</span></span></label>
         </fieldset>
         <div class="grid gap-2 border-t pt-4">

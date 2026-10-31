@@ -11,7 +11,9 @@ const READ = [
   "overview r", "plan_bridge r", "preview_wire r", "recent_messages r", "search_catalog r", "system_status r", "trace r"
 ]
 const CONFIGURE = [
-  "adopt_discovered", "bridge", "create_loxone_signals", "create_wire", "delete_loxone_signals d", "delete_wires d", "update_loxone_signal", "update_wire"
+  "add_plugin_signals", "adopt_discovered", "bridge", "check_plugin_settings r", "create_loxone_signals", "create_miniserver", "create_plugin_instance", "create_wire",
+  "delete_loxone_signals d", "delete_miniserver d", "delete_plugin_instance d", "delete_plugin_signals d", "delete_wires d", "discover_setting r",
+  "plugin_instance_lifecycle", "start_miniserver", "stop_miniserver d", "update_loxone_signal", "update_miniserver", "update_plugin_instance", "update_plugin_signal", "update_wire"
 ]
 
 describe("tools/list per scope", { timeout: 20_000 }, () => {

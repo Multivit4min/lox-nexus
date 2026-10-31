@@ -85,12 +85,18 @@ export class PluginService {
     return this.toDto(this.stored(id))
   }
 
-  /** @throws HttpError 400 for an unknown plugin, ZodError 400 for settings the plugin refuses, 409 for a taken slug */
-  async create(input: PluginInstanceInput): Promise<PluginInstanceDto> {
+  /**
+   * @param options.secretsLater saves without the plugin's check and doesn't start it: for an agent,
+   * which never types secrets in; a person enters them on the instance's page, whose save checks
+   * the settings and starts it
+   * @throws HttpError 400 for an unknown plugin, ZodError 400 for settings the plugin refuses, 409 for a taken slug
+   */
+  async create(input: PluginInstanceInput, options: { secretsLater?: boolean } = {}): Promise<PluginInstanceDto> {
     const parsed = PluginInstanceInputSchema.parse(input)
     const entry = this.available.get(parsed.plugin)
     if (!entry) throw HttpError.badRequest(`plugin "${parsed.plugin}" is not available`)
-    const { config, configVersion }: PreparedConfig = await this.settings?.prepare(parsed.plugin, parsed.config) ?? { config: parsed.config }
+    const unchecked: PreparedConfig = { config: parsed.config }
+    const { config, configVersion }: PreparedConfig = options.secretsLater ? unchecked : await this.settings?.prepare(parsed.plugin, parsed.config) ?? unchecked
     const instance: PluginInstanceConfig = { id: randomUUID(), ...parsed, config, ...(configVersion === undefined ? {} : { configVersion }) }
     const supervisor = PluginErrors.domain(() => this.manager.add(instance, entry.pkg))
     try {
@@ -99,7 +105,7 @@ export class PluginService {
       await this.manager.remove(instance.id)
       throw error
     }
-    if (instance.enabled) await supervisor.start()
+    if (instance.enabled && !options.secretsLater) await supervisor.start()
     return this.toDto(instance)
   }
 

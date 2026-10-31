@@ -11,11 +11,28 @@ export class BulkItems {
       try {
         return { ok: work(item) }
       } catch (error) {
-        const reason = Refusals.reason(error)
-        if (!reason) context?.log?.error({ err: error, item: name(item) }, "an item of an MCP bulk change failed")
-        return { failed: name(item), error: reason ?? Refusals.UNEXPECTED }
+        return BulkItems.failure(item, name, error, context)
       }
     })
+  }
+
+  private static failure<T>(item: T, name: (item: T) => string, error: unknown, context?: Pick<ToolContext, "log">): ItemResult {
+    const reason = Refusals.reason(error)
+    if (!reason) context?.log?.error({ err: error, item: name(item) }, "an item of an MCP bulk change failed")
+    return { failed: name(item), error: reason ?? Refusals.UNEXPECTED }
+  }
+
+  /** like run, one item after the other, for work that waits (a plugin checking a signal's params) */
+  static async runAsync<T>(items: readonly T[], name: (item: T) => string, work: (item: T) => Promise<string>, context?: Pick<ToolContext, "log">): Promise<ItemResult[]> {
+    const results: ItemResult[] = []
+    for (const item of items) {
+      try {
+        results.push({ ok: await work(item) })
+      } catch (error) {
+        results.push(BulkItems.failure(item, name, error, context))
+      }
+    }
+    return results
   }
 
   /** "2 of 5 items failed" for the audit, when any did */

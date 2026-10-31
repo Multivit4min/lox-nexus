@@ -43,6 +43,11 @@ Nexus names each Loxone signal by Miniserver, direction and packet id; the Loxon
 3. "plan_bridge" suggests the Loxone signal for each: a free packet id and the data type that fits. It creates nothing.
 4. "bridge" adds the plugin signal, the Loxone signal and the wire per item. Then "loxone_side" for the Loxone Config part.
 
+## Setting up
+- "create_miniserver", "update_miniserver" and "start_miniserver"/"stop_miniserver" manage the Miniservers; a password is entered by the user on the Miniserver's page.
+- "create_plugin_instance" adds an instance of an installed plugin (describe_plugin first). Without its required secrets it is saved but not started: tell the user which ones (missingSecrets) and where (page). "check_plugin_settings" and "discover_setting" help find the right settings.
+- "add_plugin_signals", "update_plugin_signal" and "delete_plugin_signals" change an instance's sensors and actuators.
+
 ## Wires
 "preview_wire" tries transforms on a sample value. "create_wire", "update_wire" (only the fields given) and "delete_wires" change wires; a wire is named by its id or its target's topic.
 

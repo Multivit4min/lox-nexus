@@ -2,7 +2,7 @@ import { BridgeItemSchema, PluginSignalInputSchema, type BridgeItem, type Plugin
 import type { PluginDescription } from "@lox-nexus/plugin-sdk/wire"
 import { z } from "zod"
 import { HttpError } from "../../../http/HttpError.ts"
-import { SecretFields } from "../../../plugins/SecretFields.ts"
+import { SecretInputs } from "../../SecretInputs.ts"
 
 /** a catalog entry as search_catalog shows it */
 export const EntryInput = PluginSignalInputSchema.pick({ kind: true, capability: true, params: true, label: true })
@@ -30,8 +30,7 @@ export class BridgeItems {
     if ("entry" in end) {
       const { kind, capability: id, params } = end.entry
       const capability = (kind === "sensor" ? description.sensors : description.actuators).find(offered => offered.id === id)
-      const secret = capability ? new SecretFields(capability.params).present(params) : []
-      if (secret.length > 0) throw HttpError.badRequest(`secret params (${secret.join(", ")}) are entered by a person in the web UI: leave them out, and say which signal needs them`)
+      if (capability) SecretInputs.refuse(capability.params, params, "secret params")
       return { type: "new", signal: end.entry }
     }
     const signal = signals.find(entry => entry.topic === end.signal || entry.id === end.signal)
