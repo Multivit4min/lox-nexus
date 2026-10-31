@@ -25,7 +25,8 @@ const sentAt = () => {
 <template>
   <Checkbox :model-value="selected" :aria-label="`Select ${row.label}`" @update:model-value="v => emit('select', v === true)" />
   <span class="flex min-w-0 items-center gap-1.5" :class="inGroup && 'pl-5'">
-    <CircleAlert v-if="row.error" class="size-4 shrink-0 text-destructive" :title="row.error" />
+    <!-- an SVG's title attribute shows no tooltip; the wrapper's does -->
+    <span v-if="row.error" class="inline-flex shrink-0" role="img" :title="row.error" :aria-label="row.error"><CircleAlert class="size-4 text-destructive" /></span>
     <span class="truncate font-medium" :title="row.error ?? row.label">{{ row.label }}</span>
     <WiredMark :wires="wired.of(row.id)" />
   </span>
@@ -35,7 +36,9 @@ const sentAt = () => {
   <span class="flex min-w-0 items-center gap-1.5" :title="sentAt()">
     <Lock v-if="forced()" class="size-3.5 shrink-0 text-amber-600 dark:text-amber-400" aria-label="forced" />
     <StaleBadge :stale="live.staleOf(row.topic)" :limit-min="row.staleAfterMin" />
-    <span class="truncate"><ValueText :value="live.get(row.topic)?.value" :unit="row.unit" :decimals="row.decimals" /></span>
+    <!-- a failing sensor without a value says why here, not only in the icon's tooltip (touch has none) -->
+    <span v-if="row.error && !live.get(row.topic)" class="truncate text-xs text-destructive" :title="row.error">{{ row.error }}</span>
+    <span v-else class="truncate"><ValueText :value="live.get(row.topic)?.value" :unit="row.unit" :decimals="row.decimals" /></span>
   </span>
   <SignalActions
     :label="row.label" :forced="forced()" :recorded="recorded.has(row.id)" wirable @history="emit('history')"

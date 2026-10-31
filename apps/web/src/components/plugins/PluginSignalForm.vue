@@ -129,10 +129,15 @@ async function onSubmit() {
     </section>
     <SignalDisplayFields
       v-model:unit="display.unit" v-model:decimals="display.decimals" v-model:stale="display.staleAfterMin" id-prefix="signal"
-      :numeric="SignalDisplayDraft.applies(capability.valueType)" :source="capability.kind === 'sensor'"
+      :numeric="SignalDisplayDraft.applies(capability.valueType)" :source="capability.kind === 'sensor'" only="display"
     />
-    <details class="text-sm">
+    <!-- open when it holds a setting, so a warning that is on is never hidden -->
+    <details class="text-sm" :open="display.staleAfterMin !== '' || undefined">
       <summary class="cursor-pointer text-muted-foreground">Advanced</summary>
+      <SignalDisplayFields
+        v-model:unit="display.unit" v-model:decimals="display.decimals" v-model:stale="display.staleAfterMin" id-prefix="signalAdvanced" class="mt-3"
+        :numeric="false" :source="capability.kind === 'sensor'" only="stale"
+      />
       <FormField id="signalSlug" label="Topic name" class="mt-3" hint="Leave empty to make one from the name">
         <Input id="signalSlug" v-model="slug" />
       </FormField>
