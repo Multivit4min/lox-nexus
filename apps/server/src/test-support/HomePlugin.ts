@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events"
-import { Actuator, Plugin, Sensor, secret, z, type CatalogNode } from "@lox-nexus/plugin-sdk"
+import { Actuator, Plugin, Sensor, secret, z, type CatalogNode, type Panel } from "@lox-nexus/plugin-sdk"
 import { Value } from "@lox-nexus/plugin-sdk/values"
 
 class Reading extends Sensor<HomePlugin, { entity: string; apiKey?: string }> {
@@ -36,7 +36,15 @@ export class HomePlugin extends Plugin<{ url: string; token: string }> {
 
   // an instance whose url mentions "leak" writes its token into its status, as a careless plugin might
   override start() {
+    this.log.info(`connected to ${this.config.url}`)
     if (this.config.url.includes("leak")) this.status.set("degraded", `cannot reach ${this.config.url} with ${this.config.token}`)
+  }
+
+  override panel(): Panel {
+    return { type: "sections", sections: [
+      { title: "Connection", panel: { type: "keyValue", items: [{ label: "Server", value: { text: this.config.url, tone: "ok" } }] } },
+      { title: "Pairing", panel: { type: "qr", data: "MT:planted-pairing-code", caption: "Scan to pair" } }
+    ] }
   }
 
   override catalog(): CatalogNode[] {

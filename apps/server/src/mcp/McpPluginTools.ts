@@ -1,18 +1,25 @@
-import type { BridgeRequest, BridgeResultDto, DiscoveredPacketDto, LoxoneSignalDto, PluginReadmeDto, PluginSignalDto, WireDto } from "@lox-nexus/api"
-import type { CatalogNode } from "@lox-nexus/plugin-sdk/wire"
+import type { BridgeRequest, BridgeResultDto, DiscoveredPacketDto, LoxoneSignalDto, PluginLogLineDto, PluginReadmeDto, PluginSignalDto, WireDto } from "@lox-nexus/api"
+import type { CatalogNode, Panel } from "@lox-nexus/plugin-sdk/wire"
 import type { McpRefs } from "./McpRefs.ts"
 import type { McpResourceTemplate } from "./McpResourceTemplate.ts"
 import type { McpTool } from "./McpTool.ts"
 import { BridgeTool } from "./tools/plugins/BridgeTool.ts"
 import { CatalogCache } from "./tools/plugins/CatalogCache.ts"
 import { DescribePluginTool } from "./tools/plugins/DescribePluginTool.ts"
+import { GetLogsTool } from "./tools/plugins/GetLogsTool.ts"
+import { GetPanelTool } from "./tools/plugins/GetPanelTool.ts"
 import { PlanBridgeTool } from "./tools/plugins/PlanBridgeTool.ts"
 import { PluginRefs, type PluginRefSources } from "./tools/plugins/PluginRefs.ts"
 import { SearchCatalogTool } from "./tools/plugins/SearchCatalogTool.ts"
 
 /** what the plugin tools read and change */
 export interface McpPluginSources {
-  plugins: PluginRefSources["plugins"] & { catalog(instanceId: string): Promise<CatalogNode[]> | CatalogNode[] }
+  plugins: PluginRefSources["plugins"] & {
+    catalog(instanceId: string): Promise<CatalogNode[]> | CatalogNode[]
+    panel(instanceId: string): Promise<Panel | undefined> | Panel | undefined
+  }
+  /** PluginLogs */
+  logs: { recent(instanceId: string): PluginLogLineDto[] }
   pluginSignals: { list(instanceId: string): PluginSignalDto[] }
   loxoneSignals: { list(miniserverId: string): LoxoneSignalDto[]; discovered(miniserverId: string): DiscoveredPacketDto[] }
   wires: { list(): WireDto[] }
@@ -36,7 +43,9 @@ export class McpPluginTools {
       describe,
       new SearchCatalogTool(refs, catalogs, sources.pluginSignals),
       new PlanBridgeTool(refs, miniservers, sources),
-      new BridgeTool(refs, miniservers, sources.pluginSignals, sources.bridges)
+      new BridgeTool(refs, miniservers, sources.pluginSignals, sources.bridges),
+      new GetPanelTool(refs, sources.plugins),
+      new GetLogsTool(refs, sources.logs)
     ]
     this.templates = [{
       uriTemplate: "nexus://plugins/{plugin}/readme", name: "plugin-readme", title: "A plugin's README", mimeType: "text/markdown", scope: "read",

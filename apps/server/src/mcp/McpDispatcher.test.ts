@@ -106,9 +106,9 @@ test("resource templates are listed and fill their variables from the URI", asyn
 
 test("prompts need the scope of the tools they use, and their required arguments", async () => {
   const { dispatcher } = setup()
-  assert.deepEqual((await ask(dispatcher, "prompts/list")).result?.prompts, [], "a read token can't follow them")
-  const listed = (await ask(dispatcher, "prompts/list", undefined, ["read", "configure"])).result?.prompts as { name: string }[]
-  assert.deepEqual(listed.map(prompt => prompt.name), ["connect_plugin_to_loxone", "import_from_loxone_config"])
+  const names = async (scopes: ToolContext["access"]["scopes"]) => ((await ask(dispatcher, "prompts/list", undefined, scopes)).result?.prompts as { name: string }[]).map(prompt => prompt.name)
+  assert.deepEqual(await names(["read"]), ["diagnose_signal", "review_installation"], "a read token sees only the prompts it can follow")
+  assert.deepEqual(await names(["read", "configure"]), ["connect_plugin_to_loxone", "import_from_loxone_config", "diagnose_signal", "review_installation"])
   const prompt = await ask(dispatcher, "prompts/get", { name: "connect_plugin_to_loxone", arguments: { instance: "ha", miniserver: "haus", what: "room temperatures" } }, ["read", "configure"])
   const messages = prompt.result?.messages as { role: string; content: { text: string } }[]
   assert.equal(messages[0]?.role, "user")

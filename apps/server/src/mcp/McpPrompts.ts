@@ -36,5 +36,37 @@ export class McpPrompts {
 4. "removed" signals exist in Nexus only. Name them, but delete nothing unless I ask; deleting takes their wires along.`
   }
 
-  static readonly ALL: readonly McpPrompt[] = [McpPrompts.CONNECT_PLUGIN, McpPrompts.IMPORT_FROM_CONFIG]
+  static readonly DIAGNOSE_SIGNAL: McpPrompt = {
+    name: "diagnose_signal",
+    title: "Why is this signal wrong?",
+    description: "Find out why a signal has no value, an old value or an unexpected one: its owner, force, wires and recent messages.",
+    arguments: [{ name: "signal", description: "the signal's topic, or what the user calls it", required: true }],
+    scope: "read",
+    text: args => `Find out what is wrong with the signal "${args.signal}". Change nothing; explain, and suggest fixes.
+
+1. If that isn't a topic, find it with list_signals (search). Ask me if several match.
+2. get_signal: its value and when it came, a force, stale, its wires and why one carries nothing.
+3. Its owner: for a Miniserver, overview (health, load) and, for an in signal, list_discovered (is the Miniserver sending a different packet id or type?); for a plugin, get_panel and get_logs of its instance.
+4. recent_messages for its topic, and trace on a message that looks wrong, to see what caused it.
+5. get_history if it helps to see when it started.
+Tell me the cause in one or two sentences, then the evidence, then what I could do (and which tool would do it).`
+  }
+
+  static readonly REVIEW_INSTALLATION: McpPrompt = {
+    name: "review_installation",
+    title: "Review the installation",
+    description: "Look for what needs attention: inactive wires, stale and unwired signals, busy Miniservers, degraded plugin instances.",
+    arguments: [],
+    scope: "read",
+    text: () => `Review this Lox Nexus installation. Change nothing.
+
+1. overview: the problems list, Miniserver health and load (over 70 % is busy), plugin instances that aren't running or are degraded.
+2. list_wires with inactiveOnly: wires that carry nothing, and why.
+3. list_signals with stale: true, then unwired: true: signals without values, and signals nothing uses.
+4. For each degraded instance: get_panel and get_logs (warn and above).
+5. system_status: memory, load and the clock offset.
+Report by urgency: broken (values don't flow), worth fixing, tidy-up. One line each, with the topic or instance, and what would fix it.`
+  }
+
+  static readonly ALL: readonly McpPrompt[] = [McpPrompts.CONNECT_PLUGIN, McpPrompts.IMPORT_FROM_CONFIG, McpPrompts.DIAGNOSE_SIGNAL, McpPrompts.REVIEW_INSTALLATION]
 }

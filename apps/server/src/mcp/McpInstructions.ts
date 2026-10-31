@@ -29,6 +29,7 @@ ${McpInstructions.TEXT}
 - "get_signal" shows one signal with its value, force, wires and why a wire carries nothing.
 - "list_wires" shows the wires with their health; "recent_messages" and "trace" show what went over the bus and why.
 - "system_status" shows memory, load, the clock offset and whether a config import is running.
+- "get_panel" and "get_logs" show what a plugin instance shows on its page and logs; "get_history" a signal's recorded values.
 
 ## Together with Loxone Config
 Nexus names each Loxone signal by Miniserver, direction and packet id; the Loxone side needs the same packet id, the matching direction and the data type. Names are free.
@@ -46,5 +47,5 @@ Nexus names each Loxone signal by Miniserver, direction and packet id; the Loxon
 "preview_wire" tries transforms on a sample value. "create_wire", "update_wire" (only the fields given) and "delete_wires" change wires; a wire is named by its id or its target's topic.
 
 ## Recipes
-The prompts "connect_plugin_to_loxone" and "import_from_loxone_config" walk through both tasks step by step.`
+The prompts "connect_plugin_to_loxone" and "import_from_loxone_config" walk through both tasks step by step; "diagnose_signal" and "review_installation" look for problems without changing anything.`
 }

@@ -46,6 +46,14 @@ describe("MCP plugin tools", { timeout: 30_000 }, () => {
     await admin.delete(`/api/plugin-instances/${leaky.id}`)
   })
 
+  test("get_panel shows the page as text without the QR payload; get_logs the newest lines", async () => {
+    const panel = await json<{ state: string; panel: Array<{ title: string; items?: unknown[] }> }>("get_panel", { instance: "ha" })
+    assert.deepEqual(panel.panel[0], { title: "Connection", items: [{ label: "Server", value: "http://ha (ok)" }] })
+    const logs = await json<{ columns: string[]; rows: unknown[][] }>("get_logs", { instance: "ha" })
+    assert.ok(logs.rows.some(row => row.includes("connected to http://ha")), JSON.stringify(logs))
+    assert.equal((await json<{ rows: unknown[] }>("get_logs", { instance: "ha", level: "error" })).rows.length, 0)
+  })
+
   test("describe_plugin: settings with the secret fields named, capabilities and instances", async () => {
     const plugin = await json<{ id: string; secretFields: string[]; sensors: Array<{ id: string }>; instances: Array<{ slug: string }> }>("describe_plugin", { plugin: "ha" })
     assert.equal(plugin.id, "home")

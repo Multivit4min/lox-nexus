@@ -81,6 +81,8 @@ internet and a sign-in flow it doesn't have.
 | `diff_loxone_objects` | objects read from Loxone Config compared with Nexus: new, differing, and removed (only in Nexus) |
 | `list_discovered` | packets a Miniserver sends that have no signal yet |
 | `preview_wire` | what transforms make of a sample value |
+| `get_panel`, `get_logs` | a plugin instance's page (QR codes only in the web UI) and its newest log lines |
+| `get_history` | a signal's recorded values over a time range, as changes or as buckets |
 
 They can also attach `nexus://inventory` (the overview with every signal), `nexus://guide`,
 `nexus://miniservers/<slug>/loxone-side` and `nexus://plugins/<plugin>/readme`.
@@ -106,7 +108,12 @@ runs, agents can read but not change anything.
 
 ### Recipes
 
-Clients that offer MCP prompts (in Claude Code: type `/`) list two recipes:
+Clients that offer MCP prompts (in Claude Code: type `/`) list these recipes. Every token gets
+the first two; the others need the configure permission:
+
+- **diagnose_signal**: why a signal has no value, an old one or a wrong one, from its owner,
+  force, wires, messages and history. Changes nothing.
+- **review_installation**: what needs attention, by urgency. Changes nothing.
 
 - **connect_plugin_to_loxone**: find values or devices in a plugin, show a plan, connect them,
   then say what to create in Loxone Config.

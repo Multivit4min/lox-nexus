@@ -1,10 +1,11 @@
-import type { DiagnosticsDto } from "@lox-nexus/api"
+import type { DiagnosticsDto, HistorySeriesDto } from "@lox-nexus/api"
 import type { Recorder } from "@lox-nexus/core"
 import type { ChangeLock } from "../http/ChangeLock.ts"
 import { InventoryService, type InventorySources } from "../services/InventoryService.ts"
 import { McpInstructions } from "./McpInstructions.ts"
 import type { McpResource } from "./McpResource.ts"
 import type { McpTool } from "./McpTool.ts"
+import { GetHistoryTool } from "./tools/GetHistoryTool.ts"
 import { GetSignalTool } from "./tools/GetSignalTool.ts"
 import { ListSignalsTool } from "./tools/ListSignalsTool.ts"
 import { ListWiresTool } from "./tools/ListWiresTool.ts"
@@ -19,6 +20,8 @@ export interface McpReadSources extends InventorySources {
   diagnostics?: { snapshot(since?: number): DiagnosticsDto }
   lock?: Pick<ChangeLock, "heldBy">
   version: string
+  /** HistoryService; get_history is offered with it */
+  history?: { series(signalId: string, input: unknown): HistorySeriesDto }
   /** the time, so tools don't read the global clock */
   now?: () => number
 }
@@ -41,7 +44,8 @@ export class McpReadTools {
       new ListWiresTool(inventory),
       new SystemStatusTool(sources.diagnostics, now, sources.lock),
       new RecentMessagesTool(sources.recorder),
-      new TraceTool(sources.recorder)
+      new TraceTool(sources.recorder),
+      ...(sources.history ? [new GetHistoryTool(inventory, sources.history, now)] : [])
     ]
     this.resources = [
       {

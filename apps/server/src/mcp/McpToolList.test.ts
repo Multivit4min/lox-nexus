@@ -7,7 +7,7 @@ import { TestApp } from "../test-support/TestApp.ts"
 // What each scope may call: a tool that appears here by accident is a security change, so
 // adding one means updating this list on purpose. r: read-only, d: destructive (asks first)
 const READ = [
-  "describe_plugin r", "diff_loxone_objects r", "get_signal r", "list_discovered r", "list_signals r", "list_wires r", "loxone_side r",
+  "describe_plugin r", "diff_loxone_objects r", "get_history r", "get_logs r", "get_panel r", "get_signal r", "list_discovered r", "list_signals r", "list_wires r", "loxone_side r",
   "overview r", "plan_bridge r", "preview_wire r", "recent_messages r", "search_catalog r", "system_status r", "trace r"
 ]
 const CONFIGURE = [
