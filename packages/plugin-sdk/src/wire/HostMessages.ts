@@ -48,7 +48,9 @@ export const HostMessageSchema = z.discriminatedUnion("type", [
     /** the lowest level the host keeps; lines below it aren't sent. Absent from older hosts: send everything */
     logLevel: LogLevelSchema.optional(),
     /** the version the config was stored with (1 when the plugin declared none). Absent from older hosts: no migration is reported */
-    configVersion: z.int().min(1).optional()
+    configVersion: z.int().min(1).optional(),
+    /** what the host understands beyond version 1 (HOST_FEATURES); absent from older hosts, which understand none */
+    hostFeatures: z.array(z.string().max(50)).max(50).optional()
   }),
   /** what the plugin offers: config schema, sensors and actuators with their params (JSON Schema) */
   z.object({ type: z.literal("describe"), requestId }),
@@ -56,7 +58,8 @@ export const HostMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("signal.add"), requestId, signal: SignalSpecSchema }),
   z.object({ type: z.literal("signal.remove"), requestId, id: z.string() }),
   /** `causeId` is the bus message that triggered it; emits while handling it carry it back */
-  z.object({ type: z.literal("actuate"), requestId, signalId: z.string(), value: ValueSchema, causeId: z.string().optional() }),
+  /** `replayed`: the host delivers the value again (a force after the plugin started), not a new command. Absent from older hosts */
+  z.object({ type: z.literal("actuate"), requestId, signalId: z.string(), value: ValueSchema, causeId: z.string().optional(), replayed: z.boolean().optional() }),
   /** answered with a CatalogNode[] */
   z.object({ type: z.literal("catalog"), requestId }),
   /** answered with a Panel, or no result when the plugin has none */
@@ -79,6 +82,11 @@ export const HostMessageSchema = z.discriminatedUnion("type", [
   }),
   /** runs the plugin's `static test` with a valid config; answered with its message. Same feature as config.check */
   z.object({ type: z.literal("config.test"), requestId, config: z.unknown() }),
+  /**
+   * runs the plugin's `static discover` for one config field; answered with what it found (DiscoveredSchema).
+   * `config` is the form as filled in so far, unvalidated. Only for fields the description lists as `discoverable`
+   */
+  z.object({ type: z.literal("config.discover"), requestId, field: z.string().min(1).max(100), config: z.unknown().optional() }),
   /** answered with a full HttpResponse */
   z.object({ type: z.literal("http.request"), requestId, request: HttpRequestSchema }),
   /**

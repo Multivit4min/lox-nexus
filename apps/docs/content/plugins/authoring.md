@@ -11,8 +11,8 @@ Contents: [how Nexus sees a plugin](#how-nexus-sees-a-plugin) ·
 [sensors](#sensors-values-from-the-device) · [actuators](#actuators-commands-to-the-device) ·
 [lifetimes](#lifetimes-disposable) · [time](#time-and-time-zones) ·
 [logging, store and status](#logging-store-and-status) · [webhooks](#webhooks) ·
-[catalog](#catalog-browse-and-add) · [panel](#panel-a-status-page) ·
-[watching](#watching-signals-exporters) · [limits](#limits-at-a-glance)
+[catalog](#catalog-browse-and-add) · [panel](#panel-a-status-page) · [actions](#actions-buttons-on-the-instance-page) ·
+[find on the network](#find-on-the-network) · [watching](#watching-signals-exporters) · [limits](#limits-at-a-glance)
 
 ## How Nexus sees a plugin
 
@@ -193,7 +193,7 @@ what it reads or does tells them more than a label alone.
 |---|---|
 | `start()` | Once per run, after construction. See [lifecycle](#the-lifecycle-of-a-plugin). |
 | `catalog()` | When the user browses what to add. See [Catalog](#catalog-browse-and-add). |
-| `panel()` | When the user opens or refreshes the instance page. See [Panel](#panel-a-status-page). |
+| `panel()` | Every 3 s while the instance page is open, or, with `static panelUpdates = "push"`, when you call `panelChanged()` (and every 30 s). See [Panel](#panel-a-status-page). |
 | `watched()`, `watchChanged()` | For plugins that declare `watches`. See [Watching](#watching-signals-exporters). |
 | `unhandledRejection(reason)` | When a promise anywhere in the worker rejects without a handler. |
 
@@ -330,6 +330,27 @@ after its kind ("Trigger (pulse)"), which says little once there are several.
 static readonly params = z.object({ hook: signalName(z.string().min(1)) })
 ```
 
+**Field kinds.** These build a schema with its own input in the form; hosts and UIs that don't know
+the hint still show and check a number or text:
+
+| Helper | Value | The form shows |
+|---|---|---|
+| `duration({ unit, min, max })` | a number of `unit`s (`"ms"`, `"s"` default, `"min"`, `"h"`) | a number with a unit to pick; the value stays in the field's unit |
+| `timeOfDay()` | `"HH:MM"` | a time picker |
+| `color()` | `"#rrggbb"` | a colour picker with the hex next to it |
+| `slider(min, max, step)` | a number in the range | a slider with the number |
+| `file({ accept, maxBytes, encoding })` | the file's contents, text or base64 | a file picker; the size is checked before upload |
+| an array of an enum, `z.array(z.enum([...]))` | the picked values | chips to toggle |
+
+```ts
+pollEvery: duration({ unit: "s", min: 5 }).default(60),
+quietFrom: timeOfDay().optional(),
+certificate: secret(file({ accept: ".pem,.crt" }).optional())
+```
+
+**`discoverable(schema)`** gives a top-level field a **Find** button, see
+[Find on the network](#find-on-the-network).
+
 **`code(schema, language?)`** is for source code or a template. The UI edits it in a code editor.
 `language` is `"javascript"` (default), `"json"` or `"text"`. The SDK does not validate the code:
 compile or parse it in `start()` and throw with the line and column.
@@ -337,6 +358,31 @@ compile or parse it in `start()` and throw with the line and column.
 ```ts
 script: code(z.string().default("return input"), "javascript")
 ```
+
+## Find on the network
+
+A config field marked with `discoverable()` gets a **Find** button. It runs the plugin's
+`static discover(field, config)` in a throwaway worker (like Test connection, without starting the
+plugin, for at most 15 seconds) and offers what it found; the user picks one and the field gets
+its `value`. `config` is the form as filled in so far, not validated. Most devices that announce
+themselves do it with mDNS, which `Mdns.browse` asks:
+
+```ts
+static readonly config = z.object({ url: discoverable(z.url().meta({ title: "URL" })) })
+
+static async discover() {
+  const servers = await Mdns.browse("_home-assistant._tcp.local")
+  return servers.map(server => ({
+    label: server.name.split("._")[0] ?? server.host,
+    value: server.txt.base_url ?? `http://${server.addresses[0] ?? server.host}:${server.port}`,
+    detail: server.host
+  }))
+}
+```
+
+`Mdns.browse` asks once from a random port and collects answers for 3 seconds (`timeoutMs`), so it
+needs neither port 5353 nor a running mDNS daemon. It only finds devices on the same network as
+Nexus (in Docker: host networking). Read, never write: Find may run while the user is still typing.
 
 ## Time and time zones
 
@@ -516,6 +562,18 @@ duration, as a *result* message under the command on the bus. So:
 - Nexus marks a command as failed after **30 seconds** without an answer, but cannot stop your
   `run()`. Give your requests their own, shorter timeout.
 - `run()` never overlaps itself, see below.
+
+**Replays.** When a plugin starts, Nexus delivers an active force on its actuators again, since a
+restarted plugin (or a device that rebooted with it) may no longer match it. `run(value, command)`
+tells it apart from a new command with `command.replayed`. An actuator whose command does
+something drastic, restarting a device or opening a door, should return without acting on a replay:
+
+```ts
+async run(value: ValueOf<"boolean">, command?: ActuatorCommand) {
+  if (command?.replayed || !value.value) return
+  await this.plugin.api.restart(this.params.device)
+}
+```
 
 ### `concurrency`
 
@@ -762,21 +820,101 @@ override catalog(): CatalogNode[] {
 
 A panel is a view on the instance's page where you show facts that do not belong on the bus: a
 firmware version, a table of discovered meters, the last error. Plugins ship no UI code, so a panel
-is data, in one of four shapes:
+is data:
 
 ```ts
 override panel(): Panel {
-  return { type: "keyValue", items: [{ label: "Firmware", value: "1.34" }] }
+  return {
+    type: "sections",
+    sections: [
+      { title: "Inverter", panel: { type: "keyValue", items: [
+        { label: "State", value: { text: "running", tone: "ok" } },
+        { label: "Last poll", value: { text: "12 s ago", since: this.lastPoll } }
+      ] } },
+      { title: "Power", panel: { type: "tiles", tiles: [
+        { label: "PV", value: 3200, unit: "W" },
+        { label: "Battery", value: 82, unit: "%", min: 0, max: 100 }
+      ] } },
+      { title: "Meters", panel: { type: "table", columns: ["Meter", "Power"], rows: [["Grid", "412 W"]] } }
+    ]
+  }
 }
-// or { type: "table", columns: ["Meter", "Power"], rows: [["Grid", "412 W"]] }
-// or { type: "json", data: { anything: "serialisable as JSON" } }
-// or { type: "sections", sections: [{ title: "Inverter", panel: { type: "keyValue", items } }, { title: "Meters", panel: { type: "table", columns, rows } }] }
 ```
 
-`sections` shows titled parts one below the other (at most 20). Cells are strings, so format numbers
-yourself. `panel()` is asked when the page is opened and when the user presses Refresh, and only while
-the instance runs, so read from memory rather than querying the device. Returning `undefined`
-shows nothing. **Never put secrets in a panel.**
+The parts:
+
+| Part | Shows |
+|---|---|
+| `keyValue` | label and value pairs; an item may have a `control` (a button or switch, see below) |
+| `table` | columns and rows; the page sorts by any column, searches once there are more than 8 rows, and pages by 25. Up to 4 buttons per row (`rowActions`) |
+| `tiles` | headline values as big numbers, at most 12; with `min` and `max` a bar, with `until` a countdown, `hint` as a tooltip |
+| `notice` | a box with a message for the user, `tone`, `title`, `text` and an optional `link` (http(s) or a Nexus page `#/…`) |
+| `qr` | a QR code of `data`, e.g. a Matter pairing payload |
+| `json` | a formatted tree |
+| `sections` | titled parts one below the other (at most 20), each with up to 4 buttons in its heading (`actions`) |
+
+**Cells.** Values in key-value lists and tables are *cells*: a string, or `{ text?, tone?, until?, since? }`.
+`tone` (`"ok"`, `"warn"`, `"error"`, `"info"`, `"muted"`) shows as a coloured dot with the text in
+that colour. `until` and `since` are epoch milliseconds the page counts down to ("in 12:30") or up
+from ("for 3 min") while it is open, so a pairing window or "connected since" stays right without
+a new panel. Format numbers yourself.
+
+**Buttons and switches.** A `RowAction` (`{ action, label?, input? }`) on a row, a key-value item or
+a section's heading opens that action's dialog with `input` filled in. Two variants run at once,
+without the dialog: `instant: true` (after the action's `confirm`, if it has one), for buttons
+whose input is complete, such as "Restart" on a device's row; and `switch: { checked }`, shown as a
+switch in that state, which runs the action with `input` when flipped, so put the new state there:
+
+```ts
+{ label: "Guest Wi-Fi", value: enabled ? "on" : "off", control: { action: "guest-wifi", switch: { checked: enabled }, input: { enabled: !enabled } } }
+```
+
+The result of an instant run shows above the panel; then the panel is asked again.
+
+**When it is asked.** `panel()` is asked every 3 seconds while the instance page is open, and only
+while the instance runs, so read from memory rather than querying the device. A plugin that knows
+when its panel changes declares `static panelUpdates = "push"` and calls `this.panelChanged()`
+then (a device paired, a poll finished): open pages ask for it at once, and otherwise only every
+30 seconds. `panelChanged()` is cheap; the host hears about it at most once a second. Returning
+`undefined` shows nothing. **Never put secrets in a panel.**
+
+**Older Nexus versions.** Tiles, notices, rich cells, item controls and instant or switch buttons
+are newer than the panel itself. On a Nexus without them, the runtime turns them into what it
+shows: cells into text (a countdown into the time it ends), tiles and notices into key-value
+lists, controls left out. You don't check for it.
+
+## Actions: buttons on the instance page
+
+An action is something a user starts from the instance page with a small form: pair a device,
+open a pairing window, remove a paired controller. One class per action, declared in the plugin's
+`static actions`:
+
+```ts
+export class OpenWindowAction extends Action<BridgePlugin> {
+  static readonly id = "open-window"
+  static readonly label = "Open pairing window"
+  static readonly placement = "panel"          // only where the panel puts its button
+  async run() {
+    this.progress("Opening the window…", 0.5)  // shown in the dialog while it runs
+    const code = await this.plugin.bridge.openWindow()
+    return { message: "Open for 15 minutes", panel: { type: "qr", data: code } }
+  }
+}
+```
+
+- **Input.** `static input` is a zod schema; the dialog is its form, checked before `run()`. A
+  `z.discriminatedUnion` shows as a choice and the chosen branch's fields. Inputs may hold secrets
+  (pairing codes): never log them.
+- **Answer.** `run()` returns a text (at most 2000 characters), `{ message?, panel? }` with a panel
+  part under it (a QR code, tiles, a notice), or nothing ("Done."). Older Nexus versions show the
+  message only. A throw is shown as the failure, and the form stays filled in.
+- **Progress.** `this.progress(text, fraction?)` tells the user how a long action gets on; the
+  dialog shows the text and, with a fraction from 0 to 1, a bar. At most four a second reach the
+  host, the latest always.
+- **Where its button is.** By default at the top of the page. `static placement = "panel"` puts it
+  only where the panel does: on table rows, key-value items and section headings (see Panel).
+- **Rules.** One action runs at a time per instance, for at most 2 minutes; it is disposed when it
+  settles or the plugin stops. `static confirm` asks before it runs, for actions that undo something.
 
 ## Watching signals (exporters)
 

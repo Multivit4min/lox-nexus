@@ -1,5 +1,5 @@
 import type { ValueType } from "@lox-nexus/plugin-sdk/values"
-import type { LogLevel, PluginDescription } from "@lox-nexus/plugin-sdk/wire"
+import type { Discovered, LogLevel, PanelPart, PluginDescription } from "@lox-nexus/plugin-sdk/wire"
 import { z } from "zod"
 import { SignalDisplayInputSchema, type SignalDisplayDto } from "./signalDisplay.ts"
 
@@ -101,13 +101,29 @@ export interface PluginLogLevelDto {
 export const PluginLogLevelInputSchema = z.object({ level: z.enum(["debug", "info"]), minutes: z.int().min(1).max(60).optional() })
 export type PluginLogLevelInput = z.infer<typeof PluginLogLevelInputSchema>
 
-/** Body of POST /api/plugin-instances/:id/actions/:action: the form's values, checked by the plugin. */
-export const PluginActionRequestSchema = z.object({ input: z.record(z.string(), z.unknown()).default({}) })
+/**
+ * Body of POST /api/plugin-instances/:id/actions/:action: the form's values, checked by the plugin.
+ * `runId` (chosen by the page) tags the action's progress on the stream (`plugin-action-progress`).
+ */
+export const PluginActionRequestSchema = z.object({
+  input: z.record(z.string(), z.unknown()).default({}),
+  runId: z.string().min(1).max(64).regex(/^[\w-]+$/).optional()
+})
 export type PluginActionRequest = z.input<typeof PluginActionRequestSchema>
 
-/** The answer to an action: what the plugin says happened, if anything. */
+/** The answer to an action: what the plugin says happened, if anything, and a part to show under it (a QR code). */
 export interface PluginActionResultDto {
   message?: string
+  panel?: PanelPart
+}
+
+/** Body of POST /api/plugins/:plugin/discover: a config field marked discoverable, and the form as filled in so far. */
+export const PluginDiscoverInputSchema = z.object({ field: z.string().min(1).max(100), config: z.record(z.string(), z.unknown()).default({}) })
+export type PluginDiscoverInput = z.input<typeof PluginDiscoverInputSchema>
+
+/** What Find on the network found for a field. */
+export interface PluginDiscoverResultDto {
+  found: Discovered
 }
 
 /** POST/PUT body of a plugin signal; `slug` defaults to one derived from the label. */

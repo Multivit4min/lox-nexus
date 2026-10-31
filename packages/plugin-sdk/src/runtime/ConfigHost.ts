@@ -1,8 +1,10 @@
 import { z } from "zod"
 import type { PluginClass } from "../plugin/Plugin.ts"
 import type { PluginStore } from "../plugin/PluginContext.ts"
+import { DiscoveredSchema, type Discovered } from "../wire/Shapes.ts"
 import { Declarations } from "./Declarations.ts"
 import { MessageLimits } from "./MessageLimits.ts"
+import { PluginDescriber } from "./PluginDescriber.ts"
 import { RuntimeStore } from "./RuntimeStore.ts"
 
 /** A problem with one setting; `path` leads to the field, e.g. ["devices", 2, "name"]. */
@@ -79,5 +81,26 @@ export class ConfigHost {
     if (!parsed.success) throw new Error(`invalid config: ${z.prettifyError(parsed.error)}`)
     const message = await this.type.test(parsed.data as never)
     return typeof message === "string" ? MessageLimits.clip(message) : undefined
+  }
+
+  /**
+   * The plugin's Find on the network for one config field.
+   * @throws Error for a plugin without discover, a field not marked discoverable, or discover's own failure
+   */
+  async discover(field: string, config: unknown): Promise<Discovered> {
+    if (typeof this.type.discover !== "function") throw new Error(`${this.type.name} can't find anything on the network`)
+    const fields = PluginDescriber.discoverable(PluginDescriber.describe(this.type).config)
+    if (!fields.includes(field)) throw new Error(`"${field}" is not a field ${this.type.name} can find on the network`)
+    const raw: unknown = await this.type.discover(field, config)
+    if (!Array.isArray(raw)) throw new Error(`${this.type.name} found something it can't show: not a list`)
+    // names come from devices on the LAN: one odd entry is clipped or left out, not the whole list refused
+    const found = raw.flatMap(entry => ConfigHost.discovered(entry)).slice(0, 100)
+    return DiscoveredSchema.parse(found)
+  }
+
+  private static discovered(entry: unknown): Discovered {
+    const { label, value, detail } = (entry ?? {}) as Record<string, unknown>
+    if (typeof label !== "string" || typeof value !== "string" || value.length > 2000) return []
+    return [{ label: label.slice(0, 200), value, ...(typeof detail === "string" ? { detail: detail.slice(0, 500) } : {}) }]
   }
 }

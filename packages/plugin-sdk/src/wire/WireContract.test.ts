@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 import { HostMessageSchema, WIRE_VERSION } from "./HostMessages.ts"
-import { PanelSchema, PluginDescriptionSchema } from "./Shapes.ts"
+import { ActionAnswerSchema, PanelSchema, PluginDescriptionSchema } from "./Shapes.ts"
 import { WorkerMessageSchema } from "./WorkerMessages.ts"
 
 // Frozen samples of wire version 1. Plugins built against this version send and expect exactly
@@ -87,4 +87,25 @@ test("descriptions and panels of version 1 keep parsing, with the later optional
     { type: "sections", sections: [{ title: "Devices", panel: { type: "table", columns: ["Name"], rows: [] }, actions: [{ action: "add", label: "Add device" }] }] }
   ]
   for (const panel of panels) assert.ok(PanelSchema.safeParse(panel).success, JSON.stringify(panel))
+})
+
+test("the additions behind host features and declarations parse: host features, replays, discover, panel v2, answers, pushes, progress", () => {
+  const hostMessages = [
+    { type: "init", instanceId: "i", config: {}, store: {}, hostFeatures: ["panel.v2", "panel.push", "action.result", "action.progress"] },
+    { type: "actuate", requestId: 4, signalId: "a", value: { type: "boolean", value: true }, replayed: true },
+    { type: "config.discover", requestId: 9, field: "url", config: { url: "" } }
+  ]
+  for (const message of hostMessages) assert.ok(HostMessageSchema.safeParse(message).success, JSON.stringify(message))
+  const workerMessages = [{ type: "panel.changed" }, { type: "action.progress", requestId: 3, text: "Searching…", fraction: 0.5 }]
+  for (const message of workerMessages) assert.ok(WorkerMessageSchema.safeParse(message).success, JSON.stringify(message))
+  const panels = [
+    { type: "keyValue", items: [{ label: "Bridge", value: { text: "running", tone: "ok" }, control: { action: "toggle", switch: { checked: true }, input: { on: false } } }] },
+    { type: "table", columns: ["Window"], rows: [[{ until: 1_800_000_000_000 }]], rowActions: [[{ action: "restart", label: "Restart", instant: true }]] },
+    { type: "tiles", tiles: [{ label: "PV", value: 3200, unit: "W", decimals: 0, tone: "ok", min: 0, max: 10_000 }] },
+    { type: "notice", tone: "warn", title: "Not paired", text: "Scan the code", link: { label: "Help", href: "#/plugins" } }
+  ]
+  for (const panel of panels) assert.ok(PanelSchema.safeParse(panel).success, JSON.stringify(panel))
+  assert.equal(PanelSchema.safeParse({ type: "notice", tone: "info", text: "x", link: { label: "x", href: "javascript:alert(1)" } }).success, false, "only http(s) and Nexus links")
+  assert.ok(ActionAnswerSchema.safeParse({ message: "Scan it", panel: { type: "qr", data: "MT:1" } }).success)
+  assert.ok(PluginDescriptionSchema.safeParse({ config: {}, sensors: [], actuators: [], panelPush: true, discoverable: ["url"] }).success)
 })

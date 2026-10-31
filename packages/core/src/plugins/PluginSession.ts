@@ -40,6 +40,9 @@ type InitFields = Omit<Init, "type" | "timeZone" | "logLevel"> & { timeZone?: st
 type Request = Extract<HostMessage, { requestId: number }>
 type RequestBody = Request extends infer R ? R extends Request ? Omit<R, "requestId"> : never : never
 
+/** how a running request (an action) gets on, as the plugin reports it */
+export type ProgressListener = (text: string, fraction?: number) => void
+
 /**
  * One running plugin from hello to exit: the init handshake, requests matched to responses,
  * heartbeat pings and the graceful shutdown. Not reusable: a restart creates a new session.
@@ -57,6 +60,8 @@ export class PluginSession extends Disposable {
   private endReason = "stopped"
   /** pending waitFor() calls; they fail with the real reason when the session ends */
   private readonly waiting = new Set<(reason: string) => void>()
+  /** listeners of requests that report progress (actions), by request id */
+  private readonly progress = new Map<number, ProgressListener>()
 
   constructor(private readonly connection: PluginConnection, private readonly timings: SessionTimings) {
     super()
@@ -100,9 +105,13 @@ export class PluginSession extends Disposable {
    * Sends a request and resolves with the plugin's result.
    * @throws PluginRequestError with the plugin's message, or PluginUnavailableError on timeout or exit
    */
-  request(body: RequestBody, timeoutMs = this.timings.requestMs): Promise<unknown> {
+  request(body: RequestBody, timeoutMs = this.timings.requestMs, onProgress?: ProgressListener): Promise<unknown> {
     if (this.over) return Promise.reject(new PluginUnavailableError("the plugin is not running"))
     const { requestId, result } = this.requests.create(timeoutMs, body.type)
+    if (onProgress) {
+      this.progress.set(requestId, onProgress)
+      void result.finally(() => this.progress.delete(requestId)).catch(() => undefined)
+    }
     this.connection.send({ ...body, requestId } as Request)
     return result
   }
@@ -142,7 +151,8 @@ export class PluginSession extends Disposable {
   private receive(message: WorkerMessage) {
     if (message.type === "response") return this.requests.settle(message)
     if (message.type === "pong") return void (this.unanswered = 0)
-    if (["emit", "log", "status", "store.set", "store.delete", "signal.error", "signal.recovered", "watch.ack", "config.migrated"].includes(message.type)) this.events.emit("message", message)
+    if (message.type === "action.progress") return this.progress.get(message.requestId)?.(message.text, message.fraction)
+    if (["emit", "log", "status", "store.set", "store.delete", "signal.error", "signal.recovered", "watch.ack", "config.migrated", "panel.changed"].includes(message.type)) this.events.emit("message", message)
   }
 
   // a hung plugin can't answer; terminating it makes the exit report the reason

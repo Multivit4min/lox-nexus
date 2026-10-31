@@ -9,8 +9,10 @@ export class PluginDescriber {
   /** @throws Error when the declarations are invalid, see assertValid() */
   static describe(type: PluginClass): PluginDescription {
     PluginDescriber.assertValid(type)
+    const config = PluginDescriber.schemaOf(Declarations.config(type))
+    const discoverable = PluginDescriber.discoverable(config)
     return {
-      config: PluginDescriber.schemaOf(Declarations.config(type)),
+      config,
       sensors: Declarations.sensors(type).map(sensor => ({
         id: sensor.id, label: Declarations.label(sensor), ...Declarations.description(sensor), ...Declarations.display(sensor, "sensor"), params: PluginDescriber.schemaOf(Declarations.params(sensor)), valueType: Declarations.valueType(sensor)
       })),
@@ -19,8 +21,16 @@ export class PluginDescriber {
       })),
       ...Declarations.watches(type),
       ...PluginDescriber.actions(type),
-      ...(typeof type.test === "function" ? { testable: true as const } : {})
+      ...(typeof type.test === "function" ? { testable: true as const } : {}),
+      ...(type.panelUpdates === "push" ? { panelPush: true as const } : {}),
+      ...(discoverable.length > 0 && typeof type.discover === "function" ? { discoverable } : {})
     }
+  }
+
+  /** the config fields marked with discoverable(): top-level fields only, as the form shows Find for those */
+  static discoverable(config: JsonSchema): string[] {
+    const properties = (config.properties ?? {}) as Record<string, { discover?: unknown } | undefined>
+    return Object.entries(properties).filter(([, field]) => field?.discover === true).map(([name]) => name)
   }
 
   // absent without actions, so descriptions of plugins without them stay as they were
@@ -45,7 +55,9 @@ export class PluginDescriber {
         seen.add(capability.id)
       }
     }
-    const { configVersion, migrateConfig, test } = type
+    const { configVersion, migrateConfig, test, discover, panelUpdates } = type
+    if (discover !== undefined && typeof discover !== "function") throw new Error(`${type.name}: static discover must be a function`)
+    if (panelUpdates !== undefined && panelUpdates !== "push") throw new Error(`${type.name}: static panelUpdates can only be "push"`)
     if (configVersion !== undefined && !(Number.isInteger(configVersion) && configVersion >= 1)) throw new Error(`${type.name}: static configVersion must be a whole number from 1`)
     if (migrateConfig !== undefined && typeof migrateConfig !== "function") throw new Error(`${type.name}: static migrateConfig must be a function`)
     if (test !== undefined && typeof test !== "function") throw new Error(`${type.name}: static test must be a function`)

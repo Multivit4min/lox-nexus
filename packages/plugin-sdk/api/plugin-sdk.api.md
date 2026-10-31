@@ -13,7 +13,8 @@ export abstract class Action<P extends Plugin = Plugin, Input = unknown> extends
     readonly input: Input;
     // (undocumented)
     readonly plugin: P;
-    abstract run(): string | void | Promise<string | void>;
+    protected progress(text: string, fraction?: number): void;
+    abstract run(): ActionResult | Promise<ActionResult>;
 }
 
 // @public
@@ -27,6 +28,12 @@ export type ActionClass = (new (plugin: never, input: never) => Action<Plugin, u
 };
 
 // @public
+export type ActionResult = string | void | {
+    message?: string;
+    panel?: PanelPart;
+};
+
+// @public
 export abstract class Actuator<P extends Plugin = Plugin, Params = unknown, V extends Value = Value> extends Disposable_2 {
     constructor(plugin: P, params: Params, signal?: SignalInfo);
     get clock(): Clock;
@@ -36,7 +43,7 @@ export abstract class Actuator<P extends Plugin = Plugin, Params = unknown, V ex
     // (undocumented)
     readonly plugin: P;
     protected recover(): void;
-    abstract run(value: V): void | Promise<void>;
+    abstract run(value: V, command?: ActuatorCommand): void | Promise<void>;
     // (undocumented)
     readonly signal: SignalInfo;
     start(): void | Promise<void>;
@@ -55,6 +62,11 @@ export type ActuatorClass = (new (plugin: never, params: never, signal?: SignalI
 };
 
 // @public
+export interface ActuatorCommand {
+    readonly replayed: boolean;
+}
+
+// @public
 export type ActuatorConcurrency = "queue" | "latest";
 
 // @public (undocumented)
@@ -69,6 +81,9 @@ export interface CatalogNode {
     // (undocumented)
     label: string;
 }
+
+// @public (undocumented)
+export type Cell = z.infer<typeof CellSchema>;
 
 // @public
 export interface Clock {
@@ -88,11 +103,20 @@ export function code<T extends z.ZodType<string | null | undefined>>(schema: T, 
 export type CodeLanguage = "javascript" | "json" | "text";
 
 // @public
+export function color(): z.ZodString;
+
+// @public
 export interface ConfigMigration {
     config: unknown;
     from: number;
     store: PluginStore;
 }
+
+// @public
+export function discoverable<T extends z.ZodType>(schema: T): T;
+
+// @public (undocumented)
+export type Discovered = z.infer<typeof DiscoveredSchema>;
 
 // @public
 abstract class Disposable_2 implements DisposableLike {
@@ -116,6 +140,20 @@ export interface DisposableLike {
 }
 
 // @public
+export function duration(options?: {
+    unit?: "ms" | "s" | "min" | "h";
+    min?: number;
+    max?: number;
+}): z.ZodNumber;
+
+// @public
+export function file(options?: {
+    accept?: string;
+    maxBytes?: number;
+    encoding?: "text" | "base64";
+}): z.ZodString;
+
+// @public
 export type HttpHandler = (request: HttpRequest) => HttpResponse | Promise<HttpResponse>;
 
 // @public (undocumented)
@@ -136,6 +174,29 @@ export interface Listenable {
 export type Listener = (...args: any[]) => void;
 
 // @public
+export class Mdns {
+    static browse(type: string, options?: MdnsOptions): Promise<MdnsService[]>;
+}
+
+// @public
+export interface MdnsOptions {
+    address?: string;
+    clock?: Clock;
+    port?: number;
+    timeoutMs?: number;
+}
+
+// @public
+export interface MdnsService {
+    addresses: string[];
+    host: string;
+    name: string;
+    // (undocumented)
+    port: number;
+    txt: Record<string, string>;
+}
+
+// @public
 export type Panel = z.infer<typeof PanelSchema>;
 
 // @public
@@ -153,6 +214,7 @@ export abstract class Plugin<Config = unknown> extends Disposable_2 {
     get log(): PluginLogger;
     get logLevel(): PluginLogLevel;
     panel(): Panel | undefined | Promise<Panel | undefined>;
+    panelChanged(): void;
     get slug(): string | undefined;
     start(): void | Promise<void>;
     get status(): PluginStatus;
@@ -175,6 +237,8 @@ export type PluginClass = (new (context: PluginContext) => Plugin) & {
     readonly configVersion?: number;
     readonly migrateConfig?: (migration: ConfigMigration) => unknown;
     readonly test?: (config: never) => Promise<string | void>;
+    readonly panelUpdates?: "push";
+    readonly discover?: (field: string, config: unknown) => Promise<Discovered>;
 };
 
 // @public
@@ -284,6 +348,9 @@ export interface SignalInfo {
 export function signalName<T extends z.ZodType<string | null | undefined>>(schema: T): T;
 
 // @public
+export function slider(min: number, max: number, step?: number): z.ZodNumber;
+
+// @public
 export class SupersededError extends Error {
     constructor();
 }
@@ -308,7 +375,13 @@ export class SystemClock implements Clock {
 export type Teardown = () => void | Promise<void>;
 
 // @public
+export function timeOfDay(): z.ZodString;
+
+// @public
 export function token<T extends z.ZodType<string | null | undefined>>(schema: T): T;
+
+// @public (undocumented)
+export type Tone = z.infer<typeof ToneSchema>;
 
 // @public (undocumented)
 export type WatchDeclaration = z.infer<typeof WatchDeclarationSchema>;

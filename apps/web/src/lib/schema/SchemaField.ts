@@ -1,4 +1,5 @@
 import { SchemaUnion, type UnionShape } from "./SchemaUnion.ts"
+import { SchemaWidgets, type SchemaWidget } from "./SchemaWidget.ts"
 
 /** A JSON Schema node as zod's toJSONSchema writes it; only the keywords the form uses are typed. */
 export interface JsonSchemaNode {
@@ -56,6 +57,10 @@ export interface SchemaField {
   token?: true
   /** names the signal (`signalName()` in the SDK): a new signal is named after its value */
   signalName?: true
+  /** shown with its own input (a duration, a time, a colour, a slider, a file, chips) */
+  widget?: SchemaWidget
+  /** the plugin can find a value on the network (`discoverable()` in the SDK): the input has Find */
+  discover?: true
   /** object: its properties, in schema order */
   fields?: SchemaField[]
   /** array: the item */
@@ -94,9 +99,13 @@ export class SchemaFields {
     if (field.kind === "string" && node.format === "code") field.code = SchemaFields.CODE_LANGUAGES[node.contentMediaType ?? ""] ?? "text"
     if (field.kind === "string" && node.format === "token") field.token = true
     if (node.signalName === true || schema.signalName === true) field.signalName = true
+    const widget = SchemaWidgets.detect(node as JsonSchemaNode & Record<string, unknown>, field.kind)
+    if (widget) field.widget = widget
+    if ((node as { discover?: unknown }).discover === true || (schema as { discover?: unknown }).discover === true) field.discover = true
     if (field.kind === "enum") field.options = node.enum!.filter(SchemaFields.isPrimitive)
     const labels = node.enumLabels ?? schema.enumLabels
-    if (field.kind === "enum" && labels && typeof labels === "object") field.optionLabels = labels
+    // a list of options may carry the labels itself, as plugins write them next to the title
+    if ((field.kind === "enum" || field.kind === "array") && labels && typeof labels === "object") field.optionLabels = labels
     if (field.kind === "const") field.constValue = node.const
     if (field.kind === "object") {
       const needed = new Set(node.required ?? [])

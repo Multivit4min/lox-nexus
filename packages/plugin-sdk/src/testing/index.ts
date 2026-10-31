@@ -7,6 +7,7 @@
  */
 export { PluginTestHost, type TestHostOptions } from "./PluginTestHost.ts"
 export { TestClock } from "./TestClock.ts"
+export { cellText } from "./CellText.ts"
 export type { ConfigCheckResult, ConfigIssue } from "../runtime/ConfigHost.ts"
 /**
  * the worker-side runtime, for hosts that fake the worker boundary in their own tests

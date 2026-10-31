@@ -124,3 +124,18 @@ Considered:
   this ADR.
 - Plugin settings migrations (`configVersion`, `migrateConfig`) are a separate path and are not
   covered here.
+
+## Note (2026-10-31): host features
+
+The gates above cover what the *host* adds. For what a *worker* sends that an older host would
+refuse (a widened union, such as new panel parts or an action answer that is an object), the host
+announces what it understands in `init` (`hostFeatures`, `HOST_FEATURES` in `./wire`), the mirror
+of `hello.features`. The SDK runtime checks it and sends an older host what it understands (v1
+panels, the message alone), so plugins never check features themselves. Worker messages a host
+doesn't know (`panel.changed`, `action.progress`) are sent only to hosts that list them, although
+hosts skip unknown types anyway.
+
+Source compatibility is a separate matter: panel cells are now `string | { text?, tone?, until?,
+since? }`, so plugin code and tests that read `keyValue` values or table rows as strings stop
+compiling and use `cellText()` from `./testing`. That is acceptable before 1.0; after it, such a
+widening of a type plugins read needs a major and a migration note.

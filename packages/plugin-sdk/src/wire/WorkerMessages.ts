@@ -40,6 +40,10 @@ export const WorkerMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("store.delete"), key: z.string().min(1).max(200) }),
   /** init migrated the stored config; the host stores it. Only to hosts whose init carried configVersion */
   z.object({ type: z.literal("config.migrated"), config: z.unknown(), version: z.int().min(1) }),
+  /** the plugin's panel changed (Plugin.panelChanged); only to hosts with the "panel.push" feature */
+  z.object({ type: z.literal("panel.changed") }),
+  /** how a running action gets on (Action.progress); `fraction` 0–1 when known. Only to hosts with the "action.progress" feature */
+  z.object({ type: z.literal("action.progress"), requestId: z.int().nonnegative(), text, fraction: z.number().min(0).max(1).optional() }),
   /** answer to a request; `error` is a message for the user */
   z.object({ type: z.literal("response"), requestId: z.int(), ok: z.boolean(), result: z.unknown().optional(), error: text.optional() }),
   /** a sensor or actuator stopped working on its own (its start rejected later, its stream ended) */

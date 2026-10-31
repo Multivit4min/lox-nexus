@@ -34,6 +34,8 @@ export interface SupervisorDeps {
   configMigrated?: (instance: PluginInstanceConfig) => void
   /** the installation's IANA time zone, read at every start; plugins use the server's without one */
   timeZone?: () => string | undefined
+  /** a running instance says its panel changed; pages showing it ask for it again */
+  panelChanged?: (instanceId: string) => void
 }
 
 /**
@@ -67,7 +69,8 @@ export class PluginSupervisor extends Disposable {
       instance: () => this.instance, signals: this.signals, store: deps.store, logs: deps.logs, report: text => this.report(text),
       healthChanged: health => this.session && this.setState(health),
       // kept here too, so a restart doesn't migrate (and move data into the store) again
-      migrated: (config, configVersion) => this.current === "starting" && !this.isDisposed && deps.configMigrated?.(this.instance = { ...this.instance, config, configVersion })
+      migrated: (config, configVersion) => this.current === "starting" && !this.isDisposed && deps.configMigrated?.(this.instance = { ...this.instance, config, configVersion }),
+      panelChanged: () => deps.panelChanged?.(this.instance.id)
     })
     this.onDispose(() => this.serialize(() => this.close("stopped")))
     this.onDispose(deps.logs.onLevel?.(instance.id, level => this.session?.logLevel(level)) ?? (() => undefined))

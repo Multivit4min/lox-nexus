@@ -1,20 +1,20 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, shallowRef } from "vue"
+import { computed, defineAsyncComponent, onMounted, onUnmounted, provide, ref, shallowRef } from "vue"
 import type { PluginInstanceDto, PluginInstanceInput, PluginLogLineDto, PluginPackageDto, PluginSignalDto } from "@lox-nexus/api"
-import type { Panel } from "@lox-nexus/plugin-sdk/wire"
 import { BookOpen, Pencil, Play, RotateCw, Square, Trash2 } from "@lucide/vue"
 import { useRouter } from "vue-router"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { AppContext } from "../AppContext.ts"
+import { PluginEventHub } from "../lib/PluginEventHub.ts"
 import { VisiblePolling } from "../lib/VisiblePolling.ts"
 import { ApiError } from "../api/ApiError.ts"
 import InstanceForm from "../components/plugins/InstanceForm.vue"
-import PanelCard from "../components/plugins/PanelCard.vue"
 import PluginActionButtons from "../components/plugins/PluginActionButtons.vue"
 import PluginIcon from "../components/plugins/PluginIcon.vue"
 import PluginLogsCard from "../components/plugins/PluginLogsCard.vue"
+import PluginPanelSection from "../components/plugins/PluginPanelSection.vue"
 import PluginSignalsCard from "../components/plugins/PluginSignalsCard.vue"
 import PluginStateBadge from "../components/plugins/PluginStateBadge.vue"
 import WatchSelectionCard from "../components/plugins/WatchSelectionCard.vue"
@@ -31,8 +31,9 @@ const instance = ref<PluginInstanceDto>()
 const packages = ref<PluginPackageDto[]>([])
 const signals = ref<PluginSignalDto[]>([])
 const logs = ref<PluginLogLineDto[]>([])
-const panel = ref<Panel | null>(null)
-const panelLoading = ref(false)
+// panel pushes and action progress from the stream, for the panel and a running action's dialog
+const pluginEvents = new PluginEventHub()
+provide(PluginEventHub.KEY, pluginEvents)
 const editing = ref(false)
 const reading = ref(false)
 // the dialog stays mounted once opened, so closing it animates and reopening is instant
@@ -66,16 +67,15 @@ async function attempt(work: () => Promise<unknown>) {
 }
 
 // state, message, log lines and signal errors change on their own; signal values come over the stream.
-// The panel follows the state: there while running, gone otherwise; a failing answer keeps the last one.
+// The panel section asks for the panel itself.
 async function refresh() {
   ;[instance.value, logs.value, signals.value] = await Promise.all([api.get(props.id), api.logs(props.id), api.signals(props.id)])
-  panel.value = running.value ? await api.panel(props.id).catch(() => panel.value) : null
 }
 
-async function refreshPanel() {
-  panelLoading.value = true
+// after an action from its dialog: the panel may show something new, and the instance's log does
+async function actionDone() {
+  pluginEvents.emit({ type: "plugin-panel", instanceId: props.id })
   await attempt(refresh)
-  panelLoading.value = false
 }
 
 async function loadSignals() {
@@ -87,8 +87,10 @@ async function load() {
   packages.value = await api.packages()
   // the view may be gone by now, and a stream opened after unmounting would never be closed
   if (unmounted) return
-  if (!live.value) live.value = new LiveValues(handlers => context.stream(handlers), topics())
-  else live.value.watch(topics())
+  if (!live.value) {
+    live.value = new LiveValues(handlers => context.stream(handlers), topics())
+    live.value.onPlugin(event => pluginEvents.emit(event))
+  } else live.value.watch(topics())
 }
 
 async function lifecycle(...steps: Array<"start" | "stop">) {
@@ -144,7 +146,7 @@ onUnmounted(() => {
           </template>
           <PluginActionButtons
             v-if="pkg?.description.actions?.length" ref="actionButtons" :instance-id="instance.id" :actions="pkg.description.actions"
-            :running="instance.state === 'running' || instance.state === 'degraded'" @done="refreshPanel"
+            :running="instance.state === 'running' || instance.state === 'degraded'" @done="actionDone"
           />
           <Button variant="outline" size="sm" :disabled="!pkg" @click="readmeLoaded = reading = true"><BookOpen class="size-4" /> Read me</Button>
           <Button variant="outline" size="sm" :disabled="!pkg" @click="editing = true"><Pencil class="size-4" /> Edit</Button>
@@ -168,9 +170,9 @@ onUnmounted(() => {
       <AlertTitle>Degraded</AlertTitle>
       <AlertDescription>{{ instance.statusMessage }}</AlertDescription>
     </Alert>
-    <PanelCard
-      v-if="panel" :panel="panel" :loading="panelLoading" :actions="pkg?.description.actions" @refresh="refreshPanel"
-      @action="a => actionButtons?.open(a.action, a.input)"
+    <PluginPanelSection
+      :instance-id="instance.id" :running="running" :description="pkg?.description" :events="pluginEvents"
+      @open="(action, input) => actionButtons?.open(action, input)"
     />
     <WatchSelectionCard v-if="pkg?.description.watches" :instance-id="instance.id" :declaration="pkg.description.watches" />
     <PluginSignalsCard v-if="pkg && live && offersSignals" :instance="instance" :description="pkg.description" :signals="signals" :live="live" @changed="loadSignals" @wire="wire" />

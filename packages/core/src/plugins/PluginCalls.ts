@@ -1,8 +1,7 @@
 import type { Value } from "@lox-nexus/plugin-sdk/values"
-import { z } from "zod"
-import { CatalogNodeSchema, HttpResponseSchema, PanelSchema, type HttpRequest, type SignalSpec } from "@lox-nexus/plugin-sdk/wire"
+import { ActionAnswerSchema, CatalogNodeSchema, HttpResponseSchema, PanelSchema, type HttpRequest, type PanelPart, type SignalSpec } from "@lox-nexus/plugin-sdk/wire"
 import type { BusMessage } from "../bus/BusMessage.ts"
-import type { PluginSession } from "./PluginSession.ts"
+import type { PluginSession, ProgressListener } from "./PluginSession.ts"
 import { PluginSignals, type PluginBus } from "./PluginSignals.ts"
 import type { PluginSignalConfig } from "./PluginTypes.ts"
 import { DomainError } from "../DomainError.ts"
@@ -95,7 +94,9 @@ export class PluginCalls {
     // the plugin doesn't know an orphaned actuator, running or not; say why
     if (signal.orphaned) return report(false, signal.error)
     if (!session) return report(false, new PluginNotRunningError().message)
-    session.request({ type: "actuate", signalId, value, causeId: cause.id })
+    // a force the bus delivers again (after a restart, at boot) is no new command
+    const replayed = cause.flags?.replayed === true || cause.flags?.restored === true
+    session.request({ type: "actuate", signalId, value, causeId: cause.id, ...(replayed ? { replayed } : {}) })
       .then(() => report(true), (error: unknown) => report(false, error instanceof Error ? error.message : String(error)))
   }
 
@@ -110,14 +111,15 @@ export class PluginCalls {
   }
 
   /**
-   * Runs one of the plugin's actions; resolves with its message for the user.
+   * Runs one of the plugin's actions; resolves with its answer for the user: a message, and a
+   * panel part where the plugin gives one.
+   * @param onProgress how it gets on, as the plugin reports it while it runs
    * @throws PluginNotRunningError; PluginRequestError with the plugin's refusal; PluginUnavailableError on timeout
    */
-  async action(id: string, input: unknown) {
-    return PluginCalls.ACTION_RESULT.parse(await this.running().request({ type: "action", action: id, input }, this.actionMs))
+  async action(id: string, input: unknown, onProgress?: ProgressListener): Promise<{ message?: string; panel?: PanelPart }> {
+    const answer = ActionAnswerSchema.optional().parse(await this.running().request({ type: "action", action: id, input }, this.actionMs, onProgress))
+    return typeof answer === "string" ? { message: answer } : answer ?? {}
   }
-
-  private static readonly ACTION_RESULT = z.string().max(2000).optional()
 
   /** a webhook call; @throws PluginNotRunningError, or the handler's error */
   async http(request: HttpRequest) {

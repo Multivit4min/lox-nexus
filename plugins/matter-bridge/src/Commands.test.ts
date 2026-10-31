@@ -1,5 +1,6 @@
 import assert from "node:assert/strict"
 import { after, before, test } from "node:test"
+import { cellText } from "@lox-nexus/plugin-sdk/testing"
 import { Value } from "@lox-nexus/plugin-sdk/values"
 import type { ClientNode } from "@matter/main"
 import { LevelControlClient } from "@matter/main/behaviors/level-control"
@@ -73,7 +74,7 @@ test("thermostat: a setpoint from a controller is a command; one from Nexus is s
   assert.deepEqual(bridge.values(command), [21.5])
   const panel = await bridge.host.panel()
   assert.ok(panel?.type === "sections" && panel.sections[2]!.panel.type === "table")
-  const row = panel.sections[2]!.panel.rows.find(cells => cells[0] === "Heating")!
+  const row = panel.sections[2]!.panel.rows.find(cells => cells[0] === "Heating")!.map(cellText)
   assert.match(row[3]!, /^heating setpoint 21\.5 °C at /)
   assert.match(row[4]!, /^temperature 20\.4 °C at /)
 })

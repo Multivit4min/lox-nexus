@@ -1,5 +1,6 @@
 import assert from "node:assert/strict"
 import { after, afterEach, before, test } from "node:test"
+import { cellText } from "@lox-nexus/plugin-sdk/testing"
 import type { Panel, PanelPart } from "@lox-nexus/plugin-sdk"
 import { InfluxHarness } from "./test-support/InfluxHarness.ts"
 
@@ -21,7 +22,7 @@ function read(panel: Panel | undefined) {
 }
 
 function items(part: PanelPart) {
-  return part.type === "keyValue" ? Object.fromEntries(part.items.map(item => [item.label, item.value])) : {}
+  return part.type === "keyValue" ? Object.fromEntries(part.items.map(item => [item.label, cellText(item.value)])) : {}
 }
 
 const NOW = new Date(InfluxHarness.NOW).toISOString()

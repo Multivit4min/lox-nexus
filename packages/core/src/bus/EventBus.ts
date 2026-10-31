@@ -97,7 +97,7 @@ export class EventBus extends Disposable {
     if (!record || (record.until !== undefined && record.until <= this.clock.now())) return false
     const { value, by, reason, until, at, kind } = record
     const info = { by, at, kind, ...(reason === undefined ? {} : { reason }), ...(until === undefined ? {} : { until }) }
-    this.enqueue({ kind: "force", topic, value, options: { source }, extra: { force: info } })
+    this.enqueue({ kind: "force", topic, value, options: { source, flags: { replayed: true } }, extra: { force: info } })
     return true
   }
 

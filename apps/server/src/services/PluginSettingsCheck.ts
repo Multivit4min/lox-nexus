@@ -1,4 +1,6 @@
-import { PluginCheckInputSchema, type PluginCheckDto, type PluginCheckInput } from "@lox-nexus/api"
+import {
+  PluginCheckInputSchema, PluginDiscoverInputSchema, type PluginCheckDto, type PluginCheckInput, type PluginDiscoverInput, type PluginDiscoverResultDto
+} from "@lox-nexus/api"
 import { PluginUnavailableError, type ConfigCheck, type PluginConfigChecker, type PluginInstanceConfig, type PluginStateStore } from "@lox-nexus/core"
 import { z } from "zod"
 import { HttpError } from "../http/HttpError.ts"
@@ -15,7 +17,7 @@ export type PreparedConfig = Pick<PluginInstanceConfig, "config" | "configVersio
  */
 export class PluginSettingsCheck {
   constructor(
-    private readonly checker: Pick<PluginConfigChecker, "check" | "test">,
+    private readonly checker: Pick<PluginConfigChecker, "check" | "test" | "discover">,
     private readonly available: Pick<PluginCatalog, "get">,
     private readonly stored: (id: string) => PluginInstanceConfig | undefined,
     /** an instance's store, for a migration an edit runs before its first start */
@@ -66,6 +68,21 @@ export class PluginSettingsCheck {
       return { checked: true, issues: [], test: { ok: true, ...(message ? { message } : {}) } }
     } catch (error) {
       return { checked: true, issues: [], test: { ok: false, error: error instanceof Error ? error.message : String(error) } }
+    }
+  }
+
+  /**
+   * Find on the network for a config field the plugin marked discoverable, in a throwaway worker.
+   * @throws HttpError 400 unknown plugin, 404 a field without Find, 502 the plugin failed
+   */
+  async discover(plugin: string, input: PluginDiscoverInput): Promise<PluginDiscoverResultDto> {
+    const { field, config } = PluginDiscoverInputSchema.parse(input)
+    const pkg = this.package(plugin)
+    if (!pkg.description.discoverable?.includes(field)) throw HttpError.notFound(`Find on the network for "${field}"`)
+    try {
+      return { found: await this.checker.discover(pkg, field, config) }
+    } catch (error) {
+      throw new HttpError(502, `the plugin couldn't search: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
 

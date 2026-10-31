@@ -1,12 +1,14 @@
 import type { BusMessageDto, StaleSignalDto, StreamEvent } from "@lox-nexus/api"
 import { shallowReactive } from "vue"
 import type { StreamConnection, StreamHandlers, StreamState } from "../api/StreamConnection.ts"
+import type { PluginStreamEvent } from "../lib/PluginEventHub.ts"
 
 /**
  * The current message per topic for a pattern, kept live over the stream's `state` subscription.
  * One instance per view; close() when the view unmounts. A topic that loses its value (a force
  * released before any real value arrived) is removed, so a stale forced value doesn't linger.
- * Also which signals went quiet (`signal-status`): all of them, whatever the pattern.
+ * Also which signals went quiet (`signal-status`): all of them, whatever the pattern; and what
+ * running plugins tell open pages (`onPlugin`).
  */
 export class LiveValues {
   readonly values = shallowReactive(new Map<string, BusMessageDto>())
@@ -14,6 +16,7 @@ export class LiveValues {
   readonly stale = shallowReactive(new Map<string, StaleSignalDto>())
   readonly status = shallowReactive({ state: "connecting" as StreamState })
   private readonly connection: StreamConnection
+  private readonly pluginListeners = new Set<(event: PluginStreamEvent) => void>()
 
   /** @param connect usually AppContext.stream */
   constructor(connect: (handlers: StreamHandlers) => StreamConnection, pattern: string) {
@@ -41,7 +44,19 @@ export class LiveValues {
     this.connection.close()
   }
 
+  /** panel pushes and action progress of every running plugin; @returns the unsubscribe */
+  onPlugin(listener: (event: PluginStreamEvent) => void) {
+    this.pluginListeners.add(listener)
+    return () => {
+      this.pluginListeners.delete(listener)
+    }
+  }
+
   private apply(event: StreamEvent) {
+    if (event.type === "plugin-panel" || event.type === "plugin-action-progress") {
+      for (const listener of [...this.pluginListeners]) listener(event)
+      return
+    }
     if (event.type === "signal-status") {
       this.stale.clear()
       for (const entry of event.stale) this.stale.set(entry.topic, entry)

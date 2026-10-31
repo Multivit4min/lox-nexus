@@ -24,8 +24,17 @@ class Hang extends Action {
   }
 }
 
+class Pairing extends Action {
+  static readonly id = "pairing"
+  run() {
+    this.progress("opening the window", 0.5)
+    this.plugin.panelChanged()
+    return { message: "Scan it", panel: { type: "qr" as const, data: "MT:1" } }
+  }
+}
+
 class Actor extends Plugin {
-  static readonly actions = [Greet, Hang]
+  static readonly actions = [Greet, Hang, Pairing]
 }
 
 const settle = async () => {
@@ -35,14 +44,16 @@ const instance: PluginInstanceConfig = { id: "a", plugin: "actor", slug: "actor"
 
 let manager: PluginManager
 const opened: OpenOptions[] = []
+const panels: string[] = []
 
 beforeEach(() => {
   mock.timers.enable({ apis: ["setTimeout", "setInterval"] })
   opened.length = 0
   const fake = new FakePluginTransport().add("actor.ts", Actor)
   const transport = { open: (entry: string, options: OpenOptions = {}) => (opened.push(options), fake.open(entry)) }
+  panels.length = 0
   manager = new PluginManager({
-    bus: new EventBus(), registry: new SignalRegistry(), transport,
+    bus: new EventBus(), registry: new SignalRegistry(), transport, panelChanged: id => panels.push(id),
     store: { load: () => ({}), set: () => undefined, delete: () => undefined }, logs: { log: () => undefined },
     timings: { actionMs: 5_000 }
   })
@@ -68,10 +79,20 @@ test("an action reaches the plugin with its input and answers with the plugin's 
   const supervisor = await running()
   const answer = supervisor.calls.action("greet", { name: "Echo" })
   await settle()
-  assert.equal(await answer, "hello Echo")
+  assert.deepEqual(await answer, { message: "hello Echo" })
   const refused = assert.rejects(supervisor.calls.action("greet", {}), /invalid input/)
   await settle()
   await refused
+})
+
+test("an action's progress reaches the caller, its answer keeps the panel part, and its panelChanged() the host", async () => {
+  const supervisor = await running()
+  const progress: unknown[] = []
+  const answer = supervisor.calls.action("pairing", {}, (text, fraction) => progress.push([text, fraction]))
+  await settle()
+  assert.deepEqual(await answer, { message: "Scan it", panel: { type: "qr", data: "MT:1" } })
+  assert.deepEqual(progress, [["opening the window", 0.5]])
+  assert.deepEqual(panels, ["a"])
 })
 
 test("an action has its own timeout, longer than other requests", async () => {

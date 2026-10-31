@@ -7,6 +7,9 @@
 import { z } from 'zod';
 
 // @public
+export function cellText(cell: Cell | undefined): string;
+
+// @public
 export interface ConfigCheckResult {
     // (undocumented)
     config: unknown;
@@ -42,7 +45,8 @@ export class PluginRuntimeForTests {
 // @public
 export class PluginTestHost<T extends PluginClass = PluginClass> {
     action(id: string, input?: unknown): Promise<string | undefined>;
-    actuate(id: string, value: Value, causeId?: string): Promise<void>;
+    actionAnswer(id: string, input?: unknown): Promise<ActionAnswer | undefined>;
+    actuate(id: string, value: Value, causeId?: string, replayed?: boolean): Promise<void>;
     addActuator(capability: string, params?: unknown, label?: string): Promise<string>;
     addSensor(capability: string, params?: unknown, label?: string): Promise<string>;
     catalog(): Promise<CatalogNode[]>;
@@ -79,10 +83,17 @@ export class PluginTestHost<T extends PluginClass = PluginClass> {
             input: Record<string, unknown>;
             description?: string | undefined;
             confirm?: string | undefined;
-            placement?: "toolbar" | "panel" | undefined;
+            placement?: "panel" | "toolbar" | undefined;
         }[] | undefined;
         testable?: true | undefined;
+        panelPush?: true | undefined;
+        discoverable?: string[] | undefined;
     }>;
+    static discover(type: PluginClass, field: string, config?: unknown): Promise<{
+        label: string;
+        value: string;
+        detail?: string | undefined;
+    }[]>;
     http(request: Partial<HttpRequest> & Pick<HttpRequest, "path">): Promise<Required<{
         status: number;
         headers?: Record<string, string> | undefined;
@@ -94,62 +105,7 @@ export class PluginTestHost<T extends PluginClass = PluginClass> {
         version: number;
     } | undefined;
     next(id: string, timeoutMs?: number): Promise<Value>;
-    panel(): Promise<{
-        type: "keyValue";
-        items: {
-            label: string;
-            value: string;
-        }[];
-    } | {
-        type: "table";
-        columns: string[];
-        rows: string[][];
-        rowActions?: {
-            action: string;
-            label?: string | undefined;
-            input?: Record<string, unknown> | undefined;
-        }[][] | undefined;
-    } | {
-        type: "qr";
-        data: string;
-        caption?: string | undefined;
-    } | {
-        type: "json";
-        data: unknown;
-    } | {
-        type: "sections";
-        sections: {
-            title: string;
-            panel: {
-                type: "keyValue";
-                items: {
-                    label: string;
-                    value: string;
-                }[];
-            } | {
-                type: "table";
-                columns: string[];
-                rows: string[][];
-                rowActions?: {
-                    action: string;
-                    label?: string | undefined;
-                    input?: Record<string, unknown> | undefined;
-                }[][] | undefined;
-            } | {
-                type: "qr";
-                data: string;
-                caption?: string | undefined;
-            } | {
-                type: "json";
-                data: unknown;
-            };
-            actions?: {
-                action: string;
-                label?: string | undefined;
-                input?: Record<string, unknown> | undefined;
-            }[] | undefined;
-        }[];
-    } | undefined>;
+    panel(): Promise<Panel | undefined>;
     get plugin(): InstanceType<T>;
     pushValues(values: Array<Omit<WatchedValue, "ts" | "kind"> & Partial<Pick<WatchedValue, "ts" | "kind">>>, dropped?: number): Promise<void>;
     remove(id: string): Promise<void>;
@@ -195,6 +151,7 @@ export interface TestHostOptions {
     config?: unknown;
     configVersion?: number;
     forwardRejections?: boolean;
+    hostFeatures?: string[];
     instanceId?: string;
     slug?: string;
     store?: Record<string, unknown>;

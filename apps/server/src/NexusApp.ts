@@ -33,6 +33,7 @@ import { ImportJournal } from "./services/ImportJournal.ts"
 import { LoxoneProjectService } from "./services/LoxoneProjectService.ts"
 import { TimeZoneSetting } from "./services/TimeZoneSetting.ts"
 import { PluginLogs } from "./services/PluginLogs.ts"
+import { PluginEvents } from "./services/PluginEvents.ts"
 import { StaleWatcher } from "./services/StaleWatcher.ts"
 import { BackupAssembly } from "./backup/BackupAssembly.ts"
 import { BackupService } from "./backup/BackupService.ts"
@@ -92,6 +93,8 @@ export class NexusApp extends Disposable {
   /** next to the database; none for an in-memory one */
   private readonly journal: ImportJournal | undefined
   private stream: BusStream | undefined
+  /** panel pushes and action progress of running plugins, for open pages */
+  private readonly pluginEvents = new PluginEvents()
 
   /** @throws when the database can't be opened or migrated */
   constructor(private readonly config: Config, private readonly log: Logger, private readonly options: NexusAppOptions = {}) {
@@ -132,6 +135,7 @@ export class NexusApp extends Disposable {
     const timeZone = new TimeZoneSetting(this.persistence.settings)
     this.plugins = this.own(new PluginManager({
       bus: this.bus, registry: this.signals, transport, store: this.persistence.pluginStore, timeZone: () => timeZone.get(),
+      panelChanged: instanceId => this.pluginEvents.emit({ type: "plugin-panel", instanceId }),
       watch: { bus: this.bus, signals: this.signals, selection: id => this.selections.of(id), changes: this.selections },
       logs: this.pluginLogs, configMigrated: ({ id, config, configVersion }) => this.persistence.pluginInstances.saveConfig(id, config, configVersion ?? 1), ...(options.pluginTimings ? { timings: options.pluginTimings } : {})
     }))
@@ -189,7 +193,7 @@ export class NexusApp extends Disposable {
     const auth = new AuthService(db.db, db.users, sessions, new PasswordHasher(this.options.hasherCost), clock)
     const cookie = new SessionCookie(config.secureCookies)
     const stale = this.own(new StaleWatcher({ signals: this.signals, bus: this.bus, clock, active: StaleWatcher.activeIn(this.miniservers, this.plugins) }))
-    const stream = this.own(new BusStream(this.bus, auth, sessions, cookie, stale))
+    const stream = this.own(new BusStream(this.bus, auth, sessions, cookie, stale, this.pluginEvents))
     this.stream = stream
     return new HttpServer({
       logger: log,
@@ -204,7 +208,7 @@ export class NexusApp extends Disposable {
         new SignalController(this.signals, this.bus, wires),
         new BusController(this.bus, this.recorder),
         new ConfigController(transfer),
-        ...PluginControllers.build({ plugins, pluginSignals, loxoneSignals, wires, logs: this.pluginLogs, assembly: this.pluginAssembly, log }),
+        ...PluginControllers.build({ plugins, pluginSignals, loxoneSignals, wires, logs: this.pluginLogs, events: this.pluginEvents, assembly: this.pluginAssembly, log }),
         ...this.history.controllers(id => plugins.watches(id)),
         BackupAssembly.controller(config, { main: db.db, history: this.history.database.db }, this.options.restart, log),
         this.own(new DiagnosticsAssembly(this, config, clock, log)).controller(),

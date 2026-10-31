@@ -1,4 +1,4 @@
-import { PluginActionRequestSchema, PluginCheckInputSchema, PluginInstanceInputSchema, PluginSignalInputSchema } from "@lox-nexus/api"
+import { PluginActionRequestSchema, PluginCheckInputSchema, PluginDiscoverInputSchema, PluginInstanceInputSchema, PluginSignalInputSchema } from "@lox-nexus/api"
 import type { FastifyInstance, FastifyRequest } from "fastify"
 import { z } from "zod"
 import type { PluginActionService } from "../../services/PluginActionService.ts"
@@ -6,10 +6,12 @@ import type { PluginBridgeService } from "../../services/PluginBridgeService.ts"
 import type { PluginService } from "../../services/PluginService.ts"
 import type { PluginSignalService } from "../../services/PluginSignalService.ts"
 import type { Controller } from "../Controller.ts"
+import { HttpError } from "../HttpError.ts"
 
 const IdParams = z.object({ id: z.string().min(1) })
 const SignalParams = IdParams.extend({ signalId: z.string().min(1) })
 const ActionParams = IdParams.extend({ action: z.string().min(1).max(100) })
+const PluginParams = z.object({ plugin: z.string().min(1).max(100) })
 
 /**
  * /api/plugins (what can be instantiated) and /api/plugin-instances. All routes need a session.
@@ -46,6 +48,11 @@ export class PluginController implements Controller {
     // lock-free: a connection test may wait for an unreachable device, and changes nothing
     app.post("/api/plugin-instances/check", { config: { lockFree: true } }, async request =>
       this.plugins.settings?.check(PluginCheckInputSchema.parse(request.body)) ?? { checked: false, issues: [] })
+    // lock-free too: a search listens on the network for a few seconds and changes nothing
+    app.post("/api/plugins/:plugin/discover", { config: { lockFree: true } }, async request => {
+      if (!this.plugins.settings) throw HttpError.notFound("Find on the network")
+      return this.plugins.settings.discover(PluginParams.parse(request.params).plugin, PluginDiscoverInputSchema.parse(request.body ?? {}))
+    })
     app.get("/api/plugin-instances/:id", request => this.plugins.get(PluginController.id(request)))
     app.put("/api/plugin-instances/:id", request =>
       this.plugins.update(PluginController.id(request), PluginInstanceInputSchema.parse(request.body), request.user!.username))
@@ -60,7 +67,8 @@ export class PluginController implements Controller {
     // lock-free: pairing takes up to two minutes, which must not hold off a config import
     app.post("/api/plugin-instances/:id/actions/:action", { bodyLimit: 64 * 1024, config: { lockFree: true } }, request => {
       const { id, action } = ActionParams.parse(request.params)
-      return this.actions.run(id, action, PluginActionRequestSchema.parse(request.body ?? {}).input, request.user!.username)
+      const { input, runId } = PluginActionRequestSchema.parse(request.body ?? {})
+      return this.actions.run(id, action, input, request.user!.username, runId)
     })
     this.registerSignals(app)
   }

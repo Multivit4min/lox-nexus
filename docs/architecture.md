@@ -881,7 +881,9 @@ above:
   `system/plugin/<slug>/status`) and their message (the degraded message, or the last error).
   An instance page holds the following:
   - start, stop, restart (a stop and a start), edit and delete
-  - the panel, refreshed with the page every 3 s while the plugin runs
+  - the panel, asked every 3 s while the plugin runs, or for a plugin that pushes
+    (`panelUpdates: "push"`) when it says its panel changed (`plugin-panel` on the stream) and
+    every 30 s; its instant buttons and switches run without the dialog (see "Plugin UI round")
   - the signals with live values, edit, force/release and delete
   - the catalog browser and the log
 - **Schema forms** (`lib/schema/`). `SchemaFields.parse` turns the JSON Schema that zod writes
@@ -2069,4 +2071,33 @@ Native `fetch` and `WebSocket` replace axios and socket.io (`ws` comes in throug
 - Secret fields fail closed: a plugin that isn't installed, or a config schema without top-level
   fields or with secrets below them, exports its whole config as secret. A sealed part with a
   wrong iv, salt or tag length is a wrong passphrase, and a file may ask for at most 2^18 scrypt.
+
+## Implementation notes: plugin UI round
+
+- **Host features.** `init` carries `hostFeatures` (`HOST_FEATURES` in the SDK's wire): `panel.v2`,
+  `panel.push`, `action.result`, `action.progress`. Older SDKs drop the field (zod strips it);
+  a new SDK on an older host (no field) falls back in `HostSupport`/`PanelCompat`: v1 panels
+  (cells as text, a countdown as its end time, tiles and notices as key-value lists, no item
+  controls), an action's message without its panel, and no `panel.changed` or `action.progress`.
+  So the host never parses a union member it doesn't know (ADR 0019).
+- **Panel v2** (`wire/PanelShapes.ts`): cells `{ text?, tone?, until?, since? }`, `tiles`,
+  `notice` (links only http(s) or `#/…`, checked by the schema and again in the UI), `control` on
+  key-value items, `instant` and `switch` on buttons. The host parses with the v2 schema; an
+  invalid panel is a 502 (the plugin's fault), not a 400.
+- **Pushes and progress.** `panel.changed` (throttled to 1/s in the worker) goes inbox →
+  `SupervisorDeps.panelChanged` → `PluginEvents` → the stream as `plugin-panel`.
+  `action.progress` (4/s) is routed by the session to the request's listener;
+  `PluginActionService` forwards it under the page's `runId` as `plugin-action-progress`. Every
+  stream client gets both (few, small); the page picks its instance.
+- **Replays.** `EventBus.replayForce` flags the force `replayed`; the effective message carries the
+  flag to the actuator, and `PluginCalls.actuate` sends `replayed: true` (also for `restored`).
+  Actuators read it as `run(value, { replayed })`.
+- **Find on the network.** Fields marked `discover: true` with a plugin `static discover` are
+  listed as `discoverable` in the description; `POST /api/plugins/:plugin/discover` runs
+  `config.discover` in a throwaway worker (`PluginConfigChecker.discover`, 20 s). The SDK's `Mdns`
+  asks once from a random port (legacy unicast, RFC 6762 §6.7), so it needs no port 5353.
+- **Web.** `PluginPanelSection` owns the panel (polling cadence, push refresh, instant runs);
+  `PluginEventHub` hands stream events to it and to a running action's dialog. Schema forms get
+  widgets from the SDK's field kinds (`SchemaWidgets`) and Find through the `DISCOVER` injection
+  the settings form provides. Input errors name fields by their labels (`ConfigIssues.where`).
 

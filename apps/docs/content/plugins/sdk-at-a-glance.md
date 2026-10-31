@@ -25,6 +25,7 @@ abstract class Plugin<Config = unknown> extends Disposable {
   start(): void | Promise<void>
   catalog(): CatalogNode[] | Promise<CatalogNode[]>
   panel(): Panel | undefined | Promise<Panel | undefined>
+  panelChanged(): void                                     // tell open pages the panel changed (at most once a second)
   unhandledRejection(reason: unknown): void
   get watch(): WatchView                                   // the chosen signals (watching plugins)
   watched?(values: readonly WatchedValue[], dropped: number): void | Promise<void>
@@ -36,7 +37,8 @@ abstract class Plugin<Config = unknown> extends Disposable {
 |---|---|
 | `start()` | Reject only for what a restart can't fix (bad credentials): the instance goes to the error state and is not restarted. For an unreachable device resolve and call `status.set("degraded", ...)`. |
 | `catalog()` | Asked on demand by the UI; may query the device; a throw is shown to the user. Default `[]`. Answers (catalog, panel, webhook responses) over 16 MiB as JSON fail instead. |
-| `panel()` | Asked on demand; `undefined` shows nothing. Never put secrets in it. |
+| `panel()` | Asked every 3 s while the page is open; with `static panelUpdates = "push"` only when `panelChanged()` says so and every 30 s. `undefined` shows nothing. Never put secrets in it. See [Panel](authoring.md#panel-a-status-page). |
+| `panelChanged()` | Tells open pages the panel changed (a device paired, a poll finished). Reaches the host at most once a second; does nothing on older hosts. |
 | `unhandledRejection(reason)` | Called for a promise in the worker that was rejected without a handler (a forgotten `.catch`). The worker keeps running; the default logs an error with the stack. Override to say more or to set a degraded status; it must not throw. `PluginTestHost.unhandledRejection(reason)` calls it in tests. |
 | `config` | Already validated against the static `config` schema, defaults applied. Available in field initializers of subclasses. |
 | `slug` | The instance's slug: its topic segment and webhook path (`/hook/<slug>/…`). Undefined with hosts that don't send it. Fixed for one run (a slug change restarts the instance). |
@@ -54,7 +56,16 @@ static readonly watches?: { label: string; description?: string }  // receives v
 static readonly configVersion?: number  // the config's shape; default 1, raise it with migrateConfig
 static migrateConfig?({ config, from, store }: ConfigMigration): unknown  // older config → current shape
 static test?(config): Promise<string | void>  // Test connection; read only, throw a message the user can act on
+static readonly actions?: readonly ActionClass[]      // see Action
+static readonly panelUpdates?: "push"   // the plugin calls panelChanged(); pages then ask for the panel when told, else every 30 s
+static discover?(field: string, config: unknown): Promise<Discovered>  // Find for discoverable() fields; read only, at most 15 s
 ```
+
+`discover` runs in a throwaway worker, like `test`, for a config field marked with
+`discoverable()`; `config` is the form as filled in so far, unvalidated. It answers up to 100
+`{ label, value, detail? }`: `value` is what the field gets when the user picks it. Use
+[`Mdns.browse`](#entry-config-and-re-exports) for devices that announce themselves. See
+[Find on the network](authoring.md#find-on-the-network).
 
 A watching plugin implements `watched(values, dropped)` (batches, oldest first; the next comes
 when it returns) and optionally `watchChanged()`; `this.watch.signals()` / `signal(id)` describe
@@ -112,15 +123,16 @@ In the guide: [Sensors](authoring.md#sensors-values-from-the-device).
 abstract class Actuator<P extends Plugin = Plugin, Params = unknown, V extends Value = Value> extends Disposable {
   constructor(readonly plugin: P, readonly params: Params, readonly signal: SignalInfo = { id: "", label: "" })
   start(): void | Promise<void>
-  abstract run(value: V): void | Promise<void>
+  abstract run(value: V, command?: ActuatorCommand): void | Promise<void>
   protected fail(message: string): void
   protected recover(): void
 }
+interface ActuatorCommand { readonly replayed: boolean }
 ```
 
 | Member | Notes |
 |---|---|
-| `run(value)` | Throwing or rejecting reports a failed result. Emits and logs made while it runs (also from timers and promises it started) carry the command's cause. Never overlaps itself. |
+| `run(value, command)` | Throwing or rejecting reports a failed result. Emits and logs made while it runs (also from timers and promises it started) carry the command's cause. Never overlaps itself. `command.replayed` is true when the host delivers a value again (an active force after the plugin started), not a new command: an actuator that restarts a device or opens a door should ignore it. Older hosts never set it. |
 | `start()` | A rejection makes adding the signal fail. |
 | `fail(message)` | The actuator can't work at the moment (its device is gone); shown on the signal until `recover()`. Commands still reach `run()`. |
 | `recover()` | Ends a failure. Only tells the host after a `fail()`, so it is cheap to call on every change. |
@@ -153,7 +165,8 @@ them, in a section's heading (`actions`) or on a table row. An input that is a
 
 | Member | Notes |
 |---|---|
-| `run()` | Returns the text shown to the user (clipped to 2000 characters), or nothing ("Done."). A throw is shown as the failure, and the form stays filled in. Runs with a 2-minute timeout; one action at a time per instance (a second is refused while one runs). Disposed when it settles or the plugin stops. |
+| `run()` | Returns an [`ActionResult`](../reference/sdk/@lox-nexus/plugin-sdk.md#actionresult): the text shown to the user (clipped to 2000 characters), `{ message?, panel? }` with a panel part under it (a QR code, tiles, a notice), or nothing ("Done."). Older hosts show only the message. A throw is shown as the failure, and the form stays filled in. Runs with a 2-minute timeout; one action at a time per instance (a second is refused while one runs). Disposed when it settles or the plugin stops. |
+| `progress(text, fraction?)` | Protected. Shows how a long action gets on in its dialog ("Searching…", `0.4` for 40 %). At most four a second reach the host, the latest always; nothing on older hosts. Not logged. |
 | `input` | Validated against the static `input` schema, defaults applied. May hold secrets such as pairing codes: never log it. |
 | `plugin` | The plugin instance. |
 
@@ -252,8 +265,16 @@ In the guide: [Logging, store and status](authoring.md#logging-store-and-status)
 | [`signalGroup`](../reference/sdk/@lox-nexus/plugin-sdk.md#signalgroup) | `signalGroup<T extends z.ZodType>(schema: T): T` | Marks the top-level param of a sensor or actuator that names the device the signal belongs to (`signalGroup: true`), e.g. a Home Assistant entity: signal lists show the signals with the same value under one collapsible header. Several marked params form a path ("node ▸ endpoint"). Only the lists use it. |
 | `z` | zod | Use this one, not your own copy. |
 | [`SupersededError`](../reference/sdk/@lox-nexus/plugin-sdk.md#supersedederror) | `class extends Error` | See `concurrency: "latest"`. |
-| `CatalogNode`, `CatalogEntry`, `Panel`, `PanelPart`, `RowAction`, `HttpRequest`, `HttpResponse` | types, see [wire](#lox-nexusplugin-sdkwire) | Return values of `catalog()`, `panel()` and webhook handlers. |
-| [`Action`](../reference/sdk/@lox-nexus/plugin-sdk.md#abstract-action), `ActionClass` | class, type | See [Action](#action-reference). |
+| `CatalogNode`, `CatalogEntry`, `Panel`, `PanelPart`, `RowAction`, `Cell`, `Tone`, `Discovered`, `HttpRequest`, `HttpResponse` | types, see [wire](#lox-nexusplugin-sdkwire) | Return values of `catalog()`, `panel()`, `discover` and webhook handlers. |
+| [`Action`](../reference/sdk/@lox-nexus/plugin-sdk.md#abstract-action), `ActionClass`, `ActionResult` | class, types | See [Action](#action-reference). |
+| `ActuatorCommand` | type | What `run()` learns besides the value: `replayed`. |
+| [`duration`](../reference/sdk/@lox-nexus/plugin-sdk.md#duration) | `duration(options?: { unit?: "ms" \| "s" \| "min" \| "h"; min?; max? })` | A number of `unit`s (default seconds); the form offers seconds, minutes and hours and stores the field's unit. |
+| [`timeOfDay`](../reference/sdk/@lox-nexus/plugin-sdk.md#timeofday) | `timeOfDay()` | `"HH:MM"`, checked; a time picker. |
+| [`color`](../reference/sdk/@lox-nexus/plugin-sdk.md#color) | `color()` | `"#rrggbb"`, checked; a colour picker with the hex next to it. |
+| [`slider`](../reference/sdk/@lox-nexus/plugin-sdk.md#slider) | `slider(min, max, step = 1)` | A number in a range, shown as a slider with the number. |
+| [`file`](../reference/sdk/@lox-nexus/plugin-sdk.md#file) | `file(options?: { accept?; maxBytes?; encoding?: "text" \| "base64" })` | A picked file's contents (text, or base64 for binary), at most `maxBytes` (default 256 KiB). |
+| [`discoverable`](../reference/sdk/@lox-nexus/plugin-sdk.md#discoverable) | `discoverable<T extends z.ZodType>(schema: T): T` | Marks a top-level config field for **Find**: the form runs `static discover` for it and offers what it found. |
+| [`Mdns`](../reference/sdk/@lox-nexus/plugin-sdk.md#mdns), `MdnsOptions`, `MdnsService` | `static browse(type: string, options?: MdnsOptions): Promise<MdnsService[]>` | Finds services that announce themselves with mDNS (`"_home-assistant._tcp.local"`): name, host, port, addresses, TXT. Asks once from a random port and listens for `timeoutMs` (default 3000); needs no daemon or port 5353. For `discover`. |
 
 ## `@lox-nexus/plugin-sdk/values`
 
@@ -329,16 +350,19 @@ class PluginTestHost<T extends PluginClass = PluginClass> {
   static start<T extends PluginClass>(type: T, options?: TestHostOptions): Promise<PluginTestHost<T>>
   static describe(type: PluginClass): Promise<PluginDescription>
   static checkConfig(type: PluginClass, config: unknown, configVersion?: number, store?: Record<string, unknown>): Promise<ConfigCheckResult>
+  static testConfig(type: PluginClass, config: unknown): Promise<string | undefined>
+  static discover(type: PluginClass, field: string, config?: unknown): Promise<Discovered>
   addSensor(capability: string, params?: unknown, label?: string): Promise<string>
   addActuator(capability: string, params?: unknown, label?: string): Promise<string>
   remove(id: string): Promise<void>
   values(id: string): Value[]
   next(id: string, timeoutMs?: number): Promise<Value>
-  actuate(id: string, value: Value, causeId?: string): Promise<void>
+  actuate(id: string, value: Value, causeId?: string, replayed?: boolean): Promise<void>
   catalog(): Promise<CatalogNode[]>
   panel(): Promise<Panel | undefined>
   http(request: Partial<HttpRequest> & Pick<HttpRequest, "path">): Promise<Required<HttpResponse>>
-  action(id: string, input?: unknown): Promise<string | undefined>  // runs an action like its button; rejects with its failure
+  action(id: string, input?: unknown): Promise<string | undefined>  // runs an action like its button; resolves with its message, rejects with its failure
+  actionAnswer(id: string, input?: unknown): Promise<ActionAnswer | undefined>  // the whole answer: text, or { message?, panel? }
   get status(): { status: "running" | "degraded"; message?: string }
   watchSignals(signals: WatchedSignal[]): Promise<void>
   pushValues(values: Array<Omit<WatchedValue, "ts" | "kind"> & Partial<Pick<WatchedValue, "ts" | "kind">>>, dropped?: number): Promise<void>
@@ -346,7 +370,12 @@ class PluginTestHost<T extends PluginClass = PluginClass> {
 }
 interface ConfigCheckResult { issues: ConfigIssue[]; config: unknown; version: number; store?: { set: Record<string, unknown>; delete: string[] } }
 interface ConfigIssue { path: (string | number)[]; message: string }
-interface TestHostOptions { config?: unknown; store?: Record<string, unknown>; instanceId?: string; slug?: string /* default "test" */; clock?: Clock /* e.g. a TestClock */; timeZone?: string; forwardRejections?: boolean }
+interface TestHostOptions {
+  config?: unknown; store?: Record<string, unknown>; instanceId?: string; slug?: string /* default "test" */; clock?: Clock /* e.g. a TestClock */
+  timeZone?: string; forwardRejections?: boolean; configVersion?: number
+  hostFeatures?: string[]  // default all (HOST_FEATURES); [] shows what an older Nexus gets
+}
+function cellText(cell: Cell | undefined): string  // a panel cell's text, for assertions
 
 class TestClock implements Clock {
   constructor(start?: number | string | Date)
@@ -365,7 +394,9 @@ class TestClock implements Clock {
 | `next(id, timeoutMs = 2000)` | Waits for the next value emitted after the call; throws on timeout. Waits use the real timers, also while a test mocks them (`mock.timers`), so a missing value fails instead of hanging. |
 | `checkConfig` | Checks settings as the host does before saving them, without starting the plugin: zod issues at their fields, and the config migrated from `configVersion` (default: the current version). With `store`, `store` in the result says what the migration wrote. |
 | `plugin` | The plugin instance, typed as its class, for reaching into it from a test (e.g. waiting for a poller). |
-| `actuate` | Throws `Error` with the message `run()` threw. `causeId` is the bus message it answers. |
+| `actuate` | Throws `Error` with the message `run()` threw. `causeId` is the bus message it answers; `replayed` what `run()` sees in `command.replayed`. |
+| `hostFeatures` | By default the plugin runs as on a current Nexus. `hostFeatures: []` runs it as on an older one: v1 panels (cells as text, tiles and notices as key-value), an action's message only, no `panel.changed` or `action.progress` (both are in `sent` otherwise). |
+| `cellText(cell)` | Panel values are cells (text or `{ text?, tone?, until?, since? }`): `cellText(row[1])` reads the text in an assertion. |
 | `http` | Method defaults to `POST`; unknown route answers 404; a throwing handler rejects. |
 | `status` | Last reported status, `running` if none. |
 | `sent` | Everything the plugin sent, structured-cloned like the worker boundary. A log line is `{ type: "log", level, message, data?, causeId? }`; the other types are `WorkerMessage` in `./wire`. |
@@ -379,13 +410,19 @@ Plugin authors need only the shapes ([reference](../reference/sdk/@lox-nexus/plu
 ```ts
 interface CatalogNode { label: string; children?: CatalogNode[]; entries?: CatalogEntry[] }
 type CatalogEntry = { kind: "sensor" | "actuator"; capability: string; params: unknown; label: string; value?: Value; unit?: string }
+type Tone = "ok" | "warn" | "error" | "info" | "muted"
+type Cell = string | { text?: string; tone?: Tone; until?: number; since?: number }  // until/since: epoch ms, counted live
 type PanelPart =
-  | { type: "keyValue"; items: { label: string; value: string }[] }
-  | { type: "table"; columns: string[]; rows: string[][]; rowActions?: RowAction[][] }  // up to 4 buttons per row
+  | { type: "keyValue"; items: { label: string; value: Cell; control?: RowAction }[] }
+  | { type: "table"; columns: string[]; rows: Cell[][]; rowActions?: RowAction[][] }  // up to 4 buttons per row
+  | { type: "tiles"; tiles: { label: string; value: number | string | null; unit?: string; decimals?: number; tone?: Tone; min?: number; max?: number; until?: number; hint?: string }[] }  // at most 12
+  | { type: "notice"; tone: Tone; title?: string; text: string; link?: { label: string; href: string } }  // href: http(s) or "#/…"
   | { type: "qr"; data: string; caption?: string }  // e.g. a Matter pairing payload; hosts before it refuse the panel
   | { type: "json"; data: unknown }
 type Panel = PanelPart | { type: "sections"; sections: { title: string; panel: PanelPart; actions?: RowAction[] }[] }  // at most 20 sections; up to 4 buttons in a heading
-type RowAction = { action: string; label?: string; input?: Record<string, unknown> }  // opens the action's dialog filled in
+type RowAction = { action: string; label?: string; input?: Record<string, unknown>; instant?: boolean; switch?: { checked: boolean } }
+type ActionAnswer = string | { message?: string; panel?: PanelPart }
+type Discovered = { label: string; value: string; detail?: string }[]  // at most 100
 type HttpRequest = { method: string; path: string; query: Record<string, string>; headers: Record<string, string>; body: string }
 type HttpResponse = { status: number; headers?: Record<string, string>; body?: string }
 type PluginHealth = "running" | "degraded"
@@ -397,7 +434,9 @@ type LogLevel = "debug" | "info" | "warn" | "error"
 | `CatalogEntry.params` | Validated against the capability's `params` schema when the user adds it. |
 | `HttpRequest` | `path` is below `/hook/<instance>`; repeated query keys and headers are joined with `", "`; header names lowercase; the session cookie is not forwarded; `body` is utf-8 text. |
 | `HttpResponse` | `status` 100-599; `body` is utf-8 text. |
-| `Panel` cells | Strings only; format numbers yourself. `sections` shows titled parts one below the other (facts above a table); hosts before it refuse that type, which fails only the panel. |
+| `Panel` cells | Text, or text with a tone (a dot and colour) and a time the page counts down to (`until`) or up from (`since`). Format numbers yourself. `sections` shows titled parts one below the other (facts above a table); hosts before it refuse that type, which fails only the panel. |
+| `RowAction` | Opens the action's dialog with `input` filled in. `instant`: runs at once (after the action's `confirm`), the result shows above the panel. `switch`: a switch in state `checked` that runs the action with `input` when flipped (put the new state in `input`). |
+| v2 parts | Tiles, notices, rich cells, item controls and `instant`/`switch` need the host feature `panel.v2`; on older hosts the runtime turns them into text and key-value lists, so plugins don't check. |
 
 **Messages.** Host and worker talk in these messages (`type` tells them apart). A plugin never
 sends them itself; the runtime does. Requests carry a `requestId` and are answered with `response`
@@ -405,20 +444,21 @@ sends them itself; the runtime does. Requests carry a `requestId` and are answer
 
 | Host → worker (`HostMessage`) | Fields | Answer |
 |---|---|---|
-| `init` | `instanceId`, `slug?`, `config`, `store`, `timeZone?`, `logLevel?`, `configVersion?` | `ready` or `failed` (after `config.migrated` when it migrated) |
+| `init` | `instanceId`, `slug?`, `config`, `store`, `timeZone?`, `logLevel?`, `configVersion?`, `hostFeatures?` | `ready` or `failed` (after `config.migrated` when it migrated). `hostFeatures` (`HOST_FEATURES`): what the host understands beyond version 1 |
 | `describe` | `requestId` | the `PluginDescription` |
 | `signal.add` | `requestId`, `signal` (`SignalSpec`) | ok once the sensor's or actuator's `start()` resolved |
 | `signal.remove` | `requestId`, `id` | ok once disposed |
-| `actuate` | `requestId`, `signalId`, `value`, `causeId?` | ok, or the error `run()` threw |
+| `actuate` | `requestId`, `signalId`, `value`, `causeId?`, `replayed?` | ok, or the error `run()` threw |
 | `catalog` | `requestId` | `CatalogNode[]` |
 | `panel` | `requestId` | a `Panel`, or none |
 | `http.request` | `requestId`, `request` (`HttpRequest`) | an `HttpResponse` |
-| `action` | `requestId`, `action`, `input` | the text to show, or none; only sent for actions the description declares |
+| `action` | `requestId`, `action`, `input` | an `ActionAnswer` (an object only to hosts with `action.result`), or none; only sent for actions the description declares |
 | `watch.signals` | `signals` (`WatchedSignal[]`) | none |
 | `watch.values` | `seq`, `values` (`WatchedValue[]`), `dropped?` | `watch.ack` |
 | `log.level` | `level` | none; only to workers whose `hello` lists the feature `log.level` |
 | `config.check` | `requestId`, `config`, `configVersion?`, `store?` | `{ issues, config, version, store? }`; feature `config.check` |
 | `config.test` | `requestId`, `config` | the test's message; feature `config.check` |
+| `config.discover` | `requestId`, `field`, `config?` | `Discovered`; only for fields the description lists as `discoverable` |
 | `ping` | `seq` | `pong` |
 | `shutdown` | | `stopped` |
 
@@ -437,7 +477,9 @@ sends them itself; the runtime does. Requests carry a `requestId` and are answer
 | `signal.recovered` | `signalId` | the failure is over |
 | `watch.ack` | `seq` | a `watch.values` batch is handled |
 | `config.migrated` | `config`, `version` | init migrated the stored config; only when `init` carried `configVersion` |
+| `panel.changed` | | the panel changed (`panelChanged()`); only to hosts with `panel.push` |
+| `action.progress` | `requestId`, `text`, `fraction?` | a running action's progress; only to hosts with `action.progress` |
 | `pong` | `seq` | answers `ping` |
 | `stopped` | | `shutdown` done |
 
-For hosts and tools: `WIRE_VERSION` (1), `HostMessageSchema`, `WorkerMessageSchema`, `SignalSpecSchema`, `HttpRequestSchema`, `HttpResponseSchema`, `CatalogEntrySchema`, `CatalogNodeSchema`, `PanelSchema`, `CapabilityDescriptionSchema`, `PluginDescriptionSchema`, `PluginHealthSchema`, `LogLevelSchema`, the matching types (`HostMessage`, `WorkerMessage`, `SignalSpec`, `CapabilityDescription`, `PluginDescription`, `JsonSchema`) and `PluginWorkerData`.
+For hosts and tools: `WIRE_VERSION` (1), `HOST_FEATURES` (`HostFeature`), `HostMessageSchema`, `WorkerMessageSchema`, `SignalSpecSchema`, `HttpRequestSchema`, `HttpResponseSchema`, `CatalogEntrySchema`, `CatalogNodeSchema`, `PanelSchema`, `PanelPartSchema`, `RowActionSchema`, `CellSchema`, `ToneSchema`, `ActionAnswerSchema`, `DiscoveredSchema`, `CapabilityDescriptionSchema`, `PluginDescriptionSchema`, `PluginHealthSchema`, `LogLevelSchema`, the matching types (`HostMessage`, `WorkerMessage`, `SignalSpec`, `CapabilityDescription`, `PluginDescription`, `JsonSchema`) and `PluginWorkerData`.

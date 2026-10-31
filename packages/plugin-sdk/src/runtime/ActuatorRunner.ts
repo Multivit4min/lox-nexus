@@ -16,6 +16,7 @@ export class SupersededError extends Error {
 interface Waiting {
   value: Value
   causeId: string | undefined
+  replayed: boolean
   resolve: () => void
   reject: (error: unknown) => void
 }
@@ -32,11 +33,11 @@ export class ActuatorRunner {
   constructor(private readonly actuator: Actuator<Plugin, unknown, Value>, private readonly concurrency: ActuatorConcurrency) {}
 
   /** resolves when run() finished for this value; rejects with its error, SupersededError, or after close() */
-  submit(value: Value, causeId: string | undefined): Promise<void> {
+  submit(value: Value, causeId: string | undefined, replayed = false): Promise<void> {
     if (this.closed) return Promise.reject(new Error("the actuator was removed"))
     return new Promise((resolve, reject) => {
       if (this.concurrency === "latest") this.waiting.splice(0).forEach(entry => entry.reject(new SupersededError()))
-      this.waiting.push({ value, causeId, resolve, reject })
+      this.waiting.push({ value, causeId, replayed, resolve, reject })
       void this.drain()
     })
   }
@@ -51,9 +52,9 @@ export class ActuatorRunner {
     if (this.busy) return
     this.busy = true
     for (let next = this.waiting.shift(); next; next = this.waiting.shift()) {
-      const { value, causeId, resolve, reject } = next
+      const { value, causeId, replayed, resolve, reject } = next
       try {
-        await CauseScope.run(causeId, () => this.actuator.run(value))
+        await CauseScope.run(causeId, () => this.actuator.run(value, { replayed }))
         resolve()
       } catch (error) {
         reject(error)

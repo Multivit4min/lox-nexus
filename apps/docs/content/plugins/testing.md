@@ -116,7 +116,28 @@ test an edited signal, remove it and add it again with the new params, which is 
 ### Catalog, panel, webhooks
 
 **`catalog()`** and **`panel()`** call the plugin's methods and return the answer (`panel()` may be
-`undefined`). Both throw if the plugin throws.
+`undefined`). Both throw if the plugin throws. Panel values are cells (text, or text with a tone
+and a time); **`cellText(cell)`** from `@lox-nexus/plugin-sdk/testing` reads the text:
+
+```ts
+const panel = await host.panel()
+const items = panel?.type === "keyValue" ? Object.fromEntries(panel.items.map(item => [item.label, cellText(item.value)])) : {}
+assert.equal(items.Firmware, "1.34")
+```
+
+**What an older Nexus gets.** By default the plugin runs as on a current Nexus. Start it with
+`hostFeatures: []` to see what an older one gets: tiles and notices as key-value lists, cells as
+text, an action's message without its panel part, and no `panel.changed` or `action.progress`
+messages (on a current host they are in `host.sent`).
+
+**Actions.** **`action(id, input)`** resolves with the action's message; **`actionAnswer(id, input)`**
+with the whole answer, `{ message?, panel? }` where the action returns one. **`actuate(id, value,
+causeId, replayed)`** with `replayed` true shows what a run sees for a force delivered again.
+
+**Find on the network.** **`PluginTestHost.discover(Plugin, field, config?)`** runs `static
+discover` as the form's Find does. Test the search itself against a responder on 127.0.0.1:
+`Mdns.browse(type, { address: "127.0.0.1", port, timeoutMs: 300 })` asks it instead of the
+network.
 
 **`http({ path, method, headers, query, body })`** calls a webhook route. Only `path` is required;
 the method defaults to `POST`. It returns `{ status, headers, body }`, with the defaults filled in.

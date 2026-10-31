@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { afterEach, describe, mock, test } from "node:test"
-import { PluginTestHost } from "@lox-nexus/plugin-sdk/testing"
+import { cellText, PluginTestHost } from "@lox-nexus/plugin-sdk/testing"
 import { WebhookHarness } from "./test-support/WebhookHarness.ts"
 import { WebhookPlugin } from "./WebhookPlugin.ts"
 import { WebhookPanel } from "./WebhookPanel.ts"
@@ -70,7 +70,7 @@ describe("WebhookPanel", () => {
   test("tells where the token goes, with the token; without one it warns", async () => {
     const host = await harness.start()
     const items = (await sections(host)).Token
-    assert.deepEqual(items?.type === "keyValue" ? items.items.map(item => [item.label, item.value]) : [], [
+    assert.deepEqual(items?.type === "keyValue" ? items.items.map(item => [item.label, cellText(item.value)]) : [], [
       ["Token", WebhookHarness.TOKEN],
       ["As a header (preferred)", `Authorization: Bearer ${WebhookHarness.TOKEN}`],
       ["Or as this header", `X-Webhook-Token: ${WebhookHarness.TOKEN}`],
@@ -80,7 +80,7 @@ describe("WebhookPanel", () => {
     const open = await PluginTestHost.start(WebhookPlugin, { config: {} })
     try {
       const warning = (await sections(open)).Token
-      assert.match(warning?.type === "keyValue" ? warning.items[0]?.value ?? "" : "", /^none: every call is accepted.*Not safe/)
+      assert.match(warning?.type === "keyValue" ? cellText(warning.items[0]?.value) : "", /^none: every call is accepted.*Not safe/)
     } finally {
       await open.stop()
     }

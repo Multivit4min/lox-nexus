@@ -120,10 +120,14 @@ test("a forced actuator gets its forced command again when the plugin restarts",
   await step(supervisor.start())
   bus.force("counter/home/actuator/set", Value.number(7), { by: "david" })
   await settle()
+  const first = transport.last.received.flatMap(message => message.type === "actuate" ? [message.replayed ?? false] : [])
+  assert.deepEqual(first, [false], "setting the force is a new command")
   await step(supervisor.stop())
   await step(supervisor.start())
   const actuated = transport.last.received.flatMap(message => message.type === "actuate" ? [message.value] : [])
   assert.deepEqual(actuated, [Value.number(7)], "the new worker got the forced value without anyone sending it")
+  const replayed = transport.last.received.flatMap(message => message.type === "actuate" ? [message.replayed] : [])
+  assert.deepEqual(replayed, [true], "and knows it is a replay, not a new command")
 })
 
 test("each start tells the plugin the installation's time zone, as it is then", async () => {

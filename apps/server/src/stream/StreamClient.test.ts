@@ -5,6 +5,7 @@ import type { StreamEvent } from "@lox-nexus/api"
 import { EventBus } from "@lox-nexus/core"
 import { Value } from "@lox-nexus/plugin-sdk/values"
 import type { WebSocket } from "ws"
+import { PluginEvents } from "../services/PluginEvents.ts"
 import { StreamClient } from "./StreamClient.ts"
 
 /** the slice of a ws WebSocket that StreamClient uses */
@@ -164,5 +165,23 @@ describe("StreamClient signal status", () => {
     t.mock.timers.tick(StreamClient.FLUSH_MS)
     assert.equal(socket.sent.filter(event => event.type === "signal-status").length, 2, "nothing after unsubscribing")
     void client.dispose()
+  })
+})
+
+describe("StreamClient plugin events", () => {
+  test("panel pushes and action progress go to the client at once, until it closes", async t => {
+    t.mock.timers.enable({ apis: ["setInterval", "setTimeout"] })
+    const events = new PluginEvents()
+    const socket = new FakeSocket()
+    const client = new StreamClient(socket as unknown as WebSocket, new EventBus(), { token: "t", tokenHash: "h", userId: "u" }, undefined, events)
+    events.emit({ type: "plugin-panel", instanceId: "i" })
+    events.emit({ type: "plugin-action-progress", instanceId: "i", runId: "r1", text: "searching", fraction: 0.5 })
+    assert.deepEqual(socket.sent, [
+      { type: "plugin-panel", instanceId: "i" },
+      { type: "plugin-action-progress", instanceId: "i", runId: "r1", text: "searching", fraction: 0.5 }
+    ])
+    await client.dispose()
+    events.emit({ type: "plugin-panel", instanceId: "i" })
+    assert.equal(socket.sent.length, 2, "nothing after the client closed")
   })
 })

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { after, afterEach, before, describe, mock, test } from "node:test"
 import { Value } from "@lox-nexus/plugin-sdk/values"
-import { PluginTestHost } from "@lox-nexus/plugin-sdk/testing"
+import { cellText, PluginTestHost } from "@lox-nexus/plugin-sdk/testing"
 import { FroniusPlugin } from "./FroniusPlugin.ts"
 import { FixtureServer } from "./test-support/FixtureServer.ts"
 import { newResources, waitFor } from "./test-support/waitFor.ts"
@@ -13,7 +13,7 @@ const pluginOf = (host: PluginTestHost) => host.plugin as FroniusPlugin
 const panelItems = async (host: PluginTestHost) => {
   const panel = await host.panel()
   assert.equal(panel?.type, "keyValue")
-  return Object.fromEntries(panel?.type === "keyValue" ? panel.items.map(item => [item.label, item.value]) : [])
+  return Object.fromEntries(panel?.type === "keyValue" ? panel.items.map(item => [item.label, cellText(item.value)]) : [])
 }
 
 describe("FroniusPlugin", () => {

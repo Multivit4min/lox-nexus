@@ -7,6 +7,106 @@
 import { z } from 'zod';
 
 // @public (undocumented)
+export type ActionAnswer = z.infer<typeof ActionAnswerSchema>;
+
+// @public
+export const ActionAnswerSchema: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
+    message: z.ZodOptional<z.ZodString>;
+    panel: z.ZodOptional<z.ZodDiscriminatedUnion<[z.ZodObject<{
+        type: z.ZodLiteral<"keyValue">;
+        items: z.ZodArray<z.ZodObject<{
+            label: z.ZodString;
+            value: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
+                text: z.ZodOptional<z.ZodString>;
+                tone: z.ZodOptional<z.ZodEnum<{
+                    error: "error";
+                    ok: "ok";
+                    warn: "warn";
+                    info: "info";
+                    muted: "muted";
+                }>>;
+                until: z.ZodOptional<z.ZodNumber>;
+                since: z.ZodOptional<z.ZodNumber>;
+            }, z.core.$strip>]>;
+            control: z.ZodOptional<z.ZodObject<{
+                action: z.ZodString;
+                label: z.ZodOptional<z.ZodString>;
+                input: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+                instant: z.ZodOptional<z.ZodBoolean>;
+                switch: z.ZodOptional<z.ZodObject<{
+                    checked: z.ZodBoolean;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>;
+    }, z.core.$strip>, z.ZodObject<{
+        type: z.ZodLiteral<"table">;
+        columns: z.ZodArray<z.ZodString>;
+        rows: z.ZodArray<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
+            text: z.ZodOptional<z.ZodString>;
+            tone: z.ZodOptional<z.ZodEnum<{
+                error: "error";
+                ok: "ok";
+                warn: "warn";
+                info: "info";
+                muted: "muted";
+            }>>;
+            until: z.ZodOptional<z.ZodNumber>;
+            since: z.ZodOptional<z.ZodNumber>;
+        }, z.core.$strip>]>>>;
+        rowActions: z.ZodOptional<z.ZodArray<z.ZodArray<z.ZodObject<{
+            action: z.ZodString;
+            label: z.ZodOptional<z.ZodString>;
+            input: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+            instant: z.ZodOptional<z.ZodBoolean>;
+            switch: z.ZodOptional<z.ZodObject<{
+                checked: z.ZodBoolean;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>>;
+    }, z.core.$strip>, z.ZodObject<{
+        type: z.ZodLiteral<"json">;
+        data: z.ZodUnknown;
+    }, z.core.$strip>, z.ZodObject<{
+        type: z.ZodLiteral<"qr">;
+        data: z.ZodString;
+        caption: z.ZodOptional<z.ZodString>;
+    }, z.core.$strip>, z.ZodObject<{
+        type: z.ZodLiteral<"tiles">;
+        tiles: z.ZodArray<z.ZodObject<{
+            label: z.ZodString;
+            value: z.ZodUnion<readonly [z.ZodNumber, z.ZodString, z.ZodNull]>;
+            unit: z.ZodOptional<z.ZodString>;
+            decimals: z.ZodOptional<z.ZodInt>;
+            tone: z.ZodOptional<z.ZodEnum<{
+                error: "error";
+                ok: "ok";
+                warn: "warn";
+                info: "info";
+                muted: "muted";
+            }>>;
+            min: z.ZodOptional<z.ZodNumber>;
+            max: z.ZodOptional<z.ZodNumber>;
+            until: z.ZodOptional<z.ZodNumber>;
+            hint: z.ZodOptional<z.ZodString>;
+        }, z.core.$strip>>;
+    }, z.core.$strip>, z.ZodObject<{
+        type: z.ZodLiteral<"notice">;
+        tone: z.ZodEnum<{
+            error: "error";
+            ok: "ok";
+            warn: "warn";
+            info: "info";
+            muted: "muted";
+        }>;
+        title: z.ZodOptional<z.ZodString>;
+        text: z.ZodString;
+        link: z.ZodOptional<z.ZodObject<{
+            label: z.ZodString;
+            href: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>], "type">>;
+}, z.core.$strip>]>;
+
+// @public (undocumented)
 export type ActionDescription = z.infer<typeof ActionDescriptionSchema>;
 
 // @public
@@ -17,8 +117,8 @@ export const ActionDescriptionSchema: z.ZodObject<{
     input: z.ZodRecord<z.ZodString, z.ZodUnknown>;
     confirm: z.ZodOptional<z.ZodString>;
     placement: z.ZodOptional<z.ZodEnum<{
-        toolbar: "toolbar";
         panel: "panel";
+        toolbar: "toolbar";
     }>>;
 }, z.core.$strip>;
 
@@ -75,12 +175,50 @@ export interface CatalogNode {
 // @public (undocumented)
 export const CatalogNodeSchema: z.ZodType<CatalogNode>;
 
+// @public (undocumented)
+export type Cell = z.infer<typeof CellSchema>;
+
+// @public
+export const CellSchema: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
+    text: z.ZodOptional<z.ZodString>;
+    tone: z.ZodOptional<z.ZodEnum<{
+        error: "error";
+        ok: "ok";
+        warn: "warn";
+        info: "info";
+        muted: "muted";
+    }>>;
+    until: z.ZodOptional<z.ZodNumber>;
+    since: z.ZodOptional<z.ZodNumber>;
+}, z.core.$strip>]>;
+
+// @public (undocumented)
+export type Discovered = z.infer<typeof DiscoveredSchema>;
+
+// @public
+export const DiscoveredSchema: z.ZodArray<z.ZodObject<{
+    label: z.ZodString;
+    value: z.ZodString;
+    detail: z.ZodOptional<z.ZodString>;
+}, z.core.$strip>>;
+
 // @public
 export const HelloSchema: z.ZodObject<{
     type: z.ZodLiteral<"hello">;
     version: z.ZodInt;
     features: z.ZodOptional<z.ZodArray<z.ZodString>>;
 }, z.core.$strip>;
+
+// @public
+export const HOST_FEATURES: {
+    readonly panelV2: "panel.v2";
+    readonly panelPush: "panel.push";
+    readonly actionResult: "action.result";
+    readonly actionProgress: "action.progress";
+};
+
+// @public (undocumented)
+export type HostFeature = typeof HOST_FEATURES[keyof typeof HOST_FEATURES];
 
 // @public (undocumented)
 export type HostMessage = z.infer<typeof HostMessageSchema>;
@@ -95,11 +233,12 @@ export const HostMessageSchema: z.ZodDiscriminatedUnion<[z.ZodObject<{
     timeZone: z.ZodOptional<z.ZodString>;
     logLevel: z.ZodOptional<z.ZodEnum<{
         error: "error";
-        debug: "debug";
-        info: "info";
         warn: "warn";
+        info: "info";
+        debug: "debug";
     }>>;
     configVersion: z.ZodOptional<z.ZodInt>;
+    hostFeatures: z.ZodOptional<z.ZodArray<z.ZodString>>;
 }, z.core.$strip>, z.ZodObject<{
     type: z.ZodLiteral<"describe">;
     requestId: z.ZodInt;
@@ -126,6 +265,7 @@ export const HostMessageSchema: z.ZodDiscriminatedUnion<[z.ZodObject<{
     signalId: z.ZodString;
     value: z.ZodType<Value, unknown, z.core.$ZodTypeInternals<Value, unknown>>;
     causeId: z.ZodOptional<z.ZodString>;
+    replayed: z.ZodOptional<z.ZodBoolean>;
 }, z.core.$strip>, z.ZodObject<{
     type: z.ZodLiteral<"catalog">;
     requestId: z.ZodInt;
@@ -147,6 +287,11 @@ export const HostMessageSchema: z.ZodDiscriminatedUnion<[z.ZodObject<{
     type: z.ZodLiteral<"config.test">;
     requestId: z.ZodInt;
     config: z.ZodUnknown;
+}, z.core.$strip>, z.ZodObject<{
+    type: z.ZodLiteral<"config.discover">;
+    requestId: z.ZodInt;
+    field: z.ZodString;
+    config: z.ZodOptional<z.ZodUnknown>;
 }, z.core.$strip>, z.ZodObject<{
     type: z.ZodLiteral<"http.request">;
     requestId: z.ZodInt;
@@ -202,9 +347,9 @@ export const HostMessageSchema: z.ZodDiscriminatedUnion<[z.ZodObject<{
     type: z.ZodLiteral<"log.level">;
     level: z.ZodEnum<{
         error: "error";
-        debug: "debug";
-        info: "info";
         warn: "warn";
+        info: "info";
+        debug: "debug";
     }>;
 }, z.core.$strip>, z.ZodObject<{
     type: z.ZodLiteral<"ping">;
@@ -244,9 +389,9 @@ export type LogLevel = z.infer<typeof LogLevelSchema>;
 // @public
 export const LogLevelSchema: z.ZodEnum<{
     error: "error";
-    debug: "debug";
-    info: "info";
     warn: "warn";
+    info: "info";
+    debug: "debug";
 }>;
 
 // @public
@@ -260,16 +405,51 @@ export const PanelPartSchema: z.ZodDiscriminatedUnion<[z.ZodObject<{
     type: z.ZodLiteral<"keyValue">;
     items: z.ZodArray<z.ZodObject<{
         label: z.ZodString;
-        value: z.ZodString;
+        value: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
+            text: z.ZodOptional<z.ZodString>;
+            tone: z.ZodOptional<z.ZodEnum<{
+                error: "error";
+                ok: "ok";
+                warn: "warn";
+                info: "info";
+                muted: "muted";
+            }>>;
+            until: z.ZodOptional<z.ZodNumber>;
+            since: z.ZodOptional<z.ZodNumber>;
+        }, z.core.$strip>]>;
+        control: z.ZodOptional<z.ZodObject<{
+            action: z.ZodString;
+            label: z.ZodOptional<z.ZodString>;
+            input: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+            instant: z.ZodOptional<z.ZodBoolean>;
+            switch: z.ZodOptional<z.ZodObject<{
+                checked: z.ZodBoolean;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>;
     }, z.core.$strip>>;
 }, z.core.$strip>, z.ZodObject<{
     type: z.ZodLiteral<"table">;
     columns: z.ZodArray<z.ZodString>;
-    rows: z.ZodArray<z.ZodArray<z.ZodString>>;
+    rows: z.ZodArray<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
+        text: z.ZodOptional<z.ZodString>;
+        tone: z.ZodOptional<z.ZodEnum<{
+            error: "error";
+            ok: "ok";
+            warn: "warn";
+            info: "info";
+            muted: "muted";
+        }>>;
+        until: z.ZodOptional<z.ZodNumber>;
+        since: z.ZodOptional<z.ZodNumber>;
+    }, z.core.$strip>]>>>;
     rowActions: z.ZodOptional<z.ZodArray<z.ZodArray<z.ZodObject<{
         action: z.ZodString;
         label: z.ZodOptional<z.ZodString>;
         input: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+        instant: z.ZodOptional<z.ZodBoolean>;
+        switch: z.ZodOptional<z.ZodObject<{
+            checked: z.ZodBoolean;
+        }, z.core.$strip>>;
     }, z.core.$strip>>>>;
 }, z.core.$strip>, z.ZodObject<{
     type: z.ZodLiteral<"json">;
@@ -278,23 +458,92 @@ export const PanelPartSchema: z.ZodDiscriminatedUnion<[z.ZodObject<{
     type: z.ZodLiteral<"qr">;
     data: z.ZodString;
     caption: z.ZodOptional<z.ZodString>;
+}, z.core.$strip>, z.ZodObject<{
+    type: z.ZodLiteral<"tiles">;
+    tiles: z.ZodArray<z.ZodObject<{
+        label: z.ZodString;
+        value: z.ZodUnion<readonly [z.ZodNumber, z.ZodString, z.ZodNull]>;
+        unit: z.ZodOptional<z.ZodString>;
+        decimals: z.ZodOptional<z.ZodInt>;
+        tone: z.ZodOptional<z.ZodEnum<{
+            error: "error";
+            ok: "ok";
+            warn: "warn";
+            info: "info";
+            muted: "muted";
+        }>>;
+        min: z.ZodOptional<z.ZodNumber>;
+        max: z.ZodOptional<z.ZodNumber>;
+        until: z.ZodOptional<z.ZodNumber>;
+        hint: z.ZodOptional<z.ZodString>;
+    }, z.core.$strip>>;
+}, z.core.$strip>, z.ZodObject<{
+    type: z.ZodLiteral<"notice">;
+    tone: z.ZodEnum<{
+        error: "error";
+        ok: "ok";
+        warn: "warn";
+        info: "info";
+        muted: "muted";
+    }>;
+    title: z.ZodOptional<z.ZodString>;
+    text: z.ZodString;
+    link: z.ZodOptional<z.ZodObject<{
+        label: z.ZodString;
+        href: z.ZodString;
+    }, z.core.$strip>>;
 }, z.core.$strip>], "type">;
 
-// @public (undocumented)
+// @public
 export const PanelSchema: z.ZodDiscriminatedUnion<[z.ZodObject<{
     type: z.ZodLiteral<"keyValue">;
     items: z.ZodArray<z.ZodObject<{
         label: z.ZodString;
-        value: z.ZodString;
+        value: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
+            text: z.ZodOptional<z.ZodString>;
+            tone: z.ZodOptional<z.ZodEnum<{
+                error: "error";
+                ok: "ok";
+                warn: "warn";
+                info: "info";
+                muted: "muted";
+            }>>;
+            until: z.ZodOptional<z.ZodNumber>;
+            since: z.ZodOptional<z.ZodNumber>;
+        }, z.core.$strip>]>;
+        control: z.ZodOptional<z.ZodObject<{
+            action: z.ZodString;
+            label: z.ZodOptional<z.ZodString>;
+            input: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+            instant: z.ZodOptional<z.ZodBoolean>;
+            switch: z.ZodOptional<z.ZodObject<{
+                checked: z.ZodBoolean;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>;
     }, z.core.$strip>>;
 }, z.core.$strip>, z.ZodObject<{
     type: z.ZodLiteral<"table">;
     columns: z.ZodArray<z.ZodString>;
-    rows: z.ZodArray<z.ZodArray<z.ZodString>>;
+    rows: z.ZodArray<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
+        text: z.ZodOptional<z.ZodString>;
+        tone: z.ZodOptional<z.ZodEnum<{
+            error: "error";
+            ok: "ok";
+            warn: "warn";
+            info: "info";
+            muted: "muted";
+        }>>;
+        until: z.ZodOptional<z.ZodNumber>;
+        since: z.ZodOptional<z.ZodNumber>;
+    }, z.core.$strip>]>>>;
     rowActions: z.ZodOptional<z.ZodArray<z.ZodArray<z.ZodObject<{
         action: z.ZodString;
         label: z.ZodOptional<z.ZodString>;
         input: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+        instant: z.ZodOptional<z.ZodBoolean>;
+        switch: z.ZodOptional<z.ZodObject<{
+            checked: z.ZodBoolean;
+        }, z.core.$strip>>;
     }, z.core.$strip>>>>;
 }, z.core.$strip>, z.ZodObject<{
     type: z.ZodLiteral<"json">;
@@ -303,6 +552,40 @@ export const PanelSchema: z.ZodDiscriminatedUnion<[z.ZodObject<{
     type: z.ZodLiteral<"qr">;
     data: z.ZodString;
     caption: z.ZodOptional<z.ZodString>;
+}, z.core.$strip>, z.ZodObject<{
+    type: z.ZodLiteral<"tiles">;
+    tiles: z.ZodArray<z.ZodObject<{
+        label: z.ZodString;
+        value: z.ZodUnion<readonly [z.ZodNumber, z.ZodString, z.ZodNull]>;
+        unit: z.ZodOptional<z.ZodString>;
+        decimals: z.ZodOptional<z.ZodInt>;
+        tone: z.ZodOptional<z.ZodEnum<{
+            error: "error";
+            ok: "ok";
+            warn: "warn";
+            info: "info";
+            muted: "muted";
+        }>>;
+        min: z.ZodOptional<z.ZodNumber>;
+        max: z.ZodOptional<z.ZodNumber>;
+        until: z.ZodOptional<z.ZodNumber>;
+        hint: z.ZodOptional<z.ZodString>;
+    }, z.core.$strip>>;
+}, z.core.$strip>, z.ZodObject<{
+    type: z.ZodLiteral<"notice">;
+    tone: z.ZodEnum<{
+        error: "error";
+        ok: "ok";
+        warn: "warn";
+        info: "info";
+        muted: "muted";
+    }>;
+    title: z.ZodOptional<z.ZodString>;
+    text: z.ZodString;
+    link: z.ZodOptional<z.ZodObject<{
+        label: z.ZodString;
+        href: z.ZodString;
+    }, z.core.$strip>>;
 }, z.core.$strip>, z.ZodObject<{
     type: z.ZodLiteral<"sections">;
     sections: z.ZodArray<z.ZodObject<{
@@ -311,16 +594,51 @@ export const PanelSchema: z.ZodDiscriminatedUnion<[z.ZodObject<{
             type: z.ZodLiteral<"keyValue">;
             items: z.ZodArray<z.ZodObject<{
                 label: z.ZodString;
-                value: z.ZodString;
+                value: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
+                    text: z.ZodOptional<z.ZodString>;
+                    tone: z.ZodOptional<z.ZodEnum<{
+                        error: "error";
+                        ok: "ok";
+                        warn: "warn";
+                        info: "info";
+                        muted: "muted";
+                    }>>;
+                    until: z.ZodOptional<z.ZodNumber>;
+                    since: z.ZodOptional<z.ZodNumber>;
+                }, z.core.$strip>]>;
+                control: z.ZodOptional<z.ZodObject<{
+                    action: z.ZodString;
+                    label: z.ZodOptional<z.ZodString>;
+                    input: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+                    instant: z.ZodOptional<z.ZodBoolean>;
+                    switch: z.ZodOptional<z.ZodObject<{
+                        checked: z.ZodBoolean;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>;
             }, z.core.$strip>>;
         }, z.core.$strip>, z.ZodObject<{
             type: z.ZodLiteral<"table">;
             columns: z.ZodArray<z.ZodString>;
-            rows: z.ZodArray<z.ZodArray<z.ZodString>>;
+            rows: z.ZodArray<z.ZodArray<z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
+                text: z.ZodOptional<z.ZodString>;
+                tone: z.ZodOptional<z.ZodEnum<{
+                    error: "error";
+                    ok: "ok";
+                    warn: "warn";
+                    info: "info";
+                    muted: "muted";
+                }>>;
+                until: z.ZodOptional<z.ZodNumber>;
+                since: z.ZodOptional<z.ZodNumber>;
+            }, z.core.$strip>]>>>;
             rowActions: z.ZodOptional<z.ZodArray<z.ZodArray<z.ZodObject<{
                 action: z.ZodString;
                 label: z.ZodOptional<z.ZodString>;
                 input: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+                instant: z.ZodOptional<z.ZodBoolean>;
+                switch: z.ZodOptional<z.ZodObject<{
+                    checked: z.ZodBoolean;
+                }, z.core.$strip>>;
             }, z.core.$strip>>>>;
         }, z.core.$strip>, z.ZodObject<{
             type: z.ZodLiteral<"json">;
@@ -329,11 +647,49 @@ export const PanelSchema: z.ZodDiscriminatedUnion<[z.ZodObject<{
             type: z.ZodLiteral<"qr">;
             data: z.ZodString;
             caption: z.ZodOptional<z.ZodString>;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"tiles">;
+            tiles: z.ZodArray<z.ZodObject<{
+                label: z.ZodString;
+                value: z.ZodUnion<readonly [z.ZodNumber, z.ZodString, z.ZodNull]>;
+                unit: z.ZodOptional<z.ZodString>;
+                decimals: z.ZodOptional<z.ZodInt>;
+                tone: z.ZodOptional<z.ZodEnum<{
+                    error: "error";
+                    ok: "ok";
+                    warn: "warn";
+                    info: "info";
+                    muted: "muted";
+                }>>;
+                min: z.ZodOptional<z.ZodNumber>;
+                max: z.ZodOptional<z.ZodNumber>;
+                until: z.ZodOptional<z.ZodNumber>;
+                hint: z.ZodOptional<z.ZodString>;
+            }, z.core.$strip>>;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"notice">;
+            tone: z.ZodEnum<{
+                error: "error";
+                ok: "ok";
+                warn: "warn";
+                info: "info";
+                muted: "muted";
+            }>;
+            title: z.ZodOptional<z.ZodString>;
+            text: z.ZodString;
+            link: z.ZodOptional<z.ZodObject<{
+                label: z.ZodString;
+                href: z.ZodString;
+            }, z.core.$strip>>;
         }, z.core.$strip>], "type">;
         actions: z.ZodOptional<z.ZodArray<z.ZodObject<{
             action: z.ZodString;
             label: z.ZodOptional<z.ZodString>;
             input: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+            instant: z.ZodOptional<z.ZodBoolean>;
+            switch: z.ZodOptional<z.ZodObject<{
+                checked: z.ZodBoolean;
+            }, z.core.$strip>>;
         }, z.core.$strip>>>;
     }, z.core.$strip>>;
 }, z.core.$strip>], "type">;
@@ -393,11 +749,13 @@ export const PluginDescriptionSchema: z.ZodObject<{
         input: z.ZodRecord<z.ZodString, z.ZodUnknown>;
         confirm: z.ZodOptional<z.ZodString>;
         placement: z.ZodOptional<z.ZodEnum<{
-            toolbar: "toolbar";
             panel: "panel";
+            toolbar: "toolbar";
         }>>;
     }, z.core.$strip>>>;
     testable: z.ZodOptional<z.ZodLiteral<true>>;
+    panelPush: z.ZodOptional<z.ZodLiteral<true>>;
+    discoverable: z.ZodOptional<z.ZodArray<z.ZodString>>;
 }, z.core.$strip>;
 
 // @public (undocumented)
@@ -423,6 +781,10 @@ export const RowActionSchema: z.ZodObject<{
     action: z.ZodString;
     label: z.ZodOptional<z.ZodString>;
     input: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+    instant: z.ZodOptional<z.ZodBoolean>;
+    switch: z.ZodOptional<z.ZodObject<{
+        checked: z.ZodBoolean;
+    }, z.core.$strip>>;
 }, z.core.$strip>;
 
 // @public (undocumented)
@@ -439,6 +801,18 @@ export const SignalSpecSchema: z.ZodObject<{
     params: z.ZodUnknown;
     label: z.ZodOptional<z.ZodString>;
 }, z.core.$strip>;
+
+// @public (undocumented)
+export type Tone = z.infer<typeof ToneSchema>;
+
+// @public
+export const ToneSchema: z.ZodEnum<{
+    error: "error";
+    ok: "ok";
+    warn: "warn";
+    info: "info";
+    muted: "muted";
+}>;
 
 // @public (undocumented)
 export type WatchDeclaration = z.infer<typeof WatchDeclarationSchema>;
@@ -526,9 +900,9 @@ export const WorkerMessageSchema: z.ZodDiscriminatedUnion<[z.ZodObject<{
     type: z.ZodLiteral<"log">;
     level: z.ZodEnum<{
         error: "error";
-        debug: "debug";
-        info: "info";
         warn: "warn";
+        info: "info";
+        debug: "debug";
     }>;
     message: z.ZodString;
     data: z.ZodOptional<z.ZodUnknown>;
@@ -544,6 +918,13 @@ export const WorkerMessageSchema: z.ZodDiscriminatedUnion<[z.ZodObject<{
     type: z.ZodLiteral<"config.migrated">;
     config: z.ZodUnknown;
     version: z.ZodInt;
+}, z.core.$strip>, z.ZodObject<{
+    type: z.ZodLiteral<"panel.changed">;
+}, z.core.$strip>, z.ZodObject<{
+    type: z.ZodLiteral<"action.progress">;
+    requestId: z.ZodInt;
+    text: z.ZodString;
+    fraction: z.ZodOptional<z.ZodNumber>;
 }, z.core.$strip>, z.ZodObject<{
     type: z.ZodLiteral<"response">;
     requestId: z.ZodInt;

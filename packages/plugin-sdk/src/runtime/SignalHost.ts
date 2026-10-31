@@ -55,11 +55,11 @@ export class SignalHost {
    * Runs an actuator with the value converted to what it accepts.
    * @throws Error when the id is not an actuator; whatever run() throws, or SupersededError
    */
-  actuate(id: string, value: Value, causeId: string | undefined): Promise<void> {
+  actuate(id: string, value: Value, causeId: string | undefined, replayed = false): Promise<void> {
     const entry = this.entries.get(id)
     if (entry?.kind !== "actuator") return Promise.reject(new Error(`"${id}" is not an actuator of this plugin`))
     const converted = entry.accepts === "any" ? value : Converter.convert(value, entry.accepts)
-    return entry.runner.submit(converted, causeId)
+    return entry.runner.submit(converted, causeId, replayed)
   }
 
   /** disposes every signal, collecting errors instead of stopping at the first */

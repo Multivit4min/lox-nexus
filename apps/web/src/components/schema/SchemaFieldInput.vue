@@ -11,14 +11,17 @@ import { SchemaDraft, type Draft } from "../../lib/schema/SchemaDraft.ts"
 import type { SchemaField } from "../../lib/schema/SchemaField.ts"
 import FormField from "../FormField.vue"
 import CodeEditor from "./CodeEditor.vue"
+import FindButton from "./FindButton.vue"
 import SchemaUnionInput from "./SchemaUnionInput.vue"
+import SchemaWidgetInput from "./SchemaWidgetInput.vue"
 
 /**
  * One field of a schema form, recursive for objects and arrays. Updates are emitted as new
  * drafts, never by changing the one passed in. `secrets` names the secret fields of this object
- * that have a stored value: their inputs stay empty and may be left empty to keep it.
+ * that have a stored value: their inputs stay empty and may be left empty to keep it. `topLevel`:
+ * a field of the config itself, the only ones a plugin's Find answers for.
  */
-const props = defineProps<{ field: SchemaField; modelValue: Draft; id: string; secrets?: string[]; secretSet?: boolean }>()
+const props = defineProps<{ field: SchemaField; modelValue: Draft; id: string; secrets?: string[]; secretSet?: boolean; topLevel?: boolean }>()
 const emit = defineEmits<{ "update:modelValue": [value: Draft] }>()
 
 /** reka's Select can't hold an empty value, so "not set" has a stand-in */
@@ -55,13 +58,16 @@ function generate() {
     <p v-if="field.name && field.description" class="text-xs text-muted-foreground">{{ field.description }}</p>
     <SchemaFieldInput
       v-for="child in field.fields" :id="`${id}-${child.name}`" :key="child.name" :field="child" :model-value="record[child.name] ?? null"
-      :secret-set="secrets?.includes(child.name)" @update:model-value="value => setChild(child.name, value)"
+      :secret-set="secrets?.includes(child.name)" :top-level="!field.name" @update:model-value="value => setChild(child.name, value)"
     />
   </fieldset>
   <SchemaUnionInput
     v-else-if="field.kind === 'union'" :id="id" :field="field" :model-value="modelValue" :secrets="secrets"
     @update:model-value="value => emit('update:modelValue', value)"
   />
+  <FormField v-else-if="field.widget" :id="id" :label="label" :hint="hint">
+    <SchemaWidgetInput :id="id" :field="field" :model-value="modelValue" :required="needed" :placeholder="placeholder" @update:model-value="value => emit('update:modelValue', value)" />
+  </FormField>
   <FormField v-else-if="field.kind === 'array'" :id="id" :label="label" :hint="hint">
     <div class="grid gap-2">
       <div v-for="(item, i) in items" :key="i" class="flex items-start gap-2">
@@ -111,6 +117,7 @@ function generate() {
         @update:model-value="value => emit('update:modelValue', String(value))"
       />
       <Button v-if="field.token" type="button" variant="outline" class="shrink-0" @click="generate"><RefreshCw class="size-4" /> Generate</Button>
+      <FindButton v-if="field.discover && topLevel" :field="field.name" @pick="value => emit('update:modelValue', value)" />
     </div>
   </FormField>
 </template>

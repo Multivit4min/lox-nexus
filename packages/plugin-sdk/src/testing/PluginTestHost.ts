@@ -5,7 +5,9 @@ import type { ConfigCheckResult } from "../runtime/ConfigHost.ts"
 import { PluginRuntime } from "../runtime/PluginRuntime.ts"
 import type { Value } from "../values/Value.ts"
 import type { HostMessage, HttpRequest } from "../wire/HostMessages.ts"
-import type { CatalogNode, HttpResponse, Panel, PluginDescription } from "../wire/Shapes.ts"
+import { HOST_FEATURES } from "../wire/HostFeatures.ts"
+import { ActionAnswerSchema, PanelSchema, type ActionAnswer, type Panel } from "../wire/PanelShapes.ts"
+import type { CatalogNode, Discovered, HttpResponse, PluginDescription } from "../wire/Shapes.ts"
 import { WatchedValueSchema, type WatchedSignal, type WatchedValue } from "../wire/WatchShapes.ts"
 import type { LogLevel, WorkerMessage } from "../wire/WorkerMessages.ts"
 import { RejectionForwarder } from "./RejectionForwarder.ts"
@@ -37,6 +39,11 @@ export interface TestHostOptions {
   forwardRejections?: boolean
   /** the version the config was stored with, as a host passes it; migrateConfig runs when it is older than the plugin's */
   configVersion?: number
+  /**
+   * what the host understands beyond wire version 1 (HOST_FEATURES); default all of them. Pass []
+   * to see what an older Nexus gets: v1 panels, an action's message only, no progress or pushes.
+   */
+  hostFeatures?: string[]
 }
 
 type Waiter = { match: (message: WorkerMessage) => boolean; resolve: (message: WorkerMessage) => void }
@@ -84,6 +91,7 @@ export class PluginTestHost<T extends PluginClass = PluginClass> {
       // awaited together, so a timeout of `done` while init still runs is never unhandled
       const [, outcome] = await Promise.all([
         host.runtime.handle({ type: "init", instanceId: options.instanceId ?? "test", slug: options.slug ?? "test", config: options.config ?? {}, store: host.store,
+          hostFeatures: options.hostFeatures ?? Object.values(HOST_FEATURES),
           ...(options.timeZone === undefined ? {} : { timeZone: options.timeZone }), ...(options.configVersion === undefined ? {} : { configVersion: options.configVersion }) }),
         done
       ])
@@ -109,6 +117,12 @@ export class PluginTestHost<T extends PluginClass = PluginClass> {
   static async testConfig(type: PluginClass, config: unknown) {
     const host = new PluginTestHost(type, {})
     return await host.request({ type: "config.test", requestId: host.nextRequest++, config }) as string | undefined
+  }
+
+  /** runs the plugin's Find on the network for a config field; `config` is the form as filled in so far. @throws Error with its failure */
+  static async discover(type: PluginClass, field: string, config?: unknown) {
+    const host = new PluginTestHost(type, {})
+    return await host.request({ type: "config.discover", requestId: host.nextRequest++, field, ...(config === undefined ? {} : { config }) }) as Discovered
   }
 
   /** the config init migrated and reported to be stored, if it did */
@@ -164,9 +178,10 @@ export class PluginTestHost<T extends PluginClass = PluginClass> {
   /**
    * runs an actuator; @throws Error with the message run() threw
    * @param causeId the bus message it answers; emits and logs while it runs carry it
+   * @param replayed delivered again by the host (a force after a restart), as run() sees in `command.replayed`
    */
-  async actuate(id: string, value: Value, causeId?: string) {
-    await this.request({ type: "actuate", requestId: this.nextRequest++, signalId: id, value, ...(causeId ? { causeId } : {}) })
+  async actuate(id: string, value: Value, causeId?: string, replayed = false) {
+    await this.request({ type: "actuate", requestId: this.nextRequest++, signalId: id, value, ...(causeId ? { causeId } : {}), ...(replayed ? { replayed } : {}) })
   }
 
   /** calls Plugin.catalog() */
@@ -174,14 +189,20 @@ export class PluginTestHost<T extends PluginClass = PluginClass> {
     return await this.request({ type: "catalog", requestId: this.nextRequest++ }) as CatalogNode[]
   }
 
-  /** calls Plugin.panel() */
-  async panel() {
-    return await this.request({ type: "panel", requestId: this.nextRequest++ }) as Panel | undefined
+  /** calls Plugin.panel(); rejects a panel the host would refuse, e.g. a javascript: link or 13 tiles */
+  async panel(): Promise<Panel | undefined> {
+    return PanelSchema.optional().parse(await this.request({ type: "panel", requestId: this.nextRequest++ }))
   }
 
   /** runs an action like the Run button does; resolves with its message, rejects with its failure */
   async action(id: string, input: unknown = {}) {
-    return await this.request({ type: "action", requestId: this.nextRequest++, action: id, input }) as string | undefined
+    const answer = await this.actionAnswer(id, input)
+    return typeof answer === "string" ? answer : answer?.message
+  }
+
+  /** like action(), with the whole answer: a text, or a message with its panel part (on hosts with "action.result") */
+  async actionAnswer(id: string, input: unknown = {}): Promise<ActionAnswer | undefined> {
+    return ActionAnswerSchema.optional().parse(await this.request({ type: "action", requestId: this.nextRequest++, action: id, input }))
   }
 
   /** Calls a webhook route; the method defaults to POST. An unknown route answers 404, a throwing handler rejects. */

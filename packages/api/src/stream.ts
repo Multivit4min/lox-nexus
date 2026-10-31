@@ -26,6 +26,10 @@ export type StreamEvent =
   | { type: "state"; messages: BusMessageDto[]; full?: true; cleared?: string[] }
   /** every stale signal now (replace): sent with the state subscription, then whenever the set changes */
   | { type: "signal-status"; stale: StaleSignalDto[] }
+  /** a running plugin says its panel changed (Plugin.panelChanged): pages showing it ask for it again */
+  | { type: "plugin-panel"; instanceId: string }
+  /** how a running action gets on; `runId` is the one the page sent with the action */
+  | { type: "plugin-action-progress"; instanceId: string; runId: string; text: string; fraction?: number }
   | { type: "error"; message: string }
 
 /** A source that sent no value (not even an unchanged one) for longer than its `staleAfterMin`, while its owner runs. */

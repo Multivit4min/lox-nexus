@@ -8,12 +8,16 @@ import { ActionHost } from "./ActionHost.ts"
 import { CauseScope } from "./CauseScope.ts"
 import { ConfigHost } from "./ConfigHost.ts"
 import { Declarations } from "./Declarations.ts"
+import { HostSupport } from "./HostSupport.ts"
 import { LogLevels } from "./LogLevels.ts"
 import { PluginDescriber } from "./PluginDescriber.ts"
 import { MessageLimits } from "./MessageLimits.ts"
+import { PanelPush } from "./PanelPush.ts"
+import { ProgressSender } from "./ProgressSender.ts"
 import { RouteTable } from "./RouteTable.ts"
 import { RuntimeStore } from "./RuntimeStore.ts"
 import { SignalHost } from "./SignalHost.ts"
+import { TrailingThrottle } from "./TrailingThrottle.ts"
 import { WatchHost } from "./WatchHost.ts"
 
 type Request = Extract<HostMessage, { requestId: number }>
@@ -34,6 +38,9 @@ export class PluginRuntime {
   }
   private signals: SignalHost | undefined
   private actions: ActionHost | undefined
+  /** what the host understands; nothing beyond version 1 until init says more */
+  private host = new HostSupport()
+  private panelPush: TrailingThrottle | undefined
   private readonly routes = new RouteTable()
   private readonly watch: WatchHost
   private readonly configs: ConfigHost
@@ -74,7 +81,9 @@ export class PluginRuntime {
       if (!config.success) throw new Error(`invalid config: ${z.prettifyError(config.error)}`)
       // only a host that stores config versions sends one, and knows this message
       if (migrated.migrated && message.configVersion !== undefined) this.send({ type: "config.migrated", config: migrated.config, version: this.configs.version })
+      this.host = new HostSupport(message.hostFeatures, message.timeZone)
       const plugin = this.plugin = new this.type(this.context(message, config.data, store))
+      this.attachPanelPush(plugin)
       this.signals = new SignalHost(this.type, plugin, this.send)
       this.actions = new ActionHost(this.type, plugin, message => this.log("error", message))
       await plugin.start()
@@ -104,20 +113,38 @@ export class PluginRuntime {
       case "describe": return PluginDescriber.describe(this.type)
       case "signal.add": return this.started().signals.add(message.signal)
       case "signal.remove": return this.started().signals.remove(message.id)
-      case "actuate": return this.started().signals.actuate(message.signalId, message.value, message.causeId)
+      case "actuate": return this.started().signals.actuate(message.signalId, message.value, message.causeId, message.replayed === true)
       case "catalog": return this.started().plugin.catalog()
-      case "panel": return this.started().plugin.panel()
+      case "panel": return this.panel()
       case "http.request": return this.routes.dispatch(message.request)
-      case "action": return this.started().actions.run(message.action, message.input)
+      case "action": return this.action(message.requestId, message.action, message.input)
       case "config.check": return this.configs.check(message.config, message.configVersion, message.store)
       case "config.test": return this.configs.test(message.config)
+      case "config.discover": return this.configs.discover(message.field, message.config)
     }
+  }
+
+  private async panel() {
+    return this.host.panel(await this.started().plugin.panel())
+  }
+
+  private async action(requestId: number, id: string, input: unknown) {
+    const progress = this.host.has("action.progress") ? new ProgressSender(this.clock, this.send, requestId) : undefined
+    return this.host.answer(await this.started().actions.run(id, input, progress))
+  }
+
+  // the plugin's panelChanged() reaches hosts that take it, at most once a second
+  private attachPanelPush(plugin: Plugin) {
+    if (!this.host.has("panel.push")) return
+    const push = this.panelPush = new TrailingThrottle(this.clock, 1000, () => this.send({ type: "panel.changed" }))
+    PanelPush.attach(plugin, () => push.call())
   }
 
   // dispose errors are logged, not thrown: the host terminates the worker after `stopped` anyway
   private async shutdown() {
     // a batch being exported finishes first, so the plugin's last flush on dispose includes it
     await this.watch.idle()
+    this.panelPush?.close()
     await this.actions?.dispose()
     await this.signals?.disposeAll()
     await this.plugin?.dispose().catch((error: unknown) => this.log("error", `stopping failed: ${PluginRuntime.text(error)}`))

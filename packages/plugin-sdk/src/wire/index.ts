@@ -9,11 +9,15 @@
 export { HostMessageSchema, HttpRequestSchema, SignalSpecSchema, WIRE_VERSION, type HostMessage, type HttpRequest, type SignalSpec } from "./HostMessages.ts"
 export { HelloSchema, LogLevelSchema, PluginHealthSchema, WorkerMessageSchema, type LogLevel, type PluginHealth, type WorkerMessage } from "./WorkerMessages.ts"
 export {
-  ActionDescriptionSchema, CapabilityDescriptionSchema, CatalogEntrySchema, CatalogNodeSchema, HttpResponseSchema, PanelPartSchema, PanelSchema,
-  PluginDescriptionSchema, RowActionSchema,
-  type ActionDescription, type CapabilityDescription, type CatalogEntry, type CatalogNode, type HttpResponse, type JsonSchema, type Panel, type PanelPart,
-  type PluginDescription, type RowAction
+  ActionDescriptionSchema, CapabilityDescriptionSchema, CatalogEntrySchema, CatalogNodeSchema, DiscoveredSchema, HttpResponseSchema, PluginDescriptionSchema,
+  type ActionDescription, type CapabilityDescription, type CatalogEntry, type CatalogNode, type Discovered, type HttpResponse, type JsonSchema,
+  type PluginDescription
 } from "./Shapes.ts"
+export {
+  ActionAnswerSchema, CellSchema, PanelPartSchema, PanelSchema, RowActionSchema, ToneSchema,
+  type ActionAnswer, type Cell, type Panel, type PanelPart, type RowAction, type Tone
+} from "./PanelShapes.ts"
+export { HOST_FEATURES, type HostFeature } from "./HostFeatures.ts"
 export {
   WatchDeclarationSchema, WatchedSignalSchema, WatchedValueSchema, type WatchDeclaration, type WatchedSignal, type WatchedValue
 } from "./WatchShapes.ts"

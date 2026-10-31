@@ -9,7 +9,7 @@ const catalog = { get: () => ({ pkg: { id: "p", name: "P", entry: "p.ts", descri
 function settings(check: () => Promise<ConfigCheck | undefined>) {
   const written: string[] = []
   const store = { load: () => ({ rooms: ["old"] }), set: (_id: string, key: string) => void written.push(`set ${key}`), delete: (_id: string, key: string) => void written.push(`delete ${key}`) }
-  return { written, service: new PluginSettingsCheck({ check, test: async () => undefined }, catalog, () => undefined, store) }
+  return { written, service: new PluginSettingsCheck({ check, test: async () => undefined, discover: async () => [] }, catalog, () => undefined, store) }
 }
 
 test("a plugin from before checks, or one that doesn't load, is saved unchecked; a failing check is a 502", async () => {
@@ -31,4 +31,19 @@ test("an edit of an older version returns the migration's store writes, applied 
   assert.deepEqual(written, [], "nothing before the instance is saved")
   service.applyStore("i", prepared.storeWrites)
   assert.deepEqual(written, ["set rooms", "delete legacy"])
+})
+
+test("Find on the network runs for a field the plugin marked, answers 404 for others and 502 when the plugin fails", async () => {
+  const marked = { get: () => ({ pkg: { id: "p", name: "P", entry: "p.ts", description: { config: {}, sensors: [], actuators: [], discoverable: ["url"] } } }) as never }
+  const asked: unknown[] = []
+  const found = [{ label: "Home", value: "http://192.0.2.10:8123" }]
+  const discover = async (_pkg: unknown, field: string, config: unknown) => (asked.push([field, config]), found)
+  const service = new PluginSettingsCheck({ check: async () => undefined, test: async () => undefined, discover }, marked, () => undefined)
+  assert.deepEqual(await service.discover("p", { field: "url", config: { token: "x" } }), { found })
+  assert.deepEqual(asked, [["url", { token: "x" }]])
+  await assert.rejects(service.discover("p", { field: "token" }), (error: HttpError) => error.status === 404)
+  const failing = new PluginSettingsCheck({ check: async () => undefined, test: async () => undefined, discover: async () => {
+    throw new PluginRequestError("no network")
+  } }, marked, () => undefined)
+  await assert.rejects(failing.discover("p", { field: "url" }), (error: HttpError) => error.status === 502 && /couldn't search: no network/.test(error.message))
 })

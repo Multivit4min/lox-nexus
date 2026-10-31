@@ -1,3 +1,4 @@
+import { DiscoveredSchema, type Discovered } from "@lox-nexus/plugin-sdk/wire"
 import { z } from "zod"
 import { PluginSession, type SessionTimings } from "./PluginSession.ts"
 import { DEFAULT_TIMINGS } from "./PluginSupervisor.ts"
@@ -42,6 +43,17 @@ export class PluginConfigChecker {
       return typeof answer === "string" ? answer : undefined
     })
   }
+
+  /**
+   * Find on the network for a config field, in a throwaway worker.
+   * @throws PluginRequestError with the plugin's failure; Error when the answer isn't a list it can show
+   */
+  discover(pkg: Pick<PluginPackage, "entry" | "heapMb">, field: string, config: unknown): Promise<Discovered> {
+    return this.run(pkg, async session => DiscoveredSchema.parse(await session.request({ type: "config.discover", field, config }, PluginConfigChecker.DISCOVER_MS)))
+  }
+
+  /** how long a search may take; mDNS answers come within a few seconds */
+  static readonly DISCOVER_MS = 15_000
 
   private async run<T>(pkg: Pick<PluginPackage, "entry" | "heapMb">, work: (session: PluginSession) => Promise<T>) {
     const session = new PluginSession(this.transport.open(pkg.entry, pkg.heapMb === undefined ? {} : { heapMb: pkg.heapMb }), this.timings)

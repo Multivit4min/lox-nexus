@@ -12,6 +12,11 @@ export interface SignalStatusSource {
   onChange(listener: (stale: StaleSignalDto[]) => void): () => void
 }
 
+/** what running plugins tell open pages (PluginEvents) */
+export interface PluginEventSource {
+  on(listener: (event: Extract<StreamEvent, { type: "plugin-panel" | "plugin-action-progress" }>) => void): () => void
+}
+
 /** The session a connection was opened with; BusStream closes the connection when it ends. */
 export interface StreamSession {
   /** the raw cookie token, kept to re-validate expiry; never sent to the client */
@@ -50,9 +55,16 @@ export class StreamClient extends Disposable {
   private dropped = 0
   private alive = true
 
-  /** Starts listening to the socket at once; nothing is sent until the client subscribes. */
-  constructor(private readonly socket: WebSocket, private readonly bus: StreamBus, readonly session: StreamSession, private readonly status?: SignalStatusSource) {
+  /**
+   * Starts listening to the socket at once; nothing is sent until the client subscribes.
+   * @param plugins panel pushes and action progress of running plugins; every client gets them
+   */
+  constructor(
+    private readonly socket: WebSocket, private readonly bus: StreamBus, readonly session: StreamSession,
+    private readonly status?: SignalStatusSource, plugins?: PluginEventSource
+  ) {
     super()
+    if (plugins) this.onDispose(plugins.on(event => this.send(event)))
     this.listen(socket, "message", (data: Buffer) => this.onRequest(data))
     this.listen(socket, "pong", () => (this.alive = true))
     this.every(StreamClient.FLUSH_MS, () => this.flush())

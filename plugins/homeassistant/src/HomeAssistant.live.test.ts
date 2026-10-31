@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { describe, test } from "node:test"
-import { PluginTestHost } from "@lox-nexus/plugin-sdk/testing"
+import { cellText, PluginTestHost } from "@lox-nexus/plugin-sdk/testing"
 import { HomeAssistantPlugin } from "./HomeAssistantPlugin.ts"
 
 /**
@@ -26,7 +26,7 @@ describe("HomeAssistantPlugin against a real Home Assistant", () => {
       assert.ok(changed.type === "string" && changed.value.includes("."), "an entity id")
       assert.equal(host.sent.some(message => message.type === "signal.error" && message.signalId === changes), false)
       const panel = await host.panel()
-      assert.ok(panel?.type === "keyValue" && panel.items.some(item => item.label === "Connection" && item.value.startsWith("connected")))
+      assert.ok(panel?.type === "keyValue" && panel.items.some(item => item.label === "Connection" && cellText(item.value).startsWith("connected")))
     } finally {
       await host.stop()
     }

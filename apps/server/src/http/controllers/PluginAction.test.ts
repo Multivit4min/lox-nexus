@@ -25,8 +25,19 @@ class WaitAction extends Action {
   }
 }
 
+class WindowAction extends Action {
+  static readonly id = "window"
+  run() {
+    return { message: "Open for 15 minutes", panel: { type: "qr" as const, data: "MT:Y.K90" } }
+  }
+}
+
 class PairingPlugin extends Plugin {
-  static readonly actions = [PairAction, WaitAction]
+  static readonly actions = [PairAction, WaitAction, WindowAction]
+  // a panel the plugin gets wrong: its tiles aren't a list
+  override panel() {
+    return { type: "tiles", tiles: "none" } as never
+  }
 }
 
 describe("plugin actions API", { timeout: 10_000 }, () => {
@@ -47,7 +58,7 @@ describe("plugin actions API", { timeout: 10_000 }, () => {
 
   test("the description lists the actions with their form", async () => {
     const plugins = (await admin.get("/api/plugins")).json<PluginPackageDto[]>()
-    assert.deepEqual(plugins[0]?.description.actions?.map(action => [action.id, action.label, Object.keys(action.input.properties as object)]), [["pair", "Pair device", ["code"]], ["wait", "wait", []]])
+    assert.deepEqual(plugins[0]?.description.actions?.map(action => [action.id, action.label, Object.keys(action.input.properties as object)]), [["pair", "Pair device", ["code"]], ["wait", "wait", []], ["window", "window", []]])
   })
 
   test("an action answers with the plugin's message, and the log says who started it but not the input", async () => {
@@ -59,6 +70,18 @@ describe("plugin actions API", { timeout: 10_000 }, () => {
     assert.ok(lines.includes("action \"Pair device\" done"))
     assert.ok(!lines.some(line => line.includes("Paired Kitchen plug")), "the answer may carry a code, so it isn't logged")
     assert.ok(!lines.some(line => line.includes("12345678901")))
+  })
+
+  test("an action may answer with a panel part under its message, e.g. a QR code", async () => {
+    const answer = await admin.post(`/api/plugin-instances/${instance.id}/actions/window`, { input: {}, runId: "run-1" })
+    assert.equal(answer.statusCode, 200, answer.body)
+    assert.deepEqual(answer.json<PluginActionResultDto>(), { message: "Open for 15 minutes", panel: { type: "qr", data: "MT:Y.K90" } })
+  })
+
+  test("a panel the plugin gets wrong is a failing upstream (502), not a bad request", async () => {
+    const panel = await admin.get(`/api/plugin-instances/${instance.id}/panel`)
+    assert.equal(panel.statusCode, 502, panel.body)
+    assert.match(panel.json<{ error: string }>().error, /can't show/)
   })
 
   test("refusals: invalid input or a failure 400, unknown action 404, a stopped instance 409", async () => {

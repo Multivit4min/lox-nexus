@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, shallowRef, watch } from "vue"
+import { computed, provide, ref, shallowRef, watch } from "vue"
 import type { PluginCheckDto, PluginInstanceDto, PluginInstanceInput, PluginPackageDto } from "@lox-nexus/api"
 import { CircleCheck, PlugZap } from "@lucide/vue"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch"
 import { ApiError } from "../../api/ApiError.ts"
 import { AppContext } from "../../AppContext.ts"
 import { ConfigIssues } from "../../lib/schema/ConfigIssues.ts"
+import { DISCOVER } from "../../lib/schema/DiscoverContext.ts"
 import { SchemaDraft, type Draft } from "../../lib/schema/SchemaDraft.ts"
 import { SchemaFields, type JsonSchemaNode } from "../../lib/schema/SchemaField.ts"
 import { Slug } from "../../lib/Slug.ts"
@@ -49,6 +50,19 @@ function config() {
   const value = field.value ? SchemaDraft.value(field.value, draft.value) : undefined
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {}
 }
+
+// Find on the network asks the plugin with what is filled in so far; a half-typed number is left out
+provide(DISCOVER, {
+  find: async field => {
+    let filled: Record<string, unknown>
+    try {
+      filled = config()
+    } catch {
+      filled = {}
+    }
+    return (await api.discover(plugin.value, field, filled)).found
+  }
+})
 
 // with the stored secrets the form leaves empty, which the server fills in for an edit
 async function testConnection() {

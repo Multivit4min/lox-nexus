@@ -1,5 +1,6 @@
 import assert from "node:assert/strict"
 import { after, afterEach, before, test } from "node:test"
+import { cellText } from "@lox-nexus/plugin-sdk/testing"
 import type { Panel } from "@lox-nexus/plugin-sdk"
 import { Value } from "@lox-nexus/plugin-sdk/values"
 import { MqttHarness } from "./test-support/MqttHarness.ts"
@@ -9,7 +10,7 @@ const { until } = MqttHarness
 /** label → value of every keyValue section */
 function facts(panel: Panel | undefined) {
   const items = panel?.type === "sections" ? panel.sections.flatMap(section => (section.panel.type === "keyValue" ? section.panel.items : [])) : []
-  return Object.fromEntries(items.map(item => [item.label, item.value]))
+  return Object.fromEntries(items.map(item => [item.label, cellText(item.value)]))
 }
 
 const harness = new MqttHarness()

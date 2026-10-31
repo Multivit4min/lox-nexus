@@ -63,8 +63,12 @@ export abstract class Actuator<P extends Plugin = Plugin, Params = unknown, V ex
    * in here and await it: the result (and its duration) is reported when the promise settles. The
    * host marks a command as failed after 30 seconds without an answer, but cannot stop run().
    * Throw an Error with a message a user can read; it is shown as the failure reason.
+   *
+   * `command.replayed` is true when the host delivers a value again rather than a new command: an
+   * active force after the plugin (re)started. An actuator whose command does something drastic
+   * (restart a device, open a door) should ignore replays. Older hosts never set it.
    */
-  abstract run(value: V): void | Promise<void>
+  abstract run(value: V, command?: ActuatorCommand): void | Promise<void>
 
   // the failure still showing: recover() only tells the host when there is one, and the same fail() isn't sent twice.
   // ES-private, so a subclass's own `failed` can't collide with it
@@ -89,6 +93,12 @@ export abstract class Actuator<P extends Plugin = Plugin, Params = unknown, V ex
     this.#failedWith = undefined
     SignalStatus.of(this)?.recover()
   }
+}
+
+/** What run() learns about a command besides its value. */
+export interface ActuatorCommand {
+  /** the host delivers the value again (a force after a restart), not a new command */
+  readonly replayed: boolean
 }
 
 /** The static side of an actuator class, as the runtime sees it. */

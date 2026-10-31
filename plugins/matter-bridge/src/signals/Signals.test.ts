@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { after, before, test } from "node:test"
-import { PluginTestHost } from "@lox-nexus/plugin-sdk/testing"
+import { cellText, PluginTestHost } from "@lox-nexus/plugin-sdk/testing"
 import { Value } from "@lox-nexus/plugin-sdk/values"
 import { DEVICE_TYPE_IDS } from "../devices/DeviceKinds.ts"
 import { MatterBridgePlugin } from "../MatterBridgePlugin.ts"
@@ -187,7 +187,7 @@ test("the panel shows each device with its last state; nothing in it is a BigInt
   const table = panel.sections[2]!.panel
   assert.ok(table.type === "table")
   assert.deepEqual(table.columns, ["Device", "Id", "Type", "Last command from a controller", "Last state from Nexus"])
-  const rows = Object.fromEntries(table.rows.map(([name, , , command, last]) => [name, `${command} | ${last?.replace(/ at \d\d:\d\d:\d\d$/, "")}`]))
+  const rows = Object.fromEntries(table.rows.map(row => row.map(cellText)).map(([name, , , command, last]) => [name, `${command} | ${last?.replace(/ at \d\d:\d\d:\d\d$/, "")}`]))
   assert.equal(rows["contact-sensor"], "– | open")
   assert.equal(rows["thermostat"], "– | temperature 20.5 °C", "a thermostat names which value")
   assert.equal(rows["dimmable-light"], "– | brightness 0 %")

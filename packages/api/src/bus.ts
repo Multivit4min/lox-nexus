@@ -19,7 +19,7 @@ export interface BusMessageDto {
   depth: number
   /** ids of the wires this message passed through */
   via?: string[]
-  flags?: { restored?: true; injected?: true; forced?: true; shadowed?: true }
+  flags?: { restored?: true; injected?: true; forced?: true; shadowed?: true; replayed?: true }
   force?: { by: string; reason?: string; until?: number; at?: number; kind?: "state" | "command" }
   /** result of a command; durationMs is milliseconds */
   outcome?: { ok: boolean; error?: string; durationMs: number }

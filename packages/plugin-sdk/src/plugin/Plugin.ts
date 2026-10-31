@@ -1,7 +1,8 @@
 import type { z } from "zod"
 import { SystemClock, type Clock } from "../lifecycle/Clock.ts"
 import { Disposable } from "../lifecycle/Disposable.ts"
-import type { CatalogNode, Panel } from "../wire/Shapes.ts"
+import { PanelPush } from "../runtime/PanelPush.ts"
+import type { CatalogNode, Discovered, Panel } from "../wire/Shapes.ts"
 import type { WatchDeclaration, WatchedValue } from "../wire/WatchShapes.ts"
 import type { ActionClass } from "./Action.ts"
 import type { ActuatorClass } from "./Actuator.ts"
@@ -166,13 +167,23 @@ export abstract class Plugin<Config = unknown> extends Disposable {
   }
 
   /**
-   * Optional status view for the plugin's page, asked on demand (when the page is opened and when
-   * the user presses Refresh, so keep it cheap and read from memory); undefined shows nothing. A
-   * throw or an invalid panel fails the request; the same 30 seconds and 16 MiB limits as
-   * catalog() apply. Only asked while the instance runs.
+   * Optional status view for the plugin's page; undefined shows nothing. The page asks for it every
+   * few seconds while it is open, so keep it cheap and read from memory. A plugin that declares
+   * `static panelUpdates = "push"` calls panelChanged() instead, and is asked when it does (and
+   * otherwise only every half minute). A throw or an invalid panel fails the request; the same 30
+   * seconds and 16 MiB limits as catalog() apply. Only asked while the instance runs.
    */
   panel(): Panel | undefined | Promise<Panel | undefined> {
     return undefined
+  }
+
+  /**
+   * Tells open pages that panel() would now show something else, e.g. a device was paired. Cheap
+   * to call often: the host hears about it at most once a second. Does nothing on hosts that
+   * don't take it; declare `static panelUpdates = "push"` so pages rely on it.
+   */
+  panelChanged() {
+    PanelPush.of(this)?.()
   }
 
   /**
@@ -244,4 +255,16 @@ export type PluginClass = (new (context: PluginContext) => Plugin) & {
    * user can act on. Runs in a throwaway worker without starting the plugin; read, never write.
    */
   readonly test?: (config: never) => Promise<string | void>
+  /**
+   * "push": the plugin calls panelChanged() whenever its panel changes, so open pages ask for the
+   * panel then, and only every half minute otherwise. Without it they ask every few seconds.
+   */
+  readonly panelUpdates?: "push"
+  /**
+   * Find on the network: offers values for a config field marked with discoverable(), e.g. the
+   * Home Assistant servers that announce themselves (see Mdns.browse). `config` is the form as
+   * filled in so far, not validated. Runs in a throwaway worker without starting the plugin, for at
+   * most 15 seconds; read, never write. Resolves with at most 100 entries.
+   */
+  readonly discover?: (field: string, config: unknown) => Promise<Discovered>
 }

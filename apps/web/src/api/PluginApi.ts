@@ -1,6 +1,6 @@
 import type {
-  BridgeRequest, BridgeResultDto, PluginActionResultDto, PluginCheckDto, PluginCheckInput, PluginInstanceDto, PluginInstanceInput, PluginLogLevelDto, PluginLogLevelInput, PluginLogLineDto,
-  PluginPackageDto, PluginSignalDto, PluginSignalInput
+  BridgeRequest, BridgeResultDto, PluginActionResultDto, PluginCheckDto, PluginCheckInput, PluginDiscoverResultDto, PluginInstanceDto, PluginInstanceInput,
+  PluginLogLevelDto, PluginLogLevelInput, PluginLogLineDto, PluginPackageDto, PluginSignalDto, PluginSignalInput
 } from "@lox-nexus/api"
 import type { CatalogNode, Panel } from "@lox-nexus/plugin-sdk/wire"
 import type { Http } from "./Http.ts"
@@ -74,9 +74,14 @@ export class PluginApi {
     return this.http.get<Panel | null>(`${this.url(id)}/panel`)
   }
 
-  /** runs one of the plugin's actions; resolves with what the plugin says happened */
-  action(id: string, action: string, input: Record<string, unknown>) {
-    return this.http.post<PluginActionResultDto>(`${this.url(id)}/actions/${encodeURIComponent(action)}`, { input })
+  /** runs one of the plugin's actions; resolves with what the plugin says happened. `runId` tags its progress on the stream */
+  action(id: string, action: string, input: Record<string, unknown>, runId?: string) {
+    return this.http.post<PluginActionResultDto>(`${this.url(id)}/actions/${encodeURIComponent(action)}`, { input, ...(runId ? { runId } : {}) })
+  }
+
+  /** Find on the network for a config field the plugin marked; `config` is the form as filled in so far */
+  discover(plugin: string, field: string, config: Record<string, unknown>) {
+    return this.http.post<PluginDiscoverResultDto>(`/api/plugins/${encodeURIComponent(plugin)}/discover`, { field, config })
   }
 
   logs(id: string) {

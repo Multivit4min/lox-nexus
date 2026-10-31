@@ -14,6 +14,8 @@ export interface InboxTarget {
   healthChanged: (health: PluginHealth) => void
   /** init migrated the stored config to this version; it is to be stored */
   migrated: (config: unknown, version: number) => void
+  /** the plugin says its panel changed (Plugin.panelChanged) */
+  panelChanged?: () => void
 }
 
 /**
@@ -65,6 +67,7 @@ export class PluginInbox {
         return this.target.report(`signal "${message.signalId}" failed: ${message.error}`)
       case "signal.recovered": return signals.setError(message.signalId, undefined)
       case "config.migrated": return this.target.migrated(message.config, message.version)
+      case "panel.changed": return this.target.panelChanged?.()
       case "status":
         this.current = message.status
         this.note = message.status === "degraded" ? message.message ?? "degraded" : undefined

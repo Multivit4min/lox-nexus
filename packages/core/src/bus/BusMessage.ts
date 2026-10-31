@@ -34,6 +34,8 @@ export interface MessageFlags {
   injected?: true
   /** the delivered value comes from a force */
   forced?: true
+  /** a force delivered again (replayForce, e.g. after a plugin restarted), not set anew; actuators may ignore it */
+  replayed?: true
   /** a real publish that arrived while the topic was forced; recorded but not delivered */
   shadowed?: true
 }

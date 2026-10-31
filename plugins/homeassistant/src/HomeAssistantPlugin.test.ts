@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { afterEach, describe, test } from "node:test"
-import { PluginTestHost } from "@lox-nexus/plugin-sdk/testing"
+import { cellText, PluginTestHost } from "@lox-nexus/plugin-sdk/testing"
 import { Value } from "@lox-nexus/plugin-sdk/values"
 import { HomeAssistantPlugin } from "./HomeAssistantPlugin.ts"
 import { FakeHomeAssistant } from "./test-support/FakeHomeAssistant.ts"
@@ -109,7 +109,7 @@ describe("HomeAssistantPlugin: connection and sensors", { timeout: 15_000 }, () 
     await waitFor(() => host.values(outdoor).length === 2)
     assert.deepEqual(host.values(outdoor)[1], Value.number(14), "the new subscription's full load brings the change")
     const panel = await host.panel()
-    const items = panel?.type === "keyValue" ? Object.fromEntries(panel.items.map(item => [item.label, item.value])) : {}
+    const items = panel?.type === "keyValue" ? Object.fromEntries(panel.items.map(item => [item.label, cellText(item.value)])) : {}
     assert.match(items.Connection ?? "", /^connected since /)
     assert.deepEqual([items["Home Assistant version"], items.Entities, items["Reconnect attempts"]], ["2026.10.2", "3", "1"])
   })
