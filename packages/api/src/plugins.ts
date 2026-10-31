@@ -174,4 +174,6 @@ export interface PluginSignalDto extends SignalDisplayDto {
    * and last value, `error` says why, and it works again after a rollback
    */
   orphaned?: boolean
+  /** the secret params this signal has; their values never leave the server, and an edit that omits them keeps them */
+  secrets?: string[]
 }

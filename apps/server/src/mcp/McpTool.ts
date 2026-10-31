@@ -33,6 +33,14 @@ export interface McpTool<Input = unknown> {
    * For destructive tools: what the change would take along, in one or two sentences ("deletes 3
    * Loxone signals and 4 wires"). Its presence makes the tool need a confirmation: its input must
    * accept an optional `confirmation`, which ToolCall handles; `run` never sees an unconfirmed call.
+   * `bind` is what the refs resolved to (ids): it is asked again for the confirmed call, and the
+   * confirmation only holds while it is the same, so a renamed topic can't redirect a delete.
    */
-  confirm?(input: Input, context: ToolContext): string | Promise<string>
+  confirm?(input: Input, context: ToolContext): ConfirmStep | Promise<ConfirmStep>
+}
+
+/** what a destructive tool's first call answers */
+export interface ConfirmStep {
+  summary: string
+  bind: unknown
 }

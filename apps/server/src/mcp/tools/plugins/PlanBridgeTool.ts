@@ -1,4 +1,4 @@
-import { BridgeDraft, DataTypes, type BridgeCandidate, type LoxoneSignalDto, type PluginSignalDto, type WireDto } from "@lox-nexus/api"
+import { BridgeDraft, DataTypes, type BridgeCandidate, type DiscoveredPacketDto, type LoxoneSignalDto, type PluginSignalDto, type WireDto } from "@lox-nexus/api"
 import { z } from "zod"
 import type { McpRefs } from "../../McpRefs.ts"
 import type { McpTool } from "../../McpTool.ts"
@@ -25,7 +25,7 @@ export class PlanBridgeTool implements McpTool<z.infer<typeof Input>> {
     private readonly miniservers: Pick<McpRefs, "miniserver">,
     private readonly sources: {
       pluginSignals: { list(instanceId: string): PluginSignalDto[] }
-      loxoneSignals: { list(miniserverId: string): LoxoneSignalDto[] }
+      loxoneSignals: { list(miniserverId: string): LoxoneSignalDto[]; discovered(miniserverId: string): DiscoveredPacketDto[] }
       wires: { list(): WireDto[] }
     }
   ) {}
@@ -37,12 +37,14 @@ export class PlanBridgeTool implements McpTool<z.infer<typeof Input>> {
     const existing = this.sources.loxoneSignals.list(ms.id)
     const signals = this.sources.pluginSignals.list(instance.id)
     const candidates: BridgeCandidate[] = input.items.map((end, i) => {
-      const plugin = BridgeItems.resolve(end, signals)
+      const plugin = BridgeItems.resolve(end, signals, pkg.description)
       if (plugin.type === "existing") return BridgeDraft.fromSignal(signals.find(signal => signal.id === plugin.signalId)!)
       return BridgeDraft.fromEntry(String(i), { ...plugin.signal, params: plugin.signal.params ?? {} }, pkg.description)
     })
     const connected = BridgeDraft.connected(candidates, this.sources.wires.list(), existing)
-    const rows = BridgeDraft.rows(candidates, existing.map(signal => signal.packetId))
+    // packets the Miniserver sends already count as taken: an actuator on one would be switched by its next packet
+    const taken = [...existing, ...this.sources.loxoneSignals.discovered(ms.id)].map(signal => signal.packetId)
+    const rows = BridgeDraft.rows(candidates, taken)
     const items: BridgeItemInput[] = rows.map((row, i) => ({ plugin: input.items[i]!, loxone: { packetId: row.packetId, dataType: row.dataType, label: row.label } }))
     return {
       miniserver: ms.slug,

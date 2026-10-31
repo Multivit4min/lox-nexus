@@ -1,8 +1,10 @@
 import type { AccessScope } from "@lox-nexus/api"
+import { HttpError } from "../http/HttpError.ts"
 import { JsonRpc } from "./JsonRpc.ts"
 import { JsonRpcError } from "./JsonRpcError.ts"
 import type { McpResource } from "./McpResource.ts"
 import { UriTemplate, type McpResourceTemplate } from "./McpResourceTemplate.ts"
+import { Refusals } from "./Refusals.ts"
 import type { ToolContext } from "./ToolContext.ts"
 
 /** The resources and resource templates, filtered by scope like the tools. */
@@ -25,11 +27,23 @@ export class ResourceRegistry {
   async read(uri: string, context: ToolContext) {
     const found = this.find(uri, context)
     if (!found) throw new JsonRpcError(JsonRpc.RESOURCE_NOT_FOUND, `no resource ${uri}`, { uri })
-    const content = await found.read()
+    const content = await ResourceRegistry.content(uri, found.read)
     const text = typeof content === "string" ? content : JSON.stringify(content)
     // the same cap as tool results; resources size themselves to stay under it (the inventory does)
     const capped = text.length <= ResourceRegistry.MAX_TEXT ? text : `${text.slice(0, ResourceRegistry.MAX_TEXT)}\n… cut at 64 KB`
     return { contents: [{ uri, mimeType: found.mimeType, text: capped }] }
+  }
+
+  // a template's variable that names nothing is an unknown resource; another refusal is the client's mistake
+  private static async content(uri: string, read: () => unknown) {
+    try {
+      return await read()
+    } catch (error) {
+      if (error instanceof HttpError && error.status === 404) throw new JsonRpcError(JsonRpc.RESOURCE_NOT_FOUND, error.message, { uri })
+      const refusal = Refusals.reason(error)
+      if (refusal) throw new JsonRpcError(JsonRpc.INVALID_PARAMS, refusal)
+      throw error
+    }
   }
 
   private find(uri: string, context: ToolContext): { mimeType: string; read: () => unknown } | undefined {

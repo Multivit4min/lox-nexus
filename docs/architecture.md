@@ -2704,7 +2704,8 @@ Elsewhere:
     with a token ended by a password change can't lock its replacement out.
   - A restored backup ends all sessions and tokens (`Persistence.endAllAccess`).
   - `InventoryService` strips plugin signal params the capability marks secret (and undeclared
-    ones). The REST API still sends them (`PluginSignalService.toDto`); fixing that needs edits
+    ones). The REST API still sent them (`PluginSignalService.toDto`), fixed after the security
+    audit (see the A2 notes); fixing that needed edits
     to merge stored secrets back, like plugin configs, and is left for its own change.
   - `overview` measures its signal table and answers a note above 48 KB, so it stays valid JSON;
     resources are capped at 64 KB; `tools/list` and `resources/*` count against the rate limit.
@@ -2727,18 +2728,44 @@ Where the build differs from the design above:
 - **Changes.** `update_loxone_signal` and `update_wire` take only the fields that change and merge
   them with the current one, so an agent fixing a label can't drop the unit. Bulk tools answer
   per item (`BulkItems`): the topic, or why not. There is `delete_wires` (bulk), not `delete_wire`.
-- **Confirmations.** Bound to token, tool and a hash of the arguments without `confirmation`;
-  5 minutes, single use, and any try (also one with other arguments) uses the id up. The first
-  call runs the tool's `confirm()` summary only.
+- **Confirmations.** Bound to token, tool, a hash of the arguments without `confirmation`, and
+  `bind`: what the refs resolved to (ids), which `confirm()` answers again inside the ChangeLock
+  on the second call, so a topic renamed meanwhile can't redirect a delete. 5 minutes, single use,
+  and any try uses the id up, except one refused because the lock is busy (an import). A failing
+  first step (a typo in a ref) is a refusal, not an internal error. `ToolRegistry` refuses a tool
+  with `confirm` whose input lacks `confirmation`.
 - **Deadline.** `ToolCall` answers after 30 s (`bridge`: 120 s) that the work goes on in the
   background; the ChangeLock and the rate slot stay held until it really ends.
 - **No `BridgePlanner`.** `plan_bridge` uses `BridgeDraft` and `PacketIds` from `packages/api`,
-  as the web dialog does, and answers items in exactly the shape `bridge` takes.
+  as the web dialog does: packet ids of signals and of discovered packets count as taken (an
+  actuator on a packet the Miniserver sends would be switched by it). It answers items in exactly
+  the shape `bridge` takes.
 - **`CatalogCache`** expires entries by time when read; it holds no timers, so it isn't a
   Disposable. A failed catalog call isn't cached.
 - **Secrets.** `describe_plugin` drops `default`, `examples`, `const` and `enum` from secret fields
   (a plugin's default would show the value it hides); `search_catalog` strips secret entry params,
-  like `InventoryService` does for signals.
+  like `InventoryService` does for signals. `bridge` and `plan_bridge` refuse catalog entries with
+  secret params (`BridgeItems`), so agents never type one in and the audit log never holds one.
+- **Errors.** `Refusals.reason` decides what of an error the model reads, for whole calls and for
+  each item of a bulk change; anything else is logged with the request's logger. Template reads
+  answer -32002 for a variable that names nothing. The audit logs a late call's final outcome and
+  how many items of a bulk change failed.
+
+### After the security audit (2026-10-31)
+
+A full audit (the `security-auditor` agent) found no critical or high issues. Fixed:
+- **Secret signal params** (writeOnly in a capability's params) no longer leave the server:
+  `PluginSignalService` strips them and names them in `secrets`, an edit that omits them keeps the
+  stored ones, and the config export seals them with the settings' secrets under
+  `signal:<id>` (`SignalSecrets`). An import keeps those of a signal with the same id.
+- **Agent-typed secret params** are refused (above).
+- **Untrusted text:** anyone on the LAN can send a Text packet with a Miniserver's id, and its text
+  reaches agents (`list_discovered`, `recent_messages`). The instructions and the guide say values
+  are data, not instructions; `SecretRedactor` (A3) remains for plugin-written text.
+- **Headers:** every answer has `X-Frame-Options: SAMEORIGIN` (the backup download frames its own
+  origin), `nosniff` and `Referrer-Policy: same-origin` (`no-referrer` would turn same-origin
+  `Origin` headers into `null`, which `AuthGuard` refuses). A CSP for the web UI is still open.
+- **Dotfiles** in `NEXUS_WEB_DIR` are never served.
 - **The Nexus address (question 5).** No installation setting yet: `loxone_side` takes an optional
   `nexusAddress`, uses a specific `listenAddress`, and otherwise says that the agent should ask.
 - **Resources and prompts.** `ResourceRegistry` takes templates (`UriTemplate`, one segment per

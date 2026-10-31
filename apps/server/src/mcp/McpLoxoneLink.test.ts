@@ -38,6 +38,7 @@ describe("MCP: plugin to Miniserver, end to end", { timeout: 30_000 }, () => {
   }
 
   before(async () => {
+    HomePlugin.switched.length = 0
     await loxone.bind(0, "127.0.0.1")
     const description = await PluginTestHost.describe(HomePlugin)
     app = await TestApp.start({ pluginTransport: new FakePluginTransport().add("home.ts", HomePlugin) }, {}, nexus =>
@@ -56,12 +57,22 @@ describe("MCP: plugin to Miniserver, end to end", { timeout: 30_000 }, () => {
   })
 
   test("plan_bridge → bridge → loxone_side, then values flow both ways", async () => {
-    const plan = await json<{ items: unknown[] }>("plan_bridge", { instance: "ha", miniserver: "haus", items: [
+    const entries = [
       { entry: { kind: "sensor", capability: "reading", params: { entity: "sensor.kitchen_temperature" }, label: "Kitchen temperature" } },
       { entry: { kind: "actuator", capability: "switch", params: { entity: "switch.kitchen_light" }, label: "Kitchen light" } }
-    ] })
+    ]
     const side = await json<Side>("loxone_side", { miniserver: "haus" })
     assert.deepEqual(side.objects, [], "nothing yet")
+    // the Miniserver already sends a packet with the id the actuator would get: the plan must avoid it
+    const first = await json<{ items: Array<{ loxone: { packetId: string } }> }>("plan_bridge", { instance: "ha", miniserver: "haus", items: entries })
+    const busy = first.items[1]!.loxone.packetId
+    const sender = new RemotePeer(loxone, { ownId: side.miniserver.iciId, remoteId: side.peer.iciId, host: "127.0.0.1", port: side.peer.port, resendInterval: 0 })
+    const discovered = new Promise(resolve => app.app.bus.subscribe("loxone/haus/discovered/+", resolve))
+    await sender.output(busy, DataType.Digital).set(false)
+    await discovered
+    sender.close()
+    const plan = await json<{ items: Array<{ loxone: { packetId: string } }> }>("plan_bridge", { instance: "ha", miniserver: "haus", items: entries })
+    assert.notEqual(plan.items[1]!.loxone.packetId, busy)
     // the Loxone side, set up from what loxone_side will answer: listen before bridge sends the sensor's value
     receiver = new IciReceiver(loxone, { ownId: side.miniserver.iciId })
     const arrived = once(receiver, "data") as Promise<[DataEvent]>
@@ -77,8 +88,9 @@ describe("MCP: plugin to Miniserver, end to end", { timeout: 30_000 }, () => {
     const miniserver = new RemotePeer(loxone, { ownId: side.miniserver.iciId, remoteId: peer.iciId, host: "127.0.0.1", port: peer.port, resendInterval: 0 })
     try {
       assert.equal(output.loxone.dataType, DataType.Digital)
+      const switched = once(HomePlugin.events, "switched", { signal: AbortSignal.timeout(5000) })
       await miniserver.output(output.loxone.packetId, DataType.Digital).set(true)
-      for (let i = 0; i < 50 && HomePlugin.switched.length === 0; i++) await new Promise(resolve => setImmediate(resolve))
+      assert.deepEqual(await switched, [true])
       assert.deepEqual(HomePlugin.switched, [true])
     } finally {
       miniserver.close()

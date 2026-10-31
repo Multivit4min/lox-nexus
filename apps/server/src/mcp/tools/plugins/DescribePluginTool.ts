@@ -35,7 +35,7 @@ export class DescribePluginTool implements McpTool<z.infer<typeof Input>> {
       secretFields: new SecretFields(config).secretNames,
       sensors: sensors.map(sensor => ({ ...sensor, params: DescribePluginTool.redacted(sensor.params) })),
       actuators: actuators.map(actuator => ({ ...actuator, params: DescribePluginTool.redacted(actuator.params) })),
-      actions: actions.map(({ id, label, description, input: form }) => ({ id, label, ...(description ? { description } : {}), input: form })),
+      actions: actions.map(({ id, label, description, input: form }) => ({ id, label, ...(description ? { description } : {}), input: DescribePluginTool.redacted(form) })),
       ...(readme === undefined ? {} : { readme: readme.length > README_MAX ? `${readme.slice(0, README_MAX)}\n… cut at 32 KB` : readme })
     }
   }

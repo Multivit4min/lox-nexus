@@ -6,6 +6,10 @@ import type { InventoryService, InventorySignal } from "../../../services/Invent
 export class WireRefs {
   constructor(private readonly inventory: Pick<InventoryService, "signals" | "wires" | "find">) {}
 
+  signals(): InventorySignal[] {
+    return this.inventory.signals()
+  }
+
   /** @throws HttpError 404 */
   signal(ref: string, signals = this.inventory.signals()): InventorySignal {
     const found = this.inventory.find(ref, signals)

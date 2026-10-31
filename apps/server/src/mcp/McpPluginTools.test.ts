@@ -71,6 +71,9 @@ describe("MCP plugin tools", { timeout: 30_000 }, () => {
     const temperature = side.objects.find(object => object.topic === "loxone/haus/out/kitchen-temperature")!
     assert.equal(temperature.loxone.object, "intercommunication input")
     assert.equal(temperature.feeds, results[0]!.plugin)
+    const secret = await call("bridge", { instance: "ha", miniserver: "haus", items: [{ plugin: { entry: { kind: "sensor", capability: "reading", params: { entity: "sensor.door", apiKey: "agent-typed" }, label: "Door" } }, loxone: { packetId: "door", dataType: 1 } }] })
+    assert.deepEqual([secret.isError, /apiKey/.test(secret.text)], [true, true], "agents never type secrets in")
+    assert.equal((await call("plan_bridge", { instance: "ha", miniserver: "haus", items: [{ entry: { kind: "sensor", capability: "reading", params: { entity: "x", apiKey: "y" }, label: "X" } }] })).isError, true)
     const again = await json<{ notes: Array<{ alreadyConnectedTo?: string[] }> }>("plan_bridge", { instance: "ha", miniserver: "haus", items: [{ signal: results[0]!.plugin }] })
     assert.deepEqual(again.notes[0]!.alreadyConnectedTo, [plan.items[0]!.loxone.packetId])
   })

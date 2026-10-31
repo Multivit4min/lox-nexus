@@ -3,6 +3,7 @@ import { PluginSignalInputSchema, type PluginSignalDto, type PluginSignalInput }
 import { PluginRequestError, PluginUnavailableError, SignalDisplays, SignalDisplaySchema, Topic, type PluginSignalConfig, type PluginSignalEntry, type PluginSupervisor } from "@lox-nexus/core"
 import type { PluginSignalRepository } from "../db/repositories/PluginSignalRepository.ts"
 import { HttpError } from "../http/HttpError.ts"
+import { SecretFields } from "../plugins/SecretFields.ts"
 import { FreeSlug } from "./FreeSlug.ts"
 import type { PluginService } from "./PluginService.ts"
 import type { TopicCleanup } from "./TopicCleanup.ts"
@@ -24,7 +25,8 @@ export class PluginSignalService {
 
   /** @throws HttpError 404 unknown instance, 409 unavailable plugin */
   list(instanceId: string): PluginSignalDto[] {
-    return this.instances.supervisor(instanceId).signals.list().map(entry => PluginSignalService.toDto(instanceId, entry))
+    const supervisor = this.instances.supervisor(instanceId)
+    return supervisor.signals.list().map(entry => PluginSignalService.toDto(supervisor, instanceId, entry))
   }
 
   /** @throws HttpError 400 unknown capability or refused params, 409 taken slug */
@@ -38,7 +40,7 @@ export class PluginSignalService {
       this.repo.delete(config.id)
       throw error
     }
-    return PluginSignalService.toDto(instanceId, this.require(supervisor, config.id))
+    return PluginSignalService.toDto(supervisor, instanceId, this.require(supervisor, config.id))
   }
 
   /**
@@ -52,7 +54,10 @@ export class PluginSignalService {
     const previous = this.require(supervisor, signalId)
     // the plugin can't check params for a capability it no longer has
     if (previous.orphaned) throw HttpError.conflict(`${previous.error ?? "the plugin no longer offers this signal"}: roll the plugin back or delete the signal`)
-    const config = this.configOf(supervisor, signalId, input)
+    // secret params aren't shown, so an edit that leaves them out keeps the stored ones
+    const secrets = PluginSignalService.secretsOf(supervisor, previous.config)
+    const params = secrets && PluginSignalService.isRecord(input.params) ? secrets.merge(input.params, previous.config.params) : input.params
+    const config = this.configOf(supervisor, signalId, { ...input, params })
     if (config.kind !== previous.config.kind || config.capability !== previous.config.capability) {
       throw HttpError.badRequest("kind and capability of a signal can't change; add a new signal instead")
     }
@@ -65,7 +70,7 @@ export class PluginSignalService {
     }
     const updated = this.require(supervisor, signalId)
     if (updated.topic !== previous.topic) this.cleanup.move(previous.topic, updated.topic, by)
-    return PluginSignalService.toDto(instanceId, updated)
+    return PluginSignalService.toDto(supervisor, instanceId, updated)
   }
 
   /** deletes the signal, its wires, and its force and stored value */
@@ -122,8 +127,22 @@ export class PluginSignalService {
     }
   }
 
-  private static toDto(instanceId: string, entry: PluginSignalEntry): PluginSignalDto {
+  // the capability's secret params never leave the server, like secret settings; `secrets` names those set
+  private static toDto(supervisor: PluginSupervisor, instanceId: string, entry: PluginSignalEntry): PluginSignalDto {
     const { config, topic, valueType, error, orphaned } = entry
-    return { ...config, instanceId, topic, valueType, ...(error ? { error } : {}), ...(orphaned ? { orphaned } : {}) }
+    const secrets = PluginSignalService.secretsOf(supervisor, config)
+    const hidden = secrets ? { params: secrets.strip(config.params), secrets: secrets.present(config.params) } : { params: {} }
+    return { ...config, ...hidden, instanceId, topic, valueType, ...(error ? { error } : {}), ...(orphaned ? { orphaned } : {}) }
+  }
+
+  // undefined when the plugin no longer offers the capability: then no param is shown
+  private static secretsOf(supervisor: PluginSupervisor, config: Pick<PluginSignalConfig, "kind" | "capability">) {
+    const { description } = supervisor.pkg
+    const capability = (config.kind === "sensor" ? description.sensors : description.actuators).find(offered => offered.id === config.capability)
+    return capability ? new SecretFields(capability.params) : undefined
+  }
+
+  private static isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value)
   }
 }

@@ -1,3 +1,4 @@
+import { EventEmitter } from "node:events"
 import { Actuator, Plugin, Sensor, secret, z, type CatalogNode } from "@lox-nexus/plugin-sdk"
 import { Value } from "@lox-nexus/plugin-sdk/values"
 
@@ -16,16 +17,19 @@ class Switch extends Actuator<HomePlugin, { entity: string }, Extract<Value, { t
   static readonly accepts = "boolean"
   run(value: Extract<Value, { type: "boolean" }>) {
     HomePlugin.switched.push(value.value)
+    HomePlugin.events.emit("switched", value.value)
   }
 }
 
 /**
  * A Home Assistant stand-in for the MCP tests: a catalog with a sensor, an actuator and an entry
  * with a secret param, and a secret setting with a default, so tests can check none of them leaks.
- * Runs in-process (FakePluginTransport), so `switched` records what the actuator received.
+ * Runs in-process (FakePluginTransport), so `switched` records what the actuator received, and
+ * `events` says so ("switched").
  */
 export class HomePlugin extends Plugin<{ url: string; token: string }> {
   static readonly switched: boolean[] = []
+  static readonly events = new EventEmitter()
   static readonly config = z.object({ url: z.string().default("http://ha"), token: secret(z.string()).default("planted-config-secret") })
   static readonly sensors = [Reading]
   static readonly actuators = [Switch]

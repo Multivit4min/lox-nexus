@@ -57,6 +57,12 @@ export class HttpServer extends Disposable {
     this.app.decorateRequest("user", undefined)
     this.app.decorateRequest("access", undefined)
     this.app.setErrorHandler(new ErrorHandler().handle)
+    // defence in depth for the admin UI: no framing by other sites (the backup download frames its
+    // own origin), no type sniffing. Referrer "same-origin", not "no-referrer": that would make
+    // browsers send Origin: null on same-origin writes, which AuthGuard refuses.
+    this.app.addHook("onSend", async (_request, reply) => {
+      reply.header("x-frame-options", "SAMEORIGIN").header("x-content-type-options", "nosniff").header("referrer-policy", "same-origin")
+    })
     this.app.register(fastifyCookie)
     this.app.register(fastifyWebsocket, { options: { maxPayload: 65_536 } })
     this.app.register(async app => {
@@ -94,7 +100,8 @@ export class HttpServer extends Disposable {
     }
     const index = path.join(webDir, "index.html")
     // wildcard: files are looked up per request (not globbed at boot), so rebuilt chunks are served
-    this.app.register(fastifyStatic, { root: webDir })
+    // a web dir pointed at a working copy must not serve .env or .git
+    this.app.register(fastifyStatic, { root: webDir, dotfiles: "ignore" })
     this.app.setNotFoundHandler((request, reply) => {
       if (docs.handles(request)) return docs.notFound(request, reply)
       if (request.url.replace(/^\/+/, "/").startsWith("/api/") || request.method !== "GET") return reply.code(404).send({ error: "not found" })

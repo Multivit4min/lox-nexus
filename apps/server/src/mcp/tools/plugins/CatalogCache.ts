@@ -18,7 +18,9 @@ export class CatalogCache {
     const nodes = Promise.resolve().then(() => this.plugins.catalog(instanceId))
     this.entries.set(instanceId, { at: now, nodes })
     // a failure is answered once, not for a minute
-    nodes.catch(() => this.entries.delete(instanceId))
+    nodes.catch(() => {
+      if (this.entries.get(instanceId)?.nodes === nodes) this.entries.delete(instanceId)
+    })
     return nodes
   }
 }

@@ -9,6 +9,9 @@ export class ToolRegistry {
   constructor(tools: readonly McpTool[]) {
     for (const tool of tools) {
       if (this.tools.has(tool.name)) throw new Error(`two MCP tools are named "${tool.name}"`)
+      // zod would strip an undeclared confirmation, and the tool would ask again forever
+      const properties = ToolRegistry.schema(tool).properties as Record<string, unknown> | undefined
+      if (tool.confirm && !properties?.confirmation) throw new Error(`MCP tool "${tool.name}" asks for confirmations but its input has no "confirmation"`)
       this.tools.set(tool.name, tool)
     }
   }

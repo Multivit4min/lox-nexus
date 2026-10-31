@@ -2,6 +2,7 @@ import { LoxoneSignalInputSchema } from "@lox-nexus/api"
 import { z } from "zod"
 import type { McpRefs } from "../../McpRefs.ts"
 import type { McpTool } from "../../McpTool.ts"
+import type { ToolContext } from "../../ToolContext.ts"
 import { BulkItems } from "../../BulkItems.ts"
 import type { LoxoneSignalWrites } from "./LoxoneSignalWrites.ts"
 
@@ -22,8 +23,8 @@ export class CreateLoxoneSignalsTool implements McpTool<z.infer<typeof Input>> {
 
   constructor(private readonly refs: McpRefs, private readonly signals: Pick<LoxoneSignalWrites, "add">) {}
 
-  run(input: z.infer<typeof Input>) {
+  run(input: z.infer<typeof Input>, context: ToolContext) {
     const ms = this.refs.miniserver(input.miniserver)
-    return BulkItems.run(input.signals, signal => `${signal.direction}:${signal.packetId}`, signal => this.signals.add(ms.id, signal).topic)
+    return BulkItems.run(input.signals, signal => `${signal.direction}:${signal.packetId}`, signal => this.signals.add(ms.id, signal).topic, context)
   }
 }

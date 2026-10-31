@@ -61,7 +61,11 @@ describe("MCP wire tools", { timeout: 30_000 }, () => {
     const moved = await json<{ wire: string }>("update_wire", { wire: "loxone/haus/out/heat", target: "loxone/haus/out/level", transforms: [] })
     assert.equal(moved.wire, "loxone/haus/in/temp → loxone/haus/out/level")
     const [wire] = await wires()
-    assert.deepEqual([wire!.label, wire!.transforms, wire!.enabled], ["Temperature → Heating", [], false])
+    assert.deepEqual([wire!.label, wire!.transforms, wire!.enabled], ["Temperature → Level", [], false], "a label made from the ends follows them")
+    await json("update_wire", { wire: "loxone/haus/out/level", label: "Mine" })
+    await json("update_wire", { wire: "loxone/haus/out/level", target: "loxone/haus/out/heat" })
+    assert.equal((await wires())[0]!.label, "Mine", "a chosen one stays")
+    await json("update_wire", { wire: "loxone/haus/out/heat", target: "loxone/haus/out/level", label: "Temperature → Level" })
   })
 
   test("delete_wires names what goes and needs the confirmation", async () => {

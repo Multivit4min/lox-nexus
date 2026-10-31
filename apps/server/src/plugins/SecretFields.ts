@@ -47,6 +47,18 @@ export class SecretFields {
     return merged
   }
 
+  /**
+   * whether the schema marks secrets only on its top-level fields, which is all this class sees;
+   * otherwise (a union, a secret below a field) every field has to count as secret
+   */
+  static topLevelOnly(schema: JsonSchema) {
+    const properties = schema.properties as Record<string, object> | undefined
+    if (!properties) return false
+    const marked = (value: unknown) => (JSON.stringify(value).match(/"writeOnly":true/g) ?? []).length
+    const topLevel = Object.values(properties).filter(field => (field as { writeOnly?: boolean }).writeOnly === true).length
+    return marked(schema) === topLevel
+  }
+
   private hidden(name: string) {
     return this.names.has(name) || (this.declared !== undefined && !this.declared.has(name))
   }

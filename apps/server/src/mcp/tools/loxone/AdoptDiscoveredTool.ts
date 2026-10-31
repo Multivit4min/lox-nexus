@@ -24,6 +24,6 @@ export class AdoptDiscoveredTool implements McpTool<z.infer<typeof Input>> {
 
   run(input: z.infer<typeof Input>, context: ToolContext) {
     const ms = this.refs.miniserver(input.miniserver)
-    return BulkItems.run(input.packets, packet => packet.packetId, packet => this.signals.adopt(ms.id, packet, context.by).topic)
+    return BulkItems.run(input.packets, packet => packet.packetId, packet => this.signals.adopt(ms.id, packet, context.by).topic, context)
   }
 }

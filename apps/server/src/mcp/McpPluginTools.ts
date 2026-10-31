@@ -1,4 +1,4 @@
-import type { BridgeRequest, BridgeResultDto, LoxoneSignalDto, PluginReadmeDto, PluginSignalDto, WireDto } from "@lox-nexus/api"
+import type { BridgeRequest, BridgeResultDto, DiscoveredPacketDto, LoxoneSignalDto, PluginReadmeDto, PluginSignalDto, WireDto } from "@lox-nexus/api"
 import type { CatalogNode } from "@lox-nexus/plugin-sdk/wire"
 import type { McpRefs } from "./McpRefs.ts"
 import type { McpResourceTemplate } from "./McpResourceTemplate.ts"
@@ -14,7 +14,7 @@ import { SearchCatalogTool } from "./tools/plugins/SearchCatalogTool.ts"
 export interface McpPluginSources {
   plugins: PluginRefSources["plugins"] & { catalog(instanceId: string): Promise<CatalogNode[]> | CatalogNode[] }
   pluginSignals: { list(instanceId: string): PluginSignalDto[] }
-  loxoneSignals: { list(miniserverId: string): LoxoneSignalDto[] }
+  loxoneSignals: { list(miniserverId: string): LoxoneSignalDto[]; discovered(miniserverId: string): DiscoveredPacketDto[] }
   wires: { list(): WireDto[] }
   /** PluginBridgeService */
   bridges: { bridge(instanceId: string, input: BridgeRequest, by: string): Promise<BridgeResultDto[]> }

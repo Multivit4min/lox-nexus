@@ -74,6 +74,10 @@ describe("MCP Loxone tools", { timeout: 30_000 }, () => {
     const moved = await json<{ topic: string; movedFrom?: string }>("update_loxone_signal", { signal: stored.id, slug: "kellertur-temperature" })
     assert.deepEqual([moved.topic, moved.movedFrom], ["loxone/haus/in/kellertur-temperature", "loxone/haus/in/kelletrtur-temperature"])
     assert.ok((await call("update_loxone_signal", { signal: "loxone/haus/in/kellertur-temperature", dataType: 9 })).isError)
+    await json("update_loxone_signal", { signal: "loxone/haus/in/kellertur-temperature", unit: "", decimals: null })
+    const cleared = (await signals()).find(signal => signal.packetId === "temp")!
+    assert.deepEqual([cleared.unit, cleared.decimals], [undefined, undefined], "\"\" and null clear a field")
+    await json("update_loxone_signal", { signal: "loxone/haus/in/kellertur-temperature", unit: "°C", decimals: 1 })
   })
 
   test("loxone_side names the peer and an object per signal, opposite to the Nexus direction", async () => {
@@ -85,6 +89,15 @@ describe("MCP Loxone tools", { timeout: 30_000 }, () => {
     assert.equal(temp.loxone.object, "intercommunication output")
     assert.equal(temp.loxone.unitFormat, "<v.1> °C")
     assert.equal(side.objects.find(object => object.loxone.packetId === "door")!.loxone.object, "intercommunication input")
+    const some = await json<{ objects: unknown[]; notFound: string[] }>("loxone_side", { miniserver: "haus", signals: ["loxone/haus/out/door", "loxone/haus/out/typo"] })
+    assert.deepEqual([some.objects.length, some.notFound], [1, ["loxone/haus/out/typo"]])
+  })
+
+  test("the loxone-side template answers like the tool; an unknown slug is an unknown resource", async () => {
+    const read = (uri: string) => app.client().post("/mcp", { jsonrpc: "2.0", id: ++id, method: "resources/read", params: { uri } }, { authorization: `Bearer ${tokens.read}` })
+    const found = (await read("nexus://miniservers/haus/loxone-side")).json<{ result: { contents: { text: string }[] } }>()
+    assert.equal(JSON.parse(found.result.contents[0]!.text).peer.iciId, "nexus")
+    assert.equal((await read("nexus://miniservers/nope/loxone-side")).json<{ error: { code: number } }>().error.code, -32002)
   })
 
   test("diff_loxone_objects: new, differs, same and removed, with inputs to create from", async () => {
@@ -116,6 +129,8 @@ describe("MCP Loxone tools", { timeout: 30_000 }, () => {
   })
 
   test("delete needs the confirmation from a first call, for the same signals", async () => {
+    const typo = await call("delete_loxone_signals", { signals: ["loxone/haus/out/dor"] })
+    assert.deepEqual([typo.isError, /not found/.test(typo.text)], [true, true], "a typo is a refusal the agent can fix, not an internal error")
     const first = await json<{ needsConfirmation: boolean; summary: string; confirmation: string }>("delete_loxone_signals", { signals: ["loxone/haus/out/door"] })
     assert.equal(first.needsConfirmation, true)
     assert.match(first.summary, /deletes 1 Loxone signal \(loxone\/haus\/out\/door\), 0 wires/)

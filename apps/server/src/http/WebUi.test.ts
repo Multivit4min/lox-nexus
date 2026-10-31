@@ -79,3 +79,23 @@ test("without NEXUS_DOCS_DIR, /docs says how to enable it instead of serving the
     assert.match(response.body, /NEXUS_DOCS_DIR/)
   }
 })
+
+test("the UI isn't framed by other sites, and dotfiles in its folder stay private", async t => {
+  const webDir = fs.mkdtempSync(path.join(os.tmpdir(), "nexus-web-"))
+  fs.writeFileSync(path.join(webDir, "index.html"), "<!doctype html><title>ui</title>")
+  fs.writeFileSync(path.join(webDir, ".env"), "PASSWORD=planted")
+  const app = await TestApp.start({}, { NEXUS_WEB_DIR: webDir })
+  t.after(async () => {
+    await app.dispose()
+    fs.rmSync(webDir, { recursive: true, force: true })
+  })
+  const http = app.app.server!.app
+  for (const url of ["/", "/api/auth"]) {
+    const response = await http.inject({ method: "GET", url })
+    assert.equal(response.headers["x-frame-options"], "SAMEORIGIN", url)
+    assert.equal(response.headers["x-content-type-options"], "nosniff", url)
+    assert.equal(response.headers["referrer-policy"], "same-origin", url)
+  }
+  const dotfile = await http.inject({ method: "GET", url: "/.env" })
+  assert.ok(!dotfile.body.includes("planted"), "a dotfile is never served")
+})

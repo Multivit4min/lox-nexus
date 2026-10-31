@@ -13,7 +13,7 @@ const Input = LoxoneSignalInputSchema.partial().extend({
 export class UpdateLoxoneSignalTool implements McpTool<z.infer<typeof Input>> {
   readonly name = "update_loxone_signal"
   readonly title = "Change a Loxone signal"
-  readonly description = "Change a Loxone signal: give only what changes (label, packetId, direction, dataType, slug, unit, decimals, staleAfterMin). A new label keeps the topic; a new slug moves the topic, and its value and force move along. Its wires stay. A new packet id, direction or data type must be changed in Loxone Config too (loxone_side)."
+  readonly description = "Change a Loxone signal: give only what changes (label, packetId, direction, dataType, slug, unit, decimals, staleAfterMin). A new label keeps the topic; a new slug moves the topic, as does a new packet id or direction for a signal without a slug (movedFrom names the old one); its value and force move along, its wires stay. To clear a field, send unit: \"\", decimals: null or staleAfterMin: null. A new packet id, direction or data type must be changed in Loxone Config too (loxone_side)."
   readonly scope = "configure" as const
   readonly changes = true
   readonly annotations = { idempotentHint: true }

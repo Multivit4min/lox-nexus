@@ -17,6 +17,14 @@
 - Restoring a backup now logs everyone out and ends all access tokens, so revoked ones don't come
   back.
 
+### Security
+
+- Plugin signal settings marked secret (by third-party plugins; the bundled ones have none) are no
+  longer shown by the API and are sealed in config exports like secret plugin settings; editing a
+  signal keeps them.
+- The web UI can't be framed by other sites, and answers carry `nosniff` and a same-origin
+  referrer policy. Files starting with a dot are never served from the web folder.
+
 ### Users
 
 - **Users and access** in the user menu: add users, set another user's password (they are logged

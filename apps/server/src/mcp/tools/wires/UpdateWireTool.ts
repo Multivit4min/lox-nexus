@@ -31,10 +31,18 @@ export class UpdateWireTool implements McpTool<z.infer<typeof Input>> {
     if (current.transforms.some(step => step.op === "unsupported") && !input.transforms) {
       throw HttpError.badRequest("the wire has steps this version can't run; give transforms to replace them")
     }
+    const signals = this.refs.signals()
+    const source = input.source === undefined ? undefined : this.refs.signal(input.source, signals)
+    const target = input.target === undefined ? undefined : this.refs.signal(input.target, signals)
+    const label = (id: string) => signals.find(signal => signal.id === id)?.label ?? id
+    // a label made from the two ends follows them; one the user chose stays
+    const automatic = current.label === `${label(current.sourceId)} → ${label(current.targetId)}`
+    const sourceId = source?.id ?? current.sourceId
+    const targetId = target?.id ?? current.targetId
     const updated = this.wires.update(current.id, {
-      label: input.label ?? current.label,
-      sourceId: input.source === undefined ? current.sourceId : this.refs.signal(input.source).id,
-      targetId: input.target === undefined ? current.targetId : this.refs.signal(input.target).id,
+      label: input.label ?? (automatic ? `${label(sourceId)} → ${label(targetId)}`.slice(0, 200) : current.label),
+      sourceId,
+      targetId,
       transforms: input.transforms ?? current.transforms,
       enabled: input.enabled ?? current.enabled,
       syncOnStart: input.syncOnStart ?? current.syncOnStart

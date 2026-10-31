@@ -37,7 +37,7 @@ export class McpController implements Controller {
     reply.raw.once("close", () => {
       if (!reply.raw.writableEnded) abort.abort()
     })
-    const answer = await this.dispatcher.handle(request.body, { user, access, by: `${user.username} via MCP (${access.name})`, signal: abort.signal })
+    const answer = await this.dispatcher.handle(request.body, { user, access, by: `${user.username} via MCP (${access.name})`, signal: abort.signal, log: request.log })
     if (!answer) return reply.code(202).send()
     return reply.code(200).type("application/json").send(answer)
   }

@@ -3,6 +3,7 @@ import { test } from "node:test"
 import { z } from "zod"
 import { TestClock } from "@lox-nexus/plugin-sdk/testing"
 import { ChangeLock } from "../http/ChangeLock.ts"
+import { HttpError } from "../http/HttpError.ts"
 import { Confirmations } from "./Confirmations.ts"
 import type { McpTool } from "./McpTool.ts"
 import { ToolCall } from "./ToolCall.ts"
@@ -37,7 +38,7 @@ test("a destructive tool answers what it would take along first, and runs only w
   const remove: McpTool<{ signal: string; confirmation?: string }> = {
     name: "delete_thing", title: "Delete", description: "", scope: "configure", changes: true,
     input: z.object({ signal: z.string(), confirmation: z.string().optional() }),
-    confirm: input => `deletes ${input.signal} and 2 wires`,
+    confirm: input => ({ summary: `deletes ${input.signal} and 2 wires`, bind: input.signal }),
     run: input => void deleted.push(input.signal)
   }
   const first = JSON.parse((await call.run(remove, { signal: "a" }, context)).content[0]!.text) as { needsConfirmation: boolean; summary: string; confirmation: string }
@@ -50,6 +51,37 @@ test("a destructive tool answers what it would take along first, and runs only w
   assert.equal((await call.run(remove, { signal: "a", confirmation: third.confirmation }, context)).isError, undefined)
   assert.equal((await call.run(remove, { signal: "a", confirmation: third.confirmation }, context)).isError, true, "used once")
   assert.deepEqual(deleted, ["a"])
+  await confirmations.dispose()
+})
+
+test("a confirmation holds only while the refs resolve as before, survives a busy lock, and a failing first step is a refusal", async () => {
+  const confirmations = new Confirmations()
+  const lock = new ChangeLock()
+  const call = new ToolCall({ acquire: async () => () => {} }, lock, { changed: () => {} }, { error: () => {} }, confirmations)
+  const ids: Record<string, string> = { kitchen: "id-1" }
+  const deleted: string[] = []
+  const remove: McpTool<{ signal: string; confirmation?: string }> = {
+    name: "delete_thing", title: "Delete", description: "", scope: "configure", changes: true,
+    input: z.object({ signal: z.string(), confirmation: z.string().optional() }),
+    confirm: input => {
+      if (!ids[input.signal]) throw HttpError.notFound(`signal "${input.signal}"`)
+      return { summary: `deletes ${input.signal}`, bind: ids[input.signal] }
+    },
+    run: input => void deleted.push(ids[input.signal]!)
+  }
+  const ask = async () => (JSON.parse((await call.run(remove, { signal: "kitchen" }, context)).content[0]!.text) as { confirmation: string }).confirmation
+  assert.deepEqual(await call.run(remove, { signal: "cellar" }, context), { content: [{ type: "text", text: "signal \"cellar\" not found" }], isError: true })
+  const first = await ask()
+  ids.kitchen = "id-2"
+  assert.equal((await call.run(remove, { signal: "kitchen", confirmation: first }, context)).isError, true, "the topic now names another signal")
+  const second = await ask()
+  let finish = () => {}
+  const held = lock.hold("a config import", () => new Promise<void>(resolve => (finish = resolve)))
+  assert.equal((await call.run(remove, { signal: "kitchen", confirmation: second }, context)).isError, true, "refused while the lock is held")
+  finish()
+  await held
+  assert.equal((await call.run(remove, { signal: "kitchen", confirmation: second }, context)).isError, undefined, "but not used up")
+  assert.deepEqual(deleted, ["id-2"])
   await confirmations.dispose()
 })
 

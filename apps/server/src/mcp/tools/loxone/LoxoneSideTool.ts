@@ -32,6 +32,7 @@ export class LoxoneSideTool implements McpTool<z.infer<typeof Input>> {
       feeds.set(wire.targetId, topics.get(wire.sourceId) ?? wire.sourceId)
       if (!feeds.has(wire.sourceId)) feeds.set(wire.sourceId, topics.get(wire.targetId) ?? wire.targetId)
     }
-    return LoxoneSideDescriptor.describe(ms, signals, feeds, input.nexusAddress)
+    const notFound = input.signals?.filter(ref => !signals.some(signal => signal.topic === ref || signal.id === ref)) ?? []
+    return { ...LoxoneSideDescriptor.describe(ms, signals, feeds, input.nexusAddress), ...(notFound.length ? { notFound } : {}) }
   }
 }

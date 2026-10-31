@@ -24,18 +24,19 @@ export class DeleteLoxoneSignalsTool implements McpTool<z.infer<typeof Input>> {
   constructor(private readonly refs: McpRefs, private readonly signals: Pick<LoxoneSignalWrites, "remove">, private readonly inventory: Pick<InventoryService, "signals" | "wires">) {}
 
   confirm(input: z.infer<typeof Input>) {
-    const found = input.signals.map(ref => this.refs.loxoneSignal(ref).signal)
+    const found = [...new Map(input.signals.map(ref => this.refs.loxoneSignal(ref).signal).map(signal => [signal.id, signal])).values()]
     const ids = new Set(found.map(signal => signal.id))
     const wires = this.inventory.wires().filter(wire => ids.has(wire.sourceId) || ids.has(wire.targetId)).length
     const forces = this.inventory.signals().filter(signal => ids.has(signal.id) && signal.forced).length
-    return `deletes ${found.length} Loxone signal${found.length === 1 ? "" : "s"} (${found.map(signal => signal.topic).join(", ")}), ${wires} wire${wires === 1 ? "" : "s"}${forces ? ` and ${forces} force${forces === 1 ? "" : "s"}` : ""}; the objects in Loxone Config stay`
+    const summary = `deletes ${found.length} Loxone signal${found.length === 1 ? "" : "s"} (${found.map(signal => signal.topic).join(", ")}), ${wires} wire${wires === 1 ? "" : "s"}${forces ? ` and ${forces} force${forces === 1 ? "" : "s"}` : ""}; the objects in Loxone Config stay`
+    return { summary, bind: [...ids].sort() }
   }
 
   run(input: z.infer<typeof Input>, context: ToolContext) {
-    return BulkItems.run(input.signals, ref => ref, ref => {
+    return BulkItems.run([...new Set(input.signals)], ref => ref, ref => {
       const { miniserver, signal } = this.refs.loxoneSignal(ref)
       this.signals.remove(miniserver.id, signal.id, context.by)
       return signal.topic
-    })
+    }, context)
   }
 }

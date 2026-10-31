@@ -32,9 +32,10 @@ export class BridgeTool implements McpTool<z.infer<typeof Input>> {
 
   async run(input: z.infer<typeof Input>, context: ToolContext) {
     const instance = this.refs.instance(input.instance)
+    const { description } = this.refs.package(instance.plugin)
     const ms = this.miniservers.miniserver(input.miniserver)
     const signals = this.pluginSignals.list(instance.id)
-    const items = input.items.map(item => ({ plugin: BridgeItems.resolve(item.plugin, signals), loxone: item.loxone }))
+    const items = input.items.map(item => ({ plugin: BridgeItems.resolve(item.plugin, signals, description), loxone: item.loxone }))
     const results = await this.bridges.bridge(instance.id, { miniserverId: ms.id, items }, context.by)
     return results.map(result => result.ok
       ? { ok: true, plugin: result.signal.topic, loxone: result.loxone.topic, packetId: result.loxone.packetId, wire: result.wire.label }

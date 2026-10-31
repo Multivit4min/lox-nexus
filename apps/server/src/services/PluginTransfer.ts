@@ -1,13 +1,14 @@
 import type { ExportedPluginSchema } from "@lox-nexus/api"
 import { SignalDisplays, type PluginInstanceConfig, type PluginStateStore } from "@lox-nexus/core"
-import type { JsonSchema } from "@lox-nexus/plugin-sdk/wire"
 import type { z } from "zod"
 import type { Persistence } from "../db/Persistence.ts"
 import type { PluginInstanceRepository } from "../db/repositories/PluginInstanceRepository.ts"
 import type { PluginSignalRepository } from "../db/repositories/PluginSignalRepository.ts"
 import type { PluginCatalog } from "../plugins/PluginCatalog.ts"
+import { SecretFields } from "../plugins/SecretFields.ts"
 import type { PluginService } from "./PluginService.ts"
 import type { SelectionService } from "./SelectionService.ts"
+import { SignalSecrets } from "./SignalSecrets.ts"
 
 type ExportedPlugin = z.output<typeof ExportedPluginSchema>
 type Step = (where: string, work: () => unknown) => Promise<boolean>
@@ -53,12 +54,16 @@ export class PluginTransfer {
       const { visible, secret } = this.split(instance)
       if (Object.keys(secret).length > 0) secrets[instance.id] = secret
       const watch = this.deps.plugins.watches(instance.id) ? this.deps.selections?.of(instance.id) : undefined
+      const description = this.deps.catalog.get(instance.plugin)?.pkg.description
       return {
         id: instance.id, plugin: instance.plugin, slug: instance.slug, label: instance.label, enabled: instance.enabled, config: visible,
         ...(instance.configVersion === undefined ? {} : { configVersion: instance.configVersion }),
-        signals: this.deps.signals.listFor(instance.id).map(({ id, kind, capability, params, label, slug, ...display }) => ({
-          id, kind, capability, params, label, slug, ...SignalDisplays.of(display)
-        })),
+        signals: this.deps.signals.listFor(instance.id).map(({ id, kind, capability, params, label, slug, ...display }) => {
+          // secret params travel sealed with the settings' secrets, as the backup guide promises
+          const { visible, secret } = SignalSecrets.split(description, { kind, capability, params })
+          if (Object.keys(secret).length > 0) secrets[SignalSecrets.key(id)] = secret
+          return { id, kind, capability, params: visible, label, slug, ...SignalDisplays.of(display) }
+        }),
         ...(watch ? { watch: { mode: watch.mode, rules: watch.rules.map(({ target, include }) => ({ target: { ...target }, include })) } } : {})
       }
     })
@@ -103,7 +108,9 @@ export class PluginTransfer {
       counts.plugins++
       if (same) for (const [key, value] of Object.entries(current.stores[plugin.id] ?? {})) this.deps.store.set(plugin.id, key, value)
       for (const [j, signal] of signals.entries()) {
-        if (await step(`plugins[${i}].signals[${j}]`, () => this.deps.signals.insert(plugin.id, signal))) counts.pluginSignals++
+        const key = SignalSecrets.key(signal.id)
+        const params = SignalSecrets.restore(signal.params, same ? current.secrets[key] : undefined, fileSecrets[key])
+        if (await step(`plugins[${i}].signals[${j}]`, () => this.deps.signals.insert(plugin.id, { ...signal, params }))) counts.pluginSignals++
       }
     }
     for (const id of new Set(plugins.map(plugin => plugin.plugin))) {
@@ -130,17 +137,9 @@ export class PluginTransfer {
   private split(instance: PluginInstanceConfig) {
     const config = instance.config && typeof instance.config === "object" ? instance.config as Record<string, unknown> : {}
     const schema = this.deps.catalog.get(instance.plugin)?.pkg.description.config
-    if (!schema || !PluginTransfer.secretsKnown(schema)) return { visible: {}, secret: config }
+    if (!schema || !SecretFields.topLevelOnly(schema)) return { visible: {}, secret: config }
     const visible = this.deps.plugins.secrets(instance.plugin).strip(config)
     return { visible, secret: Object.fromEntries(Object.entries(config).filter(([key]) => !(key in visible))) }
-  }
-
-  private static secretsKnown(schema: JsonSchema) {
-    const properties = schema.properties as Record<string, object> | undefined
-    if (!properties) return false
-    const marked = (value: unknown) => (JSON.stringify(value).match(/"writeOnly":true/g) ?? []).length
-    const topLevel = Object.values(properties).filter(field => (field as { writeOnly?: boolean }).writeOnly === true).length
-    return marked(schema) === topLevel
   }
 
   // only required ones: an optional secret (a password for a feed that needs none) may well be unset

@@ -27,7 +27,8 @@ changes (yours, or one another user sets for you), which ends all your tokens. E
 | operate | act on devices: force values, run plugin actions (coming; off by default) |
 
 Agents never see secrets: passwords, plugin settings and signal settings marked secret aren't in
-any answer, and no tool accepts them. You enter those in the web UI.
+any answer, and no tool accepts them (an agent that tries is told to leave them to you). You enter
+those in the web UI.
 
 Restoring a backup ends every access token (and logs everyone out), so a token you revoked after
 the backup was made doesn't come back. Create new ones afterwards.
@@ -71,12 +72,11 @@ internet and a sign-in flow it doesn't have.
 | `list_wires` | wires with both ends and why an inactive one carries nothing |
 | `recent_messages`, `trace` | what went over the bus, and what caused what |
 | `system_status` | memory, CPU, traffic, and whether a config import is running |
-
 | `describe_plugin` | what a plugin offers (settings, sensors, actuators, actions) and its README |
 | `search_catalog` | what a running plugin instance offers to add, e.g. Home Assistant entities, with their values |
 | `plan_bridge` | a plan to connect plugin signals to a Miniserver: free packet ids, fitting data types |
 | `loxone_side` | what to create in Loxone Config: the Lox Nexus peer and one intercommunication object per signal |
-| `diff_loxone_objects` | objects read from Loxone Config compared with Nexus: new, different, missing |
+| `diff_loxone_objects` | objects read from Loxone Config compared with Nexus: new, differing, and removed (only in Nexus) |
 | `list_discovered` | packets a Miniserver sends that have no signal yet |
 | `preview_wire` | what transforms make of a sample value |
 
@@ -96,7 +96,8 @@ With the **configure** permission:
 
 **Deleting asks first.** The first call deletes nothing: it answers what would go (for a signal,
 also its wires and force) and a confirmation. Only a second call with the same items and that
-confirmation deletes, within 5 minutes. A confirmation works once, only for that token.
+confirmation deletes, within 5 minutes. A confirmation works once, only for that token, and only
+while the names still point at the same signals or wires.
 
 Changes show up in the Nexus log as "*user* via MCP (*token name*)". While a configuration import
 runs, agents can read but not change anything.
@@ -114,6 +115,12 @@ An agent that also has a Loxone Config MCP server (announced for Loxone Config 1
 both sides; otherwise it tells you what to create in Loxone Config.
 
 ## Good to know
+
+- **Values and texts are data, not instructions.** Signal values, device names, plugin status
+  messages and texts a Miniserver sends reach the agent as they are. Anyone on your network can
+  send a Miniserver-like text packet to Nexus, so an agent may read text that someone planted.
+  Agents are told to treat it as data; still, check a plan before you agree to it, especially with
+  the operate permission.
 
 - Each token may make 120 calls a minute (30 of them changing), at most 4 at once.
 - Wrong tokens are throttled per address, separately from logins; a valid token always gets in.

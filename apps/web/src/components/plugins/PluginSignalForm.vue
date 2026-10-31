@@ -124,7 +124,7 @@ async function onSubmit() {
     <section v-if="capability.field.fields?.length || capability.field.kind === 'union'" class="grid gap-2">
       <h3 class="text-sm font-medium">Settings</h3>
       <div class="max-h-[45vh] overflow-y-auto pr-1">
-        <SchemaFieldInput id="params" v-model="draft" :field="capability.field" />
+        <SchemaFieldInput id="params" v-model="draft" :field="capability.field" :secrets="initial?.secrets" />
       </div>
     </section>
     <SignalDisplayFields

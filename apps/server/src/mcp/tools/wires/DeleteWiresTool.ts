@@ -1,6 +1,7 @@
 import { z } from "zod"
 import type { McpTool } from "../../McpTool.ts"
 import { BulkItems } from "../../BulkItems.ts"
+import type { ToolContext } from "../../ToolContext.ts"
 import type { WireRefs } from "./WireRefs.ts"
 import type { WireWrites } from "./WireWrites.ts"
 
@@ -22,15 +23,18 @@ export class DeleteWiresTool implements McpTool<z.infer<typeof Input>> {
   constructor(private readonly refs: WireRefs, private readonly wires: Pick<WireWrites, "delete">) {}
 
   confirm(input: z.infer<typeof Input>) {
-    const found = input.wires.map(ref => this.refs.wire(ref))
-    return `deletes ${found.length} wire${found.length === 1 ? "" : "s"}: ${found.map(wire => this.refs.describe(wire)).join("; ")}`
+    const found = [...new Map(input.wires.map(ref => this.refs.wire(ref)).map(wire => [wire.id, wire])).values()]
+    return {
+      summary: `deletes ${found.length} wire${found.length === 1 ? "" : "s"}: ${found.map(wire => this.refs.describe(wire)).join("; ")}`,
+      bind: found.map(wire => wire.id).sort()
+    }
   }
 
-  run(input: z.infer<typeof Input>) {
-    return BulkItems.run(input.wires, ref => ref, ref => {
+  run(input: z.infer<typeof Input>, context: ToolContext) {
+    return BulkItems.run([...new Set(input.wires)], ref => ref, ref => {
       const wire = this.refs.wire(ref)
       this.wires.delete(wire.id)
       return this.refs.describe(wire)
-    })
+    }, context)
   }
 }

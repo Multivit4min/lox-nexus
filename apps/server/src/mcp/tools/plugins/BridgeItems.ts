@@ -1,6 +1,8 @@
 import { BridgeItemSchema, PluginSignalInputSchema, type BridgeItem, type PluginSignalDto } from "@lox-nexus/api"
-import { HttpError } from "../../../http/HttpError.ts"
+import type { PluginDescription } from "@lox-nexus/plugin-sdk/wire"
 import { z } from "zod"
+import { HttpError } from "../../../http/HttpError.ts"
+import { SecretFields } from "../../../plugins/SecretFields.ts"
 
 /** a catalog entry as search_catalog shows it */
 export const EntryInput = PluginSignalInputSchema.pick({ kind: true, capability: true, params: true, label: true })
@@ -20,9 +22,18 @@ export type BridgeItemInput = z.infer<typeof BridgeItemInput>
 
 /** Turns the tools' items into the request PluginBridgeService takes. */
 export class BridgeItems {
-  /** @throws HttpError 404 for a topic the instance has no signal for */
-  static resolve(end: z.infer<typeof PluginEndInput>, signals: readonly PluginSignalDto[]): BridgeItem["plugin"] {
-    if ("entry" in end) return { type: "new", signal: end.entry }
+  /**
+   * @throws HttpError 404 for a topic the instance has no signal for, 400 for an entry with secret
+   * params: agents never type secrets in (ADR 0020), and the audit log would keep them
+   */
+  static resolve(end: z.infer<typeof PluginEndInput>, signals: readonly PluginSignalDto[], description: PluginDescription): BridgeItem["plugin"] {
+    if ("entry" in end) {
+      const { kind, capability: id, params } = end.entry
+      const capability = (kind === "sensor" ? description.sensors : description.actuators).find(offered => offered.id === id)
+      const secret = capability ? new SecretFields(capability.params).present(params) : []
+      if (secret.length > 0) throw HttpError.badRequest(`secret params (${secret.join(", ")}) are entered by a person in the web UI: leave them out, and say which signal needs them`)
+      return { type: "new", signal: end.entry }
+    }
     const signal = signals.find(entry => entry.topic === end.signal || entry.id === end.signal)
     if (!signal) throw HttpError.notFound(`signal "${end.signal}" of this instance`)
     return { type: "existing", signalId: signal.id }
