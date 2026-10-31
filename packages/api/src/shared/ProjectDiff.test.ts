@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { describe, test } from "node:test"
-import type { LoxoneProjectDto, LoxoneProjectPeerDto, LoxoneSignalDto, MiniserverDto } from "@lox-nexus/api"
+import type { LoxoneProjectDto, LoxoneProjectPeerDto, LoxoneSignalDto, MiniserverDto } from "../index.ts"
 import { ProjectDiff } from "./ProjectDiff.ts"
 
 const ms = { ownId: "nexus", remoteId: "server", port: 61263, listenPort: 61263, hasPassword: false } as MiniserverDto

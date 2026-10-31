@@ -2,7 +2,7 @@ import type { SignalDto, StaleSignalDto, WireDto } from "@lox-nexus/api"
 import { shallowReactive } from "vue"
 import type { AppContext } from "../AppContext.ts"
 import type { LiveValues } from "./LiveValues.ts"
-import { WireHealth, type OwnerStatus, type WireStatus } from "../lib/wires/WireHealth.ts"
+import { WireHealth, type OwnerStatus, type WireStatus } from "@lox-nexus/api"
 
 /** A wire with its signals and status resolved, as the wire list shows it. */
 export interface WireRow {

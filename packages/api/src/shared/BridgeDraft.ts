@@ -1,4 +1,4 @@
-import type { BridgeItem, BridgeRequest, LoxoneSignalDto, PluginSignalDto, WireDto } from "@lox-nexus/api"
+import type { BridgeItem, BridgeRequest, LoxoneSignalDto, PluginSignalDto, WireDto } from "../index.ts"
 import type { CatalogEntry, PluginDescription } from "@lox-nexus/plugin-sdk/wire"
 import { DataTypes, type DataTypeId } from "./DataTypes.ts"
 import { PacketIds } from "./PacketIds.ts"

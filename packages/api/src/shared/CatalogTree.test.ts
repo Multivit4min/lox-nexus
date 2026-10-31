@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
-import type { PluginSignalDto } from "@lox-nexus/api"
+import type { PluginSignalDto } from "../index.ts"
 import type { CatalogNode } from "@lox-nexus/plugin-sdk/wire"
 import { CatalogTree } from "./CatalogTree.ts"
 

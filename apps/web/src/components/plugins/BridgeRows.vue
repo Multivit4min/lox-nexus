@@ -3,9 +3,9 @@ import { ArrowLeft, ArrowRight } from "@lucide/vue"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import type { BridgeRow } from "../../lib/BridgeDraft.ts"
-import { DataTypes } from "../../lib/DataTypes.ts"
-import { PacketIds } from "../../lib/PacketIds.ts"
+import type { BridgeRow } from "@lox-nexus/api"
+import { DataTypes } from "@lox-nexus/api"
+import { PacketIds } from "@lox-nexus/api"
 
 /**
  * The signals to connect, each with the name, data type and packet id its Loxone signal gets.

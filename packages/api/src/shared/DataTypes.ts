@@ -1,4 +1,4 @@
-import type { LoxoneSignalInput } from "@lox-nexus/api"
+import type { LoxoneSignalInput } from "../index.ts"
 import type { ValueType } from "@lox-nexus/plugin-sdk/values"
 
 /** an ICI data type byte as the API accepts it */

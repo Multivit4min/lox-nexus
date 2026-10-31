@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
-import type { LoxoneSignalDto, PluginSignalDto, WireDto } from "@lox-nexus/api"
+import type { LoxoneSignalDto, PluginSignalDto, WireDto } from "../index.ts"
 import type { PluginDescription } from "@lox-nexus/plugin-sdk/wire"
 import { BridgeDraft } from "./BridgeDraft.ts"
 

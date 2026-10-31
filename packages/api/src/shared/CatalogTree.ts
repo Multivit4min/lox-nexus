@@ -1,4 +1,4 @@
-import type { PluginSignalDto } from "@lox-nexus/api"
+import type { PluginSignalDto } from "../index.ts"
 import type { CatalogEntry, CatalogNode } from "@lox-nexus/plugin-sdk/wire"
 
 /** One addable entry of a plugin's catalog with where it sits ("Kitchen ▸ Light"). */

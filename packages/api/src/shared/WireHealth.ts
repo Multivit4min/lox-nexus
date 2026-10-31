@@ -1,4 +1,4 @@
-import type { MiniserverDto, PluginInstanceDto, SignalDto, StaleSignalDto, WireDto } from "@lox-nexus/api"
+import type { MiniserverDto, PluginInstanceDto, SignalDto, StaleSignalDto, WireDto } from "../index.ts"
 
 /** A Miniserver or plugin instance as far as wires care: its name and whether values get through. */
 export interface OwnerStatus {

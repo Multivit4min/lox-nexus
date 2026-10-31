@@ -1,5 +1,12 @@
 // The private contract between server and web: request schemas (validated on the server) and response types.
 export { VersionChange, type VersionChangeKind } from "./VersionChange.ts"
+// pure helpers the server and the web share: packet ids, data types, project diffs, catalogs, bridges, wire health
+export { BridgeDraft, type BridgeCandidate, type BridgeRow } from "./shared/BridgeDraft.ts"
+export { CatalogTree, type CatalogRow } from "./shared/CatalogTree.ts"
+export { DataTypes, type DataTypeId } from "./shared/DataTypes.ts"
+export { PacketIds } from "./shared/PacketIds.ts"
+export * from "./shared/ProjectDiff.ts"
+export * from "./shared/WireHealth.ts"
 export * from "./auth.ts"
 export * from "./backup.ts"
 export * from "./bridges.ts"

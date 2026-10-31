@@ -1,4 +1,4 @@
-import type { LoxoneProjectDto, LoxoneProjectPeerDto, LoxoneProjectSignalDto, LoxoneSignalDto, LoxoneSignalInput, MiniserverDto } from "@lox-nexus/api"
+import type { LoxoneProjectDto, LoxoneProjectPeerDto, LoxoneProjectSignalDto, LoxoneSignalDto, LoxoneSignalInput, MiniserverDto } from "../index.ts"
 import { DataTypes } from "./DataTypes.ts"
 
 /**
