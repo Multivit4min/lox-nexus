@@ -19,7 +19,7 @@ export abstract class DeviceSensor<P extends DeviceParams = DeviceParams> extend
 
   protected update(snapshot: NetworkSnapshot) {
     const device = snapshot.device(this.mac)
-    if (!device) return this.fail(`no device ${this.mac} on the console (removed, or adopted on another site)`)
+    if (!device) return this.fail(DeviceSensor.missing(this.mac, snapshot))
     const reading = this.read(device, snapshot)
     if (reading === undefined) return
     if ("problem" in reading) this.fail(reading.problem)
@@ -27,4 +27,12 @@ export abstract class DeviceSensor<P extends DeviceParams = DeviceParams> extend
   }
 
   protected abstract read(device: Device, snapshot: NetworkSnapshot): Reading
+
+  // the MACs that would work: a device has several, and the one its label or the UniFi app shows
+  // may not be the one the API names it by; the catalog always fills in the API's
+  private static missing(mac: string, snapshot: NetworkSnapshot) {
+    const known = snapshot.devices.map(device => `${device.name} ${MacAddress.normalize(device.macAddress)}`)
+    const list = known.length > 8 ? `${known.slice(0, 8).join(", ")} and ${known.length - 8} more` : known.join(", ")
+    return `no device ${mac} on the console (removed, adopted on another site, or not the MAC the API uses for it; add it from the catalog); devices: ${list || "none"}`
+  }
 }

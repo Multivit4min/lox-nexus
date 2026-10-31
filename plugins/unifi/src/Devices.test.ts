@@ -20,6 +20,7 @@ test("device online, state and firmware update come from the device list", async
     assert.deepEqual(unifi.host.values(offline), [Value.boolean(false)])
     const missing = await unifi.host.addSensor("device-online", { device: "02:00:00:00:00:99" })
     assert.match(unifi.errors(missing)[0] ?? "", /no device 02:00:00:00:00:99 on the console/)
+    assert.match(unifi.errors(missing)[0] ?? "", /devices: .*Hall AP 02:00:00:00:00:01/, "names the MACs that would work")
   } finally {
     await unifi.stop()
   }
