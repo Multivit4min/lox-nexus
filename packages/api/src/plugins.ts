@@ -111,6 +111,25 @@ export const PluginActionRequestSchema = z.object({
 })
 export type PluginActionRequest = z.input<typeof PluginActionRequestSchema>
 
+/** GET /api/plugin-instances/:id/store: what the instance saved (`this.store`), one row per key, by key. */
+export interface PluginStoreEntryDto {
+  key: string
+  /** the size of its JSON text */
+  bytes: number
+}
+
+/** GET :id/store/:key: one saved value, as the plugin wrote it (JSON). */
+export interface PluginStoreValueDto {
+  key: string
+  value: unknown
+}
+
+/** DELETE :id/store: how many keys were wiped, and the instance after its restart. */
+export interface PluginStoreClearedDto {
+  cleared: number
+  instance: PluginInstanceDto
+}
+
 /** The answer to an action: what the plugin says happened, if anything, and a part to show under it (a QR code). */
 export interface PluginActionResultDto {
   message?: string

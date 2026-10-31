@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onMounted, onUnmounted, provide, ref, shallowRef } from "vue"
 import type { PluginInstanceDto, PluginInstanceInput, PluginLogLineDto, PluginPackageDto, PluginSignalDto } from "@lox-nexus/api"
-import { BookOpen, Pencil, Play, RotateCw, Square, Trash2 } from "@lucide/vue"
+import { BookOpen, Pencil } from "@lucide/vue"
 import { useRouter } from "vue-router"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -16,6 +16,8 @@ import PluginIcon from "../components/plugins/PluginIcon.vue"
 import PluginLogsCard from "../components/plugins/PluginLogsCard.vue"
 import PluginPanelSection from "../components/plugins/PluginPanelSection.vue"
 import PluginSignalsCard from "../components/plugins/PluginSignalsCard.vue"
+import PluginStoreDialog from "../components/plugins/PluginStoreDialog.vue"
+import InstanceMenu from "../components/plugins/InstanceMenu.vue"
 import PluginStateBadge from "../components/plugins/PluginStateBadge.vue"
 import WatchSelectionCard from "../components/plugins/WatchSelectionCard.vue"
 import WiresCard from "../components/wires/WiresCard.vue"
@@ -39,6 +41,7 @@ const reading = ref(false)
 // the dialog stays mounted once opened, so closing it animates and reopening is instant
 const readmeLoaded = ref(false)
 const busy = ref(false)
+const storeOpen = ref(false)
 const live = shallowRef<LiveValues>()
 const failure = ref<string>()
 const missing = ref(false)
@@ -142,18 +145,16 @@ onUnmounted(() => {
         <PluginStateBadge :state="instance.state" />
         <span v-if="instance.restarts" class="text-sm text-muted-foreground" title="automatic restarts after crashes">restarted {{ instance.restarts }}×</span>
         <div class="ml-auto flex flex-wrap gap-2">
-          <Button v-if="stopped" variant="outline" size="sm" :disabled="busy" @click="lifecycle('start')"><Play class="size-4" /> Start</Button>
-          <template v-else-if="instance.state !== 'unavailable'">
-            <Button variant="outline" size="sm" :disabled="busy" @click="lifecycle('stop', 'start')"><RotateCw class="size-4" /> Restart</Button>
-            <Button variant="outline" size="sm" :disabled="busy" @click="lifecycle('stop')"><Square class="size-4" /> Stop</Button>
-          </template>
           <PluginActionButtons
             v-if="pkg?.description.actions?.length" ref="actionButtons" :instance-id="instance.id" :actions="pkg.description.actions"
             :running="instance.state === 'running' || instance.state === 'degraded'" @done="actionDone"
           />
           <Button variant="outline" size="sm" :disabled="!pkg" @click="readmeLoaded = reading = true"><BookOpen class="size-4" /> Read me</Button>
           <Button variant="outline" size="sm" :disabled="!pkg" @click="editing = true"><Pencil class="size-4" /> Edit</Button>
-          <Button variant="destructive" size="sm" @click="remove"><Trash2 class="size-4" /> Delete</Button>
+          <InstanceMenu
+            :stopped="stopped" :available="instance.state !== 'unavailable'" :busy="busy"
+            @start="lifecycle('start')" @restart="lifecycle('stop', 'start')" @stop="lifecycle('stop')" @data="storeOpen = true" @remove="remove"
+          />
         </div>
       </div>
       <p class="mt-1 font-mono text-xs text-muted-foreground">{{ instance.plugin }}/{{ instance.slug }} · {{ pkg ? `${pkg.name} ${pkg.version}` : "plugin not installed" }}</p>
@@ -181,6 +182,7 @@ onUnmounted(() => {
     <PluginSignalsCard v-if="pkg && live && offersSignals" ref="signalsCard" :instance="instance" :description="pkg.description" :signals="signals" :live="live" @changed="loadSignals" @wire="wire" />
     <WiresCard ref="wiresCard" :owner-id="instance.id" />
     <PluginLogsCard :lines="logs" :instance-id="id" @changed="attempt(refresh)" />
+    <PluginStoreDialog v-model:open="storeOpen" :instance-id="instance.id" :label="instance.label" :state="instance.state" @changed="attempt(refresh)" />
     <PluginReadmeDialog v-if="pkg && readmeLoaded" :id="pkg.id" v-model:open="reading" :name="pkg.name" :version="pkg.version" />
     <Dialog v-model:open="editing">
       <DialogContent class="sm:max-w-4xl">

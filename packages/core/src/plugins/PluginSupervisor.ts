@@ -125,6 +125,20 @@ export class PluginSupervisor extends Disposable {
   }
 
   /**
+   * Stops a running plugin, runs `work` while nothing of it runs (e.g. wiping its store, which it
+   * can't write meanwhile), then starts it again; one that wasn't running stays stopped.
+   */
+  whileStopped(work: () => void): Promise<void> {
+    this.restarting.resetCount()
+    return this.serialize(async () => {
+      const wasRunning = this.session !== undefined
+      await this.close("stopped")
+      work()
+      if (wasRunning && !this.isDisposed) await this.open()
+    })
+  }
+
+  /**
    * Applies a new config or package version (same id); what is left out stays, resolved when its
    * turn in the lifecycle queue comes, so a queued reload never re-applies an older config. A
    * running plugin restarts with it; a new slug moves every topic, and wires survive because they

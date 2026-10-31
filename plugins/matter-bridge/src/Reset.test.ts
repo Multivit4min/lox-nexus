@@ -40,7 +40,7 @@ test("an unlock request is dropped (with a warning) even if the endpoint's flag 
   try {
     // the reset test left the bridge paired with the harness controller; this test pairs a second one
     await host.action("open-pairing-window")
-    const node = await peer.pair(host.plugin.bridge.pairing()!.manualCode)
+    const node = await peer.pair(host.plugin.bridge.pairing()!.qrCode)
     const request = await host.addSensor("lock", { device: "Front door" })
     await (host.plugin.devices.get("Front door") as BridgedLock).endpoint.set({ doorLock: { allowUnlock: true } })
     await TestController.device(node, "Front door").commandsOf(DoorLockClient).unlockDoor({})

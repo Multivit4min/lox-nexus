@@ -1,6 +1,7 @@
 import type {
   BridgeRequest, BridgeResultDto, PluginActionResultDto, PluginCheckDto, PluginCheckInput, PluginDiscoverResultDto, PluginInstanceDto, PluginInstanceInput,
-  PluginLogLevelDto, PluginLogLevelInput, PluginLogLineDto, PluginPackageDto, PluginSignalDto, PluginSignalInput
+  PluginLogLevelDto, PluginLogLevelInput, PluginLogLineDto, PluginPackageDto, PluginSignalDto, PluginSignalInput,
+  PluginStoreClearedDto, PluginStoreEntryDto, PluginStoreValueDto
 } from "@lox-nexus/api"
 import type { CatalogNode, Panel } from "@lox-nexus/plugin-sdk/wire"
 import type { Http } from "./Http.ts"
@@ -82,6 +83,20 @@ export class PluginApi {
   /** Find on the network for a config field the plugin marked; `config` is the form as filled in so far */
   discover(plugin: string, field: string, config: Record<string, unknown>) {
     return this.http.post<PluginDiscoverResultDto>(`/api/plugins/${encodeURIComponent(plugin)}/discover`, { field, config })
+  }
+
+  /** what the instance saved with `this.store`: its keys and their sizes */
+  store(id: string) {
+    return this.http.get<PluginStoreEntryDto[]>(`${this.url(id)}/store`)
+  }
+
+  storeValue(id: string, key: string) {
+    return this.http.get<PluginStoreValueDto>(`${this.url(id)}/store/${encodeURIComponent(key)}`)
+  }
+
+  /** wipes everything the instance saved; a running one is stopped first and started again */
+  clearStore(id: string) {
+    return this.http.delete<PluginStoreClearedDto>(`${this.url(id)}/store`)
   }
 
   logs(id: string) {

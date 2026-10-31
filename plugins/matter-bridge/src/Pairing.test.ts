@@ -11,6 +11,7 @@ const { until, seen } = BridgeHarness
 let bridge: BridgeHarness
 let peer: ClientNode
 let manualCode: string
+let qrCode: string
 let fabricIndex: number
 let onOff: string
 
@@ -34,6 +35,7 @@ test("a controller pairs with the code from the panel; matter.js sees no file sy
   const pairing = bridge.host.plugin.bridge.pairing()
   assert.ok(pairing && !pairing.commissioned && pairing.window === "basic")
   manualCode = pairing.manualCode
+  qrCode = pairing.qrCode
   const notice = await pairingPart()
   assert.ok(notice.type === "notice")
   assert.deepEqual([notice.tone, notice.title], ["warn", "Not paired yet"])
@@ -90,7 +92,7 @@ test("the panel lists the controller with a Remove button; a pairing window show
 test("a second app pairs through the window, and removing it leaves the first one paired", { timeout: 30_000 }, async () => {
   const second = await TestController.start()
   try {
-    const other = await second.pair(manualCode)
+    const other = await second.pair(qrCode)
     await until(() => bridge.host.plugin.bridge.controllers().length === 2, 5000, "two controllers")
     await TestController.device(other, "Kitchen").commandsOf(OnOffClient).off()
     await until(() => bridge.last(onOff) === false, 3000, "a command from the second app")

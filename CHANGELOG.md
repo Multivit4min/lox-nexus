@@ -15,6 +15,10 @@
   networks.
 - **Headline tiles** stand on the page above the Status card, and times such as the last poll read
   "12 s ago" (the exact time on hover). Long values in status lists wrap on phones.
+- **Manage menu:** an instance's Start, Restart, Stop and Delete are one **Manage** menu at the top
+  right of its page, with **Stored data…**: what the plugin keeps between restarts, key by key with
+  its size and the value on request. **Clear all data** wipes it as a whole: a running instance is
+  stopped, wiped and started again, so it never runs on half of its data. Values can't be edited.
 - **Live pages:** a plugin may tell the page when its panel changed, instead of being asked every
   3 s.
 - **Settings forms:** inputs for durations, times of day, colours, sliders, files and multiple

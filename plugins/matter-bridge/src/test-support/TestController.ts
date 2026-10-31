@@ -2,6 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { Environment, Logger, LogLevel, Seconds, ServerNode, type ClientNode, type Endpoint } from "@matter/main"
+import { QrPairingCodeCodec } from "@matter/main/types"
 import { FreePort } from "./FreePort.ts"
 
 /**
@@ -27,9 +28,17 @@ export class TestController {
     return new TestController(node, directory)
   }
 
-  /** pairs with the 11-digit code; resolves with the bridge as a peer */
-  async pair(pairingCode: string): Promise<ClientNode> {
-    return await this.node.peers.commission({ pairingCode, timeout: Seconds(30) })
+  /**
+   * Pairs with the QR payload ("MT:…") or the 11-digit code; resolves with the bridge as a peer. The
+   * QR payload carries the bridge's 12-bit discriminator, the manual code only 4 bits of it: with
+   * bridges of parallel test files on the same loopback mDNS, a manual code finds several and
+   * tries the passcode on each until it times out.
+   */
+  async pair(code: string): Promise<ClientNode> {
+    if (!code.startsWith("MT:")) return await this.node.peers.commission({ pairingCode: code, timeout: Seconds(30) })
+    const [payload] = QrPairingCodeCodec.decode(code)
+    if (!payload) throw new Error("the QR payload holds no device")
+    return await this.node.peers.commission({ passcode: payload.passcode, discriminator: payload.discriminator, timeout: Seconds(30) })
   }
 
   /** the bridged endpoint whose label is `name` */

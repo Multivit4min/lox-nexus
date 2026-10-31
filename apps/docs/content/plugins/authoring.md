@@ -727,6 +727,11 @@ private async token(): Promise<string> {
 - `delete(key)` removes a key; an absent key is not an error. `keys()` lists what is stored.
 - The store is per instance and survives restarts, updates and rollbacks of the plugin.
   Newer versions must tolerate what older ones wrote, and the other way round.
+- Users see it: **Manage ▸ Stored data…** on the instance page lists every key with its size and
+  shows a value on request. It can't be edited, only wiped as a whole with **Clear all data**, which stops
+  a running instance, deletes every key and starts it again. So a plugin must start on an empty
+  store at any time, as on its first start. Keep credentials in secret settings rather than the
+  store where you can: the card shows values in plain text to everyone who can log in.
 
 ### `status`
 

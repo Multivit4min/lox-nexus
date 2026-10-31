@@ -26,8 +26,9 @@ export class Http {
     return this.request<T>("PUT", url, body)
   }
 
-  delete(url: string) {
-    return this.request<void>("DELETE", url)
+  /** most deletions answer 204; some say what they did */
+  delete<T = void>(url: string) {
+    return this.request<T>("DELETE", url)
   }
 
   /** POST of a file's raw bytes (streamed by the browser); the answer is JSON as usual */

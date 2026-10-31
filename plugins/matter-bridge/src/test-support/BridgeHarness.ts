@@ -40,13 +40,13 @@ export class BridgeHarness {
     this.host = await PluginTestHost.start(MatterBridgePlugin, { config: this.config, store: this.host.store })
   }
 
-  /** pairs the controller with the bridge's own code */
+  /** pairs the controller with the bridge's own code, the QR code the panel shows */
   async pair() {
     const status = this.host.plugin.bridge.pairing()
     if (!status) throw new Error("the bridge is not running")
     // before() hooks have no time limit (--test-timeout covers tests only): a pairing stuck on a
     // loaded machine would hold the file forever instead of failing it
-    return await BridgeHarness.within(this.controller.pair(status.manualCode), 45_000, "pairing")
+    return await BridgeHarness.within(this.controller.pair(status.qrCode), 45_000, "pairing")
   }
 
   /** the last value a signal emitted, as a plain value */
