@@ -421,6 +421,11 @@ There are three different ways to say "something is wrong", and they mean differ
 | The device is unreachable right now, but may come back | Resolve `start()`, call `this.status.set("degraded", "inverter unreachable")`, keep retrying | The instance shows as degraded with your message. |
 | The device is back | `this.status.set("running")` | Back to normal. |
 
+Status messages, errors and log lines are read by people **and by AI agents** connected over MCP.
+Never put a password or token in them: Nexus replaces the stored secrets it knows with `‹secret›`
+before an agent sees them, but not ones it doesn't know (a session token your plugin fetched), nor
+ones shorter than 6 characters.
+
 ```ts
 private async poll() {
   try {

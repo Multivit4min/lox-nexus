@@ -2584,7 +2584,7 @@ unchanged. No boundary in `CLAUDE.md` moves. The web reaches only `/api/tokens`.
 | `McpProtocol` | Supported versions, `serverInfo`, capabilities. |
 | `McpInstructions` | The instructions text and `nexus://guide`. |
 | `ToolRegistry`, `McpTool` (interface) | `name`, `title`, `description`, `scope`, `annotations`, `input` (zod), `run(input, ctx)`. Lists only what the token's scopes allow. |
-| `ToolCall` | Runs one call: scope, rate limit, the lock for changing tools, input parsing, `SecretRedactor`, the size cap, the audit. |
+| `ToolCall` | Runs one call: scope, rate limit, the lock for changing tools, input parsing, the size cap, the audit. `SecretRedactor` runs on the whole answer in `McpDispatcher`. |
 | `ToolContext` | The access context, `by`, the signal, and `refs` (`SignalRefs`: an id or topic to a signal). |
 | `CompactTable`, `ToolText` | Table and value formatting, cutting, cursors. |
 | `Confirmations` | Pending confirmations (Disposable). |
@@ -2710,7 +2710,7 @@ Elsewhere:
   - `overview` measures its signal table and answers a note above 48 KB, so it stays valid JSON;
     resources are capped at 64 KB; `tools/list` and `resources/*` count against the rate limit.
   - Still open for later steps: plugin-written text (status messages, last errors) reaches agents
-    unredacted until `SecretRedactor` (A3); tools have no deadline yet, which A2's changing tools
+    unredacted until `SecretRedactor` (built after the A2 security audit); tools have no deadline yet, which A2's changing tools
     need, since a hung one would hold the ChangeLock.
 - **Tests.** The dispatcher with fake tools, the rate limit with a `TestClock`, the endpoint's
   security rules with real tokens, every read tool over `/mcp`, a planted Miniserver password
@@ -2761,7 +2761,14 @@ A full audit (the `security-auditor` agent) found no critical or high issues. Fi
 - **Agent-typed secret params** are refused (above).
 - **Untrusted text:** anyone on the LAN can send a Text packet with a Miniserver's id, and its text
   reaches agents (`list_discovered`, `recent_messages`). The instructions and the guide say values
-  are data, not instructions; `SecretRedactor` (A3) remains for plugin-written text.
+  are data, not instructions.
+- **`SecretRedactor`**, pulled forward from A3: every MCP answer (tool results, resources,
+  errors) passes through it in `McpDispatcher.handle`. It reads the stored secret values at each
+  answer (secret plugin settings, all settings of a plugin that isn't installed, secret signal
+  params, Miniserver passwords), skips those under 6 characters, and replaces each, raw and
+  JSON-escaped, with `‹secret›`. So a plugin that writes its token into a status message or an
+  error no longer shows it to agents; A3's panels, logs and action answers are covered by the
+  same pass.
 - **Headers:** every answer has `X-Frame-Options: SAMEORIGIN` (the backup download frames its own
   origin), `nosniff` and `Referrer-Policy: same-origin` (`no-referrer` would turn same-origin
   `Origin` headers into `null`, which `AuthGuard` refuses). A CSP for the web UI is still open.

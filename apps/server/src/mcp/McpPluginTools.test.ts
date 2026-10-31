@@ -3,12 +3,14 @@ import { after, before, describe, test } from "node:test"
 import type { CreatedAccessTokenDto, PluginInstanceDto } from "@lox-nexus/api"
 import { FakePluginTransport } from "@lox-nexus/core/testing"
 import { PluginTestHost } from "@lox-nexus/plugin-sdk/testing"
+import type { ApiClient } from "../test-support/ApiClient.ts"
 import { HomePlugin } from "../test-support/HomePlugin.ts"
 import { TestApp } from "../test-support/TestApp.ts"
 
 describe("MCP plugin tools", { timeout: 30_000 }, () => {
   let app: TestApp
   let token: string
+  let admin: ApiClient
   let id = 0
   const call = async (name: string, args: Record<string, unknown> = {}) => {
     const answer = await app.client().post("/mcp", { jsonrpc: "2.0", id: ++id, method: "tools/call", params: { name, arguments: args } }, { authorization: `Bearer ${token}` })
@@ -27,13 +29,22 @@ describe("MCP plugin tools", { timeout: 30_000 }, () => {
     const pluginTransport = new FakePluginTransport().add("home.ts", HomePlugin)
     app = await TestApp.start({ pluginTransport }, {}, nexus =>
       nexus.pluginCatalog.setDevelopment({ pkg: { id: "home", name: "Home", entry: "home.ts", description }, version: "1.0.0" }))
-    const admin = await app.admin()
+    admin = await app.admin()
     const instance = (await admin.post("/api/plugin-instances", { plugin: "home", slug: "ha", label: "HA" })).json<PluginInstanceDto>()
     await admin.post(`/api/plugin-instances/${instance.id}/start`, {})
     await admin.post("/api/miniservers", { slug: "haus", label: "Haus", host: "127.0.0.1", port: 7000, listenPort: 7001, ownId: "nexus", remoteId: "ms", enabled: false })
     token = (await admin.post("/api/tokens", { currentPassword: "correct horse", name: "agent", scopes: ["configure"] })).json<CreatedAccessTokenDto>().token
   })
   after(() => app.dispose())
+
+  test("a secret a plugin writes into its status is redacted in every answer", async () => {
+    const leaky = (await admin.post("/api/plugin-instances", { plugin: "home", slug: "leaky", label: "Leaky", config: { url: "http://leak", token: "planted-leaky-token" } })).json<PluginInstanceDto>()
+    await admin.post(`/api/plugin-instances/${leaky.id}/start`, {})
+    const overview = await call("overview")
+    assert.ok(!overview.text.includes("planted-leaky-token"), "the token never reaches the agent")
+    assert.match(overview.text, /cannot reach http:\/\/leak with ‹secret›/)
+    await admin.delete(`/api/plugin-instances/${leaky.id}`)
+  })
 
   test("describe_plugin: settings with the secret fields named, capabilities and instances", async () => {
     const plugin = await json<{ id: string; secretFields: string[]; sensors: Array<{ id: string }>; instances: Array<{ slug: string }> }>("describe_plugin", { plugin: "ha" })

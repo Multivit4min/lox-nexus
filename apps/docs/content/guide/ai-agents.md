@@ -28,7 +28,9 @@ changes (yours, or one another user sets for you), which ends all your tokens. E
 
 Agents never see secrets: passwords, plugin settings and signal settings marked secret aren't in
 any answer, and no tool accepts them (an agent that tries is told to leave them to you). You enter
-those in the web UI.
+those in the web UI. If a plugin writes one of your stored secrets into a message (an error with a
+password in a URL, say), agents see `‹secret›` in its place; values shorter than 6 characters
+aren't caught that way.
 
 Restoring a backup ends every access token (and logs everyone out), so a token you revoked after
 the backup was made doesn't come back. Create new ones afterwards.

@@ -302,7 +302,8 @@ until A2.
   - Lifecycle, settings check, Find on the network, plugin signals.
   - `BusActions` moved out of `BusController`; `force` (must expire), `release`, `inject`,
     `run_plugin_action`.
-  - `get_panel`, `get_logs`, `get_history`, `SecretRedactor`.
+  - `get_panel`, `get_logs`, `get_history` (`SecretRedactor` is built already, after the A2
+    security audit).
   - The `mcp_audit` table, and "recent activity" on the token page.
   - Prompts `diagnose_signal` and `review_installation`.
 - **A4 (later, each on its own decision):**

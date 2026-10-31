@@ -13,6 +13,7 @@ import type { McpResourceTemplate } from "./McpResourceTemplate.ts"
 import type { McpTool } from "./McpTool.ts"
 import { PromptRegistry } from "./PromptRegistry.ts"
 import { ResourceRegistry } from "./ResourceRegistry.ts"
+import type { SecretRedactor } from "./SecretRedactor.ts"
 import { ToolCall } from "./ToolCall.ts"
 import { ToolRegistry } from "./ToolRegistry.ts"
 
@@ -25,6 +26,7 @@ export interface McpDeps {
   lock?: Pick<ChangeLock, "enter">
   log: Logger
   clock?: Clock
+  redactor?: Pick<SecretRedactor, "redact">
   version: string
 }
 
@@ -36,7 +38,7 @@ export class McpAssembly extends Disposable {
     super()
     const limit = this.own(new McpRateLimit(deps.clock))
     const call = new ToolCall(limit, deps.lock, new McpAudit(deps.log), deps.log, this.own(new Confirmations(deps.clock)))
-    this.dispatcher = new McpDispatcher(new ToolRegistry(deps.tools), new ResourceRegistry(deps.resources, deps.templates), new PromptRegistry(deps.prompts ?? []), call, deps.version, limit, deps.log)
+    this.dispatcher = new McpDispatcher(new ToolRegistry(deps.tools), new ResourceRegistry(deps.resources, deps.templates), new PromptRegistry(deps.prompts ?? []), call, deps.version, limit, deps.log, deps.redactor)
   }
 
   controller(): Controller {

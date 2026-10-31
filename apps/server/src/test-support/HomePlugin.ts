@@ -34,6 +34,11 @@ export class HomePlugin extends Plugin<{ url: string; token: string }> {
   static readonly sensors = [Reading]
   static readonly actuators = [Switch]
 
+  // an instance whose url mentions "leak" writes its token into its status, as a careless plugin might
+  override start() {
+    if (this.config.url.includes("leak")) this.status.set("degraded", `cannot reach ${this.config.url} with ${this.config.token}`)
+  }
+
   override catalog(): CatalogNode[] {
     return [
       { label: "Kitchen", entries: [

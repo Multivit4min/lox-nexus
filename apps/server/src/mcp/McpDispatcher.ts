@@ -7,6 +7,7 @@ import { McpProtocol } from "./McpProtocol.ts"
 import type { McpRateLimit } from "./McpRateLimit.ts"
 import type { PromptRegistry } from "./PromptRegistry.ts"
 import type { ResourceRegistry } from "./ResourceRegistry.ts"
+import type { SecretRedactor } from "./SecretRedactor.ts"
 import type { ToolCall } from "./ToolCall.ts"
 import type { ToolContext } from "./ToolContext.ts"
 import type { ToolRegistry } from "./ToolRegistry.ts"
@@ -28,11 +29,17 @@ export class McpDispatcher {
     private readonly call: Pick<ToolCall, "run">,
     private readonly version: string,
     private readonly limit: Pick<McpRateLimit, "acquire">,
-    private readonly log: Pick<Logger, "error">
+    private readonly log: Pick<Logger, "error">,
+    private readonly redactor?: Pick<SecretRedactor, "redact">
   ) {}
 
-  /** @returns the answer, or undefined when none is due (HTTP 202) */
+  /** @returns the answer, or undefined when none is due (HTTP 202); stored secrets in it are redacted */
   async handle(body: unknown, context: ToolContext): Promise<object | undefined> {
+    const answer = await this.answer(body, context)
+    return answer && this.redactor ? this.redactor.redact(answer) : answer
+  }
+
+  private async answer(body: unknown, context: ToolContext): Promise<object | undefined> {
     if (Array.isArray(body)) return JsonRpc.error(null, JsonRpc.INVALID_REQUEST, "batches are not supported")
     const parsed = JsonRpcMessageSchema.safeParse(body)
     if (!parsed.success) return McpDispatcher.isResponse(body) ? undefined : JsonRpc.error(McpDispatcher.idOf(body), JsonRpc.INVALID_REQUEST, "not a JSON-RPC 2.0 request")
