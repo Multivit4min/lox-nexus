@@ -123,3 +123,27 @@ test("every client, device, port and Wi-Fi network on the panel points at its no
     await unifi.stop()
   }
 })
+
+test("clients with a fixed MAC are offered by MAC only; devices offer the statistics they report, with values", async () => {
+  const unifi = await UnifiHarness.start()
+  try {
+    const clients = unifi.fake.state.clients as { name: string; macAddress?: string }[]
+    clients.find(client => client.name === "Desk PC")!.macAddress = "10:09:f9:86:63:3c"
+    const garage = unifi.fake.state.statistics["00000000-0000-4000-8000-000000000002"] as Record<string, unknown>
+    delete garage.uplink
+    await unifi.tick()
+    const catalog = await unifi.host.catalog()
+    const find = (nodes: CatalogNode[] | undefined, label: string) => nodes?.find(node => node.label === label)
+    const labels = (node: CatalogNode | undefined) => node?.entries?.map(entry => entry.label) ?? []
+    assert.ok(!labels(find(catalog[0]!.children, "Desk PC (10:09:f9:86:63:3c)")).some(label => label.includes("(by name)")), "a fixed MAC needs no match by name")
+    assert.ok(labels(find(catalog[0]!.children, "Phone A (02:00:00:00:10:01)")).some(label => label.includes("(by name)")), "a private one may rotate")
+    const devices = find(catalog, "Devices")!.children
+    const switchEntries = find(devices, "Garage Switch (USW Lite 8 PoE)")!.entries!
+    assert.ok(!switchEntries.some(entry => entry.capability.startsWith("device-uplink")), "no uplink rates in its statistics")
+    assert.ok(switchEntries.some(entry => entry.capability === "device-cpu" && entry.value?.type === "number"))
+    const offline = find(devices, "Garden AP (U6 Mesh)")!.entries!
+    assert.ok(offline.some(entry => entry.capability === "device-uplink-rx" && entry.value === undefined), "offline: everything offered, nothing known")
+  } finally {
+    await unifi.stop()
+  }
+})

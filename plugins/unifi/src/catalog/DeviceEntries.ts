@@ -1,6 +1,6 @@
 import type { CatalogEntry, CatalogNode } from "@lox-nexus/plugin-sdk"
 import { Value } from "@lox-nexus/plugin-sdk/values"
-import type { Device, Port } from "../api/ApiSchemas.ts"
+import type { Device, Port, Statistics } from "../api/ApiSchemas.ts"
 import { MacAddress } from "../api/MacAddress.ts"
 import { DeviceRestartActuator } from "../actuators/DeviceRestartActuator.ts"
 import { PortPowerCycleActuator } from "../actuators/PortPowerCycleActuator.ts"
@@ -19,9 +19,13 @@ import { CatalogIds } from "./CatalogIds.ts"
 
 const STATISTICS = [DeviceCpuSensor, DeviceMemorySensor, DeviceUptimeSensor, DeviceUplinkRxSensor, DeviceUplinkTxSensor]
 
-/** One device in the catalog: its state, statistics, restart, and a node per port. */
+/**
+ * One device in the catalog: its state, statistics, restart, and a node per port. With the
+ * device's latest statistics, only the numbers it reports are offered, with their values (a
+ * gateway has no uplink rates: its uplink is the WAN); without, all of them.
+ */
 export class DeviceEntries {
-  constructor(private readonly device: Device, private readonly ports: readonly Port[]) {}
+  constructor(private readonly device: Device, private readonly ports: readonly Port[], private readonly statistics?: Statistics) {}
 
   node(): CatalogNode {
     const node: CatalogNode = { label: `${this.device.name} (${this.device.model})`, id: CatalogIds.device(this.device.id), entries: this.entries() }
@@ -36,9 +40,19 @@ export class DeviceEntries {
       { kind: "sensor", capability: DeviceOnlineSensor.id, params, label: `${name} online`, value: Value.boolean(this.device.state === "ONLINE") },
       { kind: "sensor", capability: DeviceStateSensor.id, params, label: `${name} state`, value: Value.string(this.device.state) },
       { kind: "sensor", capability: DeviceUpdateSensor.id, params, label: `${name} firmware update`, value: Value.boolean(this.device.firmwareUpdatable) },
-      ...STATISTICS.map(type => ({ kind: "sensor" as const, capability: type.id, params, label: `${name} ${type.label.toLowerCase()}`, unit: type.unit })),
+      ...this.statisticEntries(params),
       { kind: "actuator", capability: DeviceRestartActuator.id, params, label: `${name} restart` }
     ]
+  }
+
+  private statisticEntries(params: { device: string }): CatalogEntry[] {
+    const name = this.device.name
+    return STATISTICS.flatMap(type => {
+      const value = this.statistics === undefined ? undefined : type.value(this.statistics)
+      if (this.statistics !== undefined && value === undefined) return []
+      const entry: CatalogEntry = { kind: "sensor", capability: type.id, params, label: `${name} ${type.label.toLowerCase()}`, unit: type.unit }
+      return [value === undefined ? entry : { ...entry, value: Value.number(value) }]
+    })
   }
 
   private portNode(port: Port): CatalogNode {

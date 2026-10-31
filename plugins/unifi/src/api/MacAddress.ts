@@ -9,6 +9,15 @@ export class MacAddress {
     return MacAddress.pattern.test(text) && hex.length === 12 ? hex.match(/../g)!.join(":") : text.trim().toLowerCase()
   }
 
+  /**
+   * Whether a MAC address is locally administered, the private address phones and laptops make up
+   * per network and may rotate; a device's own address is not (bit 1 of the first byte).
+   */
+  static random(mac: string) {
+    const first = Number.parseInt(MacAddress.normalize(mac).slice(0, 2), 16)
+    return Number.isFinite(first) && (first & 0b10) !== 0
+  }
+
   static equal(a: string | undefined, b: string | undefined) {
     return a !== undefined && b !== undefined && MacAddress.normalize(a) === MacAddress.normalize(b)
   }

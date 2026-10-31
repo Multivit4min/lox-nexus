@@ -10,7 +10,12 @@ export class DeviceCpuSensor extends DeviceStatisticSensor {
   static readonly decimals = 1
   protected readonly what = "the CPU load"
 
-  protected metric(statistics: Statistics) {
+  /** the number from a device's latest statistics; undefined when the device doesn't report it (also the catalog's) */
+  static value(statistics: Statistics) {
     return statistics.cpuUtilizationPct
+  }
+
+  protected metric(statistics: Statistics) {
+    return DeviceCpuSensor.value(statistics)
   }
 }

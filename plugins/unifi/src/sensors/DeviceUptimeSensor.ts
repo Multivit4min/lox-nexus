@@ -10,7 +10,12 @@ export class DeviceUptimeSensor extends DeviceStatisticSensor {
   static readonly decimals = 0
   protected readonly what = "uptime"
 
-  protected metric(statistics: Statistics) {
+  /** the number from a device's latest statistics; undefined when the device doesn't report it (also the catalog's) */
+  static value(statistics: Statistics) {
     return statistics.uptimeSec
+  }
+
+  protected metric(statistics: Statistics) {
+    return DeviceUptimeSensor.value(statistics)
   }
 }

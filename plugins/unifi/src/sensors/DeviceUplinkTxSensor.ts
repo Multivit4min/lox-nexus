@@ -8,7 +8,12 @@ export class DeviceUplinkTxSensor extends DeviceUplinkRateSensor {
   static readonly description = "What the device sends over its uplink, in Mbit/s"
   protected readonly what = "uplink rate (sent)"
 
-  protected bitsPerSecond(statistics: Statistics) {
-    return statistics.uplink?.txRateBps
+  /** Mbit/s from a device's latest statistics; undefined when the device doesn't report it (the gateway's uplink is its WAN) */
+  static value(statistics: Statistics) {
+    return DeviceUplinkRateSensor.megabits(statistics.uplink?.txRateBps)
+  }
+
+  protected metric(statistics: Statistics) {
+    return DeviceUplinkTxSensor.value(statistics)
   }
 }

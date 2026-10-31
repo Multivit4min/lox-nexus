@@ -1,4 +1,3 @@
-import type { Statistics } from "../api/ApiSchemas.ts"
 import { DeviceStatisticSensor } from "./DeviceStatisticSensor.ts"
 
 /**
@@ -11,10 +10,7 @@ export abstract class DeviceUplinkRateSensor extends DeviceStatisticSensor {
   static readonly unit = "Mbit/s"
   static readonly decimals = 2
 
-  protected metric(statistics: Statistics) {
-    const bits = this.bitsPerSecond(statistics)
+  protected static megabits(bits: number | undefined) {
     return bits === undefined ? undefined : bits / DeviceUplinkRateSensor.BITS_PER_MEGABIT
   }
-
-  protected abstract bitsPerSecond(statistics: Statistics): number | undefined
 }

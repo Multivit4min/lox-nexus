@@ -24,9 +24,10 @@ export class ClientEntries {
 
   private entries(client: Client): CatalogEntry[] {
     const entries: CatalogEntry[] = []
-    // by MAC is the default; by name survives the rotating private addresses of iPhones
+    // by MAC is the default; by name survives the rotating private addresses of phones, so only
+    // a private (or missing) address gets those too: a fixed one would only list everything twice
     if (client.macAddress) entries.push(...this.forMatch(client, { client: MacAddress.normalize(client.macAddress), matchBy: "mac" }, ""))
-    entries.push(...this.forMatch(client, { client: client.name, matchBy: "name" }, " (by name)"))
+    if (!client.macAddress || MacAddress.random(client.macAddress)) entries.push(...this.forMatch(client, { client: client.name, matchBy: "name" }, " (by name)"))
     return entries
   }
 

@@ -165,8 +165,8 @@ All accept a boolean.
 
 | Node | Entries |
 |---|---|
-| Clients (connected now) ▸ client | connected, connected to, IP address, by MAC; the same by name; guest access for guests |
-| Devices ▸ device | online, state, firmware update, CPU, memory, uptime, uplink rates, restart |
+| Clients (connected now) ▸ client | connected, connected to, IP address, by MAC; the same by name for clients with a private (randomised) MAC or none; guest access for guests |
+| Devices ▸ device | online, state, firmware update, restart, and of CPU, memory, uptime and uplink rates those the device reports now, with their values (an offline device offers all of them) |
 | Devices ▸ device ▸ Port n | link, speed; PoE state and power-cycle on PoE ports |
 | Wi-Fi networks ▸ network | on (sensor), on/off (actuator) |
 | Vouchers | newest voucher code, create voucher (1 day) |

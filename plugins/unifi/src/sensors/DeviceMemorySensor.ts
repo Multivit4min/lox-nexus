@@ -10,7 +10,12 @@ export class DeviceMemorySensor extends DeviceStatisticSensor {
   static readonly decimals = 1
   protected readonly what = "the memory use"
 
-  protected metric(statistics: Statistics) {
+  /** the number from a device's latest statistics; undefined when the device doesn't report it (also the catalog's) */
+  static value(statistics: Statistics) {
     return statistics.memoryUtilizationPct
+  }
+
+  protected metric(statistics: Statistics) {
+    return DeviceMemorySensor.value(statistics)
   }
 }

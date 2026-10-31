@@ -1,6 +1,6 @@
 import type { CatalogNode } from "@lox-nexus/plugin-sdk"
 import { Value } from "@lox-nexus/plugin-sdk/values"
-import type { Port } from "../api/ApiSchemas.ts"
+import type { Device, Port, Statistics } from "../api/ApiSchemas.ts"
 import type { NetworkApi } from "../api/NetworkApi.ts"
 import type { NetworkSnapshot } from "../poll/NetworkSnapshot.ts"
 import { VoucherActuator } from "../actuators/VoucherActuator.ts"
@@ -16,11 +16,13 @@ import { DeviceEntries } from "./DeviceEntries.ts"
  * networks and vouchers. Ports of devices the poll didn't read are read now, once per browse.
  */
 export class UnifiCatalog {
-  constructor(private readonly snapshot: NetworkSnapshot, private readonly api: Pick<NetworkApi, "device">, private readonly site: string) {}
+  constructor(private readonly snapshot: NetworkSnapshot, private readonly api: Pick<NetworkApi, "device" | "statistics">, private readonly site: string) {}
 
   async build(): Promise<CatalogNode[]> {
-    const devices = await Promise.all([...this.snapshot.devices].sort((a, b) => a.name.localeCompare(b.name))
-      .map(async device => new DeviceEntries(device, await this.ports(device.id, device.interfaces.includes("ports"))).node()))
+    const devices = await Promise.all([...this.snapshot.devices].sort((a, b) => a.name.localeCompare(b.name)).map(async device => {
+      const [ports, statistics] = await Promise.all([this.ports(device.id, device.interfaces.includes("ports")), this.statistics(device)])
+      return new DeviceEntries(device, ports, statistics).node()
+    }))
     return [
       new ClientEntries(this.snapshot).node(),
       { label: "Devices", children: devices },
@@ -43,6 +45,19 @@ export class UnifiCatalog {
       return (await this.api.device(this.site, id)).interfaces.ports.ports
     } catch {
       return []
+    }
+  }
+
+  // what an online device reports now, so the catalog offers only those numbers, with their values;
+  // offline or failing, nothing is known and every statistic is offered
+  private async statistics(device: Device): Promise<Statistics | undefined> {
+    if (device.state !== "ONLINE") return undefined
+    const known = this.snapshot.extras.statistics.get(device.id)
+    if (known) return known
+    try {
+      return await this.api.statistics(this.site, device.id)
+    } catch {
+      return undefined
     }
   }
 
