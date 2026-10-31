@@ -3,7 +3,8 @@ import type { InventoryService } from "../../../services/InventoryService.ts"
 import type { McpRefs } from "../../McpRefs.ts"
 import type { McpTool } from "../../McpTool.ts"
 import type { ToolContext } from "../../ToolContext.ts"
-import { BulkItems, type LoxoneSignalWrites } from "./LoxoneSignalWrites.ts"
+import { BulkItems } from "../../BulkItems.ts"
+import type { LoxoneSignalWrites } from "./LoxoneSignalWrites.ts"
 
 const Input = z.object({
   signals: z.array(z.string().min(1).max(300)).min(1).max(200).describe("topics (or ids) of Loxone signals"),

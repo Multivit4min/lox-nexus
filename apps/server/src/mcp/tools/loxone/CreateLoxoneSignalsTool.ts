@@ -2,7 +2,8 @@ import { LoxoneSignalInputSchema } from "@lox-nexus/api"
 import { z } from "zod"
 import type { McpRefs } from "../../McpRefs.ts"
 import type { McpTool } from "../../McpTool.ts"
-import { BulkItems, type LoxoneSignalWrites } from "./LoxoneSignalWrites.ts"
+import { BulkItems } from "../../BulkItems.ts"
+import type { LoxoneSignalWrites } from "./LoxoneSignalWrites.ts"
 
 const Input = z.object({
   miniserver: z.string().min(1).max(100).describe("the Miniserver's slug"),
