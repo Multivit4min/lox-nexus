@@ -38,21 +38,34 @@ export class ChangeLock {
     }
   }
 
-  readonly check = async (request: FastifyRequest, reply: FastifyReply) => {
-    if (["GET", "HEAD", "OPTIONS"].includes(request.method) || request.routeOptions.config.lockFree) return
-    if (this.holder) {
-      return reply.code(503).header("retry-after", String(ChangeLock.RETRY_AFTER)).send({ error: `${this.holder} is running; try again when it is done` })
-    }
+  /**
+   * Counts a change in flight that isn't a request of its own, e.g. a changing MCP tool inside
+   * the lock-free /mcp route, so hold() waits for it. Call the returned function when it is done
+   * (more than once is harmless).
+   * @throws HttpError 503 while the lock is held
+   */
+  enter(): () => void {
+    if (this.holder) throw new HttpError(503, `${this.holder} is running; try again when it is done`)
     this.inFlight++
-    // "finish" when the answer went out, "close" when the client went away first; counted once
     let counted = true
-    const done = () => {
+    return () => {
       if (!counted) return
       counted = false
       this.done()
     }
-    reply.raw.once("finish", done)
-    reply.raw.once("close", done)
+  }
+
+  readonly check = async (request: FastifyRequest, reply: FastifyReply) => {
+    if (["GET", "HEAD", "OPTIONS"].includes(request.method) || request.routeOptions.config.lockFree) return
+    let release: () => void
+    try {
+      release = this.enter()
+    } catch {
+      return reply.code(503).header("retry-after", String(ChangeLock.RETRY_AFTER)).send({ error: `${this.holder} is running; try again when it is done` })
+    }
+    // "finish" when the answer went out, "close" when the client went away first; counted once
+    reply.raw.once("finish", release)
+    reply.raw.once("close", release)
   }
 
   private done() {

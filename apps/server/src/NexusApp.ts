@@ -10,6 +10,8 @@ import { Disposable } from "@lox-nexus/plugin-sdk"
 import type { Logger } from "pino"
 import { AuthService } from "./auth/AuthService.ts"
 import { LoginThrottle } from "./auth/LoginThrottle.ts"
+import { AppVersion } from "./AppVersion.ts"
+import { McpAssembly } from "./mcp/McpAssembly.ts"
 import { AccessTokenService } from "./auth/AccessTokenService.ts"
 import { PasswordHasher } from "./auth/PasswordHasher.ts"
 import { SessionPruner } from "./auth/SessionPruner.ts"
@@ -223,6 +225,7 @@ export class NexusApp extends Disposable {
         ...this.history.controllers(id => plugins.watches(id)),
         BackupAssembly.controller(config, { main: db.db, history: this.history.database.db }, this.options.restart, log),
         this.own(new DiagnosticsAssembly(this, config, clock, log)).controller(),
+        this.own(new McpAssembly({ tools: [], resources: [], lock, log, version: AppVersion.read() })).controller(),
         stream
       ],
       publicControllers: [new HookController(this.plugins)]

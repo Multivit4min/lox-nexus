@@ -58,3 +58,18 @@ test("hold() waits for changing requests already in flight, and refuses new ones
   await held
   assert.deepEqual(steps, ["work"])
 })
+
+test("enter() counts a change that isn't a request of its own: hold() waits for it, and a held lock refuses it", async () => {
+  const lock = new ChangeLock()
+  const release = lock.enter()
+  const steps: string[] = []
+  const held = lock.hold("a config import", async () => void steps.push("work"))
+  await new Promise(resolve => setImmediate(resolve))
+  assert.deepEqual(steps, [], "not while the change runs")
+  assert.throws(() => lock.enter(), /a config import is running/)
+  release()
+  release()
+  await held
+  assert.deepEqual(steps, ["work"])
+  lock.enter()()
+})
