@@ -1,6 +1,6 @@
 import type { Migration } from "./Migrator.ts"
 
-/** Migrations 11 and on, for accounts: the users page and MCP's access tokens. Append only, like MIGRATIONS. */
+/** Migrations 11 and on, for accounts: the users page, MCP's access tokens and their audit. Append only, like MIGRATIONS. */
 export const ACCOUNT_MIGRATIONS: readonly Migration[] = [
   {
     version: 11,
@@ -30,6 +30,26 @@ export const ACCOUNT_MIGRATIONS: readonly Migration[] = [
       BEGIN
         DELETE FROM access_tokens WHERE user_id = NEW.id;
       END;
+    `
+  },
+  {
+    version: 13,
+    name: "mcp_audit",
+    // what agents changed or did, for "Recent activity" on the token page (ADR 0020). Inputs are
+    // stored masked; a revoked token's entries keep its name, a deleted user's go with them
+    sql: `
+      CREATE TABLE mcp_audit (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        at INTEGER NOT NULL,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        token_id TEXT REFERENCES access_tokens(id) ON DELETE SET NULL,
+        token_name TEXT NOT NULL,
+        tool TEXT NOT NULL,
+        input TEXT NOT NULL,
+        outcome TEXT NOT NULL,
+        detail TEXT
+      );
+      CREATE INDEX mcp_audit_user ON mcp_audit (user_id, id);
     `
   }
 ]

@@ -1,15 +1,17 @@
-import { CreateAccessTokenInputSchema, type CreatedAccessTokenDto } from "@lox-nexus/api"
+import { CreateAccessTokenInputSchema, type CreatedAccessTokenDto, type McpActivityDto } from "@lox-nexus/api"
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify"
 import { z } from "zod"
 import type { AccessTokenService } from "../../auth/AccessTokenService.ts"
 import type { LoginThrottle } from "../../auth/LoginThrottle.ts"
 import { TooManyTokensError } from "../../auth/TooManyTokensError.ts"
 import type { PasswordHasher } from "../../auth/PasswordHasher.ts"
+import type { McpAuditRepository } from "../../db/repositories/McpAuditRepository.ts"
 import type { UserRepository } from "../../db/repositories/UserRepository.ts"
 import type { Controller } from "../Controller.ts"
 import { HttpError } from "../HttpError.ts"
 
 const IdParams = z.object({ id: z.string().min(1) })
+const ActivityQuery = z.object({ limit: z.coerce.number().int().min(1).max(200).default(50) })
 
 /**
  * /api/tokens: your own access tokens for MCP. Session only: a token can't list or make tokens
@@ -19,6 +21,7 @@ const IdParams = z.object({ id: z.string().min(1) })
  * - POST /api/tokens `{ currentPassword, name, scopes }`: 201 with the token, shown this once.
  *   Asks for your password again, throttled like logins; 403 wrong password, 409 at the limit.
  * - DELETE /api/tokens/:id: 204, at once; 404 when it isn't yours.
+ * - GET /api/tokens/activity?limit=: 200 with what your agents changed or did, newest first (at most 200).
  */
 export class AccessTokenController implements Controller {
   constructor(
@@ -26,7 +29,8 @@ export class AccessTokenController implements Controller {
     private readonly users: Pick<UserRepository, "findById">,
     private readonly hasher: Pick<PasswordHasher, "verify">,
     private readonly throttle: LoginThrottle,
-    private readonly log: (message: string) => void = () => {}
+    private readonly log: (message: string) => void = () => {},
+    private readonly activity?: Pick<McpAuditRepository, "recentFor">
   ) {}
 
   register(app: FastifyInstance) {
@@ -34,6 +38,12 @@ export class AccessTokenController implements Controller {
     const lockFree = { config: { lockFree: true } }
     app.get("/api/tokens", request => this.tokens.list(AccessTokenController.user(request).id))
     app.post("/api/tokens", lockFree, (request, reply) => this.create(request, reply))
+    app.get("/api/tokens/activity", request => {
+      const { limit } = ActivityQuery.parse(request.query)
+      return (this.activity?.recentFor(AccessTokenController.user(request).id, limit) ?? []).map((row): McpActivityDto => ({
+        at: row.at, tokenName: row.token_name, tool: row.tool, input: row.input, outcome: row.outcome, ...(row.detail ? { detail: row.detail } : {})
+      }))
+    })
     app.delete("/api/tokens/:id", lockFree, (request, reply) => {
       const user = AccessTokenController.user(request)
       const id = IdParams.parse(request.params).id

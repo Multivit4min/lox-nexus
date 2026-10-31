@@ -32,3 +32,17 @@ export interface CreatedAccessTokenDto {
   token: string
   accessToken: AccessTokenDto
 }
+
+/** GET /api/tokens/activity: what your agents changed or did, newest first */
+export interface McpActivityDto {
+  /** epoch ms */
+  at: number
+  /** the token's name, also after it was revoked */
+  tokenName: string
+  tool: string
+  /** the arguments as JSON, secrets masked, cut at 2000 characters */
+  input: string
+  outcome: "ok" | "refused" | "failed"
+  /** why it was refused, or how many items of a bulk change failed */
+  detail?: string
+}

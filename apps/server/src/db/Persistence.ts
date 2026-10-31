@@ -9,6 +9,7 @@ import { PluginInstanceRepository } from "./repositories/PluginInstanceRepositor
 import { PluginPackageRepository } from "./repositories/PluginPackageRepository.ts"
 import { PluginSignalRepository } from "./repositories/PluginSignalRepository.ts"
 import { AccessTokenRepository } from "./repositories/AccessTokenRepository.ts"
+import { McpAuditRepository } from "./repositories/McpAuditRepository.ts"
 import { PluginStoreRepository } from "./repositories/PluginStoreRepository.ts"
 import { SelectionRepository } from "./repositories/SelectionRepository.ts"
 import { SessionRepository } from "./repositories/SessionRepository.ts"
@@ -28,6 +29,7 @@ export class Persistence {
   readonly pending: string[]
   readonly users: UserRepository
   readonly accessTokens: AccessTokenRepository
+  readonly mcpAudit: McpAuditRepository
   readonly sessions: SessionRepository
   readonly miniservers: MiniserverRepository
   readonly loxoneSignals: LoxoneSignalRepository
@@ -57,6 +59,7 @@ export class Persistence {
     this.pending = migrator.pending()
     this.users = new UserRepository(this.db)
     this.accessTokens = new AccessTokenRepository(this.db)
+    this.mcpAudit = new McpAuditRepository(this.db)
     this.sessions = new SessionRepository(this.db)
     this.miniservers = new MiniserverRepository(this.db)
     this.loxoneSignals = new LoxoneSignalRepository(this.db)

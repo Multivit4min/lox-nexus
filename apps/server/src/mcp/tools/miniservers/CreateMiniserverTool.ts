@@ -2,7 +2,7 @@ import { z } from "zod"
 import type { McpTool } from "../../McpTool.ts"
 import { MiniserverAnswer, MiniserverFields, type MiniserverWrites } from "./MiniserverWrites.ts"
 
-const Input = MiniserverFields.describe("ownId: this Nexus's ICI id as the Miniserver knows it; remoteId: the Miniserver's own ICI id; port: where the Miniserver listens (7777 by default); listenPort: where Nexus listens, which the Miniserver sends to")
+const Input = MiniserverFields.describe("ownId: this Nexus's ICI id as the Miniserver knows it; remoteId: the Miniserver's own ICI id; port: where the Miniserver listens (61263 by default); listenPort: where Nexus listens, which the Miniserver sends to")
 type Input = z.input<typeof Input>
 
 /** Adds a Miniserver to talk to over Network Intercommunication; the password, if any, comes from a person. */

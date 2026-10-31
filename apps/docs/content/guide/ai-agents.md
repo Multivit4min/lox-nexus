@@ -112,7 +112,9 @@ also its wires and force) and a confirmation. Only a second call with the same i
 confirmation deletes, within 5 minutes. A confirmation works once, only for that token, and only
 while the names still point at the same signals or wires.
 
-Changes show up in the Nexus log as "*user* via MCP (*token name*)". While a configuration import
+Changes show up in the Nexus log as "*user* via MCP (*token name*)", and under **Recent
+activity** on the Access tokens tab: each change with its token, arguments (secret fields masked)
+and outcome, kept for 90 days. While a configuration import
 runs, agents can read but not change anything.
 
 ## What agents can do in the house

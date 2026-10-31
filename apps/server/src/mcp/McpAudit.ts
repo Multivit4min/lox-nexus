@@ -1,15 +1,38 @@
 import type { Logger } from "pino"
+import type { McpAuditRow } from "../db/repositories/McpAuditRepository.ts"
+import { AuditInput } from "./AuditInput.ts"
 import type { ToolContext } from "./ToolContext.ts"
 
+/** where the audit goes besides the log: the table behind "Recent activity" */
+export interface AuditStore {
+  insert(row: McpAuditRow): void
+}
+
 /**
- * What agents changed: one log line per changing tool call, with the token, the tool, its input
- * (secrets can't be in it: no tool takes them) and the outcome. Reads aren't logged; `last used`
- * on the token page shows activity. A3 adds a table for "recent activity".
+ * What agents changed or did: one log line and one table row per changing tool call, with the
+ * token, the tool, its input (secret fields masked, see AuditInput) and the outcome. Reads aren't
+ * audited; `last used` on the token page shows activity.
  */
 export class McpAudit {
-  constructor(private readonly log: Pick<Logger, "info">) {}
+  private readonly inputs: AuditInput
 
-  changed(context: ToolContext, tool: string, input: unknown, outcome: "ok" | "refused" | "failed", detail?: string) {
-    this.log.info({ component: "mcp", token: context.access.tokenId, user: context.user.username, tool, input, outcome, ...(detail ? { detail } : {}) }, `${context.by}: ${tool} ${outcome}`)
+  constructor(
+    private readonly log: Pick<Logger, "info" | "warn">,
+    private readonly store?: AuditStore,
+    secretNames: () => ReadonlySet<string> = () => new Set(["password"]),
+    private readonly now: () => number = () => Date.now()
+  ) {
+    this.inputs = new AuditInput(secretNames)
+  }
+
+  changed(context: ToolContext, tool: string, input: unknown, outcome: McpAuditRow["outcome"], detail?: string) {
+    const text = this.inputs.text(input)
+    this.log.info({ component: "mcp", token: context.access.tokenId, user: context.user.username, tool, input: text, outcome, ...(detail ? { detail } : {}) }, `${context.by}: ${tool} ${outcome}`)
+    try {
+      this.store?.insert({ at: this.now(), user_id: context.user.id, token_id: context.access.tokenId, token_name: context.access.name, tool, input: text, outcome, detail: detail ?? null })
+    } catch (error) {
+      // the change happened; a full disk mustn't turn it into a failure
+      this.log.warn({ err: error }, "the MCP audit couldn't be stored")
+    }
   }
 }

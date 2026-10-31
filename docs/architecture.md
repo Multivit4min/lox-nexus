@@ -2786,3 +2786,33 @@ A full audit (the `security-auditor` agent) found no critical or high issues. Fi
   per scope as a literal in `McpToolList.test.ts` (schemas aren't in it: they change too often to
   review by snapshot).
 
+
+## Implementation notes: MCP A3
+
+Where the build differs from the design above:
+- **Tools by subject** again: `tools/miniservers/`, `tools/instances/`, `tools/operate/`, and
+  `get_panel`, `get_logs`, the plugin signal tools in `tools/plugins/`. Builders `McpSetupTools`
+  and `McpOperateTools`; `McpServices.assemble` builds everything for `NexusApp` (which had reached
+  200 lines), as `PluginControllers.build` does for the plugin routes.
+- **Lifecycle** is `start_miniserver` and `stop_miniserver` (stop asks first) instead of
+  `miniserver_lifecycle`, and `plugin_instance_lifecycle` with start, stop and restart.
+- **Instances without their secrets.** `PluginService.create` refuses settings the plugin rejects,
+  and a missing required token is such a setting, so an agent could never create one.
+  `create_plugin_instance` checks the settings with the plugin, refuses any problem other than the
+  missing secrets, and then creates with `secretsLater`: saved unchecked, not started. The answer
+  names `missingSecrets` and the instance's page; the user's save there checks and starts it.
+- **Secrets in inputs** are refused by every tool that takes settings or params (`SecretInputs`);
+  Miniserver tools reject unknown keys, so a `password` is refused, not dropped.
+- **Operate.** `BusActions` serves the Bus Inspector and the tools. `force` takes `minutes`
+  (default 60, at most 1440) and a required reason; values may be plain numbers, booleans or
+  text, and must match the signal's type (no conversion: a device acting on a guess is worse
+  than a question). `inject` sends a command to actuators and a state otherwise.
+  `run_plugin_action` is `lockFree` like its route; an action's `confirm` sentence becomes the
+  MCP confirmation, so `confirm()` may now answer that a call needs none.
+- **Panels for agents** (`PanelText`): cells as text with tone and ISO times, buttons as the
+  action and input `run_plugin_action` takes, QR payloads left out.
+- **Audit** (migration 13, `mcp_audit`): one row per changing call, also refused ones, with the
+  input masked by field name (`AuditInput`: every name a plugin marks writeOnly, and `password`),
+  since a refused call still carries what the agent typed. 10,000 rows and 90 days at most,
+  pruned on insert; a revoked token's rows keep its name, a deleted user's go with them.
+  `GET /api/tokens/activity` and the "Recent activity" card show a user their own.

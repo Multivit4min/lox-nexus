@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import AccessTokensCard from "../components/users/AccessTokensCard.vue"
+import TokenActivityCard from "../components/users/TokenActivityCard.vue"
 import { AppContext } from "../AppContext.ts"
 import UserDialog, { type UserDialogMode } from "../components/users/UserDialog.vue"
 
@@ -86,7 +87,10 @@ onMounted(load)
           </CardContent>
         </Card>
       </TabsContent>
-      <TabsContent value="tokens"><AccessTokensCard @changed="load" /></TabsContent>
+      <TabsContent value="tokens" class="space-y-4">
+        <AccessTokensCard @changed="load" />
+        <TokenActivityCard />
+      </TabsContent>
     </Tabs>
     <UserDialog v-model:open="dialogOpen" :mode="mode" @done="done" />
   </div>

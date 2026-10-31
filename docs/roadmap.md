@@ -296,7 +296,8 @@ until A2.
       `create_wire`, `update_wire`
     - deletes with confirmations (`Confirmations`)
   - Prompts `connect_plugin_to_loxone` and `import_from_loxone_config`.
-- **A3: setup of instances and Miniservers, operating, audit.**
+- **A3: setup of instances and Miniservers, operating, audit** (done, 2026-10-31; deviations in
+  `architecture.md`, "Implementation notes: MCP A3").
   - Miniserver tools without the password, and plugin instance tools without secret fields
     (`missingSecrets`).
   - Lifecycle, settings check, Find on the network, plugin signals.

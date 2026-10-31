@@ -64,6 +64,11 @@ describe("MCP setup tools", { timeout: 30_000 }, () => {
 
   test("a plugin instance needing a secret is saved without starting; the user's save starts it", async () => {
     assert.ok((await call("create_plugin_instance", { plugin: "tokened", slug: "ha", label: "HA", config: { url: "http://ha.local", token: "planted-token" } })).isError, "no secret from the agent")
+    const activity = await admin.get("/api/tokens/activity?limit=5")
+    assert.ok(!activity.body.includes("planted-token"), "nor in the audit, though the call was refused")
+    const [refused] = activity.json<Array<{ tool: string; outcome: string; input: string; tokenName: string }>>()
+    assert.deepEqual([refused?.tool, refused?.outcome, refused?.tokenName], ["create_plugin_instance", "refused", "agent"])
+    assert.match(refused!.input, /"token":"‹secret›"/)
     const wrong = await call("create_plugin_instance", { plugin: "tokened", slug: "ha", label: "HA", config: { url: "not a url" } })
     assert.deepEqual([wrong.isError, /url/.test(wrong.text)], [true, true], "other problems are refused with the plugin's reasons")
     const created = await json<{ state: string; missingSecrets: string[]; page: string }>("create_plugin_instance", { plugin: "tokened", slug: "ha", label: "HA", config: { url: "http://ha.local" } })

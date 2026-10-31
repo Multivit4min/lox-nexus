@@ -18,6 +18,8 @@
   review the installation.
 - Tokens are shown once, don't expire, and end when revoked or when the user's password changes.
   Agents never see or send secrets. Guide: AI agents (MCP).
+- **Recent activity** on the Access tokens tab lists what your agents changed or did, with the
+  token, the arguments and whether it worked.
 - Restoring a backup now logs everyone out and ends all access tokens, so revoked ones don't come
   back.
 

@@ -228,7 +228,7 @@ export class NexusApp extends Disposable {
       controllers: [
         new AuthController(auth, throttle, cookie),
         new UserController(new UserService(db.db, db.users, sessions, hasher, clock, message => log.info(message), () => db.accessTokens.counts()), throttle),
-        new AccessTokenController(tokens, db.users, hasher, throttle, message => log.info(message)),
+        new AccessTokenController(tokens, db.users, hasher, throttle, message => log.info(message), db.mcpAudit),
         new MiniserverController(miniservers, loxoneSignals, new LoxoneProjectService(miniservers, this.options.projectReader ?? new ProjectReader(new MiniserverFtp()), new TimeZoneSetting(db.settings))),
         new SignalController(this.signals, this.bus, wires),
         new BusController(this.bus, this.recorder),

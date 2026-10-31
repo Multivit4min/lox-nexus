@@ -12,6 +12,7 @@ import type { PluginService } from "../services/PluginService.ts"
 import type { PluginSignalService } from "../services/PluginSignalService.ts"
 import type { WireService } from "../services/WireService.ts"
 import type { McpDeps } from "./McpAssembly.ts"
+import { AuditInput } from "./AuditInput.ts"
 import { McpToolset, type McpToolSources } from "./McpToolset.ts"
 import { SecretRedactor } from "./SecretRedactor.ts"
 
@@ -24,7 +25,7 @@ export type McpAppParts = Omit<McpToolSources, "bridges" | "busActions" | "actio
   bus: EventBus
   logs: PluginLogs
   events: PluginEvents
-  db: Pick<Persistence, "miniservers" | "pluginInstances" | "pluginSignals">
+  db: Pick<Persistence, "miniservers" | "pluginInstances" | "pluginSignals" | "mcpAudit">
   catalog: Pick<PluginCatalog, "get">
   log: Logger
 }
@@ -41,6 +42,8 @@ export class McpServices {
       busActions: new BusActions(parts.bus),
       actions: new PluginActionService(id => plugins.supervisor(id), logs, events)
     })
-    return { ...toolset, log, version, redactor: SecretRedactor.of(db, catalog) }
+    // read at each audited call, so a newly installed plugin's secret fields are masked too
+    const secretNames = () => AuditInput.secretFields(plugins.packages().map(pkg => pkg.description))
+    return { ...toolset, log, version, redactor: SecretRedactor.of(db, catalog), audit: { store: db.mcpAudit, secretNames } }
   }
 }
