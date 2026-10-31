@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
-import type { DiagnosticsDto } from "@lox-nexus/api"
+import type { DiagnosticsDto, ServerClockDto } from "@lox-nexus/api"
 import { TestApp } from "../../test-support/TestApp.ts"
 
 const settle = async () => {
@@ -24,4 +24,14 @@ test("diagnostics need a login, start without samples and download as CSV", { ti
   assert.match(String(csv.headers["content-disposition"]), /^attachment; filename="nexus-diagnostics-.*\.csv"$/)
   assert.equal(csv.body.trim().split("\r\n").length, 1, "the header")
   assert.equal((await admin.get("/api/diagnostics?since=x")).statusCode, 400)
+})
+
+test("the server's clock is behind the login and answers its time now", { timeout: 10_000 }, async t => {
+  const app = await TestApp.start()
+  t.after(() => app.dispose())
+  assert.equal((await app.client().get("/api/diagnostics/clock")).statusCode, 401)
+  const admin = await app.admin()
+  const before = Date.now()
+  const { now } = (await admin.get("/api/diagnostics/clock")).json<ServerClockDto>()
+  assert.ok(now >= before && now <= Date.now())
 })

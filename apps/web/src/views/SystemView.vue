@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AppContext } from "../AppContext.ts"
 import { VisiblePolling } from "../lib/VisiblePolling.ts"
 import { DiagnosticsApi } from "../api/DiagnosticsApi.ts"
+import ClockStatus from "../components/system/ClockStatus.vue"
 import MetricChart from "../components/system/MetricChart.vue"
 import SystemTiles from "../components/system/SystemTiles.vue"
 import SystemTrends from "../components/system/SystemTrends.vue"
@@ -69,6 +70,7 @@ VisiblePolling.use(load, 30_000)
         <p v-if="data" class="text-xs text-muted-foreground">
           Nexus {{ data.version }} · Node {{ data.node }} · {{ data.platform }} · started {{ MessageText.time(data.startedAt).slice(0, 8) }} ({{ uptime }})
         </p>
+        <ClockStatus class="mt-1" />
       </div>
       <Button as="a" variant="outline" size="sm" :href="DiagnosticsApi.CSV_URL" download><Download class="size-4" /> Download samples (CSV)</Button>
     </div>

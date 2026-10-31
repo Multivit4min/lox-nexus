@@ -14,7 +14,8 @@
   searching the whole catalog. The UniFi plugin has them on clients, devices, ports and Wi-Fi
   networks.
 - **Headline tiles** stand on the page above the Status card, and times such as the last poll read
-  "12 s ago" (the exact time on hover). Long values in status lists wrap on phones.
+  "12 s ago" (the exact time on hover). Live times are corrected for how far the server's clock is
+  off from the browser's; the System page shows that offset and how to fix it. Long values in status lists wrap on phones.
 - **Manage menu:** an instance's Start, Restart, Stop and Delete are one **Manage** menu at the top
   right of its page, with **Stored data…**: what the plugin keeps between restarts, key by key with
   its size and the value on request. **Clear all data** wipes it as a whole: a running instance is
@@ -44,8 +45,8 @@
 - **Commands:** restart a device and power-cycle a PoE port on a pulse (never on a value replayed
   after a start), authorize or unauthorize guests, switch a Wi-Fi network on or off, create
   hotspot vouchers.
-- **Page:** a switch per Wi-Fi network, the devices with coloured states and a Restart button, PoE
-  ports with Power-cycle, the connected clients with Authorize for guests. Create voucher answers
+- **Page:** a switch per Wi-Fi network, the devices with coloured states and a Restart button, the
+  switch ports, the connected clients with Authorize for guests. Create voucher answers
   with the code and a QR code; the newest code is also a sensor.
 - **Certificates:** pin the console's self-signed certificate by its SHA-256 fingerprint (Test
   connection shows it), or accept any certificate for this console only.

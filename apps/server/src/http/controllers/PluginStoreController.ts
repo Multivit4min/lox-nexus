@@ -19,10 +19,8 @@ export class PluginStoreController implements Controller {
   constructor(private readonly store: PluginStoreService) {}
 
   register(app: FastifyInstance) {
-    // reading changes nothing, so a config import doesn't wait for it
-    const lockFree = { config: { lockFree: true } }
-    app.get("/api/plugin-instances/:id/store", lockFree, request => this.store.entries(IdParams.parse(request.params).id))
-    app.get("/api/plugin-instances/:id/store/:key", lockFree, request => {
+    app.get("/api/plugin-instances/:id/store", request => this.store.entries(IdParams.parse(request.params).id))
+    app.get("/api/plugin-instances/:id/store/:key", request => {
       const { id, key } = KeyParams.parse(request.params)
       return this.store.value(id, key)
     })
