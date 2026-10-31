@@ -22,6 +22,24 @@
 - **Fronius:** the power flow as tiles (battery charge and autonomy with a bar), the reading state
   in green or red, and a page that refreshes after every poll.
 
+### UniFi Network plugin 0.1.0 (new)
+
+- Connects a UniFi console through Ubiquiti's official Network Integration API (API key), and
+  nothing else.
+- **Presence:** whether a phone or computer is connected, the access point or switch it is on,
+  and its IP address; matched by MAC address, or by name for iPhones with rotating private
+  addresses.
+- **Devices and ports:** online, state, firmware update, CPU, memory, uptime and uplink rates;
+  port link, speed and PoE state. Statistics are only asked for devices that have such signals.
+- **Commands:** restart a device and power-cycle a PoE port on a pulse (never on a value replayed
+  after a start), authorize or unauthorize guests, switch a Wi-Fi network on or off, create
+  hotspot vouchers.
+- **Page:** a switch per Wi-Fi network, the devices with coloured states and a Restart button, PoE
+  ports with Power-cycle, the connected clients with Authorize for guests. Create voucher answers
+  with the code and a QR code; the newest code is also a sensor.
+- **Certificates:** pin the console's self-signed certificate by its SHA-256 fingerprint (Test
+  connection shows it), or accept any certificate for this console only.
+
 ### Matter bridge plugin 0.2.0
 
 - **More device types:** colour light (RGB), dimmable plug, wall switch and wall dimmer, blind

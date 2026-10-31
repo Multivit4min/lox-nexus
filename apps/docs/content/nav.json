@@ -30,6 +30,7 @@
       "pages": [
         "plugins/fronius.md",
         "plugins/homeassistant.md",
+        "plugins/unifi.md",
         "plugins/calendar.md",
         "plugins/webhook.md",
         "plugins/mqtt.md",

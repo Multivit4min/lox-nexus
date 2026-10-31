@@ -83,6 +83,7 @@ These ship with Nexus and can be installed from the **Plugins** page right away:
 |---|---|
 | [Home Assistant](plugins/homeassistant) | Entity states, attributes and events as sensors. Switches, lights (brightness, RGBW, colour temperature), covers, locks, thermostats, scenes, scripts and any service call as actuators. |
 | [Fronius](plugins/fronius) | PV, grid, load and battery power, energy counters, smart meter, battery and Ohm Pilot values from a Fronius inverter, polled every few seconds. |
+| [UniFi Network](plugins/unifi) | Presence of phones and computers, device, port and Wi-Fi state from a UniFi console, through its official API. Device restarts, PoE power-cycles, guest access, guest Wi-Fi and hotspot vouchers. |
 | [Calendar](plugins/calendar) | Reads an iCal feed: whether a matching event is active, its title, and when it starts or ends. Events can be dismissed from Loxone or the panel. |
 | [MQTT](plugins/mqtt) | Reads and publishes topics, and exports chosen signals to the broker with Home Assistant discovery. |
 | [Webhook](plugins/webhook) | Lets other systems push to Loxone over HTTP: a pulse per call, or a value from the body, query or form, with a token. |

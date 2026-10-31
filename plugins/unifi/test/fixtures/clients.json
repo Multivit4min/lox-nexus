@@ -1,0 +1,26 @@
+[
+  {
+    "type": "WIRELESS", "id": "00000000-0000-4000-8000-000000000101", "name": "Phone A", "connectedAt": "2026-10-31T06:00:00Z",
+    "ipAddress": "192.0.2.21", "macAddress": "02:00:00:00:10:01", "uplinkDeviceId": "00000000-0000-4000-8000-000000000001",
+    "access": { "type": "DEFAULT" }
+  },
+  {
+    "type": "WIRED", "id": "00000000-0000-4000-8000-000000000102", "name": "Desk PC", "connectedAt": "2026-10-30T08:15:00Z",
+    "ipAddress": "192.0.2.22", "macAddress": "02:00:00:00:10:02", "uplinkDeviceId": "00000000-0000-4000-8000-000000000002",
+    "access": { "type": "DEFAULT" }
+  },
+  {
+    "type": "WIRELESS", "id": "00000000-0000-4000-8000-000000000103", "name": "Guest Tablet", "connectedAt": "2026-10-31T07:30:00Z",
+    "ipAddress": "198.51.100.40", "macAddress": "02:00:00:00:10:03", "uplinkDeviceId": "00000000-0000-4000-8000-000000000001",
+    "access": { "type": "GUEST", "authorized": false }
+  },
+  {
+    "type": "VPN", "id": "00000000-0000-4000-8000-000000000104", "name": "Remote Laptop", "connectedAt": "2026-10-31T05:00:00Z",
+    "ipAddress": "192.0.2.200", "access": { "type": "DEFAULT" }
+  },
+  {
+    "type": "WIRELESS", "id": "00000000-0000-4000-8000-000000000105", "name": "Phone B", "connectedAt": "2026-10-31T06:45:00Z",
+    "ipAddress": "192.0.2.25", "macAddress": "02:00:00:00:10:05", "uplinkDeviceId": "00000000-0000-4000-8000-000000000004",
+    "access": { "type": "DEFAULT" }
+  }
+]

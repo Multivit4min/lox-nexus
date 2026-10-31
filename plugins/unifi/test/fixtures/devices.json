@@ -1,0 +1,22 @@
+[
+  {
+    "id": "00000000-0000-4000-8000-000000000001", "macAddress": "02:00:00:00:00:01", "ipAddress": "192.0.2.2", "name": "Hall AP",
+    "model": "U6 Lite", "state": "ONLINE", "supported": true, "firmwareVersion": "6.6.77", "firmwareUpdatable": true,
+    "features": ["accessPoint"], "interfaces": ["ports", "radios"]
+  },
+  {
+    "id": "00000000-0000-4000-8000-000000000002", "macAddress": "02:00:00:00:00:02", "ipAddress": "192.0.2.3", "name": "Garage Switch",
+    "model": "USW Lite 8 PoE", "state": "ONLINE", "supported": true, "firmwareVersion": "7.1.26", "firmwareUpdatable": false,
+    "features": ["switching"], "interfaces": ["ports"]
+  },
+  {
+    "id": "00000000-0000-4000-8000-000000000003", "macAddress": "02:00:00:00:00:03", "ipAddress": "192.0.2.4", "name": "Garden AP",
+    "model": "U6 Mesh", "state": "OFFLINE", "supported": true, "firmwareVersion": "6.6.77", "firmwareUpdatable": false,
+    "features": ["accessPoint"], "interfaces": ["ports", "radios"]
+  },
+  {
+    "id": "00000000-0000-4000-8000-000000000004", "macAddress": "02:00:00:00:00:04", "ipAddress": "192.0.2.5", "name": "Attic AP",
+    "model": "U7 Pro", "state": "UPDATING", "supported": true, "firmwareVersion": "7.0.83", "firmwareUpdatable": false,
+    "features": ["accessPoint"], "interfaces": ["ports", "radios"]
+  }
+]

@@ -21,7 +21,12 @@ export class BridgeHarness {
     LoopbackMdns.use()
     const config = { port: await FreePort.udp() }
     const host = await PluginTestHost.start(MatterBridgePlugin, { config, store: BridgeHarness.store(devices) })
-    return new BridgeHarness(host, await TestController.start(), config)
+    // a bridge left running keeps the test file from ever exiting
+    const controller = await TestController.start().catch(async (error: unknown) => {
+      await host.stop()
+      throw error
+    })
+    return new BridgeHarness(host, controller, config)
   }
 
   /** a plugin store holding these devices */
@@ -39,7 +44,9 @@ export class BridgeHarness {
   async pair() {
     const status = this.host.plugin.bridge.pairing()
     if (!status) throw new Error("the bridge is not running")
-    return await this.controller.pair(status.manualCode)
+    // before() hooks have no time limit (--test-timeout covers tests only): a pairing stuck on a
+    // loaded machine would hold the file forever instead of failing it
+    return await BridgeHarness.within(this.controller.pair(status.manualCode), 45_000, "pairing")
   }
 
   /** the last value a signal emitted, as a plain value */
@@ -70,9 +77,26 @@ export class BridgeHarness {
   }
 
   /** the bridge first, while the controller still answers; the other way round its stop waits for it (see BridgeNode.close) */
+  /** stops the bridge and the controller; the controller also when the bridge's stop fails */
   async close() {
-    await this.host.stop()
-    await this.controller.close()
+    try {
+      await this.host.stop()
+    } finally {
+      await BridgeHarness.within(this.controller.close(), 15_000, "closing the test controller")
+    }
+  }
+
+  /** the work's result, or a failure naming it once `ms` have passed */
+  static async within<T>(work: Promise<T>, ms: number, what: string): Promise<T> {
+    let timer: NodeJS.Timeout | undefined
+    const late = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`${what} took longer than ${ms / 1000} s`)), ms)
+    })
+    try {
+      return await Promise.race([work, late])
+    } finally {
+      clearTimeout(timer)
+    }
   }
 
   /** polls until the check holds; real time, the network is real */

@@ -1,0 +1,24 @@
+{
+  "name": "@lox-nexus/plugin-unifi",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "UniFi Network plugin for Lox Nexus",
+  "type": "module",
+  "loxNexus": {
+    "apiVersion": 1,
+    "id": "unifi",
+    "entry": "dist/plugin.js",
+    "name": "UniFi Network",
+    "icon": "wifi"
+  },
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --target=node24 --conditions=@lox-nexus/source --outfile=dist/plugin.js"
+  },
+  "dependencies": {
+    "@lox-nexus/plugin-sdk": "*"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}

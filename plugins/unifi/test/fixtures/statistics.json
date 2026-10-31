@@ -1,0 +1,14 @@
+{
+  "00000000-0000-4000-8000-000000000001": {
+    "uptimeSec": 86400, "lastHeartbeatAt": "2026-10-31T08:00:00Z", "nextHeartbeatAt": "2026-10-31T08:00:30Z",
+    "loadAverage1Min": 0.2, "loadAverage5Min": 0.3, "loadAverage15Min": 0.25,
+    "cpuUtilizationPct": 12.5, "memoryUtilizationPct": 41.0,
+    "uplink": { "txRateBps": 750000, "rxRateBps": 2500000 },
+    "interfaces": { "radios": [{ "frequencyGHz": 5, "txRetriesPct": 3.1 }] }
+  },
+  "00000000-0000-4000-8000-000000000002": {
+    "uptimeSec": 1209600, "cpuUtilizationPct": 4.0, "memoryUtilizationPct": 60.5,
+    "uplink": { "txRateBps": 12000000, "rxRateBps": 48000000 },
+    "interfaces": {}
+  }
+}

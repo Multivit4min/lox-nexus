@@ -1,0 +1,4 @@
+{
+  "id": "00000000-0000-4000-8000-000000000501", "createdAt": "2026-10-31T08:00:00Z", "name": "Nexus", "code": "4861409510",
+  "authorizedGuestLimit": 1, "authorizedGuestCount": 0, "timeLimitMinutes": 1440, "expired": false
+}

@@ -22,7 +22,7 @@ Miniserver needs no extra hardware, no cloud and no HTTP polling.
 - **Run Nexus:** [Installation](guide/installation.md), then [Concepts](guide/concepts.md) and
   [Setting up a Miniserver](guide/loxone.md).
 - **Connect something:** the [Fronius](plugins/fronius.md), [Home Assistant](plugins/homeassistant.md),
-  [Calendar](plugins/calendar.md), [Webhook](plugins/webhook.md), [MQTT](plugins/mqtt.md) and
+  [UniFi Network](plugins/unifi.md), [Calendar](plugins/calendar.md), [Webhook](plugins/webhook.md), [MQTT](plugins/mqtt.md) and
   [Script](plugins/script.md) plugins ship with Nexus.
 - **Voice control:** the [Matter bridge](plugins/matter-bridge.md) shows Nexus devices to Alexa,
   Google Home, Apple Home and Home Assistant.

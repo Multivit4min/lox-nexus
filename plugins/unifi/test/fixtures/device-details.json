@@ -1,0 +1,27 @@
+{
+  "00000000-0000-4000-8000-000000000001": {
+    "id": "00000000-0000-4000-8000-000000000001", "macAddress": "02:00:00:00:00:01", "ipAddress": "192.0.2.2", "name": "Hall AP",
+    "model": "U6 Lite", "supported": true, "state": "ONLINE", "firmwareVersion": "6.6.77", "firmwareUpdatable": true,
+    "adoptedAt": "2025-03-01T10:00:00Z", "provisionedAt": "2026-10-30T10:00:00Z", "configurationId": "c0ffee01",
+    "uplink": { "deviceId": "00000000-0000-4000-8000-000000000002" },
+    "features": { "accessPoint": {} },
+    "interfaces": {
+      "ports": [{ "idx": 1, "state": "UP", "connector": "RJ45", "maxSpeedMbps": 1000, "speedMbps": 1000 }],
+      "radios": [{ "wlanStandard": "802.11ax", "frequencyGHz": 5, "channelWidthMHz": 80, "channel": 36 }]
+    }
+  },
+  "00000000-0000-4000-8000-000000000002": {
+    "id": "00000000-0000-4000-8000-000000000002", "macAddress": "02:00:00:00:00:02", "ipAddress": "192.0.2.3", "name": "Garage Switch",
+    "model": "USW Lite 8 PoE", "supported": true, "state": "ONLINE", "firmwareVersion": "7.1.26", "firmwareUpdatable": false,
+    "adoptedAt": "2025-03-01T10:00:00Z", "provisionedAt": "2026-10-30T10:00:00Z", "configurationId": "c0ffee02",
+    "features": { "switching": { "lags": [] } },
+    "interfaces": {
+      "ports": [
+        { "idx": 1, "state": "UP", "connector": "RJ45", "maxSpeedMbps": 1000, "speedMbps": 1000, "poe": { "enabled": true, "standard": "802.3at", "type": 2, "state": "UP" } },
+        { "idx": 2, "state": "DOWN", "connector": "RJ45", "maxSpeedMbps": 1000, "poe": { "enabled": true, "standard": "802.3at", "type": 2, "state": "DOWN" } },
+        { "idx": 3, "state": "UP", "connector": "RJ45", "maxSpeedMbps": 1000, "speedMbps": 100, "poe": { "enabled": false, "standard": "802.3af", "type": 1, "state": "DOWN" } },
+        { "idx": 9, "state": "UP", "connector": "SFP", "maxSpeedMbps": 1000, "speedMbps": 1000 }
+      ]
+    }
+  }
+}

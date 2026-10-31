@@ -1,0 +1,25 @@
+[
+  {
+    "type": "STANDARD", "id": "00000000-0000-4000-8000-000000000301", "name": "Home", "enabled": true,
+    "metadata": { "origin": "USER_DEFINED" },
+    "network": { "type": "NATIVE" },
+    "securityConfiguration": {
+      "type": "WPA2_WPA3_PERSONAL", "passphrase": "synthetic-home-passphrase", "pmfMode": "OPTIONAL",
+      "fastRoamingEnabled": false, "wpa3FastRoamingEnabled": false,
+      "saeConfiguration": { "anticloggingThresholdSeconds": 5, "syncTimeSeconds": 5 }
+    },
+    "clientIsolationEnabled": false, "hideName": false, "multicastToUnicastConversionEnabled": false, "uapsdEnabled": true,
+    "advertiseDeviceName": false, "arpProxyEnabled": false, "bssTransitionEnabled": true, "bandSteeringEnabled": true,
+    "broadcastingFrequenciesGHz": [2.4, 5]
+  },
+  {
+    "type": "STANDARD", "id": "00000000-0000-4000-8000-000000000302", "name": "Guests", "enabled": false,
+    "metadata": { "origin": "USER_DEFINED" },
+    "network": { "type": "SPECIFIC", "networkId": "00000000-0000-4000-8000-000000000401" },
+    "securityConfiguration": { "type": "WPA2_PERSONAL", "passphrase": "synthetic-guest-passphrase", "fastRoamingEnabled": false },
+    "hotspotConfiguration": { "type": "CAPTIVE_PORTAL" },
+    "clientIsolationEnabled": true, "hideName": false, "multicastToUnicastConversionEnabled": false, "uapsdEnabled": false,
+    "advertiseDeviceName": false, "arpProxyEnabled": true, "bssTransitionEnabled": false,
+    "broadcastingFrequenciesGHz": [2.4, 5]
+  }
+]

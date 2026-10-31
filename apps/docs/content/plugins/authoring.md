@@ -863,7 +863,8 @@ a new panel. Format numbers yourself.
 a section's heading opens that action's dialog with `input` filled in. Two variants run at once,
 without the dialog: `instant: true` (after the action's `confirm`, if it has one), for buttons
 whose input is complete, such as "Restart" on a device's row; and `switch: { checked }`, shown as a
-switch in that state, which runs the action with `input` when flipped, so put the new state there:
+switch in that state, which runs the action with `input` when flipped (also after the action's
+`confirm`, if it has one), so put the new state there:
 
 ```ts
 { label: "Guest Wi-Fi", value: enabled ? "on" : "off", control: { action: "guest-wifi", switch: { checked: enabled }, input: { enabled: !enabled } } }

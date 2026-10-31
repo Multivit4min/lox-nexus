@@ -28,7 +28,8 @@ export type Cell = z.infer<typeof CellSchema>
  * action's dialog with `input` filled in (its keys must be fields of the action's input schema).
  * `instant`: runs at once without the dialog (after the action's `confirm`, if it has one), for
  * actions whose input the button fills in completely. `switch`: shown as a switch in the state
- * `checked`; flipping it runs the action with `input` at once, so put the new state in `input`.
+ * `checked`; flipping it runs the action with `input` at once (after the action's `confirm`, too),
+ * so put the new state in `input`.
  */
 export const RowActionSchema = z.object({
   action: z.string().min(1).max(100),
