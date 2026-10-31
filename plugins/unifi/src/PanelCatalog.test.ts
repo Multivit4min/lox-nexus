@@ -96,3 +96,28 @@ test("the catalog offers clients by MAC and by name, devices with ports, Wi-Fi n
     await unifi.stop()
   }
 })
+
+test("every client, device, port and Wi-Fi network on the panel points at its node in the catalog", async () => {
+  const unifi = await UnifiHarness.start()
+  try {
+    const panel = await unifi.host.panel()
+    const linked = (title: string) => {
+      const found = part(panel, title)
+      if (found?.type === "table") return found.rowCatalog ?? []
+      return found?.type === "keyValue" ? found.items.map(item => item.catalog) : []
+    }
+    const ids = new Map<string, CatalogNode>()
+    const collect = (nodes: CatalogNode[]) => nodes.forEach(node => {
+      if (node.id) ids.set(node.id, node)
+      collect(node.children ?? [])
+    })
+    collect(await unifi.host.catalog())
+    for (const title of ["Connected clients", "Devices", "Ports", "Wi-Fi networks"]) {
+      const links = linked(title)
+      assert.ok(links.length > 0 && links.every(Boolean), `${title}: a link per row`)
+      for (const id of links) assert.ok(ids.get(id!)?.entries?.length, `${title}: ${id} has signals in the catalog`)
+    }
+  } finally {
+    await unifi.stop()
+  }
+})

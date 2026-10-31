@@ -808,7 +808,9 @@ override catalog(): CatalogNode[] {
 }
 ```
 
-- A **node** has a `label` and `children`, `entries`, or both. Nodes are for navigation only.
+- A **node** has a `label` and `children`, `entries`, or both. Nodes are for navigation only. An
+  optional `id` (unique within the catalog, e.g. `client:<mac>`) lets the panel point at it: see
+  "Signals" buttons under Panel.
 - An **entry** names a capability by its static `id` and carries `params` that are validated against
   that capability's `params` schema when it is added. `label` is the suggested signal name.
 - `value` and `unit` are optional. They show what the entry reads right now while the user browses
@@ -845,8 +847,8 @@ The parts:
 
 | Part | Shows |
 |---|---|
-| `keyValue` | label and value pairs; an item may have a `control` (a button or switch, see below) |
-| `table` | columns and rows; the page sorts by any column, searches once there are more than 8 rows, and pages by 25. Up to 4 buttons per row (`rowActions`) |
+| `keyValue` | label and value pairs; an item may have a `control` (a button or switch, see below) and a `catalog` node id (a "Signals" button) |
+| `table` | columns and rows; the page sorts by any column, searches once there are more than 8 rows, and pages by 25. Up to 4 buttons per row (`rowActions`), and per row a catalog node id or `null` (`rowCatalog`, a "Signals" button) |
 | `tiles` | headline values as big numbers, at most 12; with `min` and `max` a bar, with `until` a countdown, `hint` as a tooltip |
 | `notice` | a box with a message for the user, `tone`, `title`, `text` and an optional `link` (http(s) or a Nexus page `#/…`) |
 | `qr` | a QR code of `data`, e.g. a Matter pairing payload |
@@ -858,6 +860,18 @@ The parts:
 that colour. `until` and `since` are epoch milliseconds the page counts down to ("in 12:30") or up
 from ("for 3 min") while it is open, so a pairing window or "connected since" stays right without
 a new panel. Format numbers yourself.
+
+**"Signals" buttons.** A row or item that stands for something in the catalog (a client, a device,
+a port) can point at its catalog node: give the node an `id` in `catalog()`, and the row the same id
+in the table's `rowCatalog` (one entry per row, `null` for none) or an item's `catalog`. The page
+shows a **Signals** button that opens the catalog at that node, so the user adds its signals, or
+connects them to a Miniserver, without searching a long catalog. The catalog is read when the
+button is pressed; a node that is gone by then says so.
+
+```ts
+// catalog(): { label: "iPhone (aa:bb:…)", id: `client:${client.id}`, entries: […] }
+{ type: "table", columns: ["Name", "IP"], rows, rowCatalog: clients.map(client => `client:${client.id}`) }
+```
 
 **Buttons and switches.** A `RowAction` (`{ action, label?, input? }`) on a row, a key-value item or
 a section's heading opens that action's dialog with `input` filled in. Two variants run at once,

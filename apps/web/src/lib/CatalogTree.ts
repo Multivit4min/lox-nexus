@@ -18,6 +18,16 @@ export class CatalogTree {
     })
   }
 
+  /** the node with this id (CatalogNode.id) and the labels down to it, depth-first; undefined when the catalog has none */
+  static find(nodes: CatalogNode[], id: string, parents: string[] = []): { node: CatalogNode; path: string[] } | undefined {
+    for (const node of nodes) {
+      const path = [...parents, node.label]
+      const found = node.id === id ? { node, path } : CatalogTree.find(node.children ?? [], id, path)
+      if (found) return found
+    }
+    return undefined
+  }
+
   /** an entry is configured when a signal has its kind, capability and params (key order doesn't matter) */
   static configured(entry: CatalogEntry, signals: PluginSignalDto[]) {
     const wanted = CatalogTree.canonical(entry.params ?? {})

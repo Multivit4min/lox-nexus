@@ -8,13 +8,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { PanelCells } from "../../../lib/PanelCells.ts"
 import ActionControl from "./ActionControl.vue"
 import CellView from "./CellView.vue"
+import SignalsButton from "./SignalsButton.vue"
 
 /**
  * A plugin's table: sortable by any column (numbers as numbers), with a search box once it is
  * longer than a few rows, and pages of 25. Row buttons and switches ask the page to run their action.
  */
-const props = defineProps<{ columns: string[]; rows: Cell[][]; rowActions?: RowAction[][]; labelOf: (action: RowAction) => string; busy?: boolean }>()
+// rowCatalog and browse: a "Signals" button per row that points at its catalog node, where the page can open it
+const props = defineProps<{
+  columns: string[]; rows: Cell[][]; rowActions?: RowAction[][]; labelOf: (action: RowAction) => string; busy?: boolean
+  rowCatalog?: (string | null)[]; browse?: (id: string, title: string) => void
+}>()
 const emit = defineEmits<{ action: [action: RowAction] }>()
+const buttons = computed(() => !!props.browse && !!props.rowCatalog?.some(Boolean))
 
 const PAGE = 25
 const query = ref("")
@@ -57,15 +63,16 @@ function sortBy(column: number) {
                 <ArrowDown v-if="sort?.column === j && sort.descending" class="size-3" />
               </button>
             </TableHead>
-            <TableHead v-if="rowActions" />
+            <TableHead v-if="rowActions || buttons" />
           </TableRow>
         </TableHeader>
         <TableBody>
           <TableRow v-for="i in visible" :key="i">
             <TableCell v-for="(cell, j) in rows[i]" :key="j"><CellView :cell="cell" /></TableCell>
-            <TableCell v-if="rowActions" class="whitespace-nowrap text-right">
+            <TableCell v-if="rowActions || buttons" class="whitespace-nowrap text-right">
               <span class="inline-flex flex-wrap justify-end gap-2">
-                <ActionControl v-for="(action, k) in rowActions[i] ?? []" :key="k" :action="action" :label="labelOf(action)" :disabled="busy" @run="emit('action', action)" />
+                <SignalsButton v-if="buttons && rowCatalog?.[i]" :catalog="rowCatalog[i]!" :title="PanelCells.text(rows[i]?.[0], Date.now())" :browse="browse!" />
+                <ActionControl v-for="(action, k) in rowActions?.[i] ?? []" :key="k" :action="action" :label="labelOf(action)" :disabled="busy" @run="emit('action', action)" />
               </span>
             </TableCell>
           </TableRow>

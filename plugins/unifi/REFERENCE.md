@@ -173,6 +173,10 @@ All accept a boolean.
 Only connected clients appear: connect a device once to add it. The catalog reads the ports of
 devices the poll doesn't read anyway, once per browse.
 
+Every row of the panel's clients, devices and ports tables, and every Wi-Fi network, has a
+**Signals** button: it opens the catalog at that client's, device's, port's or network's node
+(ids `client:<id>`, `device:<id>`, `port:<device id>:<n>`, `wifi:<id>`, the API's ids).
+
 ## Panel
 
 Pushed after every poll and after actions (`panelUpdates: "push"`).

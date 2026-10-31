@@ -37,6 +37,7 @@ export const ActionAnswerSchema: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                     checked: z.ZodBoolean;
                 }, z.core.$strip>>;
             }, z.core.$strip>>;
+            catalog: z.ZodOptional<z.ZodString>;
         }, z.core.$strip>>;
     }, z.core.$strip>, z.ZodObject<{
         type: z.ZodLiteral<"table">;
@@ -62,6 +63,7 @@ export const ActionAnswerSchema: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 checked: z.ZodBoolean;
             }, z.core.$strip>>;
         }, z.core.$strip>>>>;
+        rowCatalog: z.ZodOptional<z.ZodArray<z.ZodNullable<z.ZodString>>>;
     }, z.core.$strip>, z.ZodObject<{
         type: z.ZodLiteral<"json">;
         data: z.ZodUnknown;
@@ -168,6 +170,7 @@ export interface CatalogNode {
     children?: CatalogNode[];
     // (undocumented)
     entries?: CatalogEntry[];
+    id?: string;
     // (undocumented)
     label: string;
 }
@@ -426,6 +429,7 @@ export const PanelPartSchema: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 checked: z.ZodBoolean;
             }, z.core.$strip>>;
         }, z.core.$strip>>;
+        catalog: z.ZodOptional<z.ZodString>;
     }, z.core.$strip>>;
 }, z.core.$strip>, z.ZodObject<{
     type: z.ZodLiteral<"table">;
@@ -451,6 +455,7 @@ export const PanelPartSchema: z.ZodDiscriminatedUnion<[z.ZodObject<{
             checked: z.ZodBoolean;
         }, z.core.$strip>>;
     }, z.core.$strip>>>>;
+    rowCatalog: z.ZodOptional<z.ZodArray<z.ZodNullable<z.ZodString>>>;
 }, z.core.$strip>, z.ZodObject<{
     type: z.ZodLiteral<"json">;
     data: z.ZodUnknown;
@@ -520,6 +525,7 @@ export const PanelSchema: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 checked: z.ZodBoolean;
             }, z.core.$strip>>;
         }, z.core.$strip>>;
+        catalog: z.ZodOptional<z.ZodString>;
     }, z.core.$strip>>;
 }, z.core.$strip>, z.ZodObject<{
     type: z.ZodLiteral<"table">;
@@ -545,6 +551,7 @@ export const PanelSchema: z.ZodDiscriminatedUnion<[z.ZodObject<{
             checked: z.ZodBoolean;
         }, z.core.$strip>>;
     }, z.core.$strip>>>>;
+    rowCatalog: z.ZodOptional<z.ZodArray<z.ZodNullable<z.ZodString>>>;
 }, z.core.$strip>, z.ZodObject<{
     type: z.ZodLiteral<"json">;
     data: z.ZodUnknown;
@@ -615,6 +622,7 @@ export const PanelSchema: z.ZodDiscriminatedUnion<[z.ZodObject<{
                         checked: z.ZodBoolean;
                     }, z.core.$strip>>;
                 }, z.core.$strip>>;
+                catalog: z.ZodOptional<z.ZodString>;
             }, z.core.$strip>>;
         }, z.core.$strip>, z.ZodObject<{
             type: z.ZodLiteral<"table">;
@@ -640,6 +648,7 @@ export const PanelSchema: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     checked: z.ZodBoolean;
                 }, z.core.$strip>>;
             }, z.core.$strip>>>>;
+            rowCatalog: z.ZodOptional<z.ZodArray<z.ZodNullable<z.ZodString>>>;
         }, z.core.$strip>, z.ZodObject<{
             type: z.ZodLiteral<"json">;
             data: z.ZodUnknown;

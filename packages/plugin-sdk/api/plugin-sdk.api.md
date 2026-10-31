@@ -78,6 +78,7 @@ export interface CatalogNode {
     children?: CatalogNode[];
     // (undocumented)
     entries?: CatalogEntry[];
+    id?: string;
     // (undocumented)
     label: string;
 }

@@ -15,6 +15,7 @@ import { DeviceUptimeSensor } from "../sensors/DeviceUptimeSensor.ts"
 import { PortLinkSensor } from "../sensors/PortLinkSensor.ts"
 import { PortPoeSensor } from "../sensors/PortPoeSensor.ts"
 import { PortSpeedSensor } from "../sensors/PortSpeedSensor.ts"
+import { CatalogIds } from "./CatalogIds.ts"
 
 const STATISTICS = [DeviceCpuSensor, DeviceMemorySensor, DeviceUptimeSensor, DeviceUplinkRxSensor, DeviceUplinkTxSensor]
 
@@ -23,7 +24,7 @@ export class DeviceEntries {
   constructor(private readonly device: Device, private readonly ports: readonly Port[]) {}
 
   node(): CatalogNode {
-    const node: CatalogNode = { label: `${this.device.name} (${this.device.model})`, entries: this.entries() }
+    const node: CatalogNode = { label: `${this.device.name} (${this.device.model})`, id: CatalogIds.device(this.device.id), entries: this.entries() }
     if (this.ports.length > 0) node.children = [...this.ports].sort((a, b) => a.idx - b.idx).map(port => this.portNode(port))
     return node
   }
@@ -51,6 +52,6 @@ export class DeviceEntries {
       entries.push({ kind: "sensor", capability: PortPoeSensor.id, params, label: `${label} PoE`, value: Value.string(port.poe.enabled ? port.poe.state : "OFF") })
       entries.push({ kind: "actuator", capability: PortPowerCycleActuator.id, params, label: `${label} power-cycle` })
     }
-    return { label: `Port ${port.idx}`, entries }
+    return { label: `Port ${port.idx}`, id: CatalogIds.port(this.device.id, port.idx), entries }
   }
 }

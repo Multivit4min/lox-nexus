@@ -2,6 +2,7 @@
 import { defineAsyncComponent } from "vue"
 import type { PanelPart, RowAction } from "@lox-nexus/plugin-sdk/wire"
 import ActionControl from "./panel/ActionControl.vue"
+import SignalsButton from "./panel/SignalsButton.vue"
 import CellView from "./panel/CellView.vue"
 import NoticeView from "./panel/NoticeView.vue"
 import PanelTable from "./panel/PanelTable.vue"
@@ -14,7 +15,8 @@ const QrCode = defineAsyncComponent(() => import("./QrCode.vue"))
  * One part of a plugin's panel: key-value pairs (each may have a button or switch), a table
  * (search, sort, pages, buttons per row), tiles, a notice, a QR code or JSON.
  */
-const props = defineProps<{ part: PanelPart; labelOf?: (action: RowAction) => string; busy?: boolean }>()
+// browse: where a row's or item's "Signals" button opens the catalog; without it (an action's answer) there are none
+const props = defineProps<{ part: PanelPart; labelOf?: (action: RowAction) => string; busy?: boolean; browse?: (id: string, title: string) => void }>()
 const emit = defineEmits<{ action: [action: RowAction] }>()
 const label = (action: RowAction) => props.labelOf?.(action) ?? action.label ?? action.action
 </script>
@@ -26,11 +28,12 @@ const label = (action: RowAction) => props.labelOf?.(action) ?? action.label ?? 
       <dd class="flex flex-wrap items-center gap-x-3 gap-y-1">
         <CellView :cell="item.value" />
         <ActionControl v-if="item.control" :action="item.control" :label="label(item.control)" :disabled="busy" @run="emit('action', item.control)" />
+        <SignalsButton v-if="browse && item.catalog" :catalog="item.catalog" :title="item.label" :browse="browse" />
       </dd>
     </template>
   </dl>
   <p v-else-if="part.type === 'table' && part.rows.length === 0" class="text-sm text-muted-foreground">Nothing to show yet.</p>
-  <PanelTable v-else-if="part.type === 'table'" :columns="part.columns" :rows="part.rows" :row-actions="part.rowActions" :label-of="label" :busy="busy" @action="action => emit('action', action)" />
+  <PanelTable v-else-if="part.type === 'table'" :columns="part.columns" :rows="part.rows" :row-actions="part.rowActions" :row-catalog="part.rowCatalog" :browse="browse" :label-of="label" :busy="busy" @action="action => emit('action', action)" />
   <TilesView v-else-if="part.type === 'tiles'" :tiles="part.tiles" />
   <NoticeView v-else-if="part.type === 'notice'" :notice="part" />
   <QrCode v-else-if="part.type === 'qr'" :data="part.data" :caption="part.caption" />

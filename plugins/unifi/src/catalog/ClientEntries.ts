@@ -7,6 +7,7 @@ import { GuestAccessActuator } from "../actuators/GuestAccessActuator.ts"
 import { ClientConnectedSensor } from "../sensors/ClientConnectedSensor.ts"
 import { ClientIpSensor } from "../sensors/ClientIpSensor.ts"
 import { ClientUplinkSensor } from "../sensors/ClientUplinkSensor.ts"
+import { CatalogIds } from "./CatalogIds.ts"
 
 /** The catalog's clients: the connected ones (the API lists no others), each by MAC and by name. */
 export class ClientEntries {
@@ -15,6 +16,7 @@ export class ClientEntries {
   node(): CatalogNode {
     const children = [...this.snapshot.clients].sort((a, b) => a.name.localeCompare(b.name)).map(client => ({
       label: client.macAddress ? `${client.name} (${MacAddress.normalize(client.macAddress)})` : `${client.name} (${client.type.toLowerCase()})`,
+      id: CatalogIds.client(client.id),
       entries: this.entries(client)
     }))
     return { label: "Clients (connected now)", children }

@@ -5,6 +5,7 @@ import type { Device, Port } from "../api/ApiSchemas.ts"
 import { MacAddress } from "../api/MacAddress.ts"
 import type { NetworkSnapshot } from "../poll/NetworkSnapshot.ts"
 import type { Section } from "./PanelTypes.ts"
+import { CatalogIds } from "../catalog/CatalogIds.ts"
 import { StateTone } from "./StateTone.ts"
 
 /** The adopted devices with a Restart button each, and the ports of switches with Power-cycle on PoE ports. */
@@ -20,14 +21,18 @@ export class DevicesSection {
         type: "table",
         columns: ["Device", "Model", "State", "IP address", "MAC address", "Firmware"],
         rows: devices.map(device => DevicesSection.row(device)),
-        rowActions: devices.map(device => [DevicesSection.restart(device)])
+        rowActions: devices.map(device => [DevicesSection.restart(device)]),
+        rowCatalog: devices.map(device => CatalogIds.device(device.id))
       }
     }]
     const ports = this.ports(devices)
     if (ports.length > 0) {
       sections.push({
         title: "Ports",
-        panel: { type: "table", columns: ["Device", "Port", "Link", "Speed", "PoE"], rows: ports.map(entry => entry.row), rowActions: ports.map(entry => entry.actions) }
+        panel: {
+          type: "table", columns: ["Device", "Port", "Link", "Speed", "PoE"],
+          rows: ports.map(entry => entry.row), rowActions: ports.map(entry => entry.actions), rowCatalog: ports.map(entry => entry.catalog)
+        }
       })
     }
     return sections
@@ -47,7 +52,7 @@ export class DevicesSection {
   private ports(devices: Device[]) {
     return devices.flatMap(device => (this.snapshot.extras.ports.get(device.id) ?? [])
       .slice().sort((a, b) => a.idx - b.idx)
-      .map(port => ({ row: DevicesSection.portRow(device, port), actions: DevicesSection.portActions(device, port) })))
+      .map(port => ({ row: DevicesSection.portRow(device, port), actions: DevicesSection.portActions(device, port), catalog: CatalogIds.port(device.id, port.idx) })))
   }
 
   private static portRow(device: Device, port: Port): Cell[] {

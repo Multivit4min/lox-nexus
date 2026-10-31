@@ -7,6 +7,7 @@ import { VoucherActuator } from "../actuators/VoucherActuator.ts"
 import { WifiEnabledActuator } from "../actuators/WifiEnabledActuator.ts"
 import { VoucherCodeSensor } from "../sensors/VoucherCodeSensor.ts"
 import { WifiEnabledSensor } from "../sensors/WifiEnabledSensor.ts"
+import { CatalogIds } from "./CatalogIds.ts"
 import { ClientEntries } from "./ClientEntries.ts"
 import { DeviceEntries } from "./DeviceEntries.ts"
 
@@ -48,6 +49,7 @@ export class UnifiCatalog {
   private wifi(): CatalogNode {
     const children = [...this.snapshot.wifi ?? []].sort((a, b) => a.name.localeCompare(b.name)).map(network => ({
       label: network.name,
+      id: CatalogIds.wifi(network.id),
       entries: [
         { kind: "sensor" as const, capability: WifiEnabledSensor.id, params: { network: network.name }, label: `${network.name} on`, value: Value.boolean(network.enabled) },
         { kind: "actuator" as const, capability: WifiEnabledActuator.id, params: { network: network.name }, label: `${network.name} on/off`, value: Value.boolean(network.enabled) }

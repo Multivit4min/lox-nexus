@@ -5,9 +5,9 @@ type Tile = Extract<Part, { type: "tiles" }>["tiles"][number]
 
 /**
  * Turns a panel into what hosts without the "panel.v2" feature accept: cells into text (a
- * countdown into the time it ends), tiles and notices into key-value lists, and no controls on
- * key-value items. Buttons on rows and section headings stay; those hosts ignore `instant` and
- * `switch` and open the dialog.
+ * countdown into the time it ends), tiles and notices into key-value lists, no controls on
+ * key-value items and no catalog links (`rowCatalog`, `catalog`). Buttons on rows and section
+ * headings stay; those hosts ignore `instant` and `switch` and open the dialog.
  */
 export class PanelCompat {
   constructor(private readonly timeZone?: string) {}
@@ -20,7 +20,7 @@ export class PanelCompat {
   part(part: Part): Part {
     switch (part.type) {
       case "keyValue": return { type: "keyValue", items: part.items.map(item => ({ label: item.label, value: this.text(item.value) })) }
-      case "table": return { ...part, rows: part.rows.map(row => row.map(cell => this.text(cell))) }
+      case "table": return { type: "table", columns: part.columns, rows: part.rows.map(row => row.map(cell => this.text(cell))), ...(part.rowActions ? { rowActions: part.rowActions } : {}) }
       case "tiles": return { type: "keyValue", items: part.tiles.map(tile => ({ label: tile.label, value: this.tile(tile) })) }
       case "notice": return { type: "keyValue", items: [{ label: part.title ?? part.tone, value: part.link ? `${part.text} (${part.link.label}: ${part.link.href})` : part.text }] }
       default: return part

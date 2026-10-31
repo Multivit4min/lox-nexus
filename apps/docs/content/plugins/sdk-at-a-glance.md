@@ -408,13 +408,13 @@ class TestClock implements Clock {
 Plugin authors need only the shapes ([reference](../reference/sdk/@lox-nexus/plugin-sdk/wire.md)):
 
 ```ts
-interface CatalogNode { label: string; children?: CatalogNode[]; entries?: CatalogEntry[] }
+interface CatalogNode { label: string; id?: string; children?: CatalogNode[]; entries?: CatalogEntry[] }  // id: for a panel's "Signals" button
 type CatalogEntry = { kind: "sensor" | "actuator"; capability: string; params: unknown; label: string; value?: Value; unit?: string }
 type Tone = "ok" | "warn" | "error" | "info" | "muted"
 type Cell = string | { text?: string; tone?: Tone; until?: number; since?: number }  // until/since: epoch ms, counted live
 type PanelPart =
-  | { type: "keyValue"; items: { label: string; value: Cell; control?: RowAction }[] }
-  | { type: "table"; columns: string[]; rows: Cell[][]; rowActions?: RowAction[][] }  // up to 4 buttons per row
+  | { type: "keyValue"; items: { label: string; value: Cell; control?: RowAction; catalog?: string }[] }
+  | { type: "table"; columns: string[]; rows: Cell[][]; rowActions?: RowAction[][]; rowCatalog?: (string | null)[] }  // up to 4 buttons per row; catalog node ids
   | { type: "tiles"; tiles: { label: string; value: number | string | null; unit?: string; decimals?: number; tone?: Tone; min?: number; max?: number; until?: number; hint?: string }[] }  // at most 12
   | { type: "notice"; tone: Tone; title?: string; text: string; link?: { label: string; href: string } }  // href: http(s) or "#/…"
   | { type: "qr"; data: string; caption?: string }  // e.g. a Matter pairing payload; hosts before it refuse the panel

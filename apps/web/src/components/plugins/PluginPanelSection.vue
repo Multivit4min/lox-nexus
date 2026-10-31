@@ -17,7 +17,8 @@ import PanelPartView from "./PanelPartView.vue"
  * (`panelPush`), when it says so and every 30 s. Its switches and instant buttons run at once and
  * say what happened above it; its other buttons open the action's dialog (`open`).
  */
-const props = defineProps<{ instanceId: string; running: boolean; description?: PluginDescription; events: PluginEventHub }>()
+// browse: opens the signals card's catalog at a node, for the rows' "Signals" buttons
+const props = defineProps<{ instanceId: string; running: boolean; description?: PluginDescription; events: PluginEventHub; browse?: (id: string, title: string) => void }>()
 const emit = defineEmits<{ open: [action: string, input?: Record<string, unknown>] }>()
 const api = AppContext.use().plugins
 
@@ -86,5 +87,5 @@ async function run(button: RowAction) {
     </AlertDescription>
     <Button size="icon" variant="ghost" class="absolute right-2 top-2 size-6" title="Dismiss" @click="outcome = undefined"><X class="size-4" /></Button>
   </Alert>
-  <PanelCard v-if="panel" :panel="panel" :loading="loading || busy" :busy="busy" :actions="description?.actions" @refresh="refresh" @action="run" />
+  <PanelCard v-if="panel" :panel="panel" :loading="loading || busy" :busy="busy" :actions="description?.actions" :browse="browse" @refresh="refresh" @action="run" />
 </template>

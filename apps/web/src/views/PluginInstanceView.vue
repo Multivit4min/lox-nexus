@@ -44,6 +44,9 @@ const failure = ref<string>()
 const missing = ref(false)
 const wiresCard = ref<InstanceType<typeof WiresCard>>()
 const actionButtons = ref<InstanceType<typeof PluginActionButtons>>()
+const signalsCard = ref<InstanceType<typeof PluginSignalsCard>>()
+// a panel row's "Signals" button: the catalog at that row's node, where the signals card is shown
+const browse = (id: string, title: string) => signalsCard.value?.browse(id, title)
 let unmounted = false
 // a sensor is a wire's source, an actuator its target
 const wire = (signal: PluginSignalDto) => wiresCard.value?.startNew(signal.kind === "sensor" ? { sourceId: signal.id } : { targetId: signal.id })
@@ -172,10 +175,10 @@ onUnmounted(() => {
     </Alert>
     <PluginPanelSection
       :instance-id="instance.id" :running="running" :description="pkg?.description" :events="pluginEvents"
-      @open="(action, input) => actionButtons?.open(action, input)"
+      :browse="signalsCard ? browse : undefined" @open="(action, input) => actionButtons?.open(action, input)"
     />
     <WatchSelectionCard v-if="pkg?.description.watches" :instance-id="instance.id" :declaration="pkg.description.watches" />
-    <PluginSignalsCard v-if="pkg && live && offersSignals" :instance="instance" :description="pkg.description" :signals="signals" :live="live" @changed="loadSignals" @wire="wire" />
+    <PluginSignalsCard v-if="pkg && live && offersSignals" ref="signalsCard" :instance="instance" :description="pkg.description" :signals="signals" :live="live" @changed="loadSignals" @wire="wire" />
     <WiresCard ref="wiresCard" :owner-id="instance.id" />
     <PluginLogsCard :lines="logs" :instance-id="id" @changed="attempt(refresh)" />
     <PluginReadmeDialog v-if="pkg && readmeLoaded" :id="pkg.id" v-model:open="reading" :name="pkg.name" :version="pkg.version" />

@@ -44,7 +44,8 @@ class RestartActuator extends Actuator<UiPlugin, unknown, ValueOf<"boolean">> {
 const panel: Panel = {
   type: "sections",
   sections: [
-    { title: "State", panel: { type: "keyValue", items: [{ label: "Bridge", value: { text: "running", tone: "ok" }, control: { action: "qr", switch: { checked: true } } }] } },
+    { title: "State", panel: { type: "keyValue", items: [{ label: "Bridge", value: { text: "running", tone: "ok" }, control: { action: "qr", switch: { checked: true } }, catalog: "bridge" }] } },
+    { title: "Clients", panel: { type: "table", columns: ["Name"], rows: [["Phone"], ["TV"]], rowCatalog: ["client:1", null] } },
     { title: "Window", panel: { type: "tiles", tiles: [{ label: "PV", value: 3200, unit: "W" }, { label: "Closes", value: null, until: Date.UTC(2026, 9, 31, 12, 0) }] } },
     { title: "Hint", panel: { type: "notice", tone: "warn", title: "Not paired", text: "Scan the code", link: { label: "Docs", href: "https://example.org" } } }
   ]
@@ -64,14 +65,15 @@ class UiPlugin extends Plugin {
   }
 }
 
-test("a host with panel.v2 gets the panel as it is; an older one gets text, key-value lists and no item controls", async () => {
+test("a host with panel.v2 gets the panel as it is; an older one gets text, key-value lists, no item controls and no catalog links", async () => {
   const current = await PluginTestHost.start(UiPlugin)
   assert.deepEqual(await current.panel(), panel)
   const older = await PluginTestHost.start(UiPlugin, { hostFeatures: [], timeZone: "UTC" })
   const sections = (await older.panel() as Extract<Panel, { type: "sections" }>).sections.map(section => section.panel)
   assert.deepEqual(sections[0], { type: "keyValue", items: [{ label: "Bridge", value: "running" }] })
-  assert.deepEqual(sections[1], { type: "keyValue", items: [{ label: "PV", value: "3200 W" }, { label: "Closes", value: "until 31/10/2026, 12:00" }] })
-  assert.deepEqual(sections[2], { type: "keyValue", items: [{ label: "Not paired", value: "Scan the code (Docs: https://example.org)" }] })
+  assert.deepEqual(sections[1], { type: "table", columns: ["Name"], rows: [["Phone"], ["TV"]] }, "no catalog links")
+  assert.deepEqual(sections[2], { type: "keyValue", items: [{ label: "PV", value: "3200 W" }, { label: "Closes", value: "until 31/10/2026, 12:00" }] })
+  assert.deepEqual(sections[3], { type: "keyValue", items: [{ label: "Not paired", value: "Scan the code (Docs: https://example.org)" }] })
   await current.stop()
   await older.stop()
 })

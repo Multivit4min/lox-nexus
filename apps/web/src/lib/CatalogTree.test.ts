@@ -22,3 +22,11 @@ test("an entry is configured when kind, capability and params match, whatever th
   assert.equal(CatalogTree.configured(meter!.entry, [signal]), false)
   assert.equal(CatalogTree.configured(grid!.entry, [{ ...signal, kind: "actuator" }]), false)
 })
+
+test("find looks a node up by its id at any depth; an unknown id finds nothing", () => {
+  const port = { label: "Port 1", id: "port:1", entries: [] }
+  const nodes = [{ label: "Clients", children: [{ label: "Phone", id: "client:1" }] }, { label: "Devices", children: [{ label: "Switch", id: "device:1", children: [port] }] }]
+  assert.equal(CatalogTree.find(nodes, "client:1")?.node.label, "Phone")
+  assert.deepEqual(CatalogTree.find(nodes, "port:1"), { node: port, path: ["Devices", "Switch", "Port 1"] })
+  assert.equal(CatalogTree.find(nodes, "client:2"), undefined)
+})

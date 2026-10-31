@@ -12,7 +12,7 @@ import PanelPartView from "./PanelPartView.vue"
  * ship no UI code.
  */
 // busy: an instant action or switch is running; its buttons wait for it
-const props = defineProps<{ panel: Panel; loading?: boolean; busy?: boolean; actions?: ActionDescription[] }>()
+const props = defineProps<{ panel: Panel; loading?: boolean; busy?: boolean; actions?: ActionDescription[]; browse?: (id: string, title: string) => void }>()
 const emit = defineEmits<{ refresh: []; action: [action: RowAction] }>()
 const labelOf = (button: RowAction) => button.label ?? props.actions?.find(action => action.id === button.action)?.label ?? button.action
 </script>
@@ -32,10 +32,10 @@ const labelOf = (button: RowAction) => button.label ?? props.actions?.find(actio
               <ActionControl v-for="button in section.actions" :key="button.action + labelOf(button)" :action="button" :label="labelOf(button)" :disabled="busy" @run="emit('action', button)" />
             </div>
           </div>
-          <PanelPartView :part="section.panel" :label-of="labelOf" :busy="busy" @action="action => emit('action', action)" />
+          <PanelPartView :part="section.panel" :label-of="labelOf" :busy="busy" :browse="browse" @action="action => emit('action', action)" />
         </section>
       </div>
-      <PanelPartView v-else :part="panel" :label-of="labelOf" :busy="busy" @action="action => emit('action', action)" />
+      <PanelPartView v-else :part="panel" :label-of="labelOf" :busy="busy" :browse="browse" @action="action => emit('action', action)" />
     </CardContent>
   </Card>
 </template>

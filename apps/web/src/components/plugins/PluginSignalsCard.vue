@@ -40,6 +40,8 @@ const collapsed = ref(new Set<string>())
 const toggleGroup = (key: string) => (collapsed.value = new Set(collapsed.value.has(key) ? [...collapsed.value].filter(k => k !== key) : [...collapsed.value, key]))
 const dialog = ref<SignalDialogTarget>()
 const browsing = ref(false)
+// set while the catalog shows one node's signals, from a panel row's "Signals" button
+const scope = ref<{ id: string; title: string }>()
 const forcing = ref<PluginSignalDto>()
 const forceOpen = ref(false)
 const query = ref("")
@@ -67,6 +69,13 @@ watch(() => props.signals, signals => {
   selection.retain(signals.map(s => s.id))
   if (forcing.value && !signals.some(s => s.id === forcing.value!.id && s.topic === forcing.value!.topic)) forceOpen.value = false
 })
+
+/** opens the catalog, or with `id` only that node's entries (a panel row's "Signals" button) */
+function browse(id?: string, title?: string) {
+  scope.value = id === undefined ? undefined : { id, title: title ?? id }
+  browsing.value = true
+}
+defineExpose({ browse })
 
 // the catalog's "+": the entry as it is
 async function add(input: PluginSignalInput) {
@@ -124,7 +133,7 @@ const remove = (signal: PluginSignalDto) =>
         <CardDescription>Sensors read values from the device, actuators control it. Wire them to a Miniserver or to each other.</CardDescription>
       </div>
       <div class="flex flex-wrap gap-2">
-        <Button size="sm" variant="outline" :disabled="!running" :title="running ? 'What the plugin found on the device' : 'The catalog needs the plugin running'" @click="browsing = true">
+        <Button size="sm" variant="outline" :disabled="!running" :title="running ? 'What the plugin found on the device' : 'The catalog needs the plugin running'" @click="browse()">
           <FolderTree class="size-4" /> Add from catalog
         </Button>
         <Button size="sm" variant="outline" @click="dialog = {}"><Plus class="size-4" /> Add manually</Button>
@@ -169,13 +178,13 @@ const remove = (signal: PluginSignalDto) =>
     <Dialog v-model:open="browsing">
       <DialogContent class="sm:max-w-5xl">
         <DialogHeader>
-          <DialogTitle>Add from the catalog of {{ instance.label }}</DialogTitle>
+          <DialogTitle>{{ scope ? `Signals of ${scope.title}` : `Add from the catalog of ${instance.label}` }}</DialogTitle>
           <DialogDescription>
             What the plugin found on the device. + adds an entry as it is, the sliders let you change it first. Tick several to connect them to a
             Miniserver in one go.
           </DialogDescription>
         </DialogHeader>
-        <CatalogBrowser v-if="browsing" :instance-id="instance.id" :signals="signals" :add="add" @customize="customize" @bridge="bridgeEntries" />
+        <CatalogBrowser v-if="browsing" :instance-id="instance.id" :signals="signals" :add="add" :root="scope?.id" @customize="customize" @bridge="bridgeEntries" @found="path => scope && (scope.title = path)" />
       </DialogContent>
     </Dialog>
     <BridgeDialog v-model:open="bridgeOpen" :instance-id="instance.id" :candidates="bridging" @changed="bridged" />

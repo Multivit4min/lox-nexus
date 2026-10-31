@@ -3,6 +3,7 @@ import { GuestAccessAction } from "../actions/GuestAccessAction.ts"
 import type { Client } from "../api/ApiSchemas.ts"
 import { MacAddress } from "../api/MacAddress.ts"
 import type { NetworkSnapshot } from "../poll/NetworkSnapshot.ts"
+import { CatalogIds } from "../catalog/CatalogIds.ts"
 import type { Section } from "./PanelTypes.ts"
 
 /** The connected clients (the API lists no others), with Authorize or Unauthorize on guests. */
@@ -17,7 +18,8 @@ export class ClientsSection {
         type: "table",
         columns: ["Name", "IP address", "MAC address", "Connected to", "Type", "Access", "Connected"],
         rows: clients.map(client => this.row(client)),
-        rowActions: clients.map(client => ClientsSection.actions(client))
+        rowActions: clients.map(client => ClientsSection.actions(client)),
+        rowCatalog: clients.map(client => CatalogIds.client(client.id))
       }
     }]
   }

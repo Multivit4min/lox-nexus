@@ -40,16 +40,25 @@ export const RowActionSchema = z.object({
 })
 export type RowAction = z.infer<typeof RowActionSchema>
 
+/**
+ * The id of a catalog node (CatalogNode.id) whose signals a "Signals" button next to a row or item
+ * offers to add, e.g. one client's: the user picks from that node's entries instead of searching
+ * the whole catalog. Hosts without "panel.v2" get the panel without it.
+ */
+const CatalogRef = z.string().min(1).max(200)
+
 // a link the UI may open: the web only, or a page of Nexus itself
 const href = z.string().max(2000).refine(link => /^https?:\/\//i.test(link) || link.startsWith("#/"), "only http(s) links or Nexus pages (#/…)")
 
 const KeyValuePanel = z.object({
   type: z.literal("keyValue"),
-  items: z.array(z.object({ label: z.string(), value: CellSchema, control: RowActionSchema.optional() }))
+  items: z.array(z.object({ label: z.string(), value: CellSchema, control: RowActionSchema.optional(), catalog: CatalogRef.optional() }))
 })
 const TablePanel = z.object({
   type: z.literal("table"), columns: z.array(z.string()), rows: z.array(z.array(CellSchema)),
-  rowActions: z.array(z.array(RowActionSchema).max(4)).optional()
+  rowActions: z.array(z.array(RowActionSchema).max(4)).optional(),
+  /** per row, the catalog node with that row's signals (see CatalogRef), or null for none */
+  rowCatalog: z.array(CatalogRef.nullable()).optional()
 })
 /** a QR code of `data`, e.g. a Matter pairing payload */
 const QrPanel = z.object({ type: z.literal("qr"), data: z.string().min(1).max(1024), caption: z.string().max(200).optional() })
@@ -100,7 +109,9 @@ export type PanelPart = z.infer<typeof PanelPartSchema>
  *
  * Values are cells: text, or text with a tone and a live countdown (see Cell). Buttons (see
  * RowAction) go on table rows (`rowActions`), key-value items (`control`) and section headings
- * (`actions`). Hosts without the "panel.v2" feature get tiles and notices as key-value lists,
+ * (`actions`). A row or item that stands for something in the catalog (a client, a device) can
+ * point at its catalog node (`rowCatalog`, an item's `catalog`) for a "Signals" button that adds
+ * its signals directly. Hosts without the "panel.v2" feature get tiles and notices as key-value lists,
  * cells as text and no item controls; the runtime converts them. Answers must be JSON: format
  * BigInt and dates as text. Never put secrets in a panel.
  */

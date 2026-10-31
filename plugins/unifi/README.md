@@ -14,7 +14,8 @@ the other way.
 - **Actuators:** restart a device, power-cycle a PoE port, authorize or unauthorize a guest,
   switch a Wi-Fi network on or off, create a voucher.
 - **Catalog:** the connected clients (by MAC address and by name), the devices with their ports,
-  the Wi-Fi networks and the vouchers, all ready to add.
+  the Wi-Fi networks and the vouchers, all ready to add. Each client, device, port and Wi-Fi
+  network on the panel has a **Signals** button that offers just its signals.
 - **Panel:** whether the console can be read, its Network version and site, the number of clients
   and devices online, a switch per Wi-Fi network, the devices with a Restart button, the switch
   ports with Power-cycle on PoE ports, and the connected clients. It refreshes after every poll.

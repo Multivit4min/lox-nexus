@@ -20,10 +20,12 @@ import { SignalDisplayDraft } from "../../lib/SignalDisplayDraft.ts"
  * What a running plugin offers, flattened, searchable and filterable by kind (sensors or actuators,
  * offered once the catalog has both). "Add" configures an entry as it is;
  * "customize" opens it in the signal form to change name or params first. Entries not configured
- * yet can be selected and connected to a Miniserver in one go (`bridge`).
+ * yet can be selected and connected to a Miniserver in one go (`bridge`). With `root`, only that
+ * catalog node's entries, e.g. one client's, for a panel row's "Signals" button.
  */
-const props = defineProps<{ instanceId: string; signals: PluginSignalDto[]; add: (input: PluginSignalInput) => Promise<void> }>()
-const emit = defineEmits<{ customize: [entry: CatalogEntry]; bridge: [rows: CatalogRow[]] }>()
+const props = defineProps<{ instanceId: string; signals: PluginSignalDto[]; add: (input: PluginSignalInput) => Promise<void>; root?: string }>()
+// found: where `root` sits in the catalog ("Devices ▸ Switch ▸ Port 3"), for the dialog's title
+const emit = defineEmits<{ customize: [entry: CatalogEntry]; bridge: [rows: CatalogRow[]]; found: [path: string] }>()
 const api = AppContext.use().plugins
 const rows = ref<CatalogRow[]>([])
 const loading = ref(true)
@@ -49,7 +51,12 @@ const picked = () => {
 
 onMounted(async () => {
   try {
-    rows.value = CatalogTree.rows(await api.catalog(props.instanceId))
+    const nodes = await api.catalog(props.instanceId)
+    const root = props.root === undefined ? undefined : CatalogTree.find(nodes, props.root)
+    // a client that left since the panel was drawn is no longer in the catalog
+    if (props.root !== undefined && !root) failure.value = "It isn't in the plugin's catalog (any more); reload the page or search the whole catalog."
+    if (root) emit("found", root.path.join(" ▸ "))
+    rows.value = props.root === undefined ? CatalogTree.rows(nodes) : root ? CatalogTree.rows([root.node], root.path.slice(0, -1)) : []
   } catch (error) {
     failure.value = error instanceof Error ? error.message : String(error)
   } finally {

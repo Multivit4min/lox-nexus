@@ -86,11 +86,17 @@ export type CatalogEntry = z.infer<typeof CatalogEntrySchema>
  */
 export interface CatalogNode {
   label: string
+  /**
+   * Names the node for a panel's "Signals" button (`rowCatalog`, an item's `catalog`), e.g.
+   * "client:aa:bb:cc:dd:ee:ff"; unique within the catalog. Older hosts drop it.
+   */
+  id?: string
   children?: CatalogNode[]
   entries?: CatalogEntry[]
 }
 export const CatalogNodeSchema: z.ZodType<CatalogNode> = z.lazy(() => z.object({
   label: z.string(),
+  id: z.string().min(1).max(200).optional(),
   children: z.array(CatalogNodeSchema).optional(),
   entries: z.array(CatalogEntrySchema).optional()
 }))

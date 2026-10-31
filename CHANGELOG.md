@@ -9,6 +9,10 @@
   tables get a search box, sortable columns and pages of 25.
 - **Actions** can answer with a QR code (or another panel part) and show their progress while
   they run.
+- **"Signals" buttons:** a panel row or item can point at its node in the catalog (a client, a
+  device); its **Signals** button opens just that node's signals to add or connect, instead of
+  searching the whole catalog. The UniFi plugin has them on clients, devices, ports and Wi-Fi
+  networks.
 - **Live pages:** a plugin may tell the page when its panel changed, instead of being asked every
   3 s.
 - **Settings forms:** inputs for durations, times of day, colours, sliders, files and multiple
