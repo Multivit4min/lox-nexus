@@ -36,8 +36,10 @@ export abstract class StateActuator extends Actuator<MatterBridgePlugin, DeviceP
   }
 
   private static toKind(value: Value): KindValue {
-    if (value.type === "boolean" || value.type === "number") return value.value
+    if (value.type === "boolean" || value.type === "number" || value.type === "string") return value.value
     if (value.type === "tunableWhite") return { temperature: value.value.temperature, brightness: value.value.brightness }
-    throw new Error(`expects a boolean, a number or a tunable white value, got ${value.type}`)
+    // the white channel has no place in Matter's colour; a white light is a colour temperature
+    if (value.type === "rgbw") return { red: value.value.red, green: value.value.green, blue: value.value.blue }
+    throw new Error(`expects a boolean, a number, a text, a tunable white or an RGBW value, got ${value.type}`)
   }
 }

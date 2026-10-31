@@ -6,11 +6,13 @@ Loxone output); what those apps command comes back into Nexus as sensors.
 
 ## What it does
 
-- **Sensors:** commands from the apps per device: on/off, brightness, colour temperature, a
-  blind's target position, a thermostat's setpoint, a fan's speed, lock and unlock requests.
-- **Actuators:** each device's state for the apps: on/off, brightness, colour temperature, a
-  blind's position, temperature, humidity, contact, motion, a setpoint, fan speed, a lock, smoke
-  and CO alarms, water leaks, and button presses that start routines.
+- **Sensors:** commands from the apps per device: on/off, brightness, colour temperature, colour,
+  a blind's target position and slat angle, a thermostat's setpoints and mode, a fan's speed, lock
+  and unlock requests, opening and closing a valve.
+- **Actuators:** each device's state for the apps: the same values back, plus temperature,
+  humidity, illuminance, pressure, flow, air quality, CO₂ and PM2.5, contact, motion, smoke and CO
+  alarms, water leaks, rain, frost, battery levels, and button and doorbell presses that start
+  routines.
 - **Catalog:** one folder per device with exactly the signals its type has.
 - **Panel:** the pairing QR code and code (while the bridge's own code works), the paired apps
   with a Remove button each, and every device with its id, last command and last state, with
@@ -37,7 +39,7 @@ Loxone output); what those apps command comes back into Nexus as sensors.
 | **UDP port** (`port`) | optional; default `5540` | The Matter port, 1024 to 65535. Change it only when another Matter program on the host uses 5540, e.g. to `5550`. |
 
 Devices are not settings: add them with **Add device** on the instance page (name, type, for door
-locks **Allow unlocking**, for sensors and buttons **Battery**), at most 50 (Alexa's limit for one
+locks **Allow unlocking**, for battery-powered sensors and buttons **Battery**), at most 50 (Alexa's limit for one
 bridge).
 
 ## Sensors and actuators
@@ -51,6 +53,11 @@ bridge).
 | sensor | Target position % from controllers (`position`) | `number` | Where an app wants the blind, in % closed (0 open, 100 closed). |
 | sensor | Heating setpoint °C from controllers (`setpoint`) | `number` | The temperature an app set on the thermostat. |
 | sensor | Fan speed % from controllers (`fan-speed`) | `number` | The speed an app set on a fan (0–100). |
+| sensor | Target slat angle % from controllers (`tilt`) | `number` | Where an app wants the slats, in % closed. |
+| sensor | Colour from controllers (`color`) | `rgbw` | The colour an app set, brightness included, for a Loxone RGBW actuator. |
+| sensor | Cooling setpoint °C from controllers (`cooling-setpoint`) | `number` | The temperature an app set to cool to. |
+| sensor | Mode from controllers (`mode`) | `string` | The thermostat mode an app picked: `off`, `heat`, `cool` or `auto`. |
+| sensor | Open or close from controllers (`valve`) | `boolean` | `true` when an app opens the valve, `false` when it closes it. |
 | sensor | Lock request from controllers (`lock`) | `boolean` | `true` to lock, `false` to unlock (only if the lock allows unlocking). |
 | actuator | On/off state to controllers (`on-off`) | `boolean` | Whether the light, plug or fan is on. |
 | actuator | Brightness % to controllers (`brightness`) | `number` | The light's brightness; 0 shows it off. |
@@ -67,12 +74,20 @@ bridge).
 | actuator | Smoke alarm to controllers (`smoke`) | `boolean` | A smoke alarm Nexus reports, e.g. from Loxone's fire alarm. |
 | actuator | CO alarm to controllers (`co`) | `boolean` | A carbon monoxide alarm Nexus reports. |
 | actuator | Leak to controllers (`leak`) | `boolean` | On while a water leak is detected. |
+| actuator | Current slat angle % to controllers (`tilt`) | `number` | Where the slats are, in % closed. |
+| actuator | Colour to controllers (`color`) | `rgbw` | The light's colour from a Loxone RGBW actuator; all 0 shows it off. |
+| actuator | Cooling setpoint °C to controllers (`cooling-setpoint`) | `number` | The thermostat's cooling setpoint (16–32 °C). |
+| actuator | Mode to controllers (`mode`) | `string` | The thermostat's mode: `off`, `heat`, `cool` or `auto`. |
+| actuator | Valve open to controllers (`valve`) | `boolean` | Whether the valve is open. |
+| actuator | Air quality level to controllers (`air-quality`) | `number` | 1 good to 6 extremely poor; without it, the level follows CO₂ and PM2.5. |
+| actuator | CO₂ ppm to controllers (`co2`) | `number` | The CO₂ concentration. |
+| actuator | PM2.5 µg/m³ to controllers (`pm25`) | `number` | The fine dust concentration. |
 | actuator | Illuminance lx to controllers (`illuminance`) | `number` | A light sensor's brightness in lux. |
 | actuator | Pressure hPa to controllers (`pressure`) | `number` | A pressure sensor's value in hPa. |
 | actuator | Flow m³/h to controllers (`flow`) | `number` | A flow sensor's value in m³/h. |
 | actuator | Rain to controllers (`rain`) | `boolean` | On while rain is detected. |
 | actuator | Frost to controllers (`freeze`) | `boolean` | On while a water freeze detector warns of frost. |
-| actuator | Battery % to controllers (`battery`) | `number` | The battery level of a sensor or button added with **Battery**. |
+| actuator | Battery % to controllers (`battery`) | `number` | The battery level of a sensor, button or doorbell added with **Battery**. |
 | actuator | Press to controllers (`press`) | `boolean` | Each `true` is a short button press, to start routines. |
 | actuator | Long press to controllers (`long-press`) | `boolean` | Each `true` is a long button press. |
 

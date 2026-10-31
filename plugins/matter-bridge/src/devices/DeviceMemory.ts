@@ -8,7 +8,7 @@ type Remembered = z.infer<typeof rememberedSchema>
 /**
  * The last state Nexus sent for the attributes matter.js doesn't persist itself (it does for
  * on/off, level, colour temperature, positions, fan speed and setpoints): contacts, motion, locks,
- * alarms, leaks, rain, frost, measurements and battery levels. Without them a restart would show every door closed
+ * alarms, leaks, rain, frost, valves, measurements, air quality and battery levels. Without them a restart would show every door closed
  * until it next changes, and showing it open again would start "door opens" routines although
  * nothing happened; temperatures would be unknown until Loxone happens to send again.
  */
@@ -16,7 +16,7 @@ export class DeviceMemory {
   static readonly PREFIX = "state:"
   static readonly KINDS: readonly StateKind[] = [
     "contact", "occupancy", "temperature", "humidity", "locked", "smoke", "co", "leak",
-    "illuminance", "pressure", "flow", "rain", "freeze", "battery"
+    "illuminance", "pressure", "flow", "rain", "freeze", "battery", "valve", "airQuality", "co2", "pm25"
   ]
 
   private readonly cache = new Map<string, Remembered>()
@@ -30,7 +30,7 @@ export class DeviceMemory {
 
   /** keeps the value if it is one matter.js doesn't persist and it changed */
   remember(endpointId: string, kind: StateKind, value: KindValue) {
-    if (!DeviceMemory.KINDS.includes(kind) || typeof value === "object") return
+    if (!DeviceMemory.KINDS.includes(kind) || (typeof value !== "number" && typeof value !== "boolean")) return
     const current = this.read(endpointId)
     if (current[kind] === value) return
     const next = { ...current, [kind]: value }

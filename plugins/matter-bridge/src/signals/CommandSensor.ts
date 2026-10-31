@@ -36,7 +36,10 @@ export abstract class CommandSensor extends Sensor<MatterBridgePlugin, DevicePar
   }
 
   private static toValue(value: KindValue) {
-    if (typeof value === "object") return Value.tunableWhite({ ...value, fadeTime: 0 })
+    if (typeof value === "object") {
+      return "red" in value ? Value.rgbw({ ...value, white: 0, fadeTime: 0, flags: 0 }) : Value.tunableWhite({ ...value, fadeTime: 0 })
+    }
+    if (typeof value === "string") return Value.string(value)
     return typeof value === "boolean" ? Value.boolean(value) : Value.number(value)
   }
 }

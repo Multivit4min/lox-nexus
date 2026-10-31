@@ -52,7 +52,18 @@ test("the catalog offers, per device, the commands and states its type has", asy
     "water-freeze-detector (Water freeze detector)": ["actuator freeze"],
     "dimmable-plug (Dimmable plug)": ["sensor on-off", "sensor brightness", "actuator on-off", "actuator brightness"],
     "wall-switch (Wall switch (on/off))": ["sensor on-off", "actuator on-off"],
-    "wall-dimmer (Wall dimmer)": ["sensor on-off", "sensor brightness", "actuator on-off", "actuator brightness"]
+    "wall-dimmer (Wall dimmer)": ["sensor on-off", "sensor brightness", "actuator on-off", "actuator brightness"],
+    "color-light (Colour light (RGB))": [
+      "sensor on-off", "sensor brightness", "sensor color-temperature", "sensor color",
+      "actuator on-off", "actuator brightness", "actuator color-temperature", "actuator color"
+    ],
+    "venetian-blind (Blind with slats (lift and tilt))": ["sensor position", "sensor tilt", "actuator position", "actuator tilt"],
+    "thermostat-heat-cool (Thermostat (heating and cooling))": [
+      "sensor setpoint", "sensor cooling-setpoint", "sensor mode", "actuator temperature", "actuator setpoint", "actuator cooling-setpoint", "actuator mode"
+    ],
+    "water-valve (Water valve)": ["sensor valve", "actuator valve"],
+    "air-quality-sensor (Air quality sensor)": ["actuator air-quality", "actuator co2", "actuator pm25"],
+    "doorbell (Doorbell)": ["actuator press"]
   })
   const light = catalog[0]!.entries![0]!
   assert.deepEqual(light, { kind: "sensor", capability: "on-off", params: { device: "on-off-light" }, label: "on-off-light: on/off from controllers" })

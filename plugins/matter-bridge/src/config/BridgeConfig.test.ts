@@ -47,9 +47,9 @@ test("forms: fields, params and action inputs have titles, descriptions and labe
   assert.ok(actions.every(action => action.placement === "panel"), "every button is in the panel: above its section or on its row")
   for (const action of actions.slice(1)) checkFields(action.input, action.id)
   // add-device is a union by type: the other types, sensors and buttons with Battery, and the door lock with Allow unlocking
-  const [others, battery, lock] = (actions[0]!.input as { oneOf: Schema[] }).oneOf
-  assert.equal(Object.keys(checkFields(others, "add-device").type?.enumLabels ?? {}).length, 11)
-  assert.equal(Object.keys(checkFields(battery, "add-device").type?.enumLabels ?? {}).length, 11)
+  const [others, lock, battery] = (actions[0]!.input as { oneOf: Schema[] }).oneOf
+  assert.equal(Object.keys(checkFields(others, "add-device").type?.enumLabels ?? {}).length, 15)
+  assert.equal(Object.keys(checkFields(battery, "add-device").type?.enumLabels ?? {}).length, 13)
   assert.deepEqual(Object.keys(battery!.properties ?? {}), ["type", "name", "battery"])
   assert.deepEqual(Object.keys(lock!.properties ?? {}), ["type", "name", "allowUnlock"])
   assert.equal(lock!.properties!.type!.title, "Door lock")

@@ -1,14 +1,17 @@
+import { AirQualityLevel } from "../devices/AirQualityLevel.ts"
 import type { CommandKind, KindValue, StateKind } from "../devices/DeviceKinds.ts"
 
 type Kind = StateKind | CommandKind
 
 const UNITS: Partial<Record<Kind, string>> = {
-  temperature: "°C", setpoint: "°C", colorTemperature: "K", illuminance: "lx", pressure: "hPa", flow: "m³/h"
+  temperature: "°C", setpoint: "°C", coolingSetpoint: "°C", colorTemperature: "K", illuminance: "lx", pressure: "hPa", flow: "m³/h",
+  co2: "ppm", pm25: "µg/m³"
 }
 const FLAGS: Partial<Record<Kind, [string, string]>> = {
   contact: ["open", "closed"], occupancy: ["occupied", "clear"], locked: ["locked", "unlocked"], lock: ["lock", "unlock"],
   smoke: ["smoke alarm", "no smoke"], co: ["CO alarm", "no CO"], leak: ["leak", "dry"], press: ["pressed", "released"],
-  longPress: ["long press", "released"], rain: ["rain", "dry"], freeze: ["frost", "no frost"]
+  longPress: ["long press", "released"], rain: ["rain", "dry"], freeze: ["frost", "no frost"],
+  valve: ["open", "closed"]
 }
 
 /** Commands and states as the panel and messages show them: "on", "45 %", "21.5 °C", "open". */
@@ -18,7 +21,8 @@ export class KindFormat {
     position: "position", setpoint: "heating setpoint", fanSpeed: "speed", lock: "lock", temperature: "temperature",
     humidity: "humidity", contact: "contact", occupancy: "occupancy", locked: "locked", smoke: "smoke", co: "CO",
     leak: "leak", press: "press", longPress: "long press", illuminance: "illuminance", pressure: "pressure", flow: "flow",
-    rain: "rain", freeze: "frost", battery: "battery"
+    rain: "rain", freeze: "frost", battery: "battery", tilt: "slat angle", color: "colour", coolingSetpoint: "cooling setpoint",
+    mode: "mode", valve: "valve", airQuality: "air quality", co2: "CO₂", pm25: "PM2.5"
   }
 
   static label(kind: Kind) {
@@ -26,11 +30,16 @@ export class KindFormat {
   }
 
   static value(kind: Kind, value: KindValue) {
-    if (typeof value === "object") return `${Math.round(value.temperature)} K, ${KindFormat.number(value.brightness)} %`
+    if (typeof value === "object") {
+      if ("red" in value) return `R ${Math.round(value.red)} G ${Math.round(value.green)} B ${Math.round(value.blue)} %`
+      return `${Math.round(value.temperature)} K, ${KindFormat.number(value.brightness)} %`
+    }
+    if (typeof value === "string") return value
     if (typeof value === "boolean") {
       const [yes, no] = FLAGS[kind] ?? ["on", "off"]
       return value ? yes : no
     }
+    if (kind === "airQuality") return AirQualityLevel.NAMES[value] ?? String(value)
     return `${KindFormat.number(value)} ${UNITS[kind] ?? "%"}`
   }
 

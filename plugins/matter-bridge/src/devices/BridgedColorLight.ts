@@ -84,7 +84,7 @@ export class BridgedColorLight extends BridgedDevice {
   }
 
   private static white(value: KindValue): TunableWhiteValue {
-    if (typeof value !== "object") throw new Error(`not a tunable white value: ${String(value)}`)
+    if (typeof value !== "object" || !("temperature" in value)) throw new Error(`not a tunable white value: ${JSON.stringify(value)}`)
     return value
   }
 }

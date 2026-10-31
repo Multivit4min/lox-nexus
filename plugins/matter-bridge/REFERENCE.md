@@ -37,29 +37,36 @@ it has.
 |---|---|---|---|---|
 | On/off light (`on-off-light`) | a light with on/off | `on-off` | `on-off` | off |
 | Dimmable light (`dimmable-light`) | a light with brightness | `on-off`, `brightness` | `on-off`, `brightness` | off |
+| Tunable white light (`color-temperature-light`) | a light with brightness and white tone | `on-off`, `brightness`, `color-temperature`, `tunable-white` | the same four | off, 4000 K |
+| Colour light (RGB) (`color-light`) | a colour light (extended colour light) | `on-off`, `brightness`, `color-temperature`, `color` | the same four | off, 4000 K |
 | Plug (on/off) (`plug`) | a smart plug | `on-off` | `on-off` | off |
 | Dimmable plug (`dimmable-plug`) | a plug with brightness | `on-off`, `brightness` | `on-off`, `brightness` | off |
 | Wall switch (on/off) (`wall-switch`) | a mounted on/off control (Matter 1.4) | `on-off` | `on-off` | off |
 | Wall dimmer (`wall-dimmer`) | a mounted dimmable load control (Matter 1.4) | `on-off`, `brightness` | `on-off`, `brightness` | off |
 | Window covering (lift position) (`window-covering`) | a blind or shutter with a position | `position` | `position` | position unknown |
+| Blind with slats (lift and tilt) (`venetian-blind`) | an exterior venetian blind with position and slat angle | `position`, `tilt` | `position`, `tilt` | positions unknown |
 | Thermostat (heating) (`thermostat`) | a heating thermostat | `setpoint` | `temperature`, `setpoint` | room temperature unknown, setpoint 20 °C |
+| Thermostat (heating and cooling) (`thermostat-heat-cool`) | a thermostat with heat, cool, auto and off | `setpoint`, `cooling-setpoint`, `mode` | `temperature`, `setpoint`, `cooling-setpoint`, `mode` | heat, room temperature unknown, setpoints 20 and 26 °C |
+| Fan (`fan`) | a fan with speed (off, low, medium, high, or %) | `on-off`, `fan-speed` | `on-off`, `fan-speed` | off |
+| Water valve (`water-valve`) | a water valve (Matter 1.3) | `valve` | `valve` | unknown |
+| Door lock (`door-lock`) | a lock | `lock` | `locked` | unknown |
 | Temperature sensor (`temperature-sensor`) | a temperature sensor | | `temperature` | unknown |
 | Humidity sensor (`humidity-sensor`) | a humidity sensor | | `humidity` | unknown |
-| Contact sensor (door, window) (`contact-sensor`) | a contact sensor | | `contact` | closed |
-| Motion (occupancy) sensor (`occupancy-sensor`) | a motion sensor | | `occupancy` | no motion |
-| Tunable white light (`color-temperature-light`) | a light with brightness and white tone | `on-off`, `brightness`, `color-temperature`, `tunable-white` | the same four | off, 4000 K |
-| Fan (`fan`) | a fan with speed (off, low, medium, high, or %) | `on-off`, `fan-speed` | `on-off`, `fan-speed` | off |
-| Door lock (`door-lock`) | a lock | `lock` | `locked` | unknown |
-| Smoke and CO alarm (`smoke-co-alarm`) | a smoke and carbon monoxide alarm | | `smoke`, `co` | normal |
-| Water leak detector (`water-leak-detector`) | a leak sensor | | `leak` | dry |
 | Light sensor (lux) (`light-sensor`) | an illuminance sensor | | `illuminance` | unknown |
 | Pressure sensor (`pressure-sensor`) | a pressure sensor | | `pressure` | unknown |
 | Flow sensor (`flow-sensor`) | a flow sensor | | `flow` | unknown |
+| Air quality sensor (`air-quality-sensor`) | an air quality sensor with CO₂ and PM2.5 (Matter 1.2) | | `air-quality`, `co2`, `pm25` | unknown |
+| Contact sensor (door, window) (`contact-sensor`) | a contact sensor | | `contact` | closed |
+| Motion (occupancy) sensor (`occupancy-sensor`) | a motion sensor | | `occupancy` | no motion |
+| Smoke and CO alarm (`smoke-co-alarm`) | a smoke and carbon monoxide alarm (Matter 1.2) | | `smoke`, `co` | normal |
+| Water leak detector (`water-leak-detector`) | a leak sensor (Matter 1.3) | | `leak` | dry |
 | Rain sensor (`rain-sensor`) | a rain sensor (Matter 1.3) | | `rain` | dry |
 | Water freeze detector (`water-freeze-detector`) | a frost sensor (Matter 1.3) | | `freeze` | no frost |
 | Button (generic switch) (`generic-switch`) | a button for routines | | `press`, `long-press` | |
+| Doorbell (`doorbell`) | a doorbell (Matter 1.4) | | `press` | |
 
-**Battery.** Sensors and buttons can be added with **Battery** on: the device then also has a
+**Battery.** Sensors, buttons and doorbells (every type above with actuators only, except the
+smoke and CO alarm, which reports itself as wired) can be added with **Battery** on: the device then also has a
 `battery` actuator, and the apps show its level (Matter's power source with a battery) and warn
 when it is low. Without it the device has no battery at all, as a mains-powered one.
 
@@ -68,8 +75,9 @@ as" is what a new device shows before Nexus sends anything.
 
 After a restart (a config change, an update) each device shows what it showed before, although
 Nexus doesn't replay values to actuators when an instance starts. matter.js stores on/off,
-brightness, colour temperature, positions, fan speeds and setpoints itself. For contacts, motion,
-locks, alarms, leaks, rain, frost, measurements and battery levels the plugin keeps the last state Nexus sent (store keys `state:<device id>`): without it a restart
+brightness, colour, positions, fan speeds, setpoints and thermostat modes itself. For contacts,
+motion, locks, valves, alarms, leaks, rain, frost, measurements, air quality and battery levels the
+plugin keeps the last state Nexus sent (store keys `state:<device id>`): without it a restart
 would show every door closed and then "open" it again, which starts "door opens" routines although
 nothing happened, and temperatures would be unknown until Loxone happens to send again. After the
 factory reset that follows removing the last app, the bridge sets every state Nexus sent in this
@@ -88,6 +96,11 @@ What the apps do with a type is up to them, and only real hardware shows it:
 - **Door lock:** Alexa asks for its own voice code before unlocking by voice (set in the Alexa
   app); Nexus keeps no PIN codes. Unlocking from any app is refused unless **Allow unlocking** is
   on for the lock.
+- **Rain sensor, water freeze detector, water valve, doorbell, wall switch and wall dimmer:**
+  newer Matter types (1.3 and 1.4). Apps that don't know them yet may show them as an unknown
+  device or not at all; Home Assistant shows them.
+- **Colour light:** Alexa, Google Home and Apple Home set colours by hue and saturation or by x/y;
+  both arrive as the same RGB value.
 - **Button:** apps that support Matter buttons (generic switches) offer presses as routine
   triggers; whether Alexa does for a bridged button could not be checked without an Echo.
 
@@ -117,7 +130,14 @@ color temperature, lx and hPa without decimals, and m³/h with one.
 | `illuminance` | lux | IlluminanceMeasurement `measuredValue` = 10 000 × log10(lx) + 1; below 1 lx is 0 (too dark to measure) |
 | `pressure` | hPa (mbar) | PressureMeasurement `measuredValue` in 0.1 kPa, the same number as hPa |
 | `flow` | m³/h | FlowMeasurement `measuredValue` in 0.1 m³/h, at least 0 |
-| `battery` | 0–100 % | PowerSource `batPercentRemaining` in half percent; `batChargeLevel` warning below 20 %, critical below 10 %, with `batReplacementNeeded` |
+| `battery` | 0–100 % | PowerSource `batPercentRemaining` in half percent; `batChargeLevel` warning below 20 %, critical below 10 % (with `batReplacementNeeded`); its `endpointList` names the device. A battery level doesn't replace the reading in the panel's "last state" |
+| `tilt` | 0–100 % closed (0 open, slats horizontal; 100 closed) | WindowCovering tilt position in 1/100 %, like `position`: go to sends the target, stop sends lift and slat positions Nexus last reported |
+| `color` | Nexus's `rgbw`: red, green and blue in %, brightness included | A command is the light's colour at its brightness (all 0 when off; white 0), from whichever mode the app used: hue and saturation, CIE x/y, or a colour temperature as its RGB (matter.js's conversions). A state sets hue and saturation from the colour, and the brightness from its brightest channel (all 0 switches the light off); the white channel is not used |
+| `cooling-setpoint` | °C | `occupiedCoolingSetpoint` in 1/100 °C, limited to 16–32 °C. In auto mode Matter keeps the setpoints at least 2 °C apart, so an app moving one may move the other: both come as commands |
+| `mode` | text: `off`, `heat`, `cool`, `auto` | Thermostat `systemMode`. A mode Nexus doesn't know (an app's fan only, dry) comes as Matter names it, e.g. `fanonly`; a state other than the four is refused. Map it to Loxone's numbers with a Map transform |
+| `valve` | `true` open, `false` closed | ValveConfigurationAndControl Open and Close commands (sent on every request); the valve shows "transitioning" until Nexus reports `currentState`. A duration an app gives with Open is not kept: the valve stays open until closed |
+| `air-quality` | 1 good, 2 fair, 3 moderate, 4 poor, 5 very poor, 6 extremely poor, 0 unknown | AirQuality `airQuality`. Until Nexus sends a level, it follows the worse of the readings: CO₂ up to 750, 1000, 1500, 2000 and 5000 ppm, PM2.5 up to 10, 20, 25, 50 and 75 µg/m³ (European Air Quality Index) |
+| `co2`, `pm25` | ppm, µg/m³ | The concentration measurements' `measuredValue` (numeric, in air), at least 0 |
 | `press`, `long-press` | each `true` is one press; `false` does nothing | Switch events: InitialPress, ShortRelease and MultiPressComplete (two presses within 300 ms count as a double press); a long press holds for 1.2 s: InitialPress, LongPress, LongRelease. Presses are events, not states: nothing is remembered or replayed |
 
 A command from an app updates the bridge at once (Matter needs that) and goes to the sensor. A
@@ -127,8 +147,8 @@ to the previous one, and the bridge only reports changes: a command that matches
 shows (Alexa says "on" while it shows on) sends nothing. Wire the state actuator as well, so the
 bridge shows what Loxone did.
 
-A thermostat stays in heat mode. A mode change from an app (off, auto) is accepted by the bridge
-but not passed on; there is no sensor for it in this version.
+A heating thermostat (`thermostat`) stays in heat mode: a mode change from an app (off, auto) is
+accepted by the bridge but not passed on. The heating and cooling thermostat passes modes both ways.
 
 ## Sensor and actuator params
 
@@ -265,7 +285,7 @@ machine (1–2 GB) run a single instance; one bridge carries up to 50 devices.
 | Device and bridge names | 32 bytes (letters like ä count twice), unique per bridge ignoring case |
 | Pairing window | 15 minutes once paired; 48 hours while not paired |
 | Paired apps | in practice a handful; each app is one Matter fabric |
-| Device types | the fifteen above; colour (hue) lights, cooling, garage doors and air purifiers are not in this version |
+| Device types | the ones above; the README lists every Matter device type and which the bridge has |
 
 ## Security notes
 

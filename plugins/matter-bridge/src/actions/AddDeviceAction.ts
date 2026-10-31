@@ -13,18 +13,21 @@ const typeChoice = (types: Types) => z.enum(types).meta({
   enumLabels: Object.fromEntries(types.map(type => [type, DeviceTypes.labels()[type]]))
 })
 
-/** by type: only a door lock has Allow unlocking and only sensors and buttons a battery, so the form shows each only for those */
+/**
+ * by type: only a door lock has Allow unlocking and only sensors and buttons a battery, so the form
+ * shows each only for those; the type choice lists the branches in order (the lock after the valve)
+ */
 const input = z.discriminatedUnion("type", [
   z.object({ type: typeChoice(others), name: name() }),
-  z.object({
-    type: typeChoice(batteryTypes),
-    name: name(),
-    battery: z.boolean().default(false).meta({ title: "Battery", description: "Whether the apps show a battery level, sent by Nexus; can't be changed later" })
-  }),
   z.object({
     type: z.literal("door-lock").meta({ title: DeviceTypes.labels()["door-lock"] }),
     name: name(),
     allowUnlock: z.boolean().default(false).meta({ title: "Allow unlocking", description: "Whether Alexa and the other apps may unlock. Off: they can only lock" })
+  }),
+  z.object({
+    type: typeChoice(batteryTypes),
+    name: name(),
+    battery: z.boolean().default(false).meta({ title: "Battery", description: "Whether the apps show a battery level, sent by Nexus; can't be changed later" })
   })
 ])
 

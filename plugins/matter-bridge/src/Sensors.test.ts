@@ -21,7 +21,8 @@ before(async () => {
     { name: "Outside", type: "temperature-sensor", battery: true },
     { name: "Socket", type: "dimmable-plug" },
     { name: "Wall", type: "wall-switch" },
-    { name: "Wall dimmer", type: "wall-dimmer" }
+    { name: "Wall dimmer", type: "wall-dimmer" },
+    { name: "Remote", type: "generic-switch", battery: true }
   ])
   peer = await bridge.pair()
 })
@@ -53,6 +54,15 @@ test("battery: a sensor added with one shows its level and warns when low; other
   assert.equal(seen(peer, "Air").powerSource, undefined)
   const failing = await bridge.host.addActuator("battery", { device: "Air" })
   await assert.rejects(bridge.host.actuate(failing, Value.number(50)), /has no battery state/)
+})
+
+test("battery: a button with one reports its level and still presses; the panel keeps the last reading", { timeout: 20_000 }, async () => {
+  await actuate("battery", "Remote", Value.number(5))
+  await until(() => seen(peer, "Remote").powerSource?.batChargeLevel === 2, 3000, "critical")
+  assert.equal(seen(peer, "Remote").powerSource?.batReplacementNeeded, true)
+  assert.deepEqual(seen(peer, "Remote").powerSource?.endpointList, [TestController.device(peer, "Remote").number])
+  await actuate("press", "Remote", Value.boolean(true))
+  assert.equal(bridge.host.plugin.devices.get("Remote")!.lastState?.kind, "press")
 })
 
 test("battery: the level is remembered across a restart", { timeout: 30_000 }, async () => {

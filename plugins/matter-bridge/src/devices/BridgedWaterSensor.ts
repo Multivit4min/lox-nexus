@@ -23,7 +23,7 @@ export class BridgedWaterSensor extends BridgedDevice {
   }
 
   private create() {
-    const kind = this.info.states[0] ?? "leak"
+    const kind = this.type === "rain-sensor" ? "rain" : this.type === "water-freeze-detector" ? "freeze" : "leak"
     const options = {
       id: this.identity.endpointId,
       bridgedDeviceBasicInformation: this.basicInformation(),

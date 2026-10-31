@@ -10,6 +10,7 @@ import { BridgedFlow } from "./BridgedFlow.ts"
 import { BridgedIlluminance } from "./BridgedIlluminance.ts"
 import { BridgedPressure } from "./BridgedPressure.ts"
 import { ColorTemperature } from "./ColorTemperature.ts"
+import { DeviceFactory } from "./DeviceFactory.ts"
 import { DeviceId } from "./DeviceId.ts"
 import { DeviceIdentity } from "./DeviceIdentity.ts"
 import { DeviceMemory } from "./DeviceMemory.ts"
@@ -26,9 +27,9 @@ test("measurements convert to Matter's units; unknown stays unknown", () => {
   assert.deepEqual([undefined, 1.25, -3].map(BridgedFlow.measured), [null, 13, 0])
 })
 
-test("battery levels count half percent; the charge level warns below 20 % and is critical below 10 %", () => {
+test("battery levels count half percent; the charge level warns below 20 % and is critical, to be replaced, below 10 %", () => {
   assert.deepEqual(BatteryServer.level(55), { batPercentRemaining: 110, batChargeLevel: 0, batReplacementNeeded: false })
-  assert.deepEqual(BatteryServer.level(15), { batPercentRemaining: 30, batChargeLevel: 1, batReplacementNeeded: true })
+  assert.deepEqual(BatteryServer.level(15), { batPercentRemaining: 30, batChargeLevel: 1, batReplacementNeeded: false })
   assert.deepEqual(BatteryServer.level(-5), { batPercentRemaining: 0, batChargeLevel: 2, batReplacementNeeded: true })
 })
 
@@ -76,6 +77,20 @@ test("the states matter.js doesn't persist are remembered, only on change, and c
   assert.equal(memory.get("a", "onOff"), undefined, "matter.js persists on/off itself")
   memory.keepOnly(["b"])
   assert.equal(new DeviceMemory(store).get("a", "contact"), undefined)
+})
+
+test("a stored device without a battery setting has none: its endpoint is what it was before batteries", () => {
+  const store = new MemoryStore()
+  const log = { debug() {}, info() {}, warn() {}, error() {} }
+  store.set("devices", [{ id: "a", name: "Hall", type: "temperature-sensor" }, { id: "b", name: "Door", type: "contact-sensor", battery: true }])
+  const memory = new DeviceMemory(store)
+  const context = { now: () => 0, wait: async () => {}, warn() {}, memory }
+  const [hall, door] = new DeviceStore(store, log).load().map(record => new DeviceFactory(context).create(record))
+  assert.equal(hall!.battery, false)
+  assert.equal("powerSource" in hall!.endpoint.type.behaviors, false)
+  assert.equal(door!.battery, true)
+  assert.equal("powerSource" in door!.endpoint.type.behaviors, true)
+  assert.deepEqual(door!.info.states, ["contact", "battery"])
 })
 
 test("a damaged remembered state is ignored", () => {

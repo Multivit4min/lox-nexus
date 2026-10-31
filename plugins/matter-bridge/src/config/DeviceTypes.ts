@@ -1,4 +1,4 @@
-import type { CommandKind, DeviceTypeId, StateKind } from "../devices/DeviceKinds.ts"
+import { DEVICE_TYPE_IDS, type CommandKind, type DeviceTypeId, type StateKind } from "../devices/DeviceKinds.ts"
 
 /** how a device type shows in forms and the panel, and which signals fit it */
 export interface DeviceTypeInfo {
@@ -9,7 +9,8 @@ export interface DeviceTypeInfo {
   readonly battery?: true
 }
 
-const sensor = (label: string, ...states: StateKind[]): DeviceTypeInfo => ({ label, commands: [], states, battery: true })
+/** a type with states only, which may run on a battery: sensors and buttons */
+const battery = (label: string, ...states: StateKind[]): DeviceTypeInfo => ({ label, commands: [], states, battery: true })
 
 /** The device types of the bridge: their labels and the commands and states each one has. */
 export class DeviceTypes {
@@ -25,22 +26,36 @@ export class DeviceTypes {
     "dimmable-plug": { label: "Dimmable plug", commands: ["onOff", "brightness"], states: ["onOff", "brightness"] },
     "wall-switch": { label: "Wall switch (on/off)", commands: ["onOff"], states: ["onOff"] },
     "wall-dimmer": { label: "Wall dimmer", commands: ["onOff", "brightness"], states: ["onOff", "brightness"] },
+    "color-light": {
+      label: "Colour light (RGB)",
+      commands: ["onOff", "brightness", "colorTemperature", "color"],
+      states: ["onOff", "brightness", "colorTemperature", "color"]
+    },
     "window-covering": { label: "Window covering (lift position)", commands: ["position"], states: ["position"] },
+    "venetian-blind": { label: "Blind with slats (lift and tilt)", commands: ["position", "tilt"], states: ["position", "tilt"] },
     "thermostat": { label: "Thermostat (heating)", commands: ["setpoint"], states: ["temperature", "setpoint"] },
+    "thermostat-heat-cool": {
+      label: "Thermostat (heating and cooling)",
+      commands: ["setpoint", "coolingSetpoint", "mode"],
+      states: ["temperature", "setpoint", "coolingSetpoint", "mode"]
+    },
     "fan": { label: "Fan", commands: ["onOff", "fanSpeed"], states: ["onOff", "fanSpeed"] },
     "door-lock": { label: "Door lock", commands: ["lock"], states: ["locked"] },
-    "temperature-sensor": sensor("Temperature sensor", "temperature"),
-    "humidity-sensor": sensor("Humidity sensor", "humidity"),
-    "contact-sensor": sensor("Contact sensor (door, window)", "contact"),
-    "occupancy-sensor": sensor("Motion (occupancy) sensor", "occupancy"),
-    "light-sensor": sensor("Light sensor (lux)", "illuminance"),
-    "pressure-sensor": sensor("Pressure sensor", "pressure"),
-    "flow-sensor": sensor("Flow sensor", "flow"),
-    "rain-sensor": sensor("Rain sensor", "rain"),
-    "water-freeze-detector": sensor("Water freeze detector", "freeze"),
+    "water-valve": { label: "Water valve", commands: ["valve"], states: ["valve"] },
+    "temperature-sensor": battery("Temperature sensor", "temperature"),
+    "humidity-sensor": battery("Humidity sensor", "humidity"),
+    "contact-sensor": battery("Contact sensor (door, window)", "contact"),
+    "occupancy-sensor": battery("Motion (occupancy) sensor", "occupancy"),
+    "light-sensor": battery("Light sensor (lux)", "illuminance"),
+    "pressure-sensor": battery("Pressure sensor", "pressure"),
+    "flow-sensor": battery("Flow sensor", "flow"),
+    "rain-sensor": battery("Rain sensor", "rain"),
+    "water-freeze-detector": battery("Water freeze detector", "freeze"),
+    "air-quality-sensor": battery("Air quality sensor", "airQuality", "co2", "pm25"),
     "smoke-co-alarm": { label: "Smoke and CO alarm", commands: [], states: ["smoke", "co"] },
-    "water-leak-detector": sensor("Water leak detector", "leak"),
-    "generic-switch": sensor("Button (generic switch)", "press", "longPress")
+    "water-leak-detector": battery("Water leak detector", "leak"),
+    "generic-switch": battery("Button (generic switch)", "press", "longPress"),
+    "doorbell": battery("Doorbell", "press")
   }
 
   /** a type's info; with a battery, its states end with the battery level */
@@ -51,7 +66,7 @@ export class DeviceTypes {
 
   /** the types that can have a battery */
   static withBattery() {
-    return (Object.keys(DeviceTypes.all) as DeviceTypeId[]).filter(type => DeviceTypes.all[type].battery)
+    return DEVICE_TYPE_IDS.filter(type => DeviceTypes.all[type].battery)
   }
 
   /** the form's labels for the type choice */

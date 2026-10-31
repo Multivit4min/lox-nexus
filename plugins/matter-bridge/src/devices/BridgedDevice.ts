@@ -109,9 +109,20 @@ export abstract class BridgedDevice {
     if (this.endpoint.stateOf(BridgedDeviceBasicInformationServer).nodeLabel !== record.name) {
       await this.endpoint.setStateOf(BridgedDeviceBasicInformationServer, { nodeLabel: record.name })
     }
-    // matter.js doesn't persist the battery level; it starts with what Nexus sent last
-    const battery = this.battery ? this.remembered("battery") : undefined
-    if (battery !== undefined) await this.applyState("battery", battery)
+    if (this.battery) await this.syncBattery()
+  }
+
+  /**
+   * The battery names the endpoint it powers (the number is only known once attached), and starts
+   * with the level Nexus sent last: matter.js doesn't persist it.
+   */
+  private async syncBattery() {
+    const endpointList = [this.endpoint.number]
+    if (JSON.stringify(this.endpoint.stateOf(BatteryServer).endpointList) !== JSON.stringify(endpointList)) {
+      await this.endpoint.setStateOf(BatteryServer, { endpointList })
+    }
+    const level = this.remembered("battery")
+    if (typeof level === "number") await this.applyState("battery", level)
   }
 
   /** the endpoint type, with the battery's power source for a device that has one */
@@ -138,7 +149,8 @@ export abstract class BridgedDevice {
   async setState(kind: StateKind, value: KindValue) {
     if (!this.info.states.includes(kind)) throw new Error(`a ${this.info.label.toLowerCase()} has no ${kind} state`)
     await this.applyState(kind, value)
-    this.lastState = { kind, value, at: this.context.now() }
+    // a battery level would hide the reading a sensor's row shows
+    if (kind !== "battery") this.lastState = { kind, value, at: this.context.now() }
     this.states.delete(kind)
     this.states.set(kind, value)
     this.context.memory.remember(this.identity.endpointId, kind, value)
@@ -212,12 +224,12 @@ export abstract class BridgedDevice {
     return this.context.memory.get(this.identity.endpointId, kind)
   }
 
-  protected static number(value: KindValue) {
+  static number(value: KindValue) {
     if (typeof value !== "number" || !Number.isFinite(value)) throw new Error(`not a number: ${String(value)}`)
     return value
   }
 
-  protected static clamp(value: number, min: number, max: number) {
+  static clamp(value: number, min: number, max: number) {
     return Math.min(max, Math.max(min, value))
   }
 }
