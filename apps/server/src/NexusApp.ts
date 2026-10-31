@@ -98,7 +98,7 @@ export class NexusApp extends Disposable {
   readonly history: HistoryAssembly
   private http: HttpServer | undefined
   /** next to the database; none for an in-memory one */
-  private readonly journal: ImportJournal | undefined
+  private journal: ImportJournal | undefined
   private stream: BusStream | undefined
   /** panel pushes and action progress of running plugins, for open pages */
   private readonly pluginEvents = new PluginEvents()
@@ -108,19 +108,7 @@ export class NexusApp extends Disposable {
     super()
     this.clock = options.clock ?? new SystemClock()
     const databaseFile = options.databaseFile ?? config.databaseFile
-    if (databaseFile !== ":memory:") {
-      fs.mkdirSync(path.dirname(databaseFile), { recursive: true, mode: 0o700 })
-      this.journal = ImportJournal.in(path.dirname(databaseFile))
-      const lock = DatabaseLock.acquire(databaseFile)
-      // registered first, so it is released last, after the database is closed
-      this.onDispose(() => lock.release())
-      // under the lock, before anything opens the files: a second process must not swap them under a running one
-      BackupService.sweep(config.dataDir)
-      const before = RestoreApplier.apply(config.dataDir)
-      if (before) log.warn({ before }, "restored a backup; the previous files are in this folder")
-    }
-    this.persistence = new Persistence(databaseFile, message => log.warn(message))
-    this.onDispose(() => this.persistence.close())
+    this.persistence = this.openDatabase(databaseFile)
     this.bus = this.own(new EventBus({ clock: this.clock, chain: new CausalChain(randomUUID().slice(0, 8)), forces: this.persistence.forces, topicKinds: this.signals }))
     this.recorder = this.own(new Recorder(this.bus))
     this.wires = this.own(new WireEngine(this.bus, this.signals))
@@ -148,6 +136,27 @@ export class NexusApp extends Disposable {
     }))
     this.pluginAssembly = this.own(new PluginAssembly(config, transport, this.persistence.pluginPackages, this.persistence.pluginSignals, log, options.install))
     this.pluginCatalog = this.pluginAssembly.catalog
+  }
+
+  // locked, a pending restore applied and a backup's logins ended before anything else opens it
+  private openDatabase(databaseFile: string) {
+    let restored: string | undefined
+    if (databaseFile !== ":memory:") {
+      fs.mkdirSync(path.dirname(databaseFile), { recursive: true, mode: 0o700 })
+      this.journal = ImportJournal.in(path.dirname(databaseFile))
+      const lock = DatabaseLock.acquire(databaseFile)
+      // registered first, so it is released last, after the database is closed
+      this.onDispose(() => lock.release())
+      // under the lock, before anything opens the files: a second process must not swap them under a running one
+      BackupService.sweep(this.config.dataDir)
+      restored = RestoreApplier.apply(this.config.dataDir)
+      if (restored) this.log.warn({ before: restored }, "restored a backup; the previous files are in this folder")
+    }
+    const persistence = new Persistence(databaseFile, message => this.log.warn(message))
+    // a backup's sessions and access tokens may have been revoked since: none of them comes back
+    if (restored) persistence.endAllAccess()
+    this.onDispose(() => persistence.close())
+    return persistence
   }
 
   /**
@@ -228,7 +237,7 @@ export class NexusApp extends Disposable {
         ...this.history.controllers(id => plugins.watches(id)),
         BackupAssembly.controller(config, { main: db.db, history: this.history.database.db }, this.options.restart, log),
         diagnostics.controller(),
-        this.own(new McpAssembly({ ...new McpReadTools({ miniservers, loxoneSignals, plugins, pluginSignals, wires, signals: this.signals, bus: this.bus, stale, recorder: this.recorder, diagnostics: diagnostics.sampler, lock, version }), lock, log, version })).controller(),
+        this.own(new McpAssembly({ ...new McpReadTools({ now: () => clock.now(), miniservers, loxoneSignals, plugins, pluginSignals, wires, signals: this.signals, bus: this.bus, stale, recorder: this.recorder, diagnostics: diagnostics.sampler, lock, version }), lock, log, version })).controller(),
         stream
       ],
       publicControllers: [new HookController(this.plugins)]

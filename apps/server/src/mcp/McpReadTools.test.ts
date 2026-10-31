@@ -1,10 +1,26 @@
 import assert from "node:assert/strict"
 import { after, before, describe, test } from "node:test"
-import type { CreatedAccessTokenDto } from "@lox-nexus/api"
+import type { CreatedAccessTokenDto, PluginInstanceDto } from "@lox-nexus/api"
+import { FakePluginTransport } from "@lox-nexus/core/testing"
+import { Plugin, Sensor, secret, z } from "@lox-nexus/plugin-sdk"
+import { PluginTestHost } from "@lox-nexus/plugin-sdk/testing"
 import { Value } from "@lox-nexus/plugin-sdk/values"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
 import { TestApp } from "../test-support/TestApp.ts"
+
+// a plugin whose sensor takes a secret param: no tool may show its value
+class KeyedSensor extends Sensor<Plugin, { entity: string; apiKey: string }> {
+  static readonly id = "keyed"
+  static readonly params = z.object({ entity: z.string(), apiKey: secret(z.string()) })
+  static readonly valueType = "number"
+  override start() {
+    this.emit(Value.number(1))
+  }
+}
+class KeyedPlugin extends Plugin {
+  static readonly sensors = [KeyedSensor]
+}
 
 describe("MCP read tools", { timeout: 30_000 }, () => {
   let app: TestApp
@@ -13,8 +29,14 @@ describe("MCP read tools", { timeout: 30_000 }, () => {
   const json = async <T>(name: string, args?: Record<string, unknown>) => JSON.parse((await call(name, args)).text) as T
 
   before(async () => {
-    app = await TestApp.start()
+    const description = await PluginTestHost.describe(KeyedPlugin)
+    const pluginTransport = new FakePluginTransport().add("keyed.ts", KeyedPlugin)
+    app = await TestApp.start({ pluginTransport }, {}, nexus =>
+      nexus.pluginCatalog.setDevelopment({ pkg: { id: "keyed", name: "Keyed", entry: "keyed.ts", description }, version: "1.0.0" }))
     const admin = await app.admin()
+    const instance = (await admin.post("/api/plugin-instances", { plugin: "keyed", slug: "keys", label: "Keys" })).json<PluginInstanceDto>()
+    const added = await admin.post(`/api/plugin-instances/${instance.id}/signals`, { kind: "sensor", capability: "keyed", params: { entity: "lamp", apiKey: "planted-param-secret" }, label: "Lamp" })
+    assert.equal(added.statusCode, 201, added.body)
     const ms = (await admin.post("/api/miniservers", { slug: "haus", label: "Haus", host: "127.0.0.1", port: 7000, listenPort: 7001, ownId: "nexus", remoteId: "ms", enabled: false })).json<{ id: string }>()
     const input = (await admin.post(`/api/miniservers/${ms.id}/signals`, { packetId: "temp", direction: "in", dataType: 1, label: "Temperature", unit: "°C" })).json<{ id: string }>()
     const output = (await admin.post(`/api/miniservers/${ms.id}/signals`, { packetId: "heat", direction: "out", dataType: 0, label: "Heating" })).json<{ id: string }>()
@@ -65,18 +87,21 @@ describe("MCP read tools", { timeout: 30_000 }, () => {
   })
 
   test("system_status names the version; invalid arguments come back as a readable tool error", async () => {
-    assert.ok("version" in await json<Record<string, unknown>>("system_status") || "note" in await json<Record<string, unknown>>("system_status"))
+    const status = await json<Record<string, unknown>>("system_status")
+    assert.ok(typeof status.version === "string" || typeof status.note === "string", JSON.stringify(status))
     const invalid = await call("list_signals", { limit: 9999 })
     assert.equal(invalid.isError, true)
     assert.match(invalid.text, /limit/)
   })
 
-  test("no read tool shows a stored secret", async () => {
+  test("no read tool shows a stored secret: a Miniserver password, a secret signal param", async () => {
     const outputs = await Promise.all([
       call("overview", { signals: true }), call("list_signals"), call("list_wires"), call("system_status"), call("recent_messages"),
-      call("get_signal", { signal: "loxone/haus/in/temp" })
+      call("get_signal", { signal: "loxone/haus/in/temp" }), call("get_signal", { signal: "keyed/keys/sensor/lamp" })
     ])
-    for (const output of outputs) assert.ok(!output.text.includes("planted-secret-42"))
+    for (const output of outputs) assert.ok(!/planted-secret-42|planted-param-secret/.test(output.text), output.text.slice(0, 200))
+    const lamp = JSON.parse(outputs.at(-1)!.text) as { params: unknown; capability: string }
+    assert.deepEqual([lamp.capability, lamp.params], ["keyed", { entity: "lamp" }], "the other params stay")
   })
 
   test("the official MCP client connects, lists the tools and resources, and reads the inventory", async () => {

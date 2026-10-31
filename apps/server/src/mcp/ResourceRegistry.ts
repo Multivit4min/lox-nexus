@@ -6,6 +6,8 @@ import type { ToolContext } from "./ToolContext.ts"
 
 /** The resources, filtered by scope like the tools. Templates arrive with A2. */
 export class ResourceRegistry {
+  static readonly MAX_TEXT = 64 * 1024
+
   constructor(private readonly resources: readonly McpResource[]) {}
 
   list(scopes: readonly AccessScope[]) {
@@ -19,6 +21,8 @@ export class ResourceRegistry {
     if (!resource) throw new JsonRpcError(JsonRpc.RESOURCE_NOT_FOUND, `no resource ${uri}`, { uri })
     const content = await resource.read(context)
     const text = typeof content === "string" ? content : JSON.stringify(content)
-    return { contents: [{ uri, mimeType: resource.mimeType, text }] }
+    // the same cap as tool results; resources size themselves to stay under it (the inventory does)
+    const capped = text.length <= ResourceRegistry.MAX_TEXT ? text : `${text.slice(0, ResourceRegistry.MAX_TEXT)}\n… cut at 64 KB`
+    return { contents: [{ uri, mimeType: resource.mimeType, text: capped }] }
   }
 }

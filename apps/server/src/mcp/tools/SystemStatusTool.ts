@@ -15,14 +15,19 @@ export class SystemStatusTool implements McpTool<z.infer<typeof Input>> {
   readonly annotations = { readOnlyHint: true }
   readonly input = Input
 
-  constructor(private readonly diagnostics: { snapshot(since?: number): DiagnosticsDto } | undefined, private readonly lock?: Pick<ChangeLock, "heldBy">) {}
+  constructor(
+    private readonly diagnostics: { snapshot(since?: number): DiagnosticsDto } | undefined,
+    private readonly now: () => number,
+    private readonly lock?: Pick<ChangeLock, "heldBy">
+  ) {}
 
   run() {
-    const snapshot = this.diagnostics?.snapshot(Date.now() - 120_000)
+    const now = this.now()
+    const snapshot = this.diagnostics?.snapshot(now - 120_000)
     const sample = snapshot?.samples.at(-1)
     const heldBy = this.lock?.heldBy
     return {
-      ...(snapshot ? { version: snapshot.version, node: snapshot.node, platform: snapshot.platform, uptimeH: Math.round((Date.now() - snapshot.startedAt) / 36_000) / 100 } : {}),
+      ...(snapshot ? { version: snapshot.version, node: snapshot.node, platform: snapshot.platform, uptimeH: Math.round((now - snapshot.startedAt) / 36_000) / 100 } : {}),
       ...(heldBy ? { busy: `${heldBy} is running` } : {}),
       ...(sample ? {
         sampledAt: new Date(sample.ts).toISOString(),

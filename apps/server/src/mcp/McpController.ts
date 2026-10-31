@@ -42,9 +42,13 @@ export class McpController implements Controller {
     return reply.code(200).type("application/json").send(answer)
   }
 
-  // JSON-RPC errors instead of the API's own: invalid JSON is a parse error, anything unexpected an internal one
+  // JSON-RPC errors instead of the API's own: invalid JSON is a parse error, a wrong content type or
+  // a body over the limit an invalid request, anything unexpected an internal error
   private static failed(error: FastifyError, request: FastifyRequest, reply: FastifyReply) {
-    if (error.code?.startsWith("FST_ERR_CTP")) return reply.code(error.statusCode ?? 400).send(JsonRpc.error(null, JsonRpc.PARSE_ERROR, error.message))
+    if (error.code?.startsWith("FST_ERR_CTP")) {
+      const status = error.statusCode ?? 400
+      return reply.code(status).send(JsonRpc.error(null, status === 400 ? JsonRpc.PARSE_ERROR : JsonRpc.INVALID_REQUEST, error.message))
+    }
     request.log.error({ err: error }, "MCP request failed")
     return reply.code(500).send(JsonRpc.error(null, JsonRpc.INTERNAL_ERROR, "the request failed unexpectedly; the Nexus log has the details"))
   }

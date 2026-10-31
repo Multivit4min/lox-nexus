@@ -33,6 +33,7 @@ describe("the /mcp endpoint", { timeout: 20_000 }, () => {
   test("only a token gets in: not the session cookie, not a token in the URL, not from another origin", async () => {
     assert.equal((await mcp(initialize, {}, admin)).statusCode, 401, "the browser session can't drive /mcp")
     assert.equal((await app.client().post(`/mcp?access_token=${token}`, initialize, bearer())).statusCode, 400)
+    assert.equal((await app.client().post(`/mcp?key=${token}`, initialize, bearer())).statusCode, 400, "any nxp_ value in the URL")
     assert.equal((await mcp(initialize, { ...bearer(), origin: "http://evil.example" })).statusCode, 403)
     assert.equal((await mcp(initialize, bearer("nxp_not-a-real-token"))).statusCode, 401)
   })
@@ -45,6 +46,8 @@ describe("the /mcp endpoint", { timeout: 20_000 }, () => {
     assert.equal((await mcp(initialize, { ...bearer(), "mcp-protocol-version": "1999-01-01" })).statusCode, 400)
     assert.equal((await mcp([initialize])).json<{ error: { code: number } }>().error.code, -32600)
     assert.equal((await app.client().get("/mcp", bearer())).statusCode, 405)
+    assert.equal((await app.client().delete("/mcp")).statusCode, 401, "a token first")
+    assert.equal((await app.app.server!.app.inject({ method: "DELETE", url: "/mcp", headers: bearer() })).statusCode, 405)
   })
 
   test("a revoked token is refused at once", async () => {
@@ -59,6 +62,7 @@ describe("the /mcp endpoint", { timeout: 20_000 }, () => {
     const statuses: number[] = []
     for (let i = 0; i < 6; i++) statuses.push((await mcp(initialize, bearer(`nxp_guess${i}`), elsewhere)).statusCode)
     assert.deepEqual(statuses, [401, 401, 401, 401, 401, 429])
+    assert.equal((await mcp(initialize, bearer(), elsewhere)).statusCode, 200, "a valid token isn't locked out by the old one's retries")
     assert.equal((await elsewhere.post("/api/auth/login", { username: "admin", password: "correct horse" })).statusCode, 200, "the login counter is another one")
   })
 })

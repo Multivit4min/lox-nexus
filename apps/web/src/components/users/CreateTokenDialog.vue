@@ -28,7 +28,7 @@ const busy = ref(false)
 const created = ref<CreatedAccessTokenDto>()
 
 watch(open, isOpen => {
-  if (isOpen) [name.value, configure.value, operate.value, own.value, error.value, created.value] = ["", false, false, "", "", undefined]
+  if (isOpen) [name.value, configure.value, operate.value, own.value, error.value, created.value, copied.value] = ["", false, false, "", "", undefined, ""]
   else created.value = undefined
 })
 
@@ -51,7 +51,20 @@ async function onSubmit() {
   }
 }
 
-const copy = (text: string | undefined) => text && void navigator.clipboard?.writeText(text)
+const selectAll = (event: FocusEvent) => (event.target instanceof HTMLInputElement ? event.target.select() : undefined)
+
+// browsers only offer the clipboard on https or localhost; on http://192.168… the text is selected for copying by hand
+const copied = ref("")
+async function copy(text: string | undefined, what: string) {
+  if (!text) return
+  try {
+    if (!navigator.clipboard) throw new Error("no clipboard")
+    await navigator.clipboard.writeText(text)
+    copied.value = `${what} copied.`
+  } catch {
+    copied.value = "Copying needs https: select the text and copy it by hand."
+  }
+}
 </script>
 
 <template>
@@ -64,14 +77,15 @@ const copy = (text: string | undefined) => text && void navigator.clipboard?.wri
       </DialogHeader>
       <div v-if="created" class="grid gap-3">
         <div class="flex gap-2">
-          <Input :model-value="created.token" readonly class="font-mono text-xs" aria-label="Access token" />
-          <Button variant="outline" size="icon" title="Copy the token" @click="copy(created.token)"><Copy class="size-4" /></Button>
+          <Input :model-value="created.token" readonly class="font-mono text-xs" aria-label="Access token" @focus="selectAll" />
+          <Button variant="outline" size="icon" title="Copy the token" @click="copy(created.token, 'The token is')"><Copy class="size-4" /></Button>
         </div>
         <Label>Add it to Claude Code</Label>
         <div class="flex gap-2">
           <code class="min-w-0 flex-1 rounded-md bg-muted px-2 py-1.5 font-mono text-xs break-all">{{ command }}</code>
-          <Button variant="outline" size="icon" title="Copy the command" @click="copy(command)"><Copy class="size-4" /></Button>
+          <Button variant="outline" size="icon" title="Copy the command" @click="copy(command, 'The command is')"><Copy class="size-4" /></Button>
         </div>
+        <p v-if="copied" class="text-xs text-muted-foreground" role="status">{{ copied }}</p>
         <Button @click="open = false">Done</Button>
       </div>
       <form v-else class="grid gap-4" @submit.prevent="onSubmit">

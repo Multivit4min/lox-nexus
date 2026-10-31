@@ -2541,8 +2541,10 @@ panels are cut further. Action answers drop their QR and image parts.
   2025-03-26).
   - `initialize` answers the client's version if it is in the list, else the newest.
   - Later requests are checked against `MCP-Protocol-Version` when it is present.
-  - Capabilities: `tools`, `resources`, `prompts`, `logging: false`, no `listChanged` and no
-    `subscribe`.
+  - Capabilities: `tools`, `resources` and `prompts`; no `logging` (left out, not `false`), no
+    `listChanged` and no `subscribe`.
+  - Batches are refused although 2025-03-26 allowed them: no client we know sends them, and
+    2025-06-18 dropped them.
 - **Methods:** `initialize`, `notifications/initialized`, `ping`, `tools/list`, `tools/call`,
   `resources/list`, `resources/templates/list`, `resources/read`, `prompts/list`,
   `prompts/get`. Others answer -32601.
@@ -2694,6 +2696,20 @@ Elsewhere:
   signals and wire counts. `overview`, `list_signals`, `get_signal` and `list_wires` use it;
   `recent_messages` and `trace` use the recorder with `MessageFormatter` in UTC; `system_status`
   the diagnostics sampler.
+- **After the review.**
+  - A token is inserted only while the password hash that was checked is still the user's, in
+    one statement, so a password change during the check can't be outlived.
+  - The guard looks a token up before throttling: only wrong tokens count, so an agent retrying
+    with a token ended by a password change can't lock its replacement out.
+  - A restored backup ends all sessions and tokens (`Persistence.endAllAccess`).
+  - `InventoryService` strips plugin signal params the capability marks secret (and undeclared
+    ones). The REST API still sends them (`PluginSignalService.toDto`); fixing that needs edits
+    to merge stored secrets back, like plugin configs, and is left for its own change.
+  - `overview` measures its signal table and answers a note above 48 KB, so it stays valid JSON;
+    resources are capped at 64 KB; `tools/list` and `resources/*` count against the rate limit.
+  - Still open for later steps: plugin-written text (status messages, last errors) reaches agents
+    unredacted until `SecretRedactor` (A3); tools have no deadline yet, which A2's changing tools
+    need, since a hung one would hold the ChangeLock.
 - **Tests.** The dispatcher with fake tools, the rate limit with a `TestClock`, the endpoint's
   security rules with real tokens, every read tool over `/mcp`, a planted Miniserver password
   that no read tool may show, and the official SDK client (`@modelcontextprotocol/sdk`, a dev

@@ -52,7 +52,8 @@ export class AccessTokenController implements Controller {
     if (!row || !(await this.hasher.verify(currentPassword, row.password_hash))) throw new HttpError(403, "your password is wrong")
     this.throttle.succeeded(request.ip)
     try {
-      const created: CreatedAccessTokenDto = this.tokens.create(user.id, name, scopes)
+      const created: CreatedAccessTokenDto | undefined = this.tokens.create(user.id, name, scopes, row.password_hash)
+      if (!created) throw new HttpError(403, "your password changed meanwhile; try again with the new one")
       this.log(`access token "${name}" (${created.accessToken.scopes.join(", ")}) created by ${user.username}`)
       return reply.code(201).send(created)
     } catch (error) {

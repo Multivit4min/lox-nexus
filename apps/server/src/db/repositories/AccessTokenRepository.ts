@@ -17,11 +17,18 @@ export interface AccessTokenRow {
 export class AccessTokenRepository {
   constructor(private readonly db: Database) {}
 
-  insert(row: Omit<AccessTokenRow, "last_used_at">) {
-    this.db.run(
-      "INSERT INTO access_tokens (id, user_id, name, scopes, token_sha256, created_at) VALUES (:id, :userId, :name, :scopes, :hash, :createdAt)",
-      { id: row.id, userId: row.user_id, name: row.name, scopes: row.scopes, hash: row.token_sha256, createdAt: row.created_at }
-    )
+  /**
+   * Inserts the token only while the user's password hash is still `passwordHash`, in one
+   * statement: a password change that ran while the password was being checked (and whose trigger
+   * ended the tokens) can't be outlived by a token made with the old password.
+   * @returns whether it was inserted
+   */
+  insertIfPassword(row: Omit<AccessTokenRow, "last_used_at">, passwordHash: string) {
+    return Number(this.db.run(
+      `INSERT INTO access_tokens (id, user_id, name, scopes, token_sha256, created_at)
+       SELECT :id, :userId, :name, :scopes, :hash, :createdAt WHERE EXISTS (SELECT 1 FROM users WHERE id = :userId AND password_hash = :passwordHash)`,
+      { id: row.id, userId: row.user_id, name: row.name, scopes: row.scopes, hash: row.token_sha256, createdAt: row.created_at, passwordHash }
+    ).changes) > 0
   }
 
   /** a user's tokens, newest first */

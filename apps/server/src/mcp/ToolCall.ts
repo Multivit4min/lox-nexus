@@ -63,7 +63,7 @@ export class ToolCall {
   // what the model may read: a service's own refusal, or zod's issues; never a stack
   private static reason(error: unknown) {
     if (error instanceof HttpError && error.status < 500) return error.message
-    if (error instanceof HttpError && error.status === 503) return `${error.message} (try again in a few seconds)`
+    if (error instanceof HttpError && error.status === 503) return error.message
     if (error instanceof ZodError) return z.prettifyError(error)
     return undefined
   }

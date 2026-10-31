@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import fs from "node:fs"
 import path from "node:path"
 import { test } from "node:test"
-import type { MiniserverDto, RestoreApplyDto, RestoreStatusDto } from "@lox-nexus/api"
+import type { CreatedAccessTokenDto, MiniserverDto, RestoreApplyDto, RestoreStatusDto } from "@lox-nexus/api"
 import { PluginDirectory } from "../plugins/install/PluginDirectory.ts"
 import { TestApp } from "../test-support/TestApp.ts"
 
@@ -23,6 +23,8 @@ test("a backup restores the installation as it was, only once restoring was aske
   const create = (slug: string) => admin.post("/api/miniservers", { slug, label: slug, host: "127.0.0.1", port: 1, listenPort: 2, ownId: "a", remoteId: slug, password: "ms-secret", enabled: false })
   const slugs = async () => (await admin.get("/api/miniservers")).json<MiniserverDto[]>().map(ms => ms.slug)
   await create("before")
+  // in the backup, and revoked afterwards: the restore must not bring it back
+  const token = (await admin.post("/api/tokens", { currentPassword: "correct horse", name: "agent", scopes: [] })).json<CreatedAccessTokenDto>()
   assert.equal((await admin.post("/api/backup", { passphrase: "short" })).statusCode, 400)
   // the browser posts a plain form
   const backup = await admin.post("/api/backup", "passphrase=correct%20horse%20battery&history=on", { "content-type": "application/x-www-form-urlencoded" })
@@ -34,6 +36,7 @@ test("a backup restores the installation as it was, only once restoring was aske
   for (let i = 0; i < 500 && leftovers().length > 0; i++) await new Promise(resolve => setImmediate(resolve))
   assert.deepEqual(leftovers(), [], "temporary copies are gone once the download ended")
   assert.equal((await create("after")).statusCode, 201)
+  await admin.delete(`/api/tokens/${token.accessToken.id}`)
   fs.rmSync(path.join(dir, "plugins", "demo"), { recursive: true })
   const upload = (bytes: Buffer, passphrase = "correct horse battery") =>
     admin.post("/api/backup/restore", bytes, { "content-type": "application/octet-stream", "x-backup-passphrase": encodeURIComponent(passphrase) })
@@ -58,6 +61,8 @@ test("a backup restores the installation as it was, only once restoring was aske
   admin = await app.login()
   assert.deepEqual(await slugs(), ["before"])
   assert.equal((await admin.get("/api/miniservers")).json<MiniserverDto[]>()[0]?.hasPassword, true)
+  assert.deepEqual((await admin.get("/api/tokens")).json<unknown[]>(), [], "a restore brings no access token back")
+  assert.equal((await app.client().post("/mcp", { jsonrpc: "2.0", id: 1, method: "ping" }, { authorization: `Bearer ${token.token}` })).statusCode, 401)
   assert.equal(fs.readFileSync(bundle, "utf8"), "export default 1")
   assert.ok(fs.readdirSync(dir).some(name => name.startsWith("before-restore-")))
   assert.equal((await admin.get("/api/backup/restore")).json<RestoreStatusDto>().pending, null)

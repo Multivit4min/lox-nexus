@@ -32,13 +32,18 @@ export class AccessTokenService {
     return this.tokens.listFor(userId).map(row => AccessTokenService.dto(row))
   }
 
-  /** `read` is always granted. @throws TooManyTokensError when the user has MAX_PER_USER tokens already */
-  create(userId: string, name: string, scopes: readonly AccessScope[]) {
+  /**
+   * `read` is always granted. `passwordHash` is the hash the caller checked the password against;
+   * the token is made only while it is still the user's.
+   * @returns undefined when the password changed meanwhile
+   * @throws TooManyTokensError when the user has MAX_PER_USER tokens already
+   */
+  create(userId: string, name: string, scopes: readonly AccessScope[], passwordHash: string) {
     if (this.tokens.countFor(userId) >= AccessTokenService.MAX_PER_USER) throw new TooManyTokensError(AccessTokenService.MAX_PER_USER)
     const granted: AccessScope[] = ["read", ...(["configure", "operate"] as const).filter(scope => scopes.includes(scope))]
     const token = `${AccessTokenService.PREFIX}${randomBytes(32).toString("base64url")}`
     const row = { id: randomUUID(), user_id: userId, name, scopes: JSON.stringify(granted), token_sha256: AccessTokenService.hash(token), created_at: this.clock.now() }
-    this.tokens.insert(row)
+    if (!this.tokens.insertIfPassword(row, passwordHash)) return undefined
     return { token, accessToken: AccessTokenService.dto({ ...row, last_used_at: null }) }
   }
 

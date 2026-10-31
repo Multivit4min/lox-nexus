@@ -24,8 +24,11 @@ changes (yours, or one another user sets for you), which ends all your tokens. E
 | configure | set up signals, wires and plugin instances (coming) |
 | operate | act on devices: force values, run plugin actions (coming; off by default) |
 
-Agents never see secrets: passwords and plugin tokens aren't in any answer, and no tool accepts
-them. You enter those in the web UI.
+Agents never see secrets: passwords, plugin settings and signal settings marked secret aren't in
+any answer, and no tool accepts them. You enter those in the web UI.
+
+Restoring a backup ends every access token (and logs everyone out), so a token you revoked after
+the backup was made doesn't come back. Create new ones afterwards.
 
 ## Connect an agent
 
@@ -72,5 +75,5 @@ They can also attach `nexus://inventory` (the overview with every signal) and `n
 ## Good to know
 
 - Each token may make 120 calls a minute (30 of them changing), at most 4 at once.
-- Wrong tokens are throttled per address, separately from logins.
+- Wrong tokens are throttled per address, separately from logins; a valid token always gets in.
 - Behind a reverse proxy, forward `/mcp` like the rest, and keep the `Authorization` header.

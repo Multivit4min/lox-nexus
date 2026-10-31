@@ -2,6 +2,7 @@ import type { LoxoneSignalDto, MiniserverDto, PluginInstanceDto, PluginPackageDt
 import type { BusMessage, EventBus, SignalRegistry } from "@lox-nexus/core"
 import { DataType } from "@lox-nexus/ici"
 import type { Value } from "@lox-nexus/plugin-sdk/values"
+import { SecretFields } from "../plugins/SecretFields.ts"
 
 /** what the inventory reads; the same services the REST API lists from */
 export interface InventorySources {
@@ -73,7 +74,7 @@ export class InventoryService {
     const miniservers = this.sources.miniservers.list()
     const instances = this.sources.plugins.list()
     const loxone = new Map(miniservers.flatMap(server => this.sources.loxoneSignals.list(server.id).map(signal => [signal.id, signal] as const)))
-    const plugin = new Map(instances.flatMap(instance => this.sources.pluginSignals.list(instance.id).map(signal => [signal.id, signal] as const)))
+    const plugin = new Map(instances.flatMap(instance => this.sources.pluginSignals.list(instance.id).map(signal => [signal.id, this.withoutSecrets(signal, instance.plugin)] as const)))
     const owners = new Map<string, string>([...miniservers.map(server => [server.id, `miniserver:${server.slug}`] as const), ...instances.map(instance => [instance.id, `plugin:${instance.slug}`] as const)])
     const forced = new Set(this.sources.bus.activeForces().map(force => force.topic))
     const stale = new Set(this.sources.stale.list().map(entry => entry.signalId))
@@ -92,6 +93,13 @@ export class InventoryService {
   /** a signal by its id or its topic */
   find(ref: string, signals = this.signals()) {
     return signals.find(signal => signal.id === ref || signal.topic === ref)
+  }
+
+  // params a capability marks secret (and ones it doesn't declare) never reach an agent, like secret config fields
+  private withoutSecrets(signal: PluginSignalDto, pluginId: string): PluginSignalDto {
+    const description = this.sources.plugins.packages().find(pkg => pkg.id === pluginId)?.description
+    const capability = description && (signal.kind === "sensor" ? description.sensors : description.actuators).find(offered => offered.id === signal.capability)
+    return { ...signal, params: capability ? new SecretFields(capability.params).strip(signal.params) : {} }
   }
 
   private wireCounts() {

@@ -6,7 +6,7 @@ import type { McpTool } from "../McpTool.ts"
 import { SignalTable } from "../SignalTable.ts"
 
 const Input = z.object({
-  signals: z.boolean().optional().describe("also the table of every signal (topic, owner, direction, type, packet id or capability, value, wires, flags), up to 1500")
+  signals: z.boolean().optional().describe("also the table of every signal (topic, owner, direction, type, packet id or capability, value, wires, flags), as long as it fits in one answer")
 })
 
 /**
@@ -15,7 +15,8 @@ const Input = z.object({
  * don't search piece by piece.
  */
 export class OverviewTool implements McpTool<z.infer<typeof Input>> {
-  static readonly MAX_SIGNALS = 1500
+  /** the signal table's limit in characters, so the whole answer stays under ToolCall's 64 KB as valid JSON */
+  static readonly MAX_TABLE = 48 * 1024
   readonly name = "overview"
   readonly title = "Overview of the installation"
   readonly description = "Start here. Miniservers (health, load, signal counts), installed plugins with their capabilities and actions, plugin instances (state, problems), wire counts, forces, stale signals and a list of problems. With signals: true also every signal as a table. Name signals by topic afterwards."
@@ -23,14 +24,14 @@ export class OverviewTool implements McpTool<z.infer<typeof Input>> {
   readonly annotations = { readOnlyHint: true, idempotentHint: true }
   readonly input = Input
 
-  constructor(private readonly inventory: InventoryService, private readonly nexus: { version: string; lock?: Pick<ChangeLock, "heldBy"> }) {}
+  constructor(private readonly inventory: InventoryService, private readonly nexus: { version: string; lock?: Pick<ChangeLock, "heldBy">; now: () => number }) {}
 
   run(input: z.infer<typeof Input>) {
     const signals = this.inventory.signals()
     const wires = this.inventory.wires()
     const heldBy = this.nexus.lock?.heldBy
     return {
-      nexus: { version: this.nexus.version, time: new Date().toISOString(), ...(heldBy ? { busy: `${heldBy} is running; changes wait` } : {}) },
+      nexus: { version: this.nexus.version, time: new Date(this.nexus.now()).toISOString(), ...(heldBy ? { busy: `${heldBy} is running; changes wait` } : {}) },
       miniservers: this.miniservers(signals),
       plugins: this.plugins(),
       instances: this.instances(signals),
@@ -38,8 +39,15 @@ export class OverviewTool implements McpTool<z.infer<typeof Input>> {
       forces: signals.filter(signal => signal.forced).length,
       stale: signals.filter(signal => signal.stale).length,
       problems: this.problems(signals),
-      ...(input.signals ? { signals: signals.length <= OverviewTool.MAX_SIGNALS ? SignalTable.of(signals) : `${signals.length} signals: too many for one answer; use list_signals per owner` } : {})
+      ...(input.signals ? { signals: OverviewTool.signalTable(signals) } : {})
     }
+  }
+
+  // measured, not counted: a row is 100 to 300 characters, depending on labels and params
+  private static signalTable(signals: InventorySignal[]) {
+    const table = SignalTable.of(signals)
+    if (JSON.stringify(table).length <= OverviewTool.MAX_TABLE) return table
+    return `${signals.length} signals: too many for one answer; use list_signals per owner (see the miniservers and instances tables)`
   }
 
   private miniservers(signals: InventorySignal[]) {

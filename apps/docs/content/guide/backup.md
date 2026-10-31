@@ -39,6 +39,8 @@ backup**. Nexus copies its databases while it keeps running and your browser sav
    data directory, so a restore can be undone by hand (delete those folders once you no longer
    need them: they hold the old secrets and history). *Discard* drops the checked backup instead.
    A checked backup is never applied by an ordinary restart; only this button does that.
+3. Log in again. A restore logs everyone out and ends every access token for AI agents: ones you
+   revoked after the backup was made must not come back. Create new tokens on **Users and access**.
 
 A backup without value history leaves the current history in place; history of signals the
 restored configuration doesn't have is removed an hour later. A backup made by an older Nexus is

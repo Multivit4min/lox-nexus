@@ -29,7 +29,7 @@ function setup() {
   const audited: string[] = []
   const call = new ToolCall({ acquire: async () => () => {} }, undefined, { changed: (_c, tool, _i, outcome) => void audited.push(`${tool} ${outcome}`) }, { error: (entry: unknown) => void errors.push(entry) } as never)
   const resources = new ResourceRegistry([{ uri: "nexus://guide", name: "guide", title: "Guide", description: "how", mimeType: "text/markdown", scope: "read", read: () => "# Guide" }])
-  const dispatcher = new McpDispatcher(new ToolRegistry([echo, configure, broken, big]), resources, call, "9.9.9")
+  const dispatcher = new McpDispatcher(new ToolRegistry([echo, configure, broken, big]), resources, call, "9.9.9", { acquire: async () => () => {} }, { error: (entry: unknown) => void errors.push(entry) } as never)
   return { dispatcher, errors, audited }
 }
 const context = (scopes: ToolContext["access"]["scopes"] = ["read"]): ToolContext => ({

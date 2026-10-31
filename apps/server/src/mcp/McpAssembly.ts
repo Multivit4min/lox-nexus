@@ -30,7 +30,7 @@ export class McpAssembly extends Disposable {
     super()
     const limit = this.own(new McpRateLimit(deps.clock))
     const call = new ToolCall(limit, deps.lock, new McpAudit(deps.log), deps.log)
-    this.dispatcher = new McpDispatcher(new ToolRegistry(deps.tools), new ResourceRegistry(deps.resources), call, deps.version)
+    this.dispatcher = new McpDispatcher(new ToolRegistry(deps.tools), new ResourceRegistry(deps.resources), call, deps.version, limit, deps.log)
   }
 
   controller(): Controller {

@@ -57,7 +57,8 @@ export class McpRateLimit extends Disposable {
   private refill(tokenId: string) {
     const now = this.currentClock().now()
     const bucket = this.buckets.get(tokenId) ?? { calls: McpRateLimit.CALLS_PER_MINUTE, changes: McpRateLimit.CHANGES_PER_MINUTE, at: now, running: 0, changing: Promise.resolve() }
-    const minutes = (now - bucket.at) / 60_000
+    // a clock stepping back (an NTP correction) refills nothing rather than draining the buckets
+    const minutes = Math.max(0, now - bucket.at) / 60_000
     bucket.calls = Math.min(McpRateLimit.CALLS_PER_MINUTE, bucket.calls + minutes * McpRateLimit.CALLS_PER_MINUTE)
     bucket.changes = Math.min(McpRateLimit.CHANGES_PER_MINUTE, bucket.changes + minutes * McpRateLimit.CHANGES_PER_MINUTE)
     bucket.at = now

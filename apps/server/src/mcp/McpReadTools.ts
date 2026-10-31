@@ -19,6 +19,8 @@ export interface McpReadSources extends InventorySources {
   diagnostics?: { snapshot(since?: number): DiagnosticsDto }
   lock?: Pick<ChangeLock, "heldBy">
   version: string
+  /** the time, so tools don't read the global clock */
+  now?: () => number
 }
 
 /** The read tools of A1 and the resources that show the same content (ADR 0020). */
@@ -28,13 +30,14 @@ export class McpReadTools {
 
   constructor(sources: McpReadSources) {
     const inventory = new InventoryService(sources)
-    const overview = new OverviewTool(inventory, { version: sources.version, ...(sources.lock ? { lock: sources.lock } : {}) })
+    const now = sources.now ?? (() => Date.now())
+    const overview = new OverviewTool(inventory, { version: sources.version, now, ...(sources.lock ? { lock: sources.lock } : {}) })
     this.tools = [
       overview,
       new ListSignalsTool(inventory),
       new GetSignalTool(inventory, sources.recorder),
       new ListWiresTool(inventory),
-      new SystemStatusTool(sources.diagnostics, sources.lock),
+      new SystemStatusTool(sources.diagnostics, now, sources.lock),
       new RecentMessagesTool(sources.recorder),
       new TraceTool(sources.recorder)
     ]

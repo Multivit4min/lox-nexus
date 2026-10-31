@@ -62,6 +62,11 @@ describe("access tokens API", { timeout: 20_000 }, () => {
     await family.post("/api/auth/password", { current: "family new", next: "family newer" })
     assert.deepEqual(await tokens(family), [], "their own Change password")
     assert.ok((await tokens()).length > 0, "other users keep theirs")
+    await family.post("/api/auth/login", { username: "family", password: "family newer" })
+    await create({ currentPassword: "family newer" }, family)
+    assert.equal(app.app.persistence.accessTokens.countFor(id), 1)
+    await admin.delete(`/api/users/${id}`, { currentPassword: OWN })
+    assert.equal(app.app.persistence.accessTokens.countFor(id), 0, "deleting the user")
   })
 
   test("at most 20 tokens per user", async () => {

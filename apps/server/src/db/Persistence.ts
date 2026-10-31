@@ -73,6 +73,14 @@ export class Persistence {
     this.signalIndex = new SignalIndexRepository(this.db)
   }
 
+  /** logs everyone out and ends every access token, e.g. after a restored backup brought old ones back */
+  endAllAccess() {
+    this.db.transaction(() => {
+      this.db.run("DELETE FROM sessions")
+      this.db.run("DELETE FROM access_tokens")
+    })
+  }
+
   /** closes the database; repositories must not be used afterwards */
   close() {
     this.db.close()

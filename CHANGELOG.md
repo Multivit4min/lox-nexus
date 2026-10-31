@@ -10,6 +10,8 @@
   follow in later versions; tokens already carry those permissions (configure, operate).
 - Tokens are shown once, don't expire, and end when revoked or when the user's password changes.
   Agents never see or send secrets. Guide: AI agents (MCP).
+- Restoring a backup now logs everyone out and ends all access tokens, so revoked ones don't come
+  back.
 
 ### Users
 
