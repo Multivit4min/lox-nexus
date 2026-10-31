@@ -1,4 +1,5 @@
 import type { PluginDescription } from "@lox-nexus/plugin-sdk/wire"
+import { Capabilities } from "@lox-nexus/api"
 import { SecretFields } from "../plugins/SecretFields.ts"
 
 type SignalParams = { kind: "sensor" | "actuator"; capability: string; params?: unknown }
@@ -19,7 +20,7 @@ export class SignalSecrets {
    */
   static split(description: PluginDescription | undefined, signal: SignalParams): { visible: Record<string, unknown>; secret: Record<string, unknown> } {
     const params = SignalSecrets.record(signal.params)
-    const capability = description && (signal.kind === "sensor" ? description.sensors : description.actuators).find(offered => offered.id === signal.capability)
+    const capability = Capabilities.of(description, signal)
     if (capability && !JSON.stringify(capability.params).includes('"writeOnly":true')) return { visible: params, secret: {} }
     if (!capability || !SecretFields.topLevelOnly(capability.params)) return { visible: {}, secret: params }
     const visible = new SecretFields(capability.params).strip(params)
@@ -33,6 +34,6 @@ export class SignalSecrets {
   }
 
   private static record(value: unknown): Record<string, unknown> {
-    return typeof value === "object" && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : {}
+    return SecretFields.isRecord(value) ? value : {}
   }
 }

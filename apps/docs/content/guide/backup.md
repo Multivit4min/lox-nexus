@@ -54,8 +54,9 @@ actuators and watched signals. It is for moving a setup or keeping it in git, no
 
 - Miniserver passwords are never in it. An import keeps the password stored for a Miniserver with
   the same id.
-- The plugins' secret settings (tokens, passwords) are in it only when you tick **Include the
-  plugins' secret settings**, encrypted with a passphrase of at least 12 characters. The import
+- The plugins' secret settings (tokens, passwords), and signal settings a plugin marks secret, are
+  in it only when you tick **Include the plugins' secret settings**, encrypted with a passphrase of
+  at least 12 characters. The import
   asks for it. Without them, an instance with the same id keeps the secrets it has; a new one
   starts without them and the import names what to enter in its settings.
 - Plugin storage (the Matter bridge's devices and pairings, tokens a plugin received) is not in

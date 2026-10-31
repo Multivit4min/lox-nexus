@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto"
-import { PluginSignalInputSchema, type PluginSignalDto, type PluginSignalInput } from "@lox-nexus/api"
+import { Capabilities, PluginSignalInputSchema, type PluginSignalDto, type PluginSignalInput } from "@lox-nexus/api"
 import { PluginRequestError, PluginUnavailableError, SignalDisplays, SignalDisplaySchema, Topic, type PluginSignalConfig, type PluginSignalEntry, type PluginSupervisor } from "@lox-nexus/core"
 import type { PluginSignalRepository } from "../db/repositories/PluginSignalRepository.ts"
 import { HttpError } from "../http/HttpError.ts"
@@ -56,7 +56,7 @@ export class PluginSignalService {
     if (previous.orphaned) throw HttpError.conflict(`${previous.error ?? "the plugin no longer offers this signal"}: roll the plugin back or delete the signal`)
     // secret params aren't shown, so an edit that leaves them out keeps the stored ones
     const secrets = PluginSignalService.secretsOf(supervisor, previous.config)
-    const params = secrets && PluginSignalService.isRecord(input.params) ? secrets.merge(input.params, previous.config.params) : input.params
+    const params = secrets && SecretFields.isRecord(input.params) ? secrets.merge(input.params, previous.config.params) : input.params
     const config = this.configOf(supervisor, signalId, { ...input, params })
     if (config.kind !== previous.config.kind || config.capability !== previous.config.capability) {
       throw HttpError.badRequest("kind and capability of a signal can't change; add a new signal instead")
@@ -86,8 +86,7 @@ export class PluginSignalService {
   private configOf(supervisor: PluginSupervisor, id: string, input: PluginSignalInput): PluginSignalConfig {
     const parsed = PluginSignalInputSchema.parse(input)
     const { description } = supervisor.pkg
-    const offered = parsed.kind === "sensor" ? description.sensors : description.actuators
-    if (!offered.some(capability => capability.id === parsed.capability)) {
+    if (!Capabilities.of(description, parsed)) {
       throw HttpError.badRequest(`${supervisor.pkg.name} has no ${parsed.kind} "${parsed.capability}"`)
     }
     // only sources go stale; an actuator's limit would be stored and exported for nothing
@@ -101,8 +100,7 @@ export class PluginSignalService {
   // every field it shows, an empty one as "" or null (parsed to `undefined`, but the key stays), so
   // what it shows is final; a catalog's bulk add with only a unit still gets the stale limit.
   private static withSuggestions(supervisor: PluginSupervisor, config: PluginSignalConfig, input: object): PluginSignalConfig {
-    const { description } = supervisor.pkg
-    const capability = (config.kind === "sensor" ? description.sensors : description.actuators).find(offered => offered.id === config.capability)
+    const capability = Capabilities.of(supervisor.pkg.description, config)
     const suggested = SignalDisplaySchema.safeParse({ unit: capability?.unit, decimals: capability?.decimals, staleAfterMin: capability?.staleAfterMin })
     if (!suggested.success) return config
     const missing = Object.entries(SignalDisplays.of(suggested.data)).filter(([key]) => !(key in input))
@@ -137,12 +135,7 @@ export class PluginSignalService {
 
   // undefined when the plugin no longer offers the capability: then no param is shown
   private static secretsOf(supervisor: PluginSupervisor, config: Pick<PluginSignalConfig, "kind" | "capability">) {
-    const { description } = supervisor.pkg
-    const capability = (config.kind === "sensor" ? description.sensors : description.actuators).find(offered => offered.id === config.capability)
+    const capability = Capabilities.of(supervisor.pkg.description, config)
     return capability ? new SecretFields(capability.params) : undefined
-  }
-
-  private static isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null && !Array.isArray(value)
   }
 }

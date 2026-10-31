@@ -1,5 +1,6 @@
 import type { BridgeItem, BridgeRequest, LoxoneSignalDto, PluginSignalDto, WireDto } from "../index.ts"
 import type { CatalogEntry, PluginDescription } from "@lox-nexus/plugin-sdk/wire"
+import { Capabilities } from "./Capabilities.ts"
 import { DataTypes, type DataTypeId } from "./DataTypes.ts"
 import { PacketIds } from "./PacketIds.ts"
 
@@ -27,10 +28,9 @@ export class BridgeDraft {
   }
 
   static fromEntry(key: string, entry: CatalogEntry, description: PluginDescription): BridgeCandidate {
-    const offered = entry.kind === "sensor" ? description.sensors : description.actuators
     const { kind, capability, params, label } = entry
     return {
-      key, label, kind, valueType: offered.find(c => c.id === capability)?.valueType ?? "any",
+      key, label, kind, valueType: Capabilities.of(description, entry)?.valueType ?? "any",
       plugin: { type: "new", signal: { kind, capability, params, label } }
     }
   }

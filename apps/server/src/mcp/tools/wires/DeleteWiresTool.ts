@@ -1,6 +1,7 @@
 import { z } from "zod"
 import type { McpTool } from "../../McpTool.ts"
 import { BulkItems } from "../../BulkItems.ts"
+import { Counted } from "../../Counted.ts"
 import type { ToolContext } from "../../ToolContext.ts"
 import type { WireRefs } from "./WireRefs.ts"
 import type { WireWrites } from "./WireWrites.ts"
@@ -25,7 +26,7 @@ export class DeleteWiresTool implements McpTool<z.infer<typeof Input>> {
   confirm(input: z.infer<typeof Input>) {
     const found = [...new Map(input.wires.map(ref => this.refs.wire(ref)).map(wire => [wire.id, wire])).values()]
     return {
-      summary: `deletes ${found.length} wire${found.length === 1 ? "" : "s"}: ${found.map(wire => this.refs.describe(wire)).join("; ")}`,
+      summary: `deletes ${Counted.of(found.length, "wire")}: ${found.map(wire => this.refs.describe(wire)).join("; ")}`,
       bind: found.map(wire => wire.id).sort()
     }
   }

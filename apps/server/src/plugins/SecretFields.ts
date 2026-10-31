@@ -63,7 +63,8 @@ export class SecretFields {
     return this.names.has(name) || (this.declared !== undefined && !this.declared.has(name))
   }
 
-  private static isRecord(value: unknown): value is Record<string, unknown> {
+  /** a plain object, as settings and params are; not an array or null */
+  static isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null && !Array.isArray(value)
   }
 }

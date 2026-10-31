@@ -1,7 +1,6 @@
 import type { Recorder } from "@lox-nexus/core"
 import { MessageFormatter } from "@lox-nexus/core"
 import { z } from "zod"
-import { HttpError } from "../../http/HttpError.ts"
 import type { InventoryService } from "../../services/InventoryService.ts"
 import type { McpTool } from "../McpTool.ts"
 import { SignalTable } from "../SignalTable.ts"
@@ -18,12 +17,11 @@ export class GetSignalTool implements McpTool<z.infer<typeof Input>> {
   readonly input = Input
   private readonly messages = new MessageFormatter({ utc: true, topicWidth: 0 })
 
-  constructor(private readonly inventory: Pick<InventoryService, "signals" | "find" | "wires" | "forces">, private readonly recorder: Pick<Recorder, "recent">) {}
+  constructor(private readonly inventory: Pick<InventoryService, "signals" | "require" | "wires" | "forces">, private readonly recorder: Pick<Recorder, "recent">) {}
 
   run(input: z.infer<typeof Input>) {
     const signals = this.inventory.signals()
-    const signal = this.inventory.find(input.signal, signals)
-    if (!signal) throw HttpError.notFound(`signal "${input.signal}" (use list_signals to find its topic)`)
+    const signal = this.inventory.require(input.signal, signals)
     const topics = new Map(signals.map(entry => [entry.id, entry.topic]))
     const force = this.inventory.forces().find(entry => entry.topic === signal.topic)
     const wire = (other: string, wire: { label: string; active: boolean; problem?: string; transforms: unknown[] }) => ({

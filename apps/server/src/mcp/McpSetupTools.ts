@@ -30,7 +30,7 @@ export interface McpSetupSources {
 export class McpSetupTools {
   readonly tools: McpTool[]
 
-  constructor(sources: McpSetupSources, refs: { miniservers: McpRefs; plugins: PluginRefs }, inventory: Pick<InventoryService, "signals" | "wires">) {
+  constructor(sources: McpSetupSources, refs: { miniservers: McpRefs; plugins: PluginRefs }, inventory: Pick<InventoryService, "signals" | "impact">) {
     const { miniservers, plugins, settings, pluginSignals } = sources
     this.tools = [
       new CreateMiniserverTool(miniservers),

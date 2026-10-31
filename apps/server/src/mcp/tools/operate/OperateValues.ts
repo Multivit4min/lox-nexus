@@ -11,13 +11,11 @@ export const ValueInput = z.union([z.number(), z.boolean(), z.string().max(10_00
 export class OperateValues {
   private readonly formatter = new ValueFormatter()
 
-  constructor(private readonly inventory: Pick<InventoryService, "find">) {}
+  constructor(private readonly inventory: Pick<InventoryService, "require">) {}
 
   /** @throws HttpError 404 */
   signal(ref: string): InventorySignal {
-    const signal = this.inventory.find(ref)
-    if (!signal) throw HttpError.notFound(`signal "${ref}" (list_signals names them)`)
-    return signal
+    return this.inventory.require(ref)
   }
 
   /**

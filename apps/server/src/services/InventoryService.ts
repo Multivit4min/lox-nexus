@@ -1,7 +1,8 @@
-import type { LoxoneSignalDto, MiniserverDto, PluginInstanceDto, PluginPackageDto, PluginSignalDto, SignalDto, StaleSignalDto, WireDto } from "@lox-nexus/api"
+import { Capabilities, type LoxoneSignalDto, type MiniserverDto, type PluginInstanceDto, type PluginPackageDto, type PluginSignalDto, type SignalDto, type StaleSignalDto, type WireDto } from "@lox-nexus/api"
 import type { BusMessage, EventBus, SignalRegistry } from "@lox-nexus/core"
 import { DataType } from "@lox-nexus/ici"
 import type { Value } from "@lox-nexus/plugin-sdk/values"
+import { HttpError } from "../http/HttpError.ts"
 import { SecretFields } from "../plugins/SecretFields.ts"
 
 /** what the inventory reads; the same services the REST API lists from */
@@ -95,10 +96,25 @@ export class InventoryService {
     return signals.find(signal => signal.id === ref || signal.topic === ref)
   }
 
+  /** @throws HttpError 404, naming where agents find topics */
+  require(ref: string, signals = this.signals()): InventorySignal {
+    const found = this.find(ref, signals)
+    if (!found) throw HttpError.notFound(`signal "${ref}" (list_signals names them)`)
+    return found
+  }
+
+  /** what goes along when these signals go: the wires touching them, and how many are forced */
+  impact(ids: ReadonlySet<string>, signals = this.signals()) {
+    return {
+      wires: this.wires().filter(wire => ids.has(wire.sourceId) || ids.has(wire.targetId)).length,
+      forces: signals.filter(signal => ids.has(signal.id) && signal.forced).length
+    }
+  }
+
   // params a capability marks secret (and ones it doesn't declare) never reach an agent, like secret config fields
   private withoutSecrets(signal: PluginSignalDto, pluginId: string): PluginSignalDto {
     const description = this.sources.plugins.packages().find(pkg => pkg.id === pluginId)?.description
-    const capability = description && (signal.kind === "sensor" ? description.sensors : description.actuators).find(offered => offered.id === signal.capability)
+    const capability = Capabilities.of(description, signal)
     return { ...signal, params: capability ? new SecretFields(capability.params).strip(signal.params) : {} }
   }
 

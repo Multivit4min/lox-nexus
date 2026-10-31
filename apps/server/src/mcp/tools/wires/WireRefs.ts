@@ -4,7 +4,7 @@ import type { InventoryService, InventorySignal } from "../../../services/Invent
 
 /** Finds the ends and wires an agent names: signals by topic or id, a wire by id or by its target. */
 export class WireRefs {
-  constructor(private readonly inventory: Pick<InventoryService, "signals" | "wires" | "find">) {}
+  constructor(private readonly inventory: Pick<InventoryService, "signals" | "wires" | "find" | "require">) {}
 
   signals(): InventorySignal[] {
     return this.inventory.signals()
@@ -12,9 +12,7 @@ export class WireRefs {
 
   /** @throws HttpError 404 */
   signal(ref: string, signals = this.inventory.signals()): InventorySignal {
-    const found = this.inventory.find(ref, signals)
-    if (!found) throw HttpError.notFound(`signal "${ref}" (list_signals names them)`)
-    return found
+    return this.inventory.require(ref, signals)
   }
 
   /**

@@ -34,7 +34,7 @@ export class NetworkPoller extends Disposable implements Listenable {
   constructor(
     private readonly api: Pick<NetworkApi, "info" | "clients" | "devices" | "device" | "statistics" | "wifiBroadcasts">,
     private readonly site: SiteResolver,
-    private readonly demand: PollDemand,
+    demand: PollDemand,
     private readonly intervalMs: number,
     private readonly report: PollReport,
     private readonly debug: (message: string, data?: unknown) => void = () => {}

@@ -1,6 +1,5 @@
 import { PluginSignalInputSchema, type PluginSignalDto, type PluginSignalInput } from "@lox-nexus/api"
 import { z } from "zod"
-import type { PluginDescription } from "@lox-nexus/plugin-sdk/wire"
 import { BulkItems } from "../../BulkItems.ts"
 import type { McpTool } from "../../McpTool.ts"
 import { SecretInputs } from "../../SecretInputs.ts"
@@ -26,12 +25,6 @@ const Update = PluginSignalInputSchema.pick({ params: true, label: true, slug: t
   params: z.record(z.string(), z.unknown()).optional().describe("only the top-level params that change; null removes one; secret ones stay as stored")
 })
 
-// secret params come from a person; the capability decides which are secret
-function refuseSecrets(description: PluginDescription, signal: { kind: "sensor" | "actuator"; capability: string; params?: unknown }) {
-  const capability = (signal.kind === "sensor" ? description.sensors : description.actuators).find(offered => offered.id === signal.capability)
-  if (capability) SecretInputs.refuse(capability.params, signal.params ?? {}, "secret params")
-}
-
 /** Adds sensors or actuators to a plugin instance, item by item; no wire, no Loxone signal (that is bridge). */
 export class AddPluginSignalsTool implements McpTool<z.infer<typeof Add>> {
   readonly name = "add_plugin_signals"
@@ -48,7 +41,7 @@ export class AddPluginSignalsTool implements McpTool<z.infer<typeof Add>> {
     const instance = this.refs.instance(input.instance)
     const { description } = this.refs.package(instance.plugin)
     return BulkItems.runAsync(input.signals, signal => signal.label || signal.capability, async signal => {
-      refuseSecrets(description, signal)
+      SecretInputs.refuseParams(description, signal)
       return (await this.signals.add(instance.id, signal)).topic
     }, context)
   }
@@ -70,7 +63,7 @@ export class UpdatePluginSignalTool implements McpTool<z.infer<typeof Update>> {
   async run(input: z.infer<typeof Update>, context: ToolContext) {
     const { instance, signal } = this.refs.signal(input.signal, this.signals)
     const params = Object.fromEntries(Object.entries({ ...(signal.params as Record<string, unknown>), ...input.params }).filter(([, value]) => value !== null))
-    refuseSecrets(this.refs.package(instance.plugin).description, { ...signal, params: input.params ?? {} })
+    SecretInputs.refuseParams(this.refs.package(instance.plugin).description, { ...signal, params: input.params ?? {} })
     const pick = <K extends "label" | "slug" | "unit" | "decimals" | "staleAfterMin">(key: K) => (key in input ? input[key] : signal[key])
     const updated = await this.signals.update(instance.id, signal.id, {
       kind: signal.kind, capability: signal.capability, params,

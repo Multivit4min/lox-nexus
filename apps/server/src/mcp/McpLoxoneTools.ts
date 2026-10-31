@@ -16,7 +16,7 @@ import { UpdateLoxoneSignalTool } from "./tools/loxone/UpdateLoxoneSignalTool.ts
 export interface McpLoxoneSources {
   miniservers: { list(): MiniserverDto[] }
   loxoneSignals: LoxoneSignalWrites & { discovered(miniserverId: string): DiscoveredPacketDto[] }
-  inventory: Pick<InventoryService, "signals" | "wires">
+  inventory: Pick<InventoryService, "signals" | "wires" | "impact">
 }
 
 /** The Loxone side of A2 (ADR 0020): both halves of a signal, and the changes to the Nexus half. */

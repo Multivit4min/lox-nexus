@@ -1,7 +1,6 @@
 import type { HistorySeriesDto } from "@lox-nexus/api"
 import { z } from "zod"
 import type { InventoryService } from "../../services/InventoryService.ts"
-import { HttpError } from "../../http/HttpError.ts"
 import { CompactTable } from "../CompactTable.ts"
 import type { McpTool } from "../McpTool.ts"
 
@@ -23,14 +22,13 @@ export class GetHistoryTool implements McpTool<z.infer<typeof Input>> {
   readonly input = Input
 
   constructor(
-    private readonly inventory: Pick<InventoryService, "find">,
+    private readonly inventory: Pick<InventoryService, "require">,
     private readonly history: { series(signalId: string, input: unknown): HistorySeriesDto },
     private readonly now: () => number
   ) {}
 
   run(input: z.infer<typeof Input>) {
-    const signal = this.inventory.find(input.signal)
-    if (!signal) throw HttpError.notFound(`signal "${input.signal}" (list_signals names them)`)
+    const signal = this.inventory.require(input.signal)
     const to = input.to ? Date.parse(input.to) : this.now()
     const from = input.from ? Date.parse(input.from) : to - input.hours * 3_600_000
     const series = this.history.series(signal.id, { from, to, points: input.points })

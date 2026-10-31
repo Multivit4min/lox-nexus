@@ -1,10 +1,16 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 import type { HistorySeriesDto } from "@lox-nexus/api"
+import { HttpError } from "../../http/HttpError.ts"
 import { GetHistoryTool } from "./GetHistoryTool.ts"
 
 const now = Date.UTC(2026, 9, 31, 12)
-const inventory = { find: (ref: string) => (ref === "loxone/haus/in/temp" ? { id: "s1", topic: ref } : undefined) } as never
+const inventory = {
+  require: (ref: string) => {
+    if (ref !== "loxone/haus/in/temp") throw HttpError.notFound(`signal "${ref}"`)
+    return { id: "s1", topic: ref }
+  }
+} as never
 
 test("raw changes as rows with times, rounded to the signal's decimals; the range defaults to the last 24 h", () => {
   const asked: unknown[] = []

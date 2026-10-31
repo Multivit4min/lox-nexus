@@ -7,7 +7,6 @@ export const JsonRpcMessageSchema = z.object({
   method: z.string().min(1),
   params: z.record(z.string(), z.unknown()).optional()
 })
-export type JsonRpcMessage = z.infer<typeof JsonRpcMessageSchema>
 export type JsonRpcId = string | number | null
 
 /** JSON-RPC 2.0 answers and the error codes MCP uses. */

@@ -74,7 +74,7 @@ describe("MCP read tools", { timeout: 30_000 }, () => {
     assert.deepEqual([heat.force.by, heat.force.reason], ["admin", "summer"])
     assert.deepEqual(heat.wiresFrom, [{ other: "loxone/haus/in/temp", label: "temp to heat", transforms: 1 }])
     assert.ok(heat.recent.length > 0)
-    assert.deepEqual(await call("get_signal", { signal: "loxone/haus/nowhere" }), { text: "signal \"loxone/haus/nowhere\" (use list_signals to find its topic) not found", isError: true })
+    assert.deepEqual(await call("get_signal", { signal: "loxone/haus/nowhere" }), { text: "signal \"loxone/haus/nowhere\" (list_signals names them) not found", isError: true })
   })
 
   test("list_wires shows both ends as topics; recent_messages and trace explain the bus", async () => {

@@ -19,7 +19,7 @@ export interface McpOperateSources {
 export class McpOperateTools {
   readonly tools: McpTool[]
 
-  constructor(sources: McpOperateSources, plugins: Pick<PluginRefs, "instance" | "package">, inventory: Pick<InventoryService, "find">) {
+  constructor(sources: McpOperateSources, plugins: Pick<PluginRefs, "instance" | "package">, inventory: Pick<InventoryService, "require">) {
     const values = new OperateValues(inventory)
     this.tools = [
       new ForceTool(values, sources.busActions, sources.now ?? (() => Date.now())),

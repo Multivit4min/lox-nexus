@@ -1,6 +1,7 @@
 import { z } from "zod"
 import type { InventoryService } from "../../../services/InventoryService.ts"
 import type { McpTool } from "../../McpTool.ts"
+import { Counted } from "../../Counted.ts"
 import type { ToolContext } from "../../ToolContext.ts"
 import type { PluginRefs } from "../plugins/PluginRefs.ts"
 import type { InstanceWrites } from "./InstanceWrites.ts"
@@ -20,14 +21,15 @@ export class DeleteInstanceTool implements McpTool<z.infer<typeof Input>> {
   readonly annotations = { destructiveHint: true }
   readonly input = Input
 
-  constructor(private readonly refs: Pick<PluginRefs, "instance">, private readonly instances: Pick<InstanceWrites, "remove">, private readonly inventory: Pick<InventoryService, "signals" | "wires">) {}
+  constructor(private readonly refs: Pick<PluginRefs, "instance">, private readonly instances: Pick<InstanceWrites, "remove">, private readonly inventory: Pick<InventoryService, "signals" | "impact">) {}
 
   confirm(input: z.infer<typeof Input>) {
     const instance = this.refs.instance(input.instance)
-    const signals = this.inventory.signals().filter(signal => signal.owner === `plugin:${instance.slug}`)
-    const ids = new Set(signals.map(signal => signal.id))
-    const wires = this.inventory.wires().filter(wire => ids.has(wire.sourceId) || ids.has(wire.targetId)).length
-    return { summary: `deletes the ${instance.plugin} instance "${instance.label}" (${instance.slug}) with ${signals.length} signals, ${wires} wires, its forces and everything it stored; the plugin stays installed`, bind: instance.id }
+    const all = this.inventory.signals()
+    const signals = all.filter(signal => signal.owner === `plugin:${instance.slug}`)
+    const { wires, forces } = this.inventory.impact(new Set(signals.map(signal => signal.id)), all)
+    const summary = `deletes the ${instance.plugin} instance "${instance.label}" (${instance.slug}) with ${Counted.of(signals.length, "signal")}, ${Counted.of(wires, "wire")}, ${Counted.of(forces, "force")} and everything it stored; the plugin stays installed`
+    return { summary, bind: instance.id }
   }
 
   async run(input: z.infer<typeof Input>, context: ToolContext) {

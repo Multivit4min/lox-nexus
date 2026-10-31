@@ -1,4 +1,4 @@
-import { CatalogTree, type PluginPackageDto, type PluginSignalDto } from "@lox-nexus/api"
+import { Capabilities, CatalogTree, type PluginPackageDto, type PluginSignalDto } from "@lox-nexus/api"
 import { ValueFormatter } from "@lox-nexus/plugin-sdk/values"
 import { z } from "zod"
 import { SecretFields } from "../../../plugins/SecretFields.ts"
@@ -56,8 +56,8 @@ export class SearchCatalogTool implements McpTool<z.infer<typeof Input>> {
   }
 
   // secret params never reach an agent, as on signals; such an entry is added in the web UI
-  private static params(pkg: PluginPackageDto, entry: { kind: string; capability: string; params?: unknown }) {
-    const capability = (entry.kind === "sensor" ? pkg.description.sensors : pkg.description.actuators).find(offered => offered.id === entry.capability)
+  private static params(pkg: PluginPackageDto, entry: { kind: "sensor" | "actuator"; capability: string; params?: unknown }) {
+    const capability = Capabilities.of(pkg.description, entry)
     return capability ? new SecretFields(capability.params).strip(entry.params ?? {}) : {}
   }
 }

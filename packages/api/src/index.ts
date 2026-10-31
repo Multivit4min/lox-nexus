@@ -2,6 +2,7 @@
 export { VersionChange, type VersionChangeKind } from "./VersionChange.ts"
 // pure helpers the server and the web share: packet ids, data types, project diffs, catalogs, bridges, wire health
 export { BridgeDraft, type BridgeCandidate, type BridgeRow } from "./shared/BridgeDraft.ts"
+export { Capabilities } from "./shared/Capabilities.ts"
 export { CatalogTree, type CatalogRow } from "./shared/CatalogTree.ts"
 export { DataTypes, type DataTypeId } from "./shared/DataTypes.ts"
 export { PacketIds } from "./shared/PacketIds.ts"

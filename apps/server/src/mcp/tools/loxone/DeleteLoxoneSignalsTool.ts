@@ -4,6 +4,7 @@ import type { McpRefs } from "../../McpRefs.ts"
 import type { McpTool } from "../../McpTool.ts"
 import type { ToolContext } from "../../ToolContext.ts"
 import { BulkItems } from "../../BulkItems.ts"
+import { Counted } from "../../Counted.ts"
 import type { LoxoneSignalWrites } from "./LoxoneSignalWrites.ts"
 
 const Input = z.object({
@@ -21,14 +22,13 @@ export class DeleteLoxoneSignalsTool implements McpTool<z.infer<typeof Input>> {
   readonly annotations = { destructiveHint: true }
   readonly input = Input
 
-  constructor(private readonly refs: McpRefs, private readonly signals: Pick<LoxoneSignalWrites, "remove">, private readonly inventory: Pick<InventoryService, "signals" | "wires">) {}
+  constructor(private readonly refs: McpRefs, private readonly signals: Pick<LoxoneSignalWrites, "remove">, private readonly inventory: Pick<InventoryService, "impact">) {}
 
   confirm(input: z.infer<typeof Input>) {
     const found = [...new Map(input.signals.map(ref => this.refs.loxoneSignal(ref).signal).map(signal => [signal.id, signal])).values()]
     const ids = new Set(found.map(signal => signal.id))
-    const wires = this.inventory.wires().filter(wire => ids.has(wire.sourceId) || ids.has(wire.targetId)).length
-    const forces = this.inventory.signals().filter(signal => ids.has(signal.id) && signal.forced).length
-    const summary = `deletes ${found.length} Loxone signal${found.length === 1 ? "" : "s"} (${found.map(signal => signal.topic).join(", ")}), ${wires} wire${wires === 1 ? "" : "s"}${forces ? ` and ${forces} force${forces === 1 ? "" : "s"}` : ""}; the objects in Loxone Config stay`
+    const { wires, forces } = this.inventory.impact(ids)
+    const summary = `deletes ${Counted.of(found.length, "Loxone signal")} (${found.map(signal => signal.topic).join(", ")}), ${Counted.of(wires, "wire")}${forces ? ` and ${Counted.of(forces, "force")}` : ""}; the objects in Loxone Config stay`
     return { summary, bind: [...ids].sort() }
   }
 

@@ -28,9 +28,7 @@ export class BridgeItems {
    */
   static resolve(end: z.infer<typeof PluginEndInput>, signals: readonly PluginSignalDto[], description: PluginDescription): BridgeItem["plugin"] {
     if ("entry" in end) {
-      const { kind, capability: id, params } = end.entry
-      const capability = (kind === "sensor" ? description.sensors : description.actuators).find(offered => offered.id === id)
-      if (capability) SecretInputs.refuse(capability.params, params, "secret params")
+      SecretInputs.refuseParams(description, end.entry)
       return { type: "new", signal: end.entry }
     }
     const signal = signals.find(entry => entry.topic === end.signal || entry.id === end.signal)

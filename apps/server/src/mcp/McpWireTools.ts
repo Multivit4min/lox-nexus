@@ -11,7 +11,7 @@ import type { WireWrites } from "./tools/wires/WireWrites.ts"
 export class McpWireTools {
   readonly tools: McpTool[]
 
-  constructor(wires: WireWrites, inventory: Pick<InventoryService, "signals" | "wires" | "find">) {
+  constructor(wires: WireWrites, inventory: Pick<InventoryService, "signals" | "wires" | "find" | "require">) {
     const refs = new WireRefs(inventory)
     this.tools = [
       new PreviewWireTool(refs, wires),

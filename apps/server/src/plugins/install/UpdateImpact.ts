@@ -1,4 +1,4 @@
-import type { CapabilityChangeDto, InstalledInstanceDto, UpdateImpactDto } from "@lox-nexus/api"
+import { Capabilities, type CapabilityChangeDto, type InstalledInstanceDto, type UpdateImpactDto } from "@lox-nexus/api"
 import type { PluginSignalConfig } from "@lox-nexus/core"
 import type { PluginDescription } from "@lox-nexus/plugin-sdk/wire"
 import { z } from "zod"
@@ -8,8 +8,6 @@ export interface ImpactInstance {
   instance: InstalledInstanceDto
   signals: PluginSignalConfig[]
 }
-
-type Capability = PluginDescription["sensors"][number]
 
 /** The parts of a JSON Schema the required-settings check reads; anything else is ignored. */
 const ConfigSchema = z.object({
@@ -30,8 +28,8 @@ export class UpdateImpact {
     const retyped: CapabilityChangeDto[] = []
     const restored: CapabilityChangeDto[] = []
     for (const kind of ["sensor", "actuator"] as const) {
-      const before = new Map(UpdateImpact.offered(current, kind).map(capability => [capability.id, capability]))
-      const after = new Map(UpdateImpact.offered(next, kind).map(capability => [capability.id, capability]))
+      const before = new Map(Capabilities.offered(current, kind).map(capability => [capability.id, capability]))
+      const after = new Map(Capabilities.offered(next, kind).map(capability => [capability.id, capability]))
       const used = (id: string) => signals.filter(signal => signal.kind === kind && signal.capability === id).length
       // capabilities in use count too: the active version may not offer them (orphans) or be unknown
       const ids = new Set([...before.keys(), ...signals.filter(signal => signal.kind === kind).map(signal => signal.capability)])
@@ -48,11 +46,6 @@ export class UpdateImpact {
       }
     }
     return { instances: instances.map(entry => entry.instance), removed, retyped, restored, newRequiredConfig: UpdateImpact.newRequired(next, current) }
-  }
-
-  private static offered(description: PluginDescription | undefined, kind: "sensor" | "actuator"): Capability[] {
-    if (!description) return []
-    return kind === "sensor" ? description.sensors : description.actuators
   }
 
   // a stored config already has what the active version required (or filled in from its default);
