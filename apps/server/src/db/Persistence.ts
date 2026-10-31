@@ -8,6 +8,7 @@ import { MiniserverRepository } from "./repositories/MiniserverRepository.ts"
 import { PluginInstanceRepository } from "./repositories/PluginInstanceRepository.ts"
 import { PluginPackageRepository } from "./repositories/PluginPackageRepository.ts"
 import { PluginSignalRepository } from "./repositories/PluginSignalRepository.ts"
+import { AccessTokenRepository } from "./repositories/AccessTokenRepository.ts"
 import { PluginStoreRepository } from "./repositories/PluginStoreRepository.ts"
 import { SelectionRepository } from "./repositories/SelectionRepository.ts"
 import { SessionRepository } from "./repositories/SessionRepository.ts"
@@ -26,6 +27,7 @@ export class Persistence {
   /** names of the migrations not applied, when opened with `migrate: false` */
   readonly pending: string[]
   readonly users: UserRepository
+  readonly accessTokens: AccessTokenRepository
   readonly sessions: SessionRepository
   readonly miniservers: MiniserverRepository
   readonly loxoneSignals: LoxoneSignalRepository
@@ -54,6 +56,7 @@ export class Persistence {
     this.applied = options.migrate === false ? [] : migrator.migrate()
     this.pending = migrator.pending()
     this.users = new UserRepository(this.db)
+    this.accessTokens = new AccessTokenRepository(this.db)
     this.sessions = new SessionRepository(this.db)
     this.miniservers = new MiniserverRepository(this.db)
     this.loxoneSignals = new LoxoneSignalRepository(this.db)

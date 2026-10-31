@@ -11,6 +11,8 @@ export interface UserDto {
   lastLoginAt?: number
   /** the account of the asking session */
   you: boolean
+  /** how many access tokens (MCP) the account has */
+  tokens: number
 }
 
 // the asking user's own password: adding or deleting accounts and setting someone's password

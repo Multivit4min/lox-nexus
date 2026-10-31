@@ -10,6 +10,7 @@ import { Disposable } from "@lox-nexus/plugin-sdk"
 import type { Logger } from "pino"
 import { AuthService } from "./auth/AuthService.ts"
 import { LoginThrottle } from "./auth/LoginThrottle.ts"
+import { AccessTokenService } from "./auth/AccessTokenService.ts"
 import { PasswordHasher } from "./auth/PasswordHasher.ts"
 import { SessionPruner } from "./auth/SessionPruner.ts"
 import { SessionService } from "./auth/SessionService.ts"
@@ -20,6 +21,7 @@ import { AuthGuard } from "./http/AuthGuard.ts"
 import { PluginControllers } from "./http/PluginControllers.ts"
 import { AuthController } from "./http/controllers/AuthController.ts"
 import { UserController } from "./http/controllers/UserController.ts"
+import { AccessTokenController } from "./http/controllers/AccessTokenController.ts"
 import { BusController } from "./http/controllers/BusController.ts"
 import { ConfigController } from "./http/controllers/ConfigController.ts"
 import { HookController } from "./http/controllers/HookController.ts"
@@ -196,20 +198,23 @@ export class NexusApp extends Disposable {
     const auth = new AuthService(db.db, db.users, sessions, hasher, clock)
     // one counter: a wrong own password on the users page counts with wrong logins
     const throttle = new LoginThrottle(clock)
+    const tokens = new AccessTokenService(db.accessTokens, db.users, clock)
     const cookie = new SessionCookie(config.secureCookies)
     const stale = this.own(new StaleWatcher({ signals: this.signals, bus: this.bus, clock, active: StaleWatcher.activeIn(this.miniservers, this.plugins) }))
     const stream = this.own(new BusStream(this.bus, auth, sessions, cookie, stale, this.pluginEvents))
     this.stream = stream
     return new HttpServer({
       logger: log,
-      guard: new AuthGuard(auth, cookie, config.publicOrigins),
+      // wrong bearer tokens have their own counter: an agent's bad token doesn't lock the UI's login out
+      guard: new AuthGuard(auth, cookie, config.publicOrigins, { service: tokens, throttle: new LoginThrottle(clock) }),
       lock,
       webDir: config.webDir,
       docsDir: config.docsDir,
       trustProxy: config.trustProxy,
       controllers: [
         new AuthController(auth, throttle, cookie),
-        new UserController(new UserService(db.db, db.users, sessions, hasher, clock, message => log.info(message)), throttle),
+        new UserController(new UserService(db.db, db.users, sessions, hasher, clock, message => log.info(message), () => db.accessTokens.counts()), throttle),
+        new AccessTokenController(tokens, db.users, hasher, throttle, message => log.info(message)),
         new MiniserverController(miniservers, loxoneSignals, new LoxoneProjectService(miniservers, this.options.projectReader ?? new ProjectReader(new MiniserverFtp()), new TimeZoneSetting(db.settings))),
         new SignalController(this.signals, this.bus, wires),
         new BusController(this.bus, this.recorder),

@@ -55,6 +55,7 @@ export class HttpServer extends Disposable {
       logController: new LogController({ disableRequestLogging: true })
     })
     this.app.decorateRequest("user", undefined)
+    this.app.decorateRequest("access", undefined)
     this.app.setErrorHandler(new ErrorHandler().handle)
     this.app.register(fastifyCookie)
     this.app.register(fastifyWebsocket, { options: { maxPayload: 65_536 } })

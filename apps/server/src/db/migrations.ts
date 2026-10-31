@@ -1,4 +1,5 @@
 import type { Migration } from "./Migrator.ts"
+import { ACCOUNT_MIGRATIONS } from "./AccountMigrations.ts"
 import { SELECTIONS_MIGRATION } from "./SelectionsMigration.ts"
 
 /** The schema history. Append only: a released migration must never change. */
@@ -192,10 +193,5 @@ export const MIGRATIONS: readonly Migration[] = [
     // the plugin's configVersion a config was saved with; NULL for older rows, which are version 1
     sql: "ALTER TABLE plugin_instances ADD COLUMN config_version INTEGER"
   },
-  {
-    version: 11,
-    name: "user_last_login",
-    // shown on the users page; NULL for accounts that never logged in (or did before this column)
-    sql: "ALTER TABLE users ADD COLUMN last_login_at INTEGER"
-  }
+  ...ACCOUNT_MIGRATIONS
 ]

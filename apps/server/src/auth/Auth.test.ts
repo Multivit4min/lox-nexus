@@ -3,6 +3,7 @@ import { describe, test } from "node:test"
 import { Database } from "../db/Database.ts"
 import { MIGRATIONS } from "../db/migrations.ts"
 import { Migrator } from "../db/Migrator.ts"
+import { AccessTokenRepository } from "../db/repositories/AccessTokenRepository.ts"
 import { SessionRepository } from "../db/repositories/SessionRepository.ts"
 import { UserRepository } from "../db/repositories/UserRepository.ts"
 import { AuthService } from "./AuthService.ts"
@@ -11,6 +12,7 @@ import { LoginThrottle } from "./LoginThrottle.ts"
 import { PasswordHasher } from "./PasswordHasher.ts"
 import { PasswordReset } from "./PasswordReset.ts"
 import { SessionService } from "./SessionService.ts"
+import { AccessTokenService } from "./AccessTokenService.ts"
 
 class ManualClock {
   constructor(public time = 1_000_000) {}
@@ -129,5 +131,23 @@ describe("AuthService", () => {
     finish!()
     assert.equal(await login, undefined)
     assert.deepEqual(db.all("SELECT * FROM sessions"), [])
+  })
+})
+
+describe("access tokens", () => {
+  test("the reset-password command ends the account's tokens too (the trigger of migration 12)", async () => {
+    const db = new Database(":memory:")
+    new Migrator(db, MIGRATIONS).migrate()
+    const users = new UserRepository(db)
+    const hasher = new PasswordHasher(1024)
+    users.insert({ id: "u1", username: "admin", password_hash: await hasher.hash("old password"), created_at: 0 })
+    users.insert({ id: "u2", username: "family", password_hash: await hasher.hash("family pass"), created_at: 0 })
+    const tokens = new AccessTokenService(new AccessTokenRepository(db), users, new ManualClock())
+    const { token } = tokens.create("u1", "agent", ["configure"])
+    tokens.create("u2", "theirs", [])
+    assert.equal(tokens.authenticate(token)?.user.username, "admin")
+    await new PasswordReset(db, users, new SessionRepository(db), hasher).reset("admin", "new password")
+    assert.equal(tokens.authenticate(token), undefined)
+    assert.deepEqual([tokens.list("u1").length, tokens.list("u2").length], [0, 1], "only that account's")
   })
 })

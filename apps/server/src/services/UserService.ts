@@ -21,12 +21,14 @@ export class UserService {
     private readonly sessions: Pick<SessionService, "revokeAll">,
     private readonly hasher: Pick<PasswordHasher, "hash" | "verify">,
     private readonly clock: Pick<Clock, "now">,
-    private readonly log: (message: string) => void = () => {}
+    private readonly log: (message: string) => void = () => {},
+    private readonly tokenCounts: () => ReadonlyMap<string, number> = () => new Map()
   ) {}
 
   list(you: string): UserDto[] {
+    const tokens = this.tokenCounts()
     return this.users.list().map(row => ({
-      id: row.id, username: row.username, createdAt: row.created_at, you: row.id === you,
+      id: row.id, username: row.username, createdAt: row.created_at, you: row.id === you, tokens: tokens.get(row.id) ?? 0,
       ...(row.last_login_at ? { lastLoginAt: row.last_login_at } : {})
     }))
   }
@@ -42,7 +44,7 @@ export class UserService {
       this.users.insert(row)
     })
     this.log(`user "${username}" added by ${by}`)
-    return { id: row.id, username, createdAt: row.created_at, you: false }
+    return { id: row.id, username, createdAt: row.created_at, you: false, tokens: 0 }
   }
 
   /** their sessions end with them. @throws HttpError 403 wrong own password, 404 unknown, 409 yourself or the last account */
@@ -58,8 +60,8 @@ export class UserService {
   }
 
   /**
-   * Sets another user's password and ends all their sessions (and, with access tokens, their
-   * tokens). Your own goes through the password change, which keeps your session.
+   * Sets another user's password and ends all their sessions, and their access tokens (a trigger
+   * on the password). Your own goes through the password change, which keeps your session.
    * @throws HttpError 400 yourself, 403 wrong own password, 404 unknown
    */
   async setPassword(actor: string, currentPassword: string, id: string, password: string) {
