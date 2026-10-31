@@ -2,6 +2,7 @@
 export type CommandKind =
   | "onOff" | "brightness" | "colorTemperature" | "tunableWhite" | "position" | "setpoint" | "fanSpeed" | "lock"
   | "tilt" | "color" | "coolingSetpoint" | "mode" | "valve" | "chargingEnabled" | "maxCurrent" | "chargingMode"
+  | "ring" | "chimeSound" | "chimeEnabled"
 
 /** what Nexus can tell controllers about a device; each becomes an actuator */
 export type StateKind =
@@ -10,7 +11,7 @@ export type StateKind =
   | "illuminance" | "pressure" | "flow" | "rain" | "freeze" | "battery"
   | "tilt" | "color" | "coolingSetpoint" | "mode" | "valve" | "airQuality" | "co2" | "pm25"
   | "power" | "production" | "energyImported" | "energyExported" | "voltage" | "current"
-  | "pluggedIn" | "charging" | "chargingEnabled" | "maxCurrent" | "sessionEnergy" | "chargingMode"
+  | "pluggedIn" | "charging" | "chargingEnabled" | "maxCurrent" | "sessionEnergy" | "chargingMode" | "chimeEnabled"
 
 /** a tunable white light's colour temperature (Kelvin) and brightness (%) */
 export interface TunableWhiteValue { temperature: number; brightness: number }
@@ -40,7 +41,7 @@ export const DEVICE_TYPE_IDS = [
   "window-covering", "venetian-blind", "thermostat", "thermostat-heat-cool", "fan", "water-valve", "door-lock",
   "temperature-sensor", "humidity-sensor", "light-sensor", "pressure-sensor", "flow-sensor", "air-quality-sensor",
   "contact-sensor", "occupancy-sensor", "smoke-co-alarm", "water-leak-detector", "rain-sensor", "water-freeze-detector",
-  "generic-switch", "doorbell",
+  "generic-switch", "doorbell", "chime",
   "electrical-meter", "solar-power", "battery-storage", "evse", "heat-pump"
 ] as const
 

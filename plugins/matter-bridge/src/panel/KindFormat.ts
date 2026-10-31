@@ -1,4 +1,5 @@
 import { AirQualityLevel } from "../devices/AirQualityLevel.ts"
+import { ChimeServer } from "../devices/ChimeServer.ts"
 import type { CommandKind, KindValue, StateKind } from "../devices/DeviceKinds.ts"
 
 type Kind = StateKind | CommandKind
@@ -13,7 +14,7 @@ const FLAGS: Partial<Record<Kind, [string, string]>> = {
   smoke: ["smoke alarm", "no smoke"], co: ["CO alarm", "no CO"], leak: ["leak", "dry"], press: ["pressed", "released"],
   longPress: ["long press", "released"], rain: ["rain", "dry"], freeze: ["frost", "no frost"],
   valve: ["open", "closed"], pluggedIn: ["plugged in", "no car"], charging: ["charging", "not charging"],
-  chargingEnabled: ["charging enabled", "charging disabled"]
+  chargingEnabled: ["charging enabled", "charging disabled"], ring: ["ringing", "quiet"], chimeEnabled: ["chime on", "chime off"]
 }
 
 /** Commands and states as the panel and messages show them: "on", "45 %", "21.5 °C", "open". */
@@ -27,7 +28,7 @@ export class KindFormat {
     mode: "mode", valve: "valve", airQuality: "air quality", co2: "CO₂", pm25: "PM2.5", power: "power", production: "PV power",
     energyImported: "energy imported", energyExported: "energy exported", voltage: "voltage", current: "current", pluggedIn: "car",
     charging: "charging", chargingEnabled: "charging enabled", maxCurrent: "maximum current", sessionEnergy: "session energy",
-    chargingMode: "charging mode"
+    chargingMode: "charging mode", ring: "ring", chimeSound: "chime sound", chimeEnabled: "chime"
   }
 
   static label(kind: Kind) {
@@ -45,6 +46,7 @@ export class KindFormat {
       return value ? yes : no
     }
     if (kind === "airQuality") return AirQualityLevel.NAMES[value] ?? String(value)
+    if (kind === "chimeSound") return `${value} (${ChimeServer.soundName(value)})`
     return `${KindFormat.number(value)} ${UNITS[kind] ?? "%"}`
   }
 

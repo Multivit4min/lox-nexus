@@ -74,6 +74,7 @@ test("the catalog offers, per device, the commands and states its type has", asy
       "actuator plugged-in", "actuator charging", "actuator charging-enabled", "actuator max-current", "actuator charging-mode",
       "actuator power", "actuator energy-imported", "actuator session-energy"
     ],
+    "chime (Chime (bell))": ["sensor ring", "sensor chime-sound", "sensor chime-enabled", "actuator chime-enabled"],
     "heat-pump (Heat pump)": [
       "sensor setpoint", "sensor cooling-setpoint", "sensor mode",
       "actuator temperature", "actuator setpoint", "actuator cooling-setpoint", "actuator mode", "actuator power", "actuator energy-imported"

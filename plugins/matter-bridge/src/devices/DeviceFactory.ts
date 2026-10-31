@@ -2,6 +2,7 @@ import type { BridgedDevice, DeviceContext } from "./BridgedDevice.ts"
 import { BridgedAirQuality } from "./BridgedAirQuality.ts"
 import { BridgedBlind } from "./BridgedBlind.ts"
 import { BridgedButton } from "./BridgedButton.ts"
+import { BridgedChime } from "./BridgedChime.ts"
 import { BridgedClimate } from "./BridgedClimate.ts"
 import { BridgedColorLight } from "./BridgedColorLight.ts"
 import { BridgedContact } from "./BridgedContact.ts"
@@ -58,6 +59,7 @@ export class DeviceFactory {
       case "water-freeze-detector": return new BridgedWaterSensor(record, this.context)
       case "generic-switch":
       case "doorbell": return new BridgedButton(record, this.context)
+      case "chime": return new BridgedChime(record, this.context)
       case "venetian-blind": return new BridgedBlind(record, this.context)
       case "color-light": return new BridgedRgbLight(record, this.context)
       case "water-valve": return new BridgedValve(record, this.context)

@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { test } from "node:test"
 import { PluginTestHost } from "@lox-nexus/plugin-sdk/testing"
 import { AddDeviceAction } from "../actions/AddDeviceAction.ts"
+import { DeviceGroups } from "./DeviceGroups.ts"
 import { DEVICE_TYPE_IDS } from "../devices/DeviceKinds.ts"
 import { MatterBridgePlugin } from "../MatterBridgePlugin.ts"
 import { bridgeConfigSchema } from "./BridgeConfig.ts"
@@ -48,25 +49,36 @@ test("forms: fields, params and action inputs have titles, descriptions and labe
   assert.deepEqual(actions.map(action => action.id), ["add-device", "edit-device", "edit-lock", "remove-device", "open-pairing-window", "remove-pairing"])
   assert.ok(actions.every(action => action.placement === "panel"), "every button is in the panel: above its section or on its row")
   for (const action of actions.slice(1)) checkFields(action.input, action.id)
-  // add-device is a union by type, in runs of types with the same fields, in the types' order
+  // add-device is a union by kind of device; close types share one with a second choice
   const branches = (actions[0]!.input as { oneOf: Schema[] }).oneOf
-  const types = branches.map(branch => Object.keys(checkFields(branch, "add-device").type?.enumLabels ?? {}))
-  assert.deepEqual(types.flat(), [...DEVICE_TYPE_IDS])
-  for (const [index, branch] of branches.entries()) {
-    const fields = Object.keys(branch.properties ?? {})
-    if (types[index]!.includes("door-lock")) assert.deepEqual(fields, ["type", "name", "allowUnlock"])
-    else if (types[index]!.includes("temperature-sensor") || types[index]!.includes("doorbell")) assert.deepEqual(fields, ["type", "name", "battery"])
-    else assert.deepEqual(fields, ["type", "name"], types[index]!.join())
+  const fieldNames = DeviceGroups.all.flatMap(group => group.choice ? [group.choice.field] : [])
+  assert.equal(new Set(fieldNames).size, fieldNames.length, "each group's second choice has a field of its own")
+  const types = branches.flatMap(branch => {
+    const choice = Object.entries(checkFields(branch, "add-device")).find(([key]) => fieldNames.includes(key))?.[1]
+    return choice ? Object.keys(choice.enumLabels ?? {}) : [String((branch.properties!.type as { const?: unknown }).const)]
+  })
+  assert.deepEqual([...types].sort(), [...DEVICE_TYPE_IDS].sort(), "every type exactly once")
+  assert.ok(branches.length <= 20, `${branches.length} choices`)
+  for (const branch of branches) {
+    const fields = Object.keys(branch.properties ?? {}).filter(field => !fieldNames.includes(field))
+    const type = String((branch.properties!.type as { const?: unknown }).const)
+    if (type === "door-lock") assert.deepEqual(fields, ["type", "name", "allowUnlock"])
+    else if (["sensor", "contact-sensor", "occupancy-sensor", "water-sensor", "button"].includes(type)) assert.deepEqual(fields, ["type", "name", "battery"], type)
+    else assert.deepEqual(fields, ["type", "name"], type)
   }
   assert.ok(actions.find(action => action.id === "remove-device")?.confirm)
   assert.ok(actions.find(action => action.id === "remove-pairing")?.confirm)
 })
 
-test("add-device input: each run's fields parse; a lock's unlocking and a battery only where the type has them", () => {
+test("add-device input: each kind of branch parses; a lock's unlocking and a battery only where the type has them", () => {
   const parse = (input: unknown) => AddDeviceAction.input.parse(input)
-  assert.deepEqual(parse({ type: "plug", name: "Hall" }), { type: "plug", name: "Hall" })
+  assert.deepEqual(parse({ type: "light", light: "on-off-light", name: "Hall" }), { type: "light", light: "on-off-light", name: "Hall" })
+  assert.throws(() => parse({ type: "light", name: "Hall" }), "the second choice is required")
+  assert.throws(() => parse({ type: "light", light: "plug", name: "X" }), "a kind of another group")
   assert.deepEqual(parse({ type: "door-lock", name: "Front" }), { type: "door-lock", name: "Front", allowUnlock: false })
-  assert.deepEqual(parse({ type: "temperature-sensor", name: "Out", battery: true }), { type: "temperature-sensor", name: "Out", battery: true })
-  assert.deepEqual(parse({ type: "plug", name: "Hall", battery: true, allowUnlock: true }), { type: "plug", name: "Hall" }, "fields of other types are dropped")
+  assert.deepEqual(parse({ type: "sensor", sensor: "humidity-sensor", name: "Out", battery: true }), { type: "sensor", sensor: "humidity-sensor", name: "Out", battery: true })
+  assert.deepEqual(parse({ type: "plug", plug: "plug", name: "Hall", battery: true, allowUnlock: true }), { type: "plug", plug: "plug", name: "Hall" }, "fields of other types are dropped")
   assert.throws(() => parse({ type: "spaceship", name: "X" }))
+  assert.equal(DeviceGroups.type({ type: "thermostat", thermostat: "thermostat-heat-cool" }), "thermostat-heat-cool")
+  assert.equal(DeviceGroups.type({ type: "chime" }), "chime")
 })

@@ -8,6 +8,9 @@ import { ChargingEnabledState } from "./ChargingEnabledState.ts"
 import { ChargingModeCommand } from "./ChargingModeCommand.ts"
 import { ChargingModeState } from "./ChargingModeState.ts"
 import { ChargingState } from "./ChargingState.ts"
+import { ChimeEnabledCommand } from "./ChimeEnabledCommand.ts"
+import { ChimeEnabledState } from "./ChimeEnabledState.ts"
+import { ChimeSoundCommand } from "./ChimeSoundCommand.ts"
 import { Co2State } from "./Co2State.ts"
 import { CoState } from "./CoState.ts"
 import { ColorCommand } from "./ColorCommand.ts"
@@ -46,6 +49,7 @@ import { PressState } from "./PressState.ts"
 import { PressureState } from "./PressureState.ts"
 import { ProductionState } from "./ProductionState.ts"
 import { RainState } from "./RainState.ts"
+import { RingCommand } from "./RingCommand.ts"
 import { SessionEnergyState } from "./SessionEnergyState.ts"
 import { SetpointCommand } from "./SetpointCommand.ts"
 import { SetpointState } from "./SetpointState.ts"
@@ -65,7 +69,8 @@ export class Capabilities {
     onOff: OnOffCommand, brightness: BrightnessCommand, colorTemperature: ColorTemperatureCommand, tunableWhite: TunableWhiteCommand,
     position: PositionCommand, setpoint: SetpointCommand, fanSpeed: FanSpeedCommand, lock: LockCommand, tilt: TiltCommand,
     color: ColorCommand, coolingSetpoint: CoolingSetpointCommand, mode: ModeCommand, valve: ValveCommand,
-    chargingEnabled: ChargingEnabledCommand, maxCurrent: MaxCurrentCommand, chargingMode: ChargingModeCommand
+    chargingEnabled: ChargingEnabledCommand, maxCurrent: MaxCurrentCommand, chargingMode: ChargingModeCommand, ring: RingCommand,
+    chimeSound: ChimeSoundCommand, chimeEnabled: ChimeEnabledCommand
   } as const satisfies Record<CommandKind, unknown>
 
   static readonly actuatorFor = {
@@ -78,7 +83,7 @@ export class Capabilities {
     co2: Co2State, pm25: Pm25State, power: PowerState, production: ProductionState, energyImported: EnergyImportedState,
     energyExported: EnergyExportedState, voltage: VoltageState, current: CurrentState, pluggedIn: PluggedInState,
     charging: ChargingState, chargingEnabled: ChargingEnabledState, maxCurrent: MaxCurrentState, sessionEnergy: SessionEnergyState,
-    chargingMode: ChargingModeState
+    chargingMode: ChargingModeState, chimeEnabled: ChimeEnabledState
   } as const satisfies Record<StateKind, unknown>
 
   static readonly sensors = Object.values(Capabilities.sensorFor)

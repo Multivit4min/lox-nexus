@@ -1,48 +1,43 @@
 import { Action, z } from "@lox-nexus/plugin-sdk"
+import { DeviceGroups, type DeviceGroup } from "../config/DeviceGroups.ts"
 import { DeviceTypes } from "../config/DeviceTypes.ts"
 import { nameSchema } from "../config/BridgeConfig.ts"
-import { DEVICE_TYPE_IDS, type DeviceTypeId } from "../devices/DeviceKinds.ts"
+import type { DeviceTypeId } from "../devices/DeviceKinds.ts"
 import type { MatterBridgePlugin } from "../MatterBridgePlugin.ts"
 
-type Types = [DeviceTypeId, ...DeviceTypeId[]]
-type Extra = "plain" | "lock" | "battery"
-
 const name = () => nameSchema().meta({ title: "Name", description: "What Alexa and the other apps call the device, e.g. Kitchen light; unique, at most 32 bytes" })
-const extras = {
-  plain: {},
-  lock: {
-    allowUnlock: z.boolean().default(false).meta({ title: "Allow unlocking", description: "Whether Alexa and the other apps may unlock. Off: they can only lock" })
-  },
-  battery: {
-    battery: z.boolean().default(false).meta({ title: "Battery", description: "Whether the apps show a battery level, sent by Nexus; can't be changed later" })
-  }
-}
-const extra = (type: DeviceTypeId): Extra => type === "door-lock" ? "lock" : DeviceTypes.info(type).battery ? "battery" : "plain"
 
-/** the types in their order, as runs of types with the same extra fields */
-const runs = DEVICE_TYPE_IDS.reduce<{ extra: Extra; types: Types }[]>((all, type) => {
-  const last = all.at(-1)
-  if (last?.extra === extra(type)) last.types.push(type)
-  else all.push({ extra: extra(type), types: [type] })
-  return all
-}, [])
+/** a group's fields: the second choice where it has several types, unlocking for the lock, a battery where every type may have one */
+const branch = (group: DeviceGroup) => {
+  const types = group.types.map(entry => entry.type) as [DeviceTypeId, ...DeviceTypeId[]]
+  return z.object({
+    type: z.literal(group.id).meta({ title: group.label, description: "What kind of device the apps show; can't be changed later" }),
+    ...(group.choice ? {
+      [group.choice.field]: z.enum(types).meta({
+        title: group.choice.title, description: "Can't be changed later",
+        enumLabels: Object.fromEntries(group.types.map(entry => [entry.type, entry.label]))
+      })
+    } : {}),
+    name: name(),
+    ...(types.includes("door-lock") ? {
+      allowUnlock: z.boolean().default(false).meta({ title: "Allow unlocking", description: "Whether Alexa and the other apps may unlock. Off: they can only lock" })
+    } : {}),
+    ...(types.every(type => DeviceTypes.info(type).battery) ? {
+      battery: z.boolean().default(false).meta({ title: "Battery", description: "Whether the apps show a battery level, sent by Nexus; can't be changed later" })
+    } : {})
+  })
+}
+
+/** the group's id, its second choice under the group's own field, the name and the extras */
+interface Input { type: string; name: string; allowUnlock?: boolean; battery?: boolean; [choice: string]: unknown }
 
 /**
- * By type: only a door lock has Allow unlocking and only battery-powered sensors and buttons a
- * Battery, so the form shows each only for those. The form lists the types branch by branch, so
- * each run of types with the same fields is a branch, which keeps the types in their order.
+ * By kind of device: close types (lights, thermostats, sensors) are one choice with a second one,
+ * so the type list stays short; only a door lock has Allow unlocking, only battery-powered sensors
+ * and buttons a Battery. Built from the groups, so zod can't infer the union: the form test parses
+ * one input per kind of branch.
  */
-const input = z.discriminatedUnion("type", runs.map(({ extra, types }) => z.object({
-  type: z.enum(types).meta({
-    title: "Type", description: "What kind of device the apps show; can't be changed later",
-    enumLabels: Object.fromEntries(types.map(type => [type, DeviceTypes.labels()[type]]))
-  }),
-  name: name(),
-  ...extras[extra]
-  // built from the type list, so zod can't infer the union; the form test parses one input per kind of branch
-})) as unknown as [z.ZodObject, ...z.ZodObject[]]) as unknown as z.ZodType<Input>
-
-interface Input { type: DeviceTypeId; name: string; allowUnlock?: boolean; battery?: boolean }
+const input = z.discriminatedUnion("type", DeviceGroups.all.map(branch) as unknown as [z.ZodObject, ...z.ZodObject[]]) as unknown as z.ZodType<Input>
 
 /** Adds a device to the running bridge, at most 50. */
 export class AddDeviceAction extends Action<MatterBridgePlugin, Input> {
@@ -54,7 +49,8 @@ export class AddDeviceAction extends Action<MatterBridgePlugin, Input> {
   static readonly placement = "panel"
 
   async run() {
-    const { name, type, allowUnlock, battery } = this.input
+    const { name, allowUnlock, battery } = this.input
+    const type = DeviceGroups.type(this.input)
     const device = await this.plugin.manager.add(name, type, { allowUnlock, battery })
     return `Added ${device.name} (${device.id}). In the Alexa app it may take a minute to appear, or need "Discover devices"`
   }

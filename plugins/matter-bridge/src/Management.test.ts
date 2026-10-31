@@ -4,6 +4,7 @@ import { PluginTestHost } from "@lox-nexus/plugin-sdk/testing"
 import { Value } from "@lox-nexus/plugin-sdk/values"
 import type { ClientNode } from "@matter/main"
 import { OnOffClient } from "@matter/main/behaviors/on-off"
+import { DeviceGroups } from "./config/DeviceGroups.ts"
 import type { BridgedDevice } from "./devices/BridgedDevice.ts"
 import { MatterBridgePlugin } from "./MatterBridgePlugin.ts"
 import { BridgeHarness } from "./test-support/BridgeHarness.ts"
@@ -30,14 +31,21 @@ const visible = (name: string) => {
 }
 const storedIds = () => (bridge.host.store.devices as { id: string }[]).map(device => device.id)
 
+/** the Add device form's input for a type: its group, and the type as the second choice where the group has several */
+function typeInput(type: string) {
+  const group = DeviceGroups.all.find(candidate => candidate.types.some(entry => entry.type === type))
+  if (!group) return { type }
+  return group.choice ? { type: group.id, [group.choice.field]: type } : { type: group.id }
+}
+
 /** adds a device through the action and returns its id */
 async function add(name: string, type: string, allowUnlock?: boolean) {
-  await bridge.host.action("add-device", { name, type, ...allowUnlock === undefined ? {} : { allowUnlock } })
+  await bridge.host.action("add-device", { name, ...typeInput(type), ...allowUnlock === undefined ? {} : { allowUnlock } })
   return bridge.host.plugin.devices.named(name)!.id
 }
 
 test("a device added while paired appears at the controller and works, without a restart", { timeout: 30_000 }, async () => {
-  const answer = await bridge.host.action("add-device", { name: "Hall light", type: "on-off-light" })
+  const answer = await bridge.host.action("add-device", { name: "Hall light", ...typeInput("on-off-light") })
   assert.match(answer ?? "", /^Added Hall light \(hall-light-[0-9a-f]{4}\)\. In the Alexa app it may take a minute/)
   const id = bridge.host.plugin.devices.named("Hall light")!.id
   assert.ok(storedIds().includes(id))
@@ -49,7 +57,7 @@ test("a device added while paired appears at the controller and works, without a
 
 test("names are unique ignoring case; unknown types and devices are refused", async () => {
   const id = await add("Stairs", "plug")
-  await assert.rejects(bridge.host.action("add-device", { name: "STAIRS", type: "plug" }), /already has a device named "Stairs"/)
+  await assert.rejects(bridge.host.action("add-device", { name: "STAIRS", ...typeInput("plug") }), /already has a device named "Stairs"/)
   await assert.rejects(bridge.host.action("edit-device", { device: id, name: "kitchen" }), /already has a device named "Kitchen"/)
   await assert.rejects(bridge.host.action("add-device", { name: "Fan", type: "ceiling-fan" }))
   await assert.rejects(bridge.host.action("edit-device", { device: "nope", name: "X" }), /no device "nope"/)
@@ -112,7 +120,7 @@ test("a device that fails to set up is not left half-added", { timeout: 20_000 }
     return created
   }
   try {
-    await assert.rejects(bridge.host.action("add-device", { name: "Broken", type: "plug" }), /set-up failed/)
+    await assert.rejects(bridge.host.action("add-device", { name: "Broken", ...typeInput("plug") }), /set-up failed/)
   } finally {
     plugin.devices.create = create
   }
@@ -149,7 +157,7 @@ test("at most 50 devices, Alexa's limit for one bridge", { timeout: 30_000 }, as
   const devices = Array.from({ length: 50 }, (_, index) => ({ name: `Light ${index}`, type: "on-off-light" }))
   const host = await PluginTestHost.start(MatterBridgePlugin, { config: { port: await FreePort.udp() }, store: BridgeHarness.store(devices) })
   try {
-    await assert.rejects(host.action("add-device", { name: "One more", type: "plug" }), /has 50 devices, Alexa's limit/)
+    await assert.rejects(host.action("add-device", { name: "One more", ...typeInput("plug") }), /has 50 devices, Alexa's limit/)
     const panel = await host.panel()
     assert.ok(panel?.type === "sections" && panel.sections[2]!.panel.type === "table" && panel.sections[2]!.panel.rows.length === 50)
   } finally {

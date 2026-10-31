@@ -8,7 +8,7 @@ controller's row.
 
 | Action | Input | What it does |
 |---|---|---|
-| Add device (`add-device`) | `type`, `name`, for a door lock `allowUnlock` (default off), for sensors and buttons `battery` (default off) | Adds a device, at most 50 per bridge (Alexa's limit). Names are unique ignoring case, at most 32 bytes. The form shows **Allow unlocking** only when Door lock is chosen, and **Battery** only for sensors and buttons; neither the type nor the battery can be changed later. |
+| Add device (`add-device`) | `type` (a kind of device), for kinds with several types the type under the kind's own field (e.g. `light: "dimmable-light"`), `name`, for a door lock `allowUnlock` (default off), for sensors and buttons `battery` (default off) | Adds a device, at most 50 per bridge (Alexa's limit). Names are unique ignoring case, at most 32 bytes. The type list is short: close types are one entry with a second choice (Light: dimmable, on/off, tunable white or colour; Plug; Wall switch or dimmer; Blind or shutter; Thermostat: heating, or heating and cooling; Sensor: what it measures; Leak, rain or frost sensor; Button or doorbell; Energy meter: grid, PV or battery). The form shows **Allow unlocking** only when Door lock is chosen, and **Battery** only for sensors and buttons; neither the type nor the battery can be changed later. |
 | Edit device (`edit-device`) | `device` (id), `name` | Renames a device; a door lock keeps whether it may be unlocked. Asks before saving. The **Edit** button on each row of the Devices table fills it in. The type can't change: remove the device and add a new one. If the endpoint refuses a change, the device keeps what it had. |
 | Edit lock (`edit-lock`) | `device` (id), `name`, `allowUnlock` | A door lock's **Edit**: renames it and allows or forbids unlocking from the apps. Refuses a device that isn't a lock. Turning unlocking on is written to the instance log as a warning. |
 | Remove device (`remove-device`) | `device` (id) | Removes a device after a confirmation, with what the bridge remembered of it. The **Remove** button on each row fills it in. |
@@ -64,6 +64,7 @@ it has.
 | Water freeze detector (`water-freeze-detector`) | a frost sensor (Matter 1.3) | | `freeze` | no frost |
 | Button (generic switch) (`generic-switch`) | a button for routines | | `press`, `long-press` | |
 | Doorbell (`doorbell`) | a doorbell (a newer Matter type) | | `press` | |
+| Chime (bell) (`chime`) | a chime with four sounds (a newer Matter type) | `ring`, `chime-sound`, `chime-enabled` | `chime-enabled` | on, sound 1 |
 | Electricity meter (`electrical-meter`) | an electrical meter (one of the newest Matter types) and electrical sensor | | `power`, `energy-imported`, `energy-exported`, `voltage`, `current` | unknown |
 | Solar power (PV) (`solar-power`) | a PV system (Matter 1.4) with its power source and electrical sensor | | `production`, `energy-exported` | unknown |
 | Battery storage (`battery-storage`) | a home battery (Matter 1.4) with its rechargeable battery, electrical sensor and energy management | | `power`, `battery`, `energy-imported`, `energy-exported` | unknown |
@@ -171,6 +172,8 @@ color temperature, lx and hPa without decimals, and m³/h with one.
 | `session-energy` | kWh | `sessionEnergyCharged` in mWh |
 | `charging-mode` | text: `manual`, `time-of-use`, `solar` | EnergyEvseMode `currentMode` (modes 0, 1 and 2, with Matter's Manual, TimeOfUse and SolarCharging tags); an app's mode change is a command |
 | `co2`, `pm25` | ppm, µg/m³ | The concentration measurements' `measuredValue` (numeric, in air), at least 0 |
+| `ring`, `chime-sound` | a one-second pulse (`true`, then `false`); the sound 1–4 | An app's PlayChimeSound: first the sound it asked for (or the one selected in the app) as `chime-sound` (1 Ding dong, 2 Bell, 3 Gong, 4 Melody), then `ring` true, and false a second later; a play during the pulse makes it longer. The bridge sends the ChimeStartedPlaying event. A sound that isn't installed is refused (NOT_FOUND); while the chime is off, plays are ignored. The sounds are names for Loxone to tell apart: Loxone rings |
+| `chime-enabled` | `true` on, `false` off | Chime `enabled`, both ways: an app switching the chime off or on is a command; Nexus can mute it (e.g. at night) |
 | `press`, `long-press` | each `true` is one press; `false` does nothing | Switch events: InitialPress, ShortRelease and MultiPressComplete (two presses within 300 ms count as a double press); a long press holds for 1.2 s: InitialPress, LongPress, LongRelease. Presses are events, not states: nothing is remembered or replayed |
 
 A command from an app updates the bridge at once (Matter needs that) and goes to the sensor. A
@@ -318,7 +321,7 @@ machine (1–2 GB) run a single instance; one bridge carries up to 50 devices.
 | Device and bridge names | 32 bytes (letters like ä count twice), unique per bridge ignoring case |
 | Pairing window | 15 minutes once paired; 48 hours while not paired |
 | Paired apps | in practice a handful; each app is one Matter fabric |
-| Device types | the 34 above; garage doors and gates (Matter's newer closures), air purifiers, air conditioners, water heaters, pumps and appliances are not in this version |
+| Device types | the 35 above; garage doors and gates (Matter's newer closures), air purifiers, air conditioners, water heaters, pumps and appliances are not in this version |
 
 ## Security notes
 

@@ -6,8 +6,11 @@
 
 - **More device types:** colour light (RGB), dimmable plug, wall switch and wall dimmer, blind
   with slats (lift and tilt), thermostat with heating, cooling and modes, water valve, light,
-  pressure, flow and air quality sensors (CO₂, PM2.5), rain sensor, water freeze detector and
-  doorbell.
+  pressure, flow and air quality sensors (CO₂, PM2.5), rain sensor, water freeze detector,
+  doorbell and chime (bell: a ring pulse and the sound when an app plays it).
+- **A shorter type list:** Add device lists kinds of devices; close types (lights, plugs, wall
+  controls, blinds, thermostats, sensors, leak/rain/frost, buttons, energy meters) are one entry
+  with a second choice.
 - **Energy devices:** electricity meter, solar power (PV), battery storage, wallbox (EV charger,
   with enable, current and charging mode from the apps) and heat pump.
 - **Batteries:** sensors and buttons can be added with a battery level the apps show and warn on.

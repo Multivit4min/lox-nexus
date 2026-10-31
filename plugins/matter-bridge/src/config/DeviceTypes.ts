@@ -56,6 +56,7 @@ export class DeviceTypes {
     "water-leak-detector": battery("Water leak detector", "leak"),
     "generic-switch": battery("Button (generic switch)", "press", "longPress"),
     "doorbell": battery("Doorbell", "press"),
+    "chime": { label: "Chime (bell)", commands: ["ring", "chimeSound", "chimeEnabled"], states: ["chimeEnabled"] },
     "electrical-meter": { label: "Electricity meter", commands: [], states: ["power", "energyImported", "energyExported", "voltage", "current"] },
     "solar-power": { label: "Solar power (PV)", commands: [], states: ["production", "energyExported"] },
     "battery-storage": { label: "Battery storage", commands: [], states: ["power", "battery", "energyImported", "energyExported"] },

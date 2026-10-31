@@ -8,7 +8,8 @@ Loxone output); what those apps command comes back into Nexus as sensors.
 
 - **Sensors:** commands from the apps per device: on/off, brightness, colour temperature, colour,
   a blind's target position and slat angle, a thermostat's setpoints and mode, a fan's speed, lock
-  and unlock requests, opening and closing a valve, a wallbox's charging release, current and mode.
+  and unlock requests, opening and closing a valve, a wallbox's charging release, current and mode,
+  and a chime played from an app (a ring pulse and its sound).
 - **Actuators:** each device's state for the apps: the same values back, plus temperature,
   humidity, illuminance, pressure, flow, air quality, CO₂ and PM2.5, contact, motion, smoke and CO
   alarms, water leaks, rain, frost, battery levels, button and doorbell presses that start
@@ -39,9 +40,10 @@ Loxone output); what those apps command comes back into Nexus as sensors.
 | **Bridge name** (`name`) | optional; default `Lox Nexus` | How the bridge shows in the apps, at most 32 bytes. |
 | **UDP port** (`port`) | optional; default `5540` | The Matter port, 1024 to 65535. Change it only when another Matter program on the host uses 5540, e.g. to `5550`. |
 
-Devices are not settings: add them with **Add device** on the instance page (name, type, for door
-locks **Allow unlocking**, for battery-powered sensors and buttons **Battery**), at most 50
-(Alexa's limit for one bridge).
+Devices are not settings: add them with **Add device** on the instance page (name, type, where a
+kind has several types the one you want, e.g. Light → Dimmable, for door locks **Allow
+unlocking**, for battery-powered sensors and buttons **Battery**), at most 50 (Alexa's limit for
+one bridge).
 
 ## Sensors and actuators
 
@@ -62,6 +64,9 @@ locks **Allow unlocking**, for battery-powered sensors and buttons **Battery**),
 | sensor | Charging enabled from controllers (`charging-enabled`) | `boolean` | Whether an app enabled or disabled the wallbox's charging. |
 | sensor | Maximum charging current A from controllers (`max-current`) | `number` | The current an app allowed when it enabled charging. |
 | sensor | Charging mode from controllers (`charging-mode`) | `string` | `manual`, `time-of-use` or `solar`. |
+| sensor | Ring from controllers (`ring`) | `boolean` | A one-second pulse each time an app plays the chime. |
+| sensor | Chime sound from controllers (`chime-sound`) | `number` | The sound an app played, 1–4, just before the ring. |
+| sensor | Chime on from controllers (`chime-enabled`) | `boolean` | An app switched the chime on or off. |
 | sensor | Lock request from controllers (`lock`) | `boolean` | `true` to lock, `false` to unlock (only if the lock allows unlocking). |
 | actuator | On/off state to controllers (`on-off`) | `boolean` | Whether the light, plug or fan is on. |
 | actuator | Brightness % to controllers (`brightness`) | `number` | The light's brightness; 0 shows it off. |
@@ -92,6 +97,7 @@ locks **Allow unlocking**, for battery-powered sensors and buttons **Battery**),
 | actuator | Rain to controllers (`rain`) | `boolean` | On while rain is detected. |
 | actuator | Frost to controllers (`freeze`) | `boolean` | On while a water freeze detector warns of frost. |
 | actuator | Battery % to controllers (`battery`) | `number` | The battery level of a sensor, button or doorbell added with **Battery**, or a home battery's state of charge. |
+| actuator | Chime on to controllers (`chime-enabled`) | `boolean` | Whether the chime is on; off ignores plays. |
 | actuator | Press to controllers (`press`) | `boolean` | Each `true` is a short button press, to start routines. |
 | actuator | Long press to controllers (`long-press`) | `boolean` | Each `true` is a long button press. |
 | actuator | Power W to controllers (`power`) | `number` | Power taken (positive) or given (negative): a meter, battery, wallbox or heat pump. |
@@ -155,7 +161,7 @@ the fewer apps know it.
 | **Buttons and doorbells** | | |
 | Generic Switch | 0x000F | `generic-switch` |
 | Doorbell | 0x0148 | `doorbell` |
-| Chime | 0x0146 | not yet; easy (an app's "play the chime" as a command), few apps show it |
+| Chime | 0x0146 | `chime` |
 | Audio Doorbell, Video Doorbell, Intercom | 0x0141, 0x0143, 0x0140 | not planned: need audio or video streaming |
 | Camera, Floodlight Camera, Snapshot Camera | 0x0142, 0x0144, 0x0145 | not planned: need video streaming |
 | **Water** | | |

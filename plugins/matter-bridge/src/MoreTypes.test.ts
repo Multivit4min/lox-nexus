@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { after, before, test } from "node:test"
 import { Value } from "@lox-nexus/plugin-sdk/values"
 import type { ClientNode } from "@matter/main"
+import { ChimeClient } from "@matter/main/behaviors/chime"
 import { ColorControlClient } from "@matter/main/behaviors/color-control"
 import { OnOffClient } from "@matter/main/behaviors/on-off"
 import { ThermostatClient } from "@matter/main/behaviors/thermostat"
@@ -22,7 +23,8 @@ before(async () => {
     { name: "Main valve", type: "water-valve" },
     { name: "Office air", type: "air-quality-sensor" },
     { name: "Living room", type: "thermostat-heat-cool" },
-    { name: "Front", type: "doorbell" }
+    { name: "Front", type: "doorbell" },
+    { name: "Bell", type: "chime" }
   ])
   peer = await bridge.pair()
 })
@@ -130,4 +132,22 @@ test("doorbell: a press from Nexus rings at the controller", { timeout: 20_000 }
   await until(() => events.includes("shortRelease"), 3000, "a ring")
   assert.deepEqual(events, ["initialPress", "shortRelease"])
   await assert.rejects(actuator("long-press", "Front").then(id => bridge.host.actuate(id, Value.boolean(true))), /has no long press state/)
+})
+
+test("chime: an app playing it sends the sound and a one-second ring; while it is off, nothing", { timeout: 20_000 }, async () => {
+  const ring = await bridge.host.addSensor("ring", { device: "Bell" })
+  const sound = await bridge.host.addSensor("chime-sound", { device: "Bell" })
+  const enabled = await bridge.host.addSensor("chime-enabled", { device: "Bell" })
+  const chime = device("Bell").commandsOf(ChimeClient)
+  await chime.playChimeSound({ chimeId: 2 })
+  await until(() => bridge.last(ring) === true && bridge.last(sound) === 2, 3000, "ringing sound 2")
+  await until(() => bridge.last(ring) === false, 3000, "the pulse ends")
+  await assert.rejects(chime.playChimeSound({ chimeId: 9 }), /not ?found/i)
+  await device("Bell").setStateOf(ChimeClient, { enabled: false })
+  await until(() => bridge.last(enabled) === false, 3000, "muted from the app")
+  await chime.playChimeSound({})
+  await new Promise(resolve => setTimeout(resolve, 200))
+  assert.deepEqual(bridge.values(ring), [true, false], "a muted chime doesn't ring")
+  await bridge.host.actuate(await actuator("chime-enabled", "Bell"), Value.boolean(true))
+  await until(() => seen(peer, "Bell").chime?.enabled === true, 3000, "on again from Nexus")
 })
