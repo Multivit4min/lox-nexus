@@ -16,7 +16,7 @@ export class WifiEnabledActuator extends Actuator<UnifiPlugin, WifiParams, Value
   static readonly concurrency = "latest"
 
   async run(value: ValueOf<"boolean">) {
-    const result = await this.plugin.wifi.setByName(this.params.network, value.value)
+    const result = await this.plugin.wifi.setByRef(this.params.network, value.value)
     if (result.changed) this.plugin.log.info(`switched Wi-Fi network "${result.name}" ${value.value ? "on" : "off"}`, { signal: this.signal.label })
     void this.plugin.poller.poll()
   }

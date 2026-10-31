@@ -127,8 +127,9 @@ port without PoE, fails the signal. `port-poe` is the API's PoE state (`UP` supp
 
 ### `wifi-enabled` and `voucher-code`
 
-`wifi-enabled` takes `network`, the Wi-Fi network's name (SSID), ignoring case; a name that
-matches none or several networks fails the signal. Renaming the network in UniFi breaks the signal.
+`wifi-enabled` takes `network`, the Wi-Fi network's id as the catalog fills it in, so renaming
+the network in UniFi keeps the signal. Its name (SSID, ignoring case) works too, as signals added
+before ids name it; a name that matches none or several networks fails the signal.
 
 `voucher-code` has no params. It shows the newest voucher created by this instance (the action or
 the actuator), also after a restart, as the code is kept in the instance's store.
@@ -191,6 +192,10 @@ Pushed after every poll and after actions (`panelUpdates: "push"`).
   and an instant **Restart** button with a confirm.
 - **Ports:** ports of switching devices (and of devices with a port signal): link, speed, PoE, and
   an instant **Power-cycle** button with a confirm where PoE is on.
+- **Ports not shown** (a warning, only when needed): devices whose ports couldn't be read, with
+  the reason, and devices with ports in a form the plugin doesn't read (left out one by one; debug
+  logging names the port and the field). Missing values sent as `null` (e.g. an empty SFP cage's
+  speed) are read as missing, not as an error.
 - **Connected clients:** name, IP and MAC address, where it is connected, type, access (guests
   with Authorize or Unauthorize, which opens the dialog for the minutes), connected since.
 

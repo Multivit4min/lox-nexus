@@ -64,11 +64,11 @@ test("guest access authorizes a connected guest with minutes, unauthorizes it, a
   }
 })
 
-test("guest Wi-Fi: PUT sends the whole object back with only enabled changed, never logging it", async () => {
+test("guest Wi-Fi by id (or by name, as older signals): PUT sends the whole object back with only enabled changed, never logging it", async () => {
   const unifi = await UnifiHarness.start()
   try {
-    const wifi = await unifi.host.addActuator("wifi-enabled", { network: "guests" })
-    const state = await unifi.host.addSensor("wifi-enabled", { network: "Guests" })
+    const wifi = await unifi.host.addActuator("wifi-enabled", { network: "00000000-0000-4000-8000-000000000302" })
+    const state = await unifi.host.addSensor("wifi-enabled", { network: "guests" })
     assert.deepEqual(unifi.host.values(state), [off])
     await unifi.host.actuate(wifi, on)
     const puts = unifi.fake.calls(/\/wifi\/broadcasts\/[^/]+$/, "PUT")
@@ -83,7 +83,7 @@ test("guest Wi-Fi: PUT sends the whole object back with only enabled changed, ne
     assert.equal(unifi.fake.calls(/\/wifi\/broadcasts\/[^/]+$/, "PUT").length, 1, "already on: nothing sent")
     assert.ok(!JSON.stringify(unifi.host.sent).includes("synthetic-guest-passphrase"), "the passphrase never leaves the plugin")
     const nowhere = await unifi.host.addActuator("wifi-enabled", { network: "Office" })
-    await assert.rejects(unifi.host.actuate(nowhere, on), /no Wi-Fi network named "Office"/)
+    await assert.rejects(unifi.host.actuate(nowhere, on), /no Wi-Fi network with the id or name "Office"/)
   } finally {
     await unifi.stop()
   }

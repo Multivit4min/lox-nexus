@@ -9,6 +9,8 @@ export interface DeviceExtrasData {
   portProblems: Map<string, string>
   /** why a device's statistics couldn't be read; separate, as one read may fail while the other works */
   statisticsProblems: Map<string, string>
+  /** ports of a device left out because they didn't match the API's schema, each with why */
+  skippedPorts: Map<string, string[]>
 }
 
 /** everything one poll read */

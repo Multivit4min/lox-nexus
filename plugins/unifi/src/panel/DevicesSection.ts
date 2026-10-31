@@ -6,6 +6,7 @@ import { MacAddress } from "../api/MacAddress.ts"
 import type { NetworkSnapshot } from "../poll/NetworkSnapshot.ts"
 import type { Section } from "./PanelTypes.ts"
 import { CatalogIds } from "../catalog/CatalogIds.ts"
+import { PanelText } from "./PanelText.ts"
 import { StateTone } from "./StateTone.ts"
 
 /** The adopted devices with a Restart button each, and the ports of switches with Power-cycle on PoE ports. */
@@ -35,7 +36,20 @@ export class DevicesSection {
         }
       })
     }
+    const missing = this.unreadPorts(devices)
+    if (missing.length > 0) sections.push({ title: "Ports not shown", panel: { type: "notice", tone: "warn", text: missing.join("; ") } })
     return sections
+  }
+
+  // a switch whose ports couldn't be read (or only some of them) would otherwise just be missing from the table
+  private unreadPorts(devices: Device[]) {
+    const { portProblems, skippedPorts } = this.snapshot.extras
+    return devices.flatMap(device => {
+      const problem = portProblems.get(device.id)
+      if (problem) return [PanelText.clip(problem)]
+      const skipped = skippedPorts.get(device.id)?.length ?? 0
+      return skipped ? [`${device.name}: ${skipped} ${skipped === 1 ? "port" : "ports"} in a form this plugin doesn't read; debug logging shows which`] : []
+    })
   }
 
   private static row(device: Device): Cell[] {

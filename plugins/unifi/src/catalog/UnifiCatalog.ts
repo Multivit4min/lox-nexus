@@ -40,7 +40,7 @@ export class UnifiCatalog {
     const known = this.snapshot.extras.ports.get(id)
     if (known || !hasPorts) return known ?? []
     try {
-      return (await this.api.device(this.site, id)).interfaces.ports ?? []
+      return (await this.api.device(this.site, id)).interfaces.ports.ports
     } catch {
       return []
     }
@@ -51,8 +51,8 @@ export class UnifiCatalog {
       label: network.name,
       id: CatalogIds.wifi(network.id),
       entries: [
-        { kind: "sensor" as const, capability: WifiEnabledSensor.id, params: { network: network.name }, label: `${network.name} on`, value: Value.boolean(network.enabled) },
-        { kind: "actuator" as const, capability: WifiEnabledActuator.id, params: { network: network.name }, label: `${network.name} on/off`, value: Value.boolean(network.enabled) }
+        { kind: "sensor" as const, capability: WifiEnabledSensor.id, params: { network: network.id }, label: `${network.name} on`, value: Value.boolean(network.enabled) },
+        { kind: "actuator" as const, capability: WifiEnabledActuator.id, params: { network: network.id }, label: `${network.name} on/off`, value: Value.boolean(network.enabled) }
       ]
     }))
     return { label: "Wi-Fi networks", children }

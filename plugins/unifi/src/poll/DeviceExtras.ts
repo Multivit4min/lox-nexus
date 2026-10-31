@@ -1,4 +1,4 @@
-import type { Device, Port } from "../api/ApiSchemas.ts"
+import type { Device } from "../api/ApiSchemas.ts"
 import { MacAddress } from "../api/MacAddress.ts"
 import type { NetworkApi } from "../api/NetworkApi.ts"
 import type { DeviceExtrasData } from "./NetworkSnapshot.ts"
@@ -14,7 +14,7 @@ export class DeviceExtras {
   constructor(private readonly api: Pick<NetworkApi, "device" | "statistics">, private readonly demand: PollDemand) {}
 
   async read(site: string, devices: readonly Device[]): Promise<DeviceExtrasData> {
-    const data: DeviceExtrasData = { ports: new Map(), statistics: new Map(), portProblems: new Map(), statisticsProblems: new Map() }
+    const data: DeviceExtrasData = { ports: new Map(), statistics: new Map(), portProblems: new Map(), statisticsProblems: new Map(), skippedPorts: new Map() }
     const ports = this.demand.targets("ports")
     const statistics = this.demand.targets("statistics")
     const reads: Promise<void>[] = []
@@ -30,7 +30,9 @@ export class DeviceExtras {
   private async ports(site: string, device: Device, data: DeviceExtrasData) {
     try {
       const details = await this.api.device(site, device.id)
-      data.ports.set(device.id, details.interfaces.ports ?? ([] as Port[]))
+      const { ports, skipped } = details.interfaces.ports
+      data.ports.set(device.id, ports)
+      if (skipped.length > 0) data.skippedPorts.set(device.id, skipped)
     } catch (error) {
       data.portProblems.set(device.id, `${device.name}: ${DeviceExtras.message(error)}`)
     }

@@ -29,18 +29,23 @@ export class WifiSwitch {
     return { name: details.name, changed: true }
   }
 
-  /** by the network's name (SSID), as signals name it; @throws Error for no or several matches */
-  async setByName(name: string, enabled: boolean): Promise<WifiSwitchResult> {
-    const network = WifiSwitch.pick(await this.api.wifiBroadcasts(await this.site.id()), name)
+  /** by the network's id or name, as a signal names it (see pick); @throws Error for no or several matches */
+  async setByRef(ref: string, enabled: boolean): Promise<WifiSwitchResult> {
+    const network = WifiSwitch.pick(await this.api.wifiBroadcasts(await this.site.id()), ref)
     return this.setById(network.id, enabled)
   }
 
-  /** the one network with this name, ignoring case; also used by the sensor */
-  static pick(networks: readonly WifiOverview[], name: string): WifiOverview {
-    const wanted = name.trim().toLowerCase()
+  /**
+   * The network a signal names: by the API's id (what the catalog offers; it survives renaming the
+   * network), else by its name, ignoring case, as signals added before kept it.
+   */
+  static pick(networks: readonly WifiOverview[], ref: string): WifiOverview {
+    const byId = networks.find(network => network.id === ref.trim())
+    if (byId) return byId
+    const wanted = ref.trim().toLowerCase()
     const found = networks.filter(network => network.name.trim().toLowerCase() === wanted)
     if (found.length === 1) return found[0]!
-    throw new Error(found.length === 0 ? `no Wi-Fi network named "${name}"` : `${found.length} Wi-Fi networks are named "${name}"`)
+    throw new Error(found.length === 0 ? `no Wi-Fi network with the id or name "${ref}"` : `${found.length} Wi-Fi networks are named "${ref}"`)
   }
 
   private static update(details: WifiDetails, enabled: boolean): Omit<WifiDetails, "id"> {

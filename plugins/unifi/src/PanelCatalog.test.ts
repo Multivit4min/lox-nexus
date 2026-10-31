@@ -86,6 +86,8 @@ test("the catalog offers clients by MAC and by name, devices with ports, Wi-Fi n
     const hall = find(catalog[1]!.children, "Hall AP (U6 Lite)")!
     assert.deepEqual(hall.children?.map(node => node.label), ["Port 1"], "an AP's ports are read for the catalog")
     assert.deepEqual(find(catalog, "Wi-Fi networks")!.children?.map(node => node.label), ["Guests", "Home"])
+    // by id, so renaming a network keeps its signals
+    assert.deepEqual(find(catalog, "Wi-Fi networks")!.children?.[0]?.entries?.[0]?.params, { network: "00000000-0000-4000-8000-000000000302" })
     for (const node of [phone, garage]) {
       for (const entry of node.entries ?? []) {
         if (entry.kind === "sensor") await unifi.host.addSensor(entry.capability, entry.params)

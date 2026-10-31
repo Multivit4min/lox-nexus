@@ -115,7 +115,8 @@ export class NetworkPoller extends Disposable implements Listenable {
   }
 
   private succeeded(snapshot: NetworkSnapshot, started: number) {
-    this.debug(`polled in ${snapshot.at - started} ms`, { clients: snapshot.clients.length, devices: snapshot.devices.length, problems: [...snapshot.extras.portProblems.values(), ...snapshot.extras.statisticsProblems.values()] })
+    this.debug(`polled in ${snapshot.at - started} ms`, { clients: snapshot.clients.length, devices: snapshot.devices.length, problems: [...snapshot.extras.portProblems.values(), ...snapshot.extras.statisticsProblems.values()],
+      skippedPorts: Object.fromEntries([...snapshot.extras.skippedPorts].map(([id, ports]) => [snapshot.devices.find(device => device.id === id)?.name ?? id, ports])) })
     this.latest = snapshot
     this.backoff.reset()
     this.retryAt = 0

@@ -75,6 +75,31 @@ test("a failing port read fails the port signals only; the statistics of the sam
   }
 })
 
+test("nulls are read as missing: an empty SFP cage is a port, one the plugin can't read is named on the page, a null rate a missing statistic", async () => {
+  const unifi = await UnifiHarness.start()
+  try {
+    const details = unifi.fake.state.details["00000000-0000-4000-8000-000000000002"] as { interfaces: { ports: unknown[] } }
+    details.interfaces.ports.push({ idx: 25, state: "DOWN", connector: "SFPPLUS", maxSpeedMbps: null, speedMbps: null, poe: null }, { idx: 26, state: "UP" })
+    const statistics = unifi.fake.state.statistics[AP_ID] as { uplink: Record<string, unknown>; memoryUtilizationPct: unknown }
+    statistics.uplink.rxRateBps = null
+    statistics.memoryUtilizationPct = null
+    const cage = await unifi.host.addSensor("port-link", { device: SWITCH, port: 25 })
+    const rx = await unifi.host.addSensor("device-uplink-rx", { device: AP })
+    const tx = await unifi.host.addSensor("device-uplink-tx", { device: AP })
+    await unifi.plugin.poller.idle()
+    await unifi.tick()
+    assert.deepEqual(unifi.host.values(cage).at(-1), Value.boolean(false))
+    assert.match(unifi.errors(rx).at(-1) ?? "", /doesn't report its/)
+    assert.deepEqual(unifi.host.values(tx).at(-1), Value.number(0.75), "the other rate of the same answer")
+    const panel = await unifi.host.panel()
+    const notice = panel?.type === "sections" ? panel.sections.find(section => section.title === "Ports not shown")?.panel : undefined
+    assert.ok(notice?.type === "notice")
+    assert.match(notice.text, /Garage Switch: 1 port in a form this plugin doesn't read/)
+  } finally {
+    await unifi.stop()
+  }
+})
+
 test("switch ports: link, speed and PoE state; a port without PoE says so", async () => {
   const unifi = await UnifiHarness.start()
   try {
