@@ -253,6 +253,11 @@ Alexa and Apple warn that the bridge is not certified (it uses the Matter test v
 
 ## Panel
 
+The page refreshes by itself when the bridge pairs or a controller is added or removed, when a
+pairing window opens or closes (the 15-minute one, and one a paired app opens to share the
+bridge), when devices are added, edited or removed, and on new commands and states. The end of an
+unpaired bridge's 48-hour window shows at the next regular refresh (within 30 s).
+
 | Section | Shows |
 |---|---|
 | Pairing | While not paired: a "Not paired yet" notice; if the pairing window of an unpaired bridge has closed (after 48 hours), it says so: run **Open pairing window**. Once paired: "Paired: yes" (green) and the pairing window: closed (grey), open for another app with a countdown to its end (amber), or, while a paired app shares the bridge (its own window and code), a note to use the code that app shows (blue). While the bridge isn't running: a notice saying so, or that it is resetting after the last app was removed. |

@@ -32,12 +32,12 @@ export class MqttPlugin extends Plugin<MqttConfig> {
   static readonly sensors = [NumberSensor, SwitchSensor, TextSensor]
   static readonly actuators = [TextActuator, NumberActuator, SwitchActuator, JsonActuator]
   static readonly watches = { label: "Exported signals", description: "Values of these signals are published to the broker under the export base topic" }
-  /** Test connection: connects to the broker with these settings and disconnects again */
   /** Find on the broker URL: brokers that announce themselves with mDNS */
   static async discover() {
     return await new BrokerFinder().find()
   }
 
+  /** Test connection: connects to the broker with these settings and disconnects again */
   static test(config: MqttConfig) {
     return ConnectionTest.run(config)
   }

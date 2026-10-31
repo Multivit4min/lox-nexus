@@ -148,12 +148,14 @@ describe("FroniusPlugin", () => {
       Photovoltaics: "3080 W", Grid: "-1181 W", Load: "-1358 W", Battery: "-412 W", "Battery charge": "63.2 %", Autonomy: "100.0 %", Reading: "ok"
     })
     assert.ok(!Number.isNaN(Date.parse(polled ?? "")), "an ISO timestamp")
-    const pushes = () => host.sent.filter(message => message.type === "panel.changed").length
-    const before = pushes()
+    // counted where the plugin calls it, before the SDK's one-a-second throttle
+    let pushes = 0
+    pluginOf(host).panelChanged = () => void pushes++
+    await pluginOf(host).poller.poll()
+    assert.equal(pushes, 1, "after every poll")
     server.fail("GetPowerFlowRealtimeData")
     await pluginOf(host).poller.poll()
-    // within the second after the last push, so it trails by up to 1 s
-    await waitFor(() => pushes() > before, "the page is told the reading failed", 2000)
+    assert.equal(pushes, 2, "the page is told the reading failed")
     const failing = await panelItems(host)
     assert.match(failing["Last error"] ?? "", /^GetPowerFlowRealtimeData: HTTP 500 \(\d{4}-/)
     assert.match(failing.Reading ?? "", /^can't read the inverter/)

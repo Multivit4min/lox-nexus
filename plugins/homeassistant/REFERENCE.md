@@ -29,6 +29,8 @@ A rejected token is never retried because Home Assistant can ban an address afte
 
 **Test connection** in the settings form logs in over the WebSocket API with the URL and token, names Home Assistant's version and disconnects; it reads nothing. A refused token is a failed login like any other: check it before trying again, since repeated ones can get the Nexus address blocked (`ip_ban_enabled`), the running instance with it.
 
+**Find** next to the URL asks the network for `_home-assistant._tcp` (mDNS, for 3 s) and lists each server by its location name. Picking one fills in its `internal_url`, else its `base_url` (from the TXT record), else `http://<address>:<port>` with an IPv4 address, then a routable IPv6 one, then the host name (a link-local `fe80::` address can't go in a URL). It needs Nexus on the same network segment as Home Assistant: host networking in Docker, and no multicast filtering in between. It logs in to nothing.
+
 ## Sensors
 
 Every sensor that follows an entity takes the entity's ID in **Entity ID** (`entityId`), e.g.

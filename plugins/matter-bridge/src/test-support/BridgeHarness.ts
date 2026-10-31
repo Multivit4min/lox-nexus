@@ -52,7 +52,6 @@ export class BridgeHarness {
     return this.host.values(id).map(value => (value as { value?: unknown }).value)
   }
 
-  /** a device's attributes as the controller sees them */
   /** a section's part by its title; sections come and go (the pairing code only while it works) */
   static section(panel: Panel | undefined, title: string) {
     const section = panel?.type === "sections" ? panel.sections.find(candidate => candidate.title === title) : undefined
@@ -60,6 +59,7 @@ export class BridgeHarness {
     return section.panel
   }
 
+  /** a device's attributes as the controller sees them */
   static seen(peer: ClientNode, name: string) {
     return TestController.device(peer, name).state as DeviceState
   }

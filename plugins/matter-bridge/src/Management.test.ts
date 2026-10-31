@@ -164,3 +164,25 @@ test("at most 50 devices, Alexa's limit for one bridge", { timeout: 30_000 }, as
     await host.stop()
   }
 })
+
+test("open pages are told about added, edited and removed devices and new states", { timeout: 30_000 }, async () => {
+  const devices = [{ name: "Lamp", type: "on-off-light" }]
+  const host = await PluginTestHost.start(MatterBridgePlugin, { config: { port: await FreePort.udp() }, store: BridgeHarness.store(devices) })
+  try {
+    // counted where the plugin calls it, before the SDK's one-a-second throttle
+    let pushes = 0
+    host.plugin.panelChanged = () => void pushes++
+    const pushed = async (work: () => Promise<unknown>, what: string) => {
+      const before = pushes
+      await work()
+      assert.ok(pushes > before, what)
+    }
+    const lamp = host.plugin.devices.all()[0]!.id
+    await pushed(async () => host.actuate(await host.addActuator("on-off", { device: lamp }), Value.boolean(true)), "a state from Nexus")
+    await pushed(() => host.action("add-device", { name: "Plug", ...typeInput("plug") }), "an added device")
+    await pushed(() => host.action("edit-device", { device: lamp, name: "Desk lamp" }), "an edited device")
+    await pushed(() => host.action("remove-device", { device: lamp }), "a removed device")
+  } finally {
+    await host.stop()
+  }
+})

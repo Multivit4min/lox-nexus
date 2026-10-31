@@ -37,7 +37,7 @@ export class MatterBridgePlugin extends Plugin<BridgeConfig> {
   static readonly sensors = Capabilities.sensors
   static readonly actuators = Capabilities.actuators
   static readonly actions = [AddDeviceAction, EditDeviceAction, EditLockAction, RemoveDeviceAction, OpenPairingWindowAction, RemovePairingAction]
-  /** the page refreshes when pairing, a controller, a device or a shown value changes */
+  /** the page refreshes on pairing and pairing windows, controllers, device changes and new commands and states */
   static readonly panelUpdates = "push"
 
   /** merges bursts of device state writes (a moving blind) into one store write per 1.5 s */
@@ -85,6 +85,7 @@ export class MatterBridgePlugin extends Plugin<BridgeConfig> {
   /** opens a pairing window; the page refreshes now and once the 15 minutes are over */
   async openPairingWindow(): Promise<PairingStatus> {
     const status = await this.bridge.openPairingWindow()
+    if (this.isDisposed) return status
     this.panelChanged()
     if (status.windowUntil !== undefined) this.after(status.windowUntil - this.clock.now() + 1000, () => this.panelChanged())
     return status

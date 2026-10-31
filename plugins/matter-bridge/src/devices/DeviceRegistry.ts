@@ -44,13 +44,18 @@ export class DeviceRegistry {
     if (this.byId.delete(id)) this.changed()
   }
 
+  /** a device was renamed or its settings changed */
+  edited() {
+    this.changed()
+  }
+
   /** the device with this name, ignoring case (names are unique that way) */
   named(name: string) {
     const wanted = name.toLowerCase()
     return this.all().find(device => device.name.toLowerCase() === wanted)
   }
 
-  /** called after a device was added or removed; returns the unsubscribe */
+  /** called after a device was added, removed or edited; returns the unsubscribe */
   onChange(listener: () => void) {
     this.listeners.add(listener)
     return () => {

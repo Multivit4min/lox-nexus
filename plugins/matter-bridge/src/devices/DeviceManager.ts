@@ -48,6 +48,7 @@ export class DeviceManager {
     const allowing = unlock && !device.allowUnlock
     await device.update({ name, allowUnlock: unlock })
     this.save()
+    this.registry.edited()
     if (allowing) this.log.warn(`unlocking from the paired apps is now allowed for "${device.name}" (${device.id}), by an action`)
     return device
   }

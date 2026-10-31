@@ -66,6 +66,8 @@ export class BridgeNode {
       if (!this.closed) this.resetting = true
       this.options.changed?.()
     })
+    // a window a paired app opens to share the bridge, and its end, change the cluster's state
+    node.events.administratorCommissioning.windowStatus$Changed.on(() => this.options.changed?.())
     node.events.commissioning.fabricsChanged.on((index, action) => {
       log.info(`controller ${this.describe(index)}: ${action}`)
       this.options.changed?.()

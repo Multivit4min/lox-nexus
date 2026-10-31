@@ -11,7 +11,8 @@ import { KindFormat } from "./KindFormat.ts"
 import { PairingPanel, type PairingSource } from "./PairingPanel.ts"
 
 /**
- * The instance page: pairing (PairingPanel), the paired controllers with a Remove button each, and every device with what was last commanded and shown.
+ * The instance page: pairing (PairingPanel), the paired controllers with a Remove button each,
+ * and every device with what was last commanded and shown.
  */
 export class BridgePanel {
   constructor(private readonly bridge: PairingSource, private readonly devices: readonly BridgedDevice[], private readonly timeZone: string) {}

@@ -9,12 +9,13 @@ const broker = (name: string, port: number, addresses: string[]): MdnsService =>
 
 test("Find offers plain brokers by address and TLS ones by host name, as the certificate names it", async () => {
   const finder = new BrokerFinder(async type => type === "_mqtt._tcp.local"
-    ? [broker("Mosquitto", 1883, ["2001:db8::5", "192.0.2.5"]), broker("Other", 1884, ["2001:db8::6"]), broker("Unresolved", 1885, [])]
+    ? [broker("Mosquitto", 1883, ["2001:db8::5", "192.0.2.5"]), broker("Other", 1884, ["2001:db8::6"]), broker("Unresolved", 1885, []), broker("Mosquitto on nas.lan", 1886, ["fe80::1"])]
     : [broker("Secure", 8883, ["192.0.2.5"])])
   assert.deepEqual((await finder.find()).map(entry => [entry.label, entry.value]), [
     ["Mosquitto", "mqtt://192.0.2.5:1883"],
     ["Other", "mqtt://[2001:db8::6]:1884"],
     ["Unresolved", "mqtt://nas.local:1885"],
+    ["Mosquitto on nas.lan", "mqtt://nas.local:1886"],
     ["Secure", "mqtts://nas.local:8883"]
   ])
 })

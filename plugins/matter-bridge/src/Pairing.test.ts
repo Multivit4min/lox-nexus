@@ -104,7 +104,13 @@ test("a second app pairs through the window, and removing it leaves the first on
 })
 
 test("while a controller shares the bridge (enhanced window), the panel points to that app's code instead of the bridge's", { timeout: 30_000 }, async () => {
+  const plugin = bridge.host.plugin
+  const push = plugin.panelChanged
+  let pushes = 0
+  plugin.panelChanged = () => void pushes++
   const window = await peer.openEnhancedCommissioningWindow()
+  plugin.panelChanged = push
+  assert.ok(pushes > 0, "open pages are told the app opened a window")
   assert.equal(bridge.host.plugin.bridge.pairing()?.window, "enhanced")
   assert.deepEqual(await pairingPart(), { type: "keyValue", items: [{ label: "Paired", value: { text: "yes", tone: "ok" } }, { label: "Pairing window", value: { text: "opened by a paired app to share the bridge; use the code that app shows", tone: "info" } }] })
   await assert.rejects(bridge.host.action("open-pairing-window"), /a controller has opened a pairing window/)

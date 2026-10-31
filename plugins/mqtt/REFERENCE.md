@@ -27,6 +27,8 @@ gives up after 10 s. Subscriptions use QoS 1.
 
 **Test connection** in the settings form connects with the broker settings under a client id of its own (so a running instance isn't disconnected), then disconnects. It publishes and subscribes nothing.
 
+**Find** next to the broker URL asks the network for `_mqtt._tcp` and `_secure-mqtt._tcp` (mDNS, for 3 s), as Mosquitto with Avahi and some NAS and Home Assistant add-ons announce themselves. A plain broker is offered as `mqtt://<address>:<port>` with an IPv4 address, then a routable IPv6 one, then the host name; an address handed out by DHCP may change, so prefer a fixed one or the host name if your network resolves it. A TLS broker is offered as `mqtts://<host name>:<port>`, because the certificate is checked against the name. It needs Nexus on the same network segment (host networking in Docker). It connects to nothing.
+
 ## Sensor params
 
 All three sensors read one **exact topic** (no wildcards: a value signal has one source). The topic

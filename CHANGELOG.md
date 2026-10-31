@@ -39,7 +39,8 @@
 - **Batteries:** sensors and buttons can be added with a battery level the apps show and warn on.
 - **Pairing on the page:** a "Not paired yet" notice, the pairing window counting down to its end,
   green and grey for paired and closed; Open pairing window answers with the QR code. The page
-  refreshes by itself on pairing, controller and device changes.
+  refreshes by itself on pairing, pairing windows, controllers, device changes and new commands
+  and states.
 - The plugin's README lists every Matter device type (up to Matter 1.6.1, as matter.js 0.18 models
   them) and whether the bridge offers it.
 
