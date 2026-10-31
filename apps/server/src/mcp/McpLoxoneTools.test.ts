@@ -100,6 +100,12 @@ describe("MCP Loxone tools", { timeout: 30_000 }, () => {
     assert.deepEqual(diff.differs.map(row => row.change), ["Digital → Analog"])
     assert.equal(diff.same, 1)
     assert.deepEqual(diff.removed, [])
+    // the round trip: what the diff answers is what create takes, and then nothing is new
+    const created = await json<Array<{ ok?: string }>>("create_loxone_signals", { miniserver: "haus", signals: diff.new.map(row => row.input) })
+    assert.deepEqual(created, [{ ok: "loxone/haus/out/lamp" }])
+    const again = await json<{ new: unknown[]; same: number }>("diff_loxone_objects", { miniserver: "haus", objects: [{ packetId: "lamp", direction: "out", dataType: 0, label: "Lamp" }] })
+    assert.deepEqual([again.new, again.same], [[], 1])
+    await call("delete_loxone_signals", { signals: ["loxone/haus/out/lamp"], confirmation: JSON.parse((await call("delete_loxone_signals", { signals: ["loxone/haus/out/lamp"] })).text).confirmation })
   })
 
   // adopting a packet that really arrived is covered by the REST test; this checks the tool's refusal per item

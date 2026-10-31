@@ -1,6 +1,7 @@
 import type { BridgeRequest, BridgeResultDto, LoxoneSignalDto, PluginReadmeDto, PluginSignalDto, WireDto } from "@lox-nexus/api"
 import type { CatalogNode } from "@lox-nexus/plugin-sdk/wire"
 import type { McpRefs } from "./McpRefs.ts"
+import type { McpResourceTemplate } from "./McpResourceTemplate.ts"
 import type { McpTool } from "./McpTool.ts"
 import { BridgeTool } from "./tools/plugins/BridgeTool.ts"
 import { CatalogCache } from "./tools/plugins/CatalogCache.ts"
@@ -25,15 +26,22 @@ export interface McpPluginSources {
 /** The plugin tools of A2 (ADR 0020): learn a plugin, search its catalog, connect its signals to a Miniserver. */
 export class McpPluginTools {
   readonly tools: McpTool[]
+  readonly templates: McpResourceTemplate[]
 
   constructor(sources: McpPluginSources, miniservers: Pick<McpRefs, "miniserver">) {
     const refs = new PluginRefs(sources)
     const catalogs = new CatalogCache(sources.plugins, sources.now ?? (() => Date.now()))
+    const describe = new DescribePluginTool(refs, sources.plugins, sources.readmes)
     this.tools = [
-      new DescribePluginTool(refs, sources.plugins, sources.readmes),
+      describe,
       new SearchCatalogTool(refs, catalogs, sources.pluginSignals),
       new PlanBridgeTool(refs, miniservers, sources),
       new BridgeTool(refs, miniservers, sources.pluginSignals, sources.bridges)
     ]
+    this.templates = [{
+      uriTemplate: "nexus://plugins/{plugin}/readme", name: "plugin-readme", title: "A plugin's README", mimeType: "text/markdown", scope: "read",
+      description: "How to set a plugin up and what it offers, as its author wrote it (cut at 32 KB).",
+      read: params => describe.run({ plugin: params.plugin ?? "", readme: true }).readme ?? "This plugin has no README."
+    }]
   }
 }

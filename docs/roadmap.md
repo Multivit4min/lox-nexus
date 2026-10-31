@@ -284,7 +284,8 @@ until A2.
     `system_status`, `recent_messages`, `trace`.
   - Resources: `nexus://inventory` and `nexus://guide`.
   - The official MCP SDK as a devDependency, for the conformance test.
-- **A2: the Loxone link.**
+- **A2: the Loxone link** (done, 2026-10-31; deviations in `architecture.md`, "Implementation
+  notes: MCP A2"). The manual run with Loxone Config 17.3 waits until it ships.
   - Move `PacketIds`, `DataTypes`, `ProjectDiff`, `CatalogTree`, `WireHealth` and the pure part
     of `BridgeDraft` from the web into `packages/api`.
   - `LoxoneSideDescriptor`, `BridgePlanner` and `CatalogCache`.

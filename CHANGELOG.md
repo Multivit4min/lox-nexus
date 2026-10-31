@@ -6,8 +6,12 @@
 
 - AI agents such as Claude Code connect to Nexus over the Model Context Protocol at `/mcp`, with
   an **access token** from **Users and access**: they read the installation (an overview in one
-  call, signals, wires, the bus, the system status). Setting things up and operating devices
-  follow in later versions; tokens already carry those permissions (configure, operate).
+  call, signals, wires, the bus, the system status).
+- With the **configure** permission, agents set up Loxone signals and wires, and connect plugin
+  signals to a Miniserver in one step (find in the catalog, plan, connect). They say what to create
+  in Loxone Config and compare objects read from it with Nexus. Deleting takes a confirmation.
+  Two recipes (MCP prompts) walk through both tasks. Operating devices follows later; tokens
+  already carry that permission.
 - Tokens are shown once, don't expire, and end when revoked or when the user's password changes.
   Agents never see or send secrets. Guide: AI agents (MCP).
 - Restoring a backup now logs everyone out and ends all access tokens, so revoked ones don't come

@@ -15,7 +15,8 @@ How to work:
 - Lists are tables (columns and rows) with a limit and a cursor; ask for less instead of more.
 - Values are shown with their unit. Times are ISO 8601 in UTC.
 - Secrets (passwords, API tokens) are never shown and never accepted; a person enters them in the web UI.
-- What you may change depends on this token's scopes; tools you can't call aren't listed.`
+- What you may change depends on this token's scopes; tools you can't call aren't listed.
+- Show the user a plan before changing things. Deleting takes two calls: the first answers what would go and a confirmation for the second.`
 
   static readonly GUIDE = `# Working with Lox Nexus over MCP
 
@@ -29,5 +30,20 @@ ${McpInstructions.TEXT}
 - "system_status" shows memory, load, the clock offset and whether a config import is running.
 
 ## Together with Loxone Config
-Nexus names each Loxone signal by Miniserver, direction and packet id; the Loxone side needs the same packet id, the matching direction and the data type. Tools for planning and creating both sides arrive with the next step of this interface.`
+Nexus names each Loxone signal by Miniserver, direction and packet id; the Loxone side needs the same packet id, the matching direction and the data type. Names are free.
+- "loxone_side" says what to create in Loxone Config: the Lox Nexus peer under the Network Intercommunication (ICI ids, ports, address) and one object per signal. A Nexus "out" signal is an intercommunication input there, an "in" signal an output.
+- "diff_loxone_objects" compares objects read from Loxone Config with Nexus and answers the inputs for "create_loxone_signals" and "update_loxone_signal".
+- "list_discovered" shows packets a Miniserver sends that have no signal; "adopt_discovered" turns them into signals.
+
+## Connecting a plugin
+1. "describe_plugin" says what the plugin offers; its README says how to set it up. Settings marked secret are entered by a person in the web UI.
+2. "search_catalog" finds what a running instance offers to add (Home Assistant entities, Fronius values, …).
+3. "plan_bridge" suggests the Loxone signal for each: a free packet id and the data type that fits. It creates nothing.
+4. "bridge" adds the plugin signal, the Loxone signal and the wire per item. Then "loxone_side" for the Loxone Config part.
+
+## Wires
+"preview_wire" tries transforms on a sample value. "create_wire", "update_wire" (only the fields given) and "delete_wires" change wires; a wire is named by its id or its target's topic.
+
+## Recipes
+The prompts "connect_plugin_to_loxone" and "import_from_loxone_config" walk through both tasks step by step.`
 }

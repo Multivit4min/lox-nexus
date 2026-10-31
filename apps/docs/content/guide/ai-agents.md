@@ -4,8 +4,10 @@ AI agents such as Claude Code, Gemini CLI or Cursor can look at your Nexus insta
 Model Context Protocol (MCP): its Miniservers, signals, values, wires and plugins. They see what
 the web UI shows, through an **access token** you create for them.
 
-This first version lets agents **read**. Setting up signals and wires, and operating devices, come
-in later versions; the token's permissions for them are already there.
+Agents can **read** everything and, with the **configure** permission, set up Loxone signals and
+wires and connect plugins to a Miniserver. They also say what to create in Loxone Config, so both
+sides match. Setting up Miniservers and plugin instances, and operating devices, come in a later
+version; the token's permission for operating is already there.
 
 ## Create an access token
 
@@ -21,7 +23,7 @@ changes (yours, or one another user sets for you), which ends all your tokens. E
 | Permission | What an agent may do |
 |---|---|
 | read (always) | see everything the web UI shows, including values, which can tell who is home |
-| configure | set up signals, wires and plugin instances (coming) |
+| configure | set up Loxone signals and wires, connect plugin signals to a Miniserver |
 | operate | act on devices: force values, run plugin actions (coming; off by default) |
 
 Agents never see secrets: passwords, plugin settings and signal settings marked secret aren't in
@@ -70,7 +72,46 @@ internet and a sign-in flow it doesn't have.
 | `recent_messages`, `trace` | what went over the bus, and what caused what |
 | `system_status` | memory, CPU, traffic, and whether a config import is running |
 
-They can also attach `nexus://inventory` (the overview with every signal) and `nexus://guide`.
+| `describe_plugin` | what a plugin offers (settings, sensors, actuators, actions) and its README |
+| `search_catalog` | what a running plugin instance offers to add, e.g. Home Assistant entities, with their values |
+| `plan_bridge` | a plan to connect plugin signals to a Miniserver: free packet ids, fitting data types |
+| `loxone_side` | what to create in Loxone Config: the Lox Nexus peer and one intercommunication object per signal |
+| `diff_loxone_objects` | objects read from Loxone Config compared with Nexus: new, different, missing |
+| `list_discovered` | packets a Miniserver sends that have no signal yet |
+| `preview_wire` | what transforms make of a sample value |
+
+They can also attach `nexus://inventory` (the overview with every signal), `nexus://guide`,
+`nexus://miniservers/<slug>/loxone-side` and `nexus://plugins/<plugin>/readme`.
+
+## What agents can change
+
+With the **configure** permission:
+
+| Tool | Does |
+|---|---|
+| `bridge` | per item: the plugin signal, a Loxone signal for it and the wire between them |
+| `create_loxone_signals`, `update_loxone_signal`, `adopt_discovered` | add and change Loxone signals |
+| `create_wire`, `update_wire` | connect two signals, change a wire (only what is given) |
+| `delete_loxone_signals`, `delete_wires` | delete, in two steps (see below) |
+
+**Deleting asks first.** The first call deletes nothing: it answers what would go (for a signal,
+also its wires and force) and a confirmation. Only a second call with the same items and that
+confirmation deletes, within 5 minutes. A confirmation works once, only for that token.
+
+Changes show up in the Nexus log as "*user* via MCP (*token name*)". While a configuration import
+runs, agents can read but not change anything.
+
+### Recipes
+
+Clients that offer MCP prompts (in Claude Code: type `/`) list two recipes:
+
+- **connect_plugin_to_loxone**: find values or devices in a plugin, show a plan, connect them,
+  then say what to create in Loxone Config.
+- **import_from_loxone_config**: compare the Lox Nexus peer's objects in Loxone Config with Nexus
+  and add or fix what differs. Missing ones are named, never deleted unasked.
+
+An agent that also has a Loxone Config MCP server (announced for Loxone Config 17.3) can set up
+both sides; otherwise it tells you what to create in Loxone Config.
 
 ## Good to know
 

@@ -19,7 +19,7 @@ export class OverviewTool implements McpTool<z.infer<typeof Input>> {
   static readonly MAX_TABLE = 48 * 1024
   readonly name = "overview"
   readonly title = "Overview of the installation"
-  readonly description = "Start here. Miniservers (health, load, signal counts), installed plugins with their capabilities and actions, plugin instances (state, problems), wire counts, forces, stale signals and a list of problems. With signals: true also every signal as a table. Name signals by topic afterwards."
+  readonly description = "Start here. Miniservers (health, load, signal counts), installed plugins (describe_plugin has their capabilities), plugin instances (state, problems), wire counts, forces, stale signals and a list of problems. With signals: true also every signal as a table. Name signals by topic afterwards."
   readonly scope = "read" as const
   readonly annotations = { readOnlyHint: true, idempotentHint: true }
   readonly input = Input
@@ -59,12 +59,12 @@ export class OverviewTool implements McpTool<z.infer<typeof Input>> {
     ])
   }
 
+  // counts only: the capabilities of a dozen plugins would crowd the answer; describe_plugin has them
   private plugins() {
-    const capabilities = (list: { id: string; valueType: string }[]) => list.map(capability => `${capability.id}:${capability.valueType}`).join(" ")
     return CompactTable.of(this.inventory.packages(), [
       ["id", pkg => pkg.id], ["name", pkg => pkg.name], ["version", pkg => pkg.version],
-      ["sensors", pkg => capabilities(pkg.description.sensors)], ["actuators", pkg => capabilities(pkg.description.actuators)],
-      ["actions", pkg => pkg.description.actions?.map(action => action.id).join(" ")], ["watches", pkg => pkg.description.watches !== undefined]
+      ["sensors", pkg => pkg.description.sensors.length], ["actuators", pkg => pkg.description.actuators.length],
+      ["actions", pkg => pkg.description.actions?.length ?? 0], ["watches", pkg => pkg.description.watches !== undefined]
     ])
   }
 

@@ -5,6 +5,7 @@ import { JsonRpcError } from "./JsonRpcError.ts"
 import { McpInstructions } from "./McpInstructions.ts"
 import { McpProtocol } from "./McpProtocol.ts"
 import type { McpRateLimit } from "./McpRateLimit.ts"
+import type { PromptRegistry } from "./PromptRegistry.ts"
 import type { ResourceRegistry } from "./ResourceRegistry.ts"
 import type { ToolCall } from "./ToolCall.ts"
 import type { ToolContext } from "./ToolContext.ts"
@@ -12,6 +13,7 @@ import type { ToolRegistry } from "./ToolRegistry.ts"
 
 const CallParams = z.object({ name: z.string().min(1), arguments: z.record(z.string(), z.unknown()).optional() })
 const ReadParams = z.object({ uri: z.string().min(1) })
+const PromptParams = z.object({ name: z.string().min(1), arguments: z.unknown().optional() })
 
 /**
  * One JSON-RPC message in, one answer out (or none for a notification or a client's response):
@@ -22,6 +24,7 @@ export class McpDispatcher {
   constructor(
     private readonly tools: ToolRegistry,
     private readonly resources: ResourceRegistry,
+    private readonly prompts: PromptRegistry,
     private readonly call: Pick<ToolCall, "run">,
     private readonly version: string,
     private readonly limit: Pick<McpRateLimit, "acquire">,
@@ -53,10 +56,13 @@ export class McpDispatcher {
       // takes its call from the token's bucket itself, with the stricter rate for changing tools
       case "tools/call": return this.callTool(params, context)
       case "resources/list": return this.limited(context, () => ({ resources: this.resources.list(scopes) }))
-      case "resources/templates/list": return { resourceTemplates: [] }
+      case "resources/templates/list": return this.limited(context, () => ({ resourceTemplates: this.resources.listTemplates(scopes) }))
       case "resources/read": return this.limited(context, () => this.resources.read(McpDispatcher.params(ReadParams, params).uri, context))
-      case "prompts/list": return { prompts: [] }
-      case "prompts/get": throw new JsonRpcError(JsonRpc.INVALID_PARAMS, "this server has no prompts yet")
+      case "prompts/list": return this.limited(context, () => ({ prompts: this.prompts.list(scopes) }))
+      case "prompts/get": return this.limited(context, () => {
+        const { name, arguments: args } = McpDispatcher.params(PromptParams, params)
+        return this.prompts.get(name, args, scopes)
+      })
       default: throw new JsonRpcError(JsonRpc.METHOD_NOT_FOUND, `unknown method ${method}`)
     }
   }

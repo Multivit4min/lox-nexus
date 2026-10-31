@@ -4,6 +4,8 @@ import { z } from "zod"
 import { HttpError } from "../http/HttpError.ts"
 import { McpDispatcher } from "./McpDispatcher.ts"
 import type { McpTool } from "./McpTool.ts"
+import { McpPrompts } from "./McpPrompts.ts"
+import { PromptRegistry } from "./PromptRegistry.ts"
 import { ResourceRegistry } from "./ResourceRegistry.ts"
 import { ToolCall } from "./ToolCall.ts"
 import type { ToolContext } from "./ToolContext.ts"
@@ -28,8 +30,11 @@ function setup() {
   const errors: unknown[] = []
   const audited: string[] = []
   const call = new ToolCall({ acquire: async () => () => {} }, undefined, { changed: (_c, tool, _i, outcome) => void audited.push(`${tool} ${outcome}`) }, { error: (entry: unknown) => void errors.push(entry) } as never)
-  const resources = new ResourceRegistry([{ uri: "nexus://guide", name: "guide", title: "Guide", description: "how", mimeType: "text/markdown", scope: "read", read: () => "# Guide" }])
-  const dispatcher = new McpDispatcher(new ToolRegistry([echo, configure, broken, big]), resources, call, "9.9.9", { acquire: async () => () => {} }, { error: (entry: unknown) => void errors.push(entry) } as never)
+  const resources = new ResourceRegistry([{ uri: "nexus://guide", name: "guide", title: "Guide", description: "how", mimeType: "text/markdown", scope: "read", read: () => "# Guide" }], [{
+    uriTemplate: "nexus://plugins/{plugin}/readme", name: "readme", title: "README", description: "a plugin's README", mimeType: "text/markdown", scope: "read",
+    read: params => `# ${params.plugin}`
+  }])
+  const dispatcher = new McpDispatcher(new ToolRegistry([echo, configure, broken, big]), resources, new PromptRegistry(McpPrompts.ALL), call, "9.9.9", { acquire: async () => () => {} }, { error: (entry: unknown) => void errors.push(entry) } as never)
   return { dispatcher, errors, audited }
 }
 const context = (scopes: ToolContext["access"]["scopes"] = ["read"]): ToolContext => ({
@@ -88,4 +93,26 @@ test("resources are listed and read by scope; an unknown one is -32002", async (
   assert.deepEqual(((await ask(dispatcher, "resources/list")).result?.resources as { uri: string }[]).map(resource => resource.uri), ["nexus://guide"])
   assert.deepEqual((await ask(dispatcher, "resources/read", { uri: "nexus://guide" })).result, { contents: [{ uri: "nexus://guide", mimeType: "text/markdown", text: "# Guide" }] })
   assert.equal((await ask(dispatcher, "resources/read", { uri: "nexus://nothing" })).error?.code, -32002)
+})
+
+test("resource templates are listed and fill their variables from the URI", async () => {
+  const { dispatcher } = setup()
+  const templates = (await ask(dispatcher, "resources/templates/list")).result?.resourceTemplates as { uriTemplate: string }[]
+  assert.deepEqual(templates.map(template => template.uriTemplate), ["nexus://plugins/{plugin}/readme"])
+  const read = (await ask(dispatcher, "resources/read", { uri: "nexus://plugins/home%20assistant/readme" })).result?.contents as { text: string }[]
+  assert.equal(read[0]?.text, "# home assistant")
+  assert.equal((await ask(dispatcher, "resources/read", { uri: "nexus://plugins/a/b/readme" })).error?.code, -32002, "a variable is one segment")
+})
+
+test("prompts need the scope of the tools they use, and their required arguments", async () => {
+  const { dispatcher } = setup()
+  assert.deepEqual((await ask(dispatcher, "prompts/list")).result?.prompts, [], "a read token can't follow them")
+  const listed = (await ask(dispatcher, "prompts/list", undefined, ["read", "configure"])).result?.prompts as { name: string }[]
+  assert.deepEqual(listed.map(prompt => prompt.name), ["connect_plugin_to_loxone", "import_from_loxone_config"])
+  const prompt = await ask(dispatcher, "prompts/get", { name: "connect_plugin_to_loxone", arguments: { instance: "ha", miniserver: "haus", what: "room temperatures" } }, ["read", "configure"])
+  const messages = prompt.result?.messages as { role: string; content: { text: string } }[]
+  assert.equal(messages[0]?.role, "user")
+  assert.match(messages[0]!.content.text, /plugin instance "ha" to the Miniserver "haus": room temperatures/)
+  assert.match((await ask(dispatcher, "prompts/get", { name: "connect_plugin_to_loxone", arguments: { instance: "ha" } }, ["read", "configure"])).error!.message, /missing arguments: miniserver/)
+  assert.equal((await ask(dispatcher, "prompts/get", { name: "import_from_loxone_config", arguments: { miniserver: "x" } })).error?.code, -32602)
 })

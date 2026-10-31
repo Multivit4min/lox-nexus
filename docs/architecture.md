@@ -2120,9 +2120,10 @@ The prework for MCP's access tokens: more than one account, managed in the UI.
 
 ## Design: MCP interface (A1–A4)
 
-Status: **A1 built** (2026-10-31): tokens, the endpoint and the read tools; A2 and A3 designed.
-Decisions in ADR 0020; milestone "MCP interface" in `roadmap.md`. Open questions at the end of
-this section; implementation notes for A1 right after this section.
+Status: **A1 and A2 built** (2026-10-31): tokens, the endpoint, the read tools, and the Loxone
+link (Loxone signals, wires, plugin bridging, confirmations, prompts); A3 designed. Decisions in
+ADR 0020; milestone "MCP interface" in `roadmap.md`. Open questions at the end of this section;
+implementation notes for A1 and A2 right after this section.
 
 AI agents (Claude Code, Gemini CLI, Codex, Cursor, VS Code, or Claude Desktop through a bridge)
 inspect and set up Nexus over the Model Context Protocol (MCP). The main case is a setup done
@@ -2714,4 +2715,40 @@ Elsewhere:
   security rules with real tokens, every read tool over `/mcp`, a planted Miniserver password
   that no read tool may show, and the official SDK client (`@modelcontextprotocol/sdk`, a dev
   dependency of the server) connecting, listing and reading.
+
+## Implementation notes: MCP A2
+
+Where the build differs from the design above:
+- **Layout.** Tools sit by subject (`tools/loxone/`, `tools/wires/`, `tools/plugins/`), not by
+  scope; one builder per subject (`McpLoxoneTools`, `McpWireTools`, `McpPluginTools`) and
+  `McpToolset` joins them with the read tools for `NexusApp`. Refs: `McpRefs` (Miniservers, Loxone
+  signals by topic), `WireRefs` (a wire by id or by its target's topic, since a target has one
+  wire at most), `PluginRefs` (an instance by slug, a plugin by id or an instance's slug).
+- **Changes.** `update_loxone_signal` and `update_wire` take only the fields that change and merge
+  them with the current one, so an agent fixing a label can't drop the unit. Bulk tools answer
+  per item (`BulkItems`): the topic, or why not. There is `delete_wires` (bulk), not `delete_wire`.
+- **Confirmations.** Bound to token, tool and a hash of the arguments without `confirmation`;
+  5 minutes, single use, and any try (also one with other arguments) uses the id up. The first
+  call runs the tool's `confirm()` summary only.
+- **Deadline.** `ToolCall` answers after 30 s (`bridge`: 120 s) that the work goes on in the
+  background; the ChangeLock and the rate slot stay held until it really ends.
+- **No `BridgePlanner`.** `plan_bridge` uses `BridgeDraft` and `PacketIds` from `packages/api`,
+  as the web dialog does, and answers items in exactly the shape `bridge` takes.
+- **`CatalogCache`** expires entries by time when read; it holds no timers, so it isn't a
+  Disposable. A failed catalog call isn't cached.
+- **Secrets.** `describe_plugin` drops `default`, `examples`, `const` and `enum` from secret fields
+  (a plugin's default would show the value it hides); `search_catalog` strips secret entry params,
+  like `InventoryService` does for signals.
+- **The Nexus address (question 5).** No installation setting yet: `loxone_side` takes an optional
+  `nexusAddress`, uses a specific `listenAddress`, and otherwise says that the agent should ask.
+- **Resources and prompts.** `ResourceRegistry` takes templates (`UriTemplate`, one segment per
+  variable): `nexus://miniservers/{slug}/loxone-side` and `nexus://plugins/{plugin}/readme`.
+  `PromptRegistry` lists prompts by the scope their tools need, so a read token sees none.
+- **The overview** lists plugins with counts of sensors, actuators and actions; `describe_plugin`
+  has the details.
+- **Tests.** Each subject over `/mcp` with a configure token; the end to end with a fixture plugin
+  (`test-support/HomePlugin.ts`) and a stand-in Miniserver set up only from `loxone_side`
+  (`McpLoxoneLink.test.ts`); a `diff_loxone_objects` round trip; the tool names and annotations
+  per scope as a literal in `McpToolList.test.ts` (schemas aren't in it: they change too often to
+  review by snapshot).
 

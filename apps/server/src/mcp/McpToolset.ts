@@ -2,7 +2,10 @@ import type { McpLoxoneSources } from "./McpLoxoneTools.ts"
 import { McpLoxoneTools } from "./McpLoxoneTools.ts"
 import { McpPluginTools, type McpPluginSources } from "./McpPluginTools.ts"
 import { McpReadTools, type McpReadSources } from "./McpReadTools.ts"
+import { McpPrompts } from "./McpPrompts.ts"
+import type { McpPrompt } from "./McpPrompt.ts"
 import type { McpResource } from "./McpResource.ts"
+import type { McpResourceTemplate } from "./McpResourceTemplate.ts"
 import type { McpTool } from "./McpTool.ts"
 import { McpWireTools } from "./McpWireTools.ts"
 import type { WireWrites } from "./tools/wires/WireWrites.ts"
@@ -14,6 +17,8 @@ export type McpToolSources = McpReadSources & Omit<McpLoxoneSources, "inventory"
 export class McpToolset {
   readonly tools: McpTool[]
   readonly resources: McpResource[]
+  readonly templates: McpResourceTemplate[]
+  readonly prompts: readonly McpPrompt[] = McpPrompts.ALL
 
   constructor(sources: McpToolSources) {
     const read = new McpReadTools(sources)
@@ -22,5 +27,6 @@ export class McpToolset {
     const plugins = new McpPluginTools(sources, loxone.refs)
     this.tools = [...read.tools, ...loxone.tools, ...wires.tools, ...plugins.tools]
     this.resources = read.resources
+    this.templates = [...loxone.templates, ...plugins.templates]
   }
 }

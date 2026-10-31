@@ -1,6 +1,7 @@
 import type { DiscoveredPacketDto, MiniserverDto } from "@lox-nexus/api"
 import type { InventoryService } from "../services/InventoryService.ts"
 import { McpRefs } from "./McpRefs.ts"
+import type { McpResourceTemplate } from "./McpResourceTemplate.ts"
 import type { McpTool } from "./McpTool.ts"
 import { AdoptDiscoveredTool } from "./tools/loxone/AdoptDiscoveredTool.ts"
 import { CreateLoxoneSignalsTool } from "./tools/loxone/CreateLoxoneSignalsTool.ts"
@@ -21,12 +22,14 @@ export interface McpLoxoneSources {
 /** The Loxone side of A2 (ADR 0020): both halves of a signal, and the changes to the Nexus half. */
 export class McpLoxoneTools {
   readonly tools: McpTool[]
+  readonly templates: McpResourceTemplate[]
   readonly refs: McpRefs
 
   constructor({ miniservers, loxoneSignals, inventory }: McpLoxoneSources) {
     const refs = this.refs = new McpRefs({ miniservers, loxoneSignals })
+    const side = new LoxoneSideTool(refs, loxoneSignals, inventory)
     this.tools = [
-      new LoxoneSideTool(refs, loxoneSignals, inventory),
+      side,
       new ListDiscoveredTool(refs, loxoneSignals),
       new DiffLoxoneObjectsTool(refs, loxoneSignals),
       new CreateLoxoneSignalsTool(refs, loxoneSignals),
@@ -34,5 +37,10 @@ export class McpLoxoneTools {
       new DeleteLoxoneSignalsTool(refs, loxoneSignals, inventory),
       new AdoptDiscoveredTool(refs, loxoneSignals)
     ]
+    this.templates = [{
+      uriTemplate: "nexus://miniservers/{slug}/loxone-side", name: "loxone-side", title: "What Loxone Config needs for a Miniserver", mimeType: "application/json", scope: "read",
+      description: "What loxone_side answers for all signals of the Miniserver: the peer and one intercommunication object per signal.",
+      read: params => side.run({ miniserver: params.slug ?? "" })
+    }]
   }
 }
