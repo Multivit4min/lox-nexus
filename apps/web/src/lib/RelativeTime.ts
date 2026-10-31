@@ -11,9 +11,14 @@ export class RelativeTime {
     return `for ${RelativeTime.coarse(Math.max(0, now - at))}`
   }
 
-  /** "45 s ago", "3 min ago"; "in 2 min" for a moment still to come (a clock ahead of the browser's) */
+  /**
+   * "45 s ago", "3 min ago"; "just now" for the first seconds. A moment ahead of the browser's clock
+   * is the server's clock running ahead (by seconds in a Docker host), never a future event, so it
+   * reads "just now" too instead of "in 3 s".
+   */
   static ago(at: number, now: number) {
-    return at > now + 1000 ? `in ${RelativeTime.coarse(at - now)}` : `${RelativeTime.coarse(Math.max(0, now - at))} ago`
+    const ms = now - at
+    return ms < 2000 ? "just now" : `${RelativeTime.coarse(ms)} ago`
   }
 
   /** a countdown: m:ss below an hour, else hours and minutes, else days and hours */

@@ -29,7 +29,7 @@ test("a moment reads as how long ago it was, live, with the exact time for the t
   const now = Date.UTC(2026, 9, 31, 12, 0, 0)
   assert.equal(PanelCells.text({ at: now - 12_000 }, now), "12 s ago")
   assert.equal(PanelCells.text({ text: "no answer", at: now - 300_000 }, now), "no answer · 5 min ago")
-  assert.equal(RelativeTime.ago(now + 120_000, now), "in 2 min", "a clock ahead of the browser's")
+  assert.deepEqual([RelativeTime.ago(now + 3000, now), RelativeTime.ago(now - 500, now)], ["just now", "just now"], "a server clock ahead of the browser's is no future")
   assert.equal(PanelCells.moment({ at: now }), new Date(now).toLocaleString())
   assert.equal(PanelCells.moment("plain"), undefined)
 })
