@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### AI agents (MCP)
+
+- AI agents such as Claude Code connect to Nexus over the Model Context Protocol at `/mcp`, with
+  an **access token** from **Users and access**: they read the installation (an overview in one
+  call, signals, wires, the bus, the system status). Setting things up and operating devices
+  follow in later versions; tokens already carry those permissions (configure, operate).
+- Tokens are shown once, don't expire, and end when revoked or when the user's password changes.
+  Agents never see or send secrets. Guide: AI agents (MCP).
+
 ### Users
 
 - **Users and access** in the user menu: add users, set another user's password (they are logged

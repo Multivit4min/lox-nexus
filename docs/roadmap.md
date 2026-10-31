@@ -270,7 +270,7 @@ Design: `docs/architecture.md`, "Design: MCP interface (A1–A4)". Decisions: AD
 questions listed there are answered by the user before A1 starts; questions 3, 4, 5 and 9 can wait
 until A2.
 
-- **A1: tokens, endpoint, inventory.**
+- **A1: tokens, endpoint, inventory** (done, 2026-10-31).
   - Migration 12 `access_tokens`, `AccessTokenService` and `/api/tokens` (session only).
   - The "Access tokens" tab goes on the existing **Users and access** page (`/users`).
   - An "Access tokens" page in the user menu: scopes, the token shown once with a

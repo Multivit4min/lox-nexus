@@ -2120,8 +2120,9 @@ The prework for MCP's access tokens: more than one account, managed in the UI.
 
 ## Design: MCP interface (A1–A4)
 
-Status: **designed** (2026-10-31), not built. Decisions in ADR 0020; milestone "MCP interface"
-in `roadmap.md`. Open questions at the end of this section.
+Status: **A1 built** (2026-10-31): tokens, the endpoint and the read tools; A2 and A3 designed.
+Decisions in ADR 0020; milestone "MCP interface" in `roadmap.md`. Open questions at the end of
+this section; implementation notes for A1 right after this section.
 
 AI agents (Claude Code, Gemini CLI, Codex, Cursor, VS Code, or Claude Desktop through a bridge)
 inspect and set up Nexus over the Model Context Protocol (MCP). The main case is a setup done
@@ -2673,3 +2674,28 @@ Elsewhere:
    last project import. `loxone_side` uses it and says when it is missing.
 9. **What does Config 17.3 create: intercommunication objects or Virtual I/O?** Confirm this
    once it ships, before the manual part of A2. The descriptor depends on it.
+
+## Implementation notes: MCP A1
+
+- **Tokens.** `AccessTokenService` and `AccessTokenRepository` (migration 12, in
+  `db/AccountMigrations.ts` with 11). A trigger on `users.password_hash` deletes the user's
+  tokens, so every way of changing a password ends them, including the `reset-password` command,
+  which knows nothing of tokens. `/api/tokens` asks for the password again, like the users page,
+  and shares its login throttle.
+- **AuthGuard.** `tokenAuth` routes read the bearer header only; a second `LoginThrottle` counts
+  wrong tokens, so an agent's bad token can't lock the UI's login out. A query parameter with
+  "token" or "auth" in its name is refused (400).
+- **The server.** `apps/server/src/mcp/` as designed, without `Confirmations`, `SecretRedactor`
+  and `CatalogCache`, which arrive with the tools that need them (A2, A3). `prompts/list` answers
+  an empty list. `ToolRegistry` lists `McpTool<unknown>`: a zod schema is covariant in its output,
+  and `run` is declared as a method, so tools with their own input types fit without casts.
+- **Inventory.** `InventoryService` joins the signal registry with the Loxone and plugin signal
+  lists (packet id, data type name from `@lox-nexus/ici`, capability), values, forces, stale
+  signals and wire counts. `overview`, `list_signals`, `get_signal` and `list_wires` use it;
+  `recent_messages` and `trace` use the recorder with `MessageFormatter` in UTC; `system_status`
+  the diagnostics sampler.
+- **Tests.** The dispatcher with fake tools, the rate limit with a `TestClock`, the endpoint's
+  security rules with real tokens, every read tool over `/mcp`, a planted Miniserver password
+  that no read tool may show, and the official SDK client (`@modelcontextprotocol/sdk`, a dev
+  dependency of the server) connecting, listing and reading.
+

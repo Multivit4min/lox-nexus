@@ -26,6 +26,7 @@
   },
   "devDependencies": {
     "@lox-nexus/ici": "*",
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "@types/ws": "^8.18.2",
     "@types/yauzl": "^3.4.0",
     "esbuild": "^0.28.2",

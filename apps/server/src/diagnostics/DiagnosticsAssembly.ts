@@ -14,7 +14,7 @@ export type DiagnosedApp = Pick<NexusApp, "bus" | "wires" | "miniservers" | "plu
 /** Builds the diagnostics sampler from the running app; kept out of NexusApp, which only adds the controller. */
 export class DiagnosticsAssembly extends Disposable {
   static readonly WORKER_TIMEOUT_MS = 5000
-  private readonly sampler: DiagnosticsSampler
+  readonly sampler: DiagnosticsSampler
 
   constructor(app: DiagnosedApp, config: Config, clock: Clock, log: Logger) {
     super()

@@ -1,6 +1,6 @@
 # 0020: An MCP interface for agents: our own stateless server on `/mcp`, scoped access tokens, generic tools
 
-Status: **Proposed** (2026-10-31). Design in `architecture.md`, "Design: MCP interface (A1–A4)";
+Status: **Accepted** (2026-10-31; A1 built). Design in `architecture.md`, "Design: MCP interface (A1–A4)";
 milestone "MCP interface" in `roadmap.md`. The user decided operating devices, token lifetime,
 plugin actions, cloud clients and installing plugins on 2026-10-31 (see the design's "Decided");
 the questions left are listed there.

@@ -12,6 +12,7 @@ import { AuthService } from "./auth/AuthService.ts"
 import { LoginThrottle } from "./auth/LoginThrottle.ts"
 import { AppVersion } from "./AppVersion.ts"
 import { McpAssembly } from "./mcp/McpAssembly.ts"
+import { McpReadTools } from "./mcp/McpReadTools.ts"
 import { AccessTokenService } from "./auth/AccessTokenService.ts"
 import { PasswordHasher } from "./auth/PasswordHasher.ts"
 import { SessionPruner } from "./auth/SessionPruner.ts"
@@ -202,6 +203,8 @@ export class NexusApp extends Disposable {
     const throttle = new LoginThrottle(clock)
     const tokens = new AccessTokenService(db.accessTokens, db.users, clock)
     const cookie = new SessionCookie(config.secureCookies)
+    const diagnostics = this.own(new DiagnosticsAssembly(this, config, clock, log))
+    const version = AppVersion.read()
     const stale = this.own(new StaleWatcher({ signals: this.signals, bus: this.bus, clock, active: StaleWatcher.activeIn(this.miniservers, this.plugins) }))
     const stream = this.own(new BusStream(this.bus, auth, sessions, cookie, stale, this.pluginEvents))
     this.stream = stream
@@ -224,8 +227,8 @@ export class NexusApp extends Disposable {
         ...PluginControllers.build({ plugins, pluginSignals, loxoneSignals, wires, logs: this.pluginLogs, events: this.pluginEvents, store: this.persistence.pluginStore, assembly: this.pluginAssembly, log }),
         ...this.history.controllers(id => plugins.watches(id)),
         BackupAssembly.controller(config, { main: db.db, history: this.history.database.db }, this.options.restart, log),
-        this.own(new DiagnosticsAssembly(this, config, clock, log)).controller(),
-        this.own(new McpAssembly({ tools: [], resources: [], lock, log, version: AppVersion.read() })).controller(),
+        diagnostics.controller(),
+        this.own(new McpAssembly({ ...new McpReadTools({ miniservers, loxoneSignals, plugins, pluginSignals, wires, signals: this.signals, bus: this.bus, stale, recorder: this.recorder, diagnostics: diagnostics.sampler, lock, version }), lock, log, version })).controller(),
         stream
       ],
       publicControllers: [new HookController(this.plugins)]

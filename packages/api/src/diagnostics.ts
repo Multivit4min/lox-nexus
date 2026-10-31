@@ -47,13 +47,13 @@ export interface DiagnosticsSampleDto {
   miniservers: DiagnosticsMiniserverDto[]
 }
 
-/** GET /api/diagnostics: the process and its samples, oldest first. */
 /** GET /api/diagnostics/clock: the server's time when it answered, for the browser to measure how far its own clock is off. */
 export interface ServerClockDto {
   /** epoch ms */
   now: number
 }
 
+/** GET /api/diagnostics: the process and its samples, oldest first. */
 export interface DiagnosticsDto {
   /** epoch ms when the process started */
   startedAt: number

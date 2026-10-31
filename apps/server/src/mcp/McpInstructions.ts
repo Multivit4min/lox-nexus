@@ -13,7 +13,7 @@ Vocabulary:
 How to work:
 - Call "overview" first: it describes the whole installation in one answer (signals: true adds the signal table). Then name signals by topic.
 - Lists are tables (columns and rows) with a limit and a cursor; ask for less instead of more.
-- Values are shown with their unit. Times are ISO 8601 in the server's time zone.
+- Values are shown with their unit. Times are ISO 8601 in UTC.
 - Secrets (passwords, API tokens) are never shown and never accepted; a person enters them in the web UI.
 - What you may change depends on this token's scopes; tools you can't call aren't listed.`
 
