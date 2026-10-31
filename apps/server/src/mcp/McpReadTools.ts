@@ -27,9 +27,11 @@ export interface McpReadSources extends InventorySources {
 export class McpReadTools {
   readonly tools: McpTool[]
   readonly resources: McpResource[]
+  /** shared with the changing tools, which name and count what they touch */
+  readonly inventory: InventoryService
 
   constructor(sources: McpReadSources) {
-    const inventory = new InventoryService(sources)
+    const inventory = this.inventory = new InventoryService(sources)
     const now = sources.now ?? (() => Date.now())
     const overview = new OverviewTool(inventory, { version: sources.version, now, ...(sources.lock ? { lock: sources.lock } : {}) })
     this.tools = [

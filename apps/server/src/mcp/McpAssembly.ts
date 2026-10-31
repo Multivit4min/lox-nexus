@@ -2,6 +2,7 @@ import { Disposable, type Clock } from "@lox-nexus/plugin-sdk"
 import type { Logger } from "pino"
 import type { ChangeLock } from "../http/ChangeLock.ts"
 import type { Controller } from "../http/Controller.ts"
+import { Confirmations } from "./Confirmations.ts"
 import { McpAudit } from "./McpAudit.ts"
 import { McpController } from "./McpController.ts"
 import { McpDispatcher } from "./McpDispatcher.ts"
@@ -29,7 +30,7 @@ export class McpAssembly extends Disposable {
   constructor(deps: McpDeps) {
     super()
     const limit = this.own(new McpRateLimit(deps.clock))
-    const call = new ToolCall(limit, deps.lock, new McpAudit(deps.log), deps.log)
+    const call = new ToolCall(limit, deps.lock, new McpAudit(deps.log), deps.log, this.own(new Confirmations(deps.clock)))
     this.dispatcher = new McpDispatcher(new ToolRegistry(deps.tools), new ResourceRegistry(deps.resources), call, deps.version, limit, deps.log)
   }
 

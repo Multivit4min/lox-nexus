@@ -12,7 +12,7 @@ import { AuthService } from "./auth/AuthService.ts"
 import { LoginThrottle } from "./auth/LoginThrottle.ts"
 import { AppVersion } from "./AppVersion.ts"
 import { McpAssembly } from "./mcp/McpAssembly.ts"
-import { McpReadTools } from "./mcp/McpReadTools.ts"
+import { McpToolset } from "./mcp/McpToolset.ts"
 import { AccessTokenService } from "./auth/AccessTokenService.ts"
 import { PasswordHasher } from "./auth/PasswordHasher.ts"
 import { SessionPruner } from "./auth/SessionPruner.ts"
@@ -237,7 +237,7 @@ export class NexusApp extends Disposable {
         ...this.history.controllers(id => plugins.watches(id)),
         BackupAssembly.controller(config, { main: db.db, history: this.history.database.db }, this.options.restart, log),
         diagnostics.controller(),
-        this.own(new McpAssembly({ ...new McpReadTools({ now: () => clock.now(), miniservers, loxoneSignals, plugins, pluginSignals, wires, signals: this.signals, bus: this.bus, stale, recorder: this.recorder, diagnostics: diagnostics.sampler, lock, version }), lock, log, version })).controller(),
+        this.own(new McpAssembly({ ...new McpToolset({ now: () => clock.now(), miniservers, loxoneSignals, plugins, pluginSignals, wires, signals: this.signals, bus: this.bus, stale, recorder: this.recorder, diagnostics: diagnostics.sampler, lock, version }), lock, log, version })).controller(),
         stream
       ],
       publicControllers: [new HookController(this.plugins)]
