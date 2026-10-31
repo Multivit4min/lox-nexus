@@ -82,7 +82,7 @@ export const deviceDetailsSchema = z.looseObject({
   })
 })
 
-/** "Latest statistics for a device"; the rates are bits per second, like the API's Kbps fields */
+/** "Latest statistics for a device"; the uplink rates are bytes per second (see DeviceUplinkRateSensor) */
 export const statisticsSchema = z.looseObject({
   uptimeSec: optional(z.number()),
   cpuUtilizationPct: optional(z.number()),

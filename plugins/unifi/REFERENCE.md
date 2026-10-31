@@ -107,8 +107,9 @@ clients, and is empty for a client without one.
   exist. A device that isn't `ONLINE` has no statistics: the signal fails with its state until it
   is back.
 - `device-uplink-rx` and `-tx` read `uplink.rxRateBps` and `txRateBps`. The spec doesn't describe
-  their unit; the plugin reads them as bits per second, like the API's documented `Kbps` fields
-  (kilobits per second), and divides by 1 000 000 for Mbit/s.
+  their unit. Read as bits per second, the values from a real console were implausibly low, so the
+  plugin takes them as bytes per second, despite the name: it multiplies by 8 and divides by
+  1 000 000 for Mbit/s. If they look 8 times too high on yours, please report it.
 - `device-cpu` and `device-memory` are `cpuUtilizationPct` and `memoryUtilizationPct`;
   `device-uptime` is `uptimeSec`.
 
