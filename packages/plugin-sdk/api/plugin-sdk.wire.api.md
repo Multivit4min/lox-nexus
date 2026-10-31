@@ -27,6 +27,7 @@ export const ActionAnswerSchema: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
                 }>>;
                 until: z.ZodOptional<z.ZodNumber>;
                 since: z.ZodOptional<z.ZodNumber>;
+                at: z.ZodOptional<z.ZodNumber>;
             }, z.core.$strip>]>;
             control: z.ZodOptional<z.ZodObject<{
                 action: z.ZodString;
@@ -53,6 +54,7 @@ export const ActionAnswerSchema: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
             }>>;
             until: z.ZodOptional<z.ZodNumber>;
             since: z.ZodOptional<z.ZodNumber>;
+            at: z.ZodOptional<z.ZodNumber>;
         }, z.core.$strip>]>>>;
         rowActions: z.ZodOptional<z.ZodArray<z.ZodArray<z.ZodObject<{
             action: z.ZodString;
@@ -193,6 +195,7 @@ export const CellSchema: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
     }>>;
     until: z.ZodOptional<z.ZodNumber>;
     since: z.ZodOptional<z.ZodNumber>;
+    at: z.ZodOptional<z.ZodNumber>;
 }, z.core.$strip>]>;
 
 // @public (undocumented)
@@ -419,6 +422,7 @@ export const PanelPartSchema: z.ZodDiscriminatedUnion<[z.ZodObject<{
             }>>;
             until: z.ZodOptional<z.ZodNumber>;
             since: z.ZodOptional<z.ZodNumber>;
+            at: z.ZodOptional<z.ZodNumber>;
         }, z.core.$strip>]>;
         control: z.ZodOptional<z.ZodObject<{
             action: z.ZodString;
@@ -445,6 +449,7 @@ export const PanelPartSchema: z.ZodDiscriminatedUnion<[z.ZodObject<{
         }>>;
         until: z.ZodOptional<z.ZodNumber>;
         since: z.ZodOptional<z.ZodNumber>;
+        at: z.ZodOptional<z.ZodNumber>;
     }, z.core.$strip>]>>>;
     rowActions: z.ZodOptional<z.ZodArray<z.ZodArray<z.ZodObject<{
         action: z.ZodString;
@@ -515,6 +520,7 @@ export const PanelSchema: z.ZodDiscriminatedUnion<[z.ZodObject<{
             }>>;
             until: z.ZodOptional<z.ZodNumber>;
             since: z.ZodOptional<z.ZodNumber>;
+            at: z.ZodOptional<z.ZodNumber>;
         }, z.core.$strip>]>;
         control: z.ZodOptional<z.ZodObject<{
             action: z.ZodString;
@@ -541,6 +547,7 @@ export const PanelSchema: z.ZodDiscriminatedUnion<[z.ZodObject<{
         }>>;
         until: z.ZodOptional<z.ZodNumber>;
         since: z.ZodOptional<z.ZodNumber>;
+        at: z.ZodOptional<z.ZodNumber>;
     }, z.core.$strip>]>>>;
     rowActions: z.ZodOptional<z.ZodArray<z.ZodArray<z.ZodObject<{
         action: z.ZodString;
@@ -612,6 +619,7 @@ export const PanelSchema: z.ZodDiscriminatedUnion<[z.ZodObject<{
                     }>>;
                     until: z.ZodOptional<z.ZodNumber>;
                     since: z.ZodOptional<z.ZodNumber>;
+                    at: z.ZodOptional<z.ZodNumber>;
                 }, z.core.$strip>]>;
                 control: z.ZodOptional<z.ZodObject<{
                     action: z.ZodString;
@@ -638,6 +646,7 @@ export const PanelSchema: z.ZodDiscriminatedUnion<[z.ZodObject<{
                 }>>;
                 until: z.ZodOptional<z.ZodNumber>;
                 since: z.ZodOptional<z.ZodNumber>;
+                at: z.ZodOptional<z.ZodNumber>;
             }, z.core.$strip>]>>>;
             rowActions: z.ZodOptional<z.ZodArray<z.ZodArray<z.ZodObject<{
                 action: z.ZodString;

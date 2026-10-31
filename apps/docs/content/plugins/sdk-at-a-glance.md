@@ -411,7 +411,7 @@ Plugin authors need only the shapes ([reference](../reference/sdk/@lox-nexus/plu
 interface CatalogNode { label: string; id?: string; children?: CatalogNode[]; entries?: CatalogEntry[] }  // id: for a panel's "Signals" button
 type CatalogEntry = { kind: "sensor" | "actuator"; capability: string; params: unknown; label: string; value?: Value; unit?: string }
 type Tone = "ok" | "warn" | "error" | "info" | "muted"
-type Cell = string | { text?: string; tone?: Tone; until?: number; since?: number }  // until/since: epoch ms, counted live
+type Cell = string | { text?: string; tone?: Tone; until?: number; since?: number; at?: number }  // epoch ms, counted live: "in 12:30", "for 3 min", "12 s ago"
 type PanelPart =
   | { type: "keyValue"; items: { label: string; value: Cell; control?: RowAction; catalog?: string }[] }
   | { type: "table"; columns: string[]; rows: Cell[][]; rowActions?: RowAction[][]; rowCatalog?: (string | null)[] }  // up to 4 buttons per row; catalog node ids

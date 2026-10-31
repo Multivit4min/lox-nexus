@@ -182,8 +182,9 @@ Every row of the panel's clients, devices and ports tables, and every Wi-Fi netw
 Pushed after every poll and after actions (`panelUpdates: "push"`).
 
 - **Console:** a notice while the console can't be read; tiles with clients connected, devices
-  online (with a bar) and guests; reading state, Network version, address, certificate check,
-  site, last successful poll, last error (greyed once recovered), newest voucher.
+  online (with a bar) and guests, at the top of the page; reading state, Network version, address,
+  certificate check, site, last successful poll and last error as "… ago" (the error greyed once
+  recovered), newest voucher.
 - **Wi-Fi networks:** each with on or off and a switch (the `set-wifi` action, after a confirm).
 - **Devices:** name, model, state (green online; red offline, connection interrupted, isolated,
   incorrect topology; yellow updating, getting ready, adopting, pending adoption; grey deleting), IP and MAC address, firmware (yellow with an update),

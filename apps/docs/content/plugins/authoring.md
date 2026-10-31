@@ -831,7 +831,7 @@ override panel(): Panel {
     sections: [
       { title: "Inverter", panel: { type: "keyValue", items: [
         { label: "State", value: { text: "running", tone: "ok" } },
-        { label: "Last poll", value: { text: "12 s ago", since: this.lastPoll } }
+        { label: "Last poll", value: { at: this.lastPoll } }
       ] } },
       { title: "Power", panel: { type: "tiles", tiles: [
         { label: "PV", value: 3200, unit: "W" },
@@ -849,17 +849,22 @@ The parts:
 |---|---|
 | `keyValue` | label and value pairs; an item may have a `control` (a button or switch, see below) and a `catalog` node id (a "Signals" button) |
 | `table` | columns and rows; the page sorts by any column, searches once there are more than 8 rows, and pages by 25. Up to 4 buttons per row (`rowActions`), and per row a catalog node id or `null` (`rowCatalog`, a "Signals" button) |
-| `tiles` | headline values as big numbers, at most 12; with `min` and `max` a bar, with `until` a countdown, `hint` as a tooltip |
+| `tiles` | headline values as big numbers, at most 12; with `min` and `max` a bar, with `until` a countdown, `hint` under the value. The first tiles go above the Status card |
 | `notice` | a box with a message for the user, `tone`, `title`, `text` and an optional `link` (http(s) or a Nexus page `#/…`) |
 | `qr` | a QR code of `data`, e.g. a Matter pairing payload |
 | `json` | a formatted tree |
 | `sections` | titled parts one below the other (at most 20), each with up to 4 buttons in its heading (`actions`) |
 
-**Cells.** Values in key-value lists and tables are *cells*: a string, or `{ text?, tone?, until?, since? }`.
+**Cells.** Values in key-value lists and tables are *cells*: a string, or `{ text?, tone?, until?, since?, at? }`.
 `tone` (`"ok"`, `"warn"`, `"error"`, `"info"`, `"muted"`) shows as a coloured dot with the text in
-that colour. `until` and `since` are epoch milliseconds the page counts down to ("in 12:30") or up
-from ("for 3 min") while it is open, so a pairing window or "connected since" stays right without
-a new panel. Format numbers yourself.
+that colour. `until`, `since` and `at` are epoch milliseconds the page counts down to ("in 12:30"),
+up from ("for 3 min", how long a state has lasted) or shows as a moment ("12 s ago", a last poll or
+error) while it is open, so a pairing window or "connected since" stays right without a new panel.
+Hovering shows the exact time. Format numbers yourself.
+
+**Headline tiles.** The page shows a panel's first `tiles` section above the Status card, on the
+page itself, without its title: the values the page is opened for come first. A tiles section with
+buttons in its heading stays in the card. Put the tiles that matter most first.
 
 **"Signals" buttons.** A row or item that stands for something in the catalog (a client, a device,
 a port) can point at its catalog node: give the node an `id` in `catalog()`, and the row the same id

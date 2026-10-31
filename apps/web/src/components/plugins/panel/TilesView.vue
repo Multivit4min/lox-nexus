@@ -20,7 +20,7 @@ const share = (tile: Tile) => {
 
 <template>
   <div class="grid grid-cols-[repeat(auto-fill,minmax(9rem,1fr))] gap-3">
-    <div v-for="(tile, i) in tiles" :key="i" class="grid gap-1 rounded-lg border p-3" :title="tile.hint">
+    <div v-for="(tile, i) in tiles" :key="i" class="grid gap-1 rounded-lg border bg-card p-3" :title="tile.hint">
       <span class="text-xs text-muted-foreground">{{ tile.label }}</span>
       <span v-if="tile.until !== undefined" class="text-xl font-semibold"><CellView :cell="{ until: tile.until, tone: tile.tone }" /></span>
       <span v-else :class="['text-xl font-semibold tabular-nums', ToneStyle.text(tile.tone)]">

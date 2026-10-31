@@ -30,7 +30,8 @@ export class PanelCompat {
   /** a cell as plain text; a time it counts to or from as the time itself */
   text(cell: Cell): string {
     if (typeof cell === "string") return cell
-    const time = cell.until !== undefined ? `until ${this.time(cell.until)}` : cell.since !== undefined ? `since ${this.time(cell.since)}` : ""
+    const moment = cell.at ?? cell.since
+    const time = cell.until !== undefined ? `until ${this.time(cell.until)}` : moment !== undefined ? `${cell.at !== undefined ? "at" : "since"} ${this.time(moment)}` : ""
     return [cell.text, time].filter(Boolean).join(" ")
   }
 

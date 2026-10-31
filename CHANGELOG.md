@@ -13,6 +13,8 @@
   device); its **Signals** button opens just that node's signals to add or connect, instead of
   searching the whole catalog. The UniFi plugin has them on clients, devices, ports and Wi-Fi
   networks.
+- **Headline tiles** stand on the page above the Status card, and times such as the last poll read
+  "12 s ago" (the exact time on hover). Long values in status lists wrap on phones.
 - **Live pages:** a plugin may tell the page when its panel changed, instead of being asked every
   3 s.
 - **Settings forms:** inputs for durations, times of day, colours, sliders, files and multiple

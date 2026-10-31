@@ -50,11 +50,12 @@ export class ConsoleSection {
       { label: "Console", value: this.facts.origin },
       { label: "Certificate", value: this.facts.certificate },
       { label: "Site", value: this.facts.site ?? { text: "not found yet", tone: "muted" } },
-      { label: "Last successful poll", value: latest ? { text: new Date(latest.at).toISOString(), since: latest.at } : { text: "never", tone: "muted" } }
+      // "12 s ago", counted live by the page, the exact time on hover
+      { label: "Last successful poll", value: latest ? { at: latest.at } : { text: "never", tone: "muted" } }
     ]
     const error = this.poller.lastError
     // an error the console recovered from stays for reference, greyed
-    if (error) items.push({ label: "Last error", value: { text: `${PanelText.clip(error.message)} (${new Date(error.at).toISOString()})`, tone: this.poller.problem ? "error" : "muted" } })
+    if (error) items.push({ label: "Last error", value: { text: PanelText.clip(error.message), tone: this.poller.problem ? "error" : "muted", at: error.at } })
     const voucher = this.facts.voucher
     const created = PanelText.time(voucher?.createdAt)
     if (voucher) items.push({ label: "Newest voucher", value: { text: PanelText.clip(`${voucher.code} (${voucher.name})`), ...(created === undefined ? {} : { since: created }) } })

@@ -94,7 +94,7 @@ reports. Before the first successful poll it is empty.
 Two sections. The page refreshes after every poll (and when reading starts or stops failing)
 instead of asking every few seconds.
 
-**Power flow**, as tiles:
+**Power flow**, as tiles at the top of the page:
 
 | Tile | Shown |
 |---|---|
@@ -108,8 +108,8 @@ instead of asking every few seconds.
 | Row | Shown |
 |---|---|
 | Reading | `ok` (green), `can't read the inverter: …` with the reason (red), or `waiting for the first poll` (grey) |
-| Last successful poll | time, or `never` |
-| Last error | the last reason the power flow couldn't be read, with its time; red while it lasts, grey once it recovered |
+| Last successful poll | how long ago ("12 s ago", the exact time on hover), or `never` |
+| Last error | the last reason the power flow couldn't be read and how long ago; red while it lasts, grey once it recovered |
 
 Meter and battery endpoint failures don't appear in the panel; they are in the log.
 

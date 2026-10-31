@@ -11,6 +11,11 @@ export class RelativeTime {
     return `for ${RelativeTime.coarse(Math.max(0, now - at))}`
   }
 
+  /** "45 s ago", "3 min ago"; "in 2 min" for a moment still to come (a clock ahead of the browser's) */
+  static ago(at: number, now: number) {
+    return at > now + 1000 ? `in ${RelativeTime.coarse(at - now)}` : `${RelativeTime.coarse(Math.max(0, now - at))} ago`
+  }
+
   /** a countdown: m:ss below an hour, else hours and minutes, else days and hours */
   static span(ms: number) {
     const seconds = Math.ceil(ms / 1000)

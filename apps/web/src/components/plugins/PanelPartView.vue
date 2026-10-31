@@ -22,10 +22,10 @@ const label = (action: RowAction) => props.labelOf?.(action) ?? action.label ?? 
 </script>
 
 <template>
-  <dl v-if="part.type === 'keyValue'" class="grid grid-cols-[minmax(8rem,auto)_1fr] gap-x-6 gap-y-1.5 text-sm">
+  <dl v-if="part.type === 'keyValue'" class="grid grid-cols-[minmax(8rem,auto)_minmax(0,1fr)] gap-x-6 gap-y-1.5 text-sm">
     <template v-for="item in part.items" :key="item.label">
       <dt class="text-muted-foreground">{{ item.label }}</dt>
-      <dd class="flex flex-wrap items-center gap-x-3 gap-y-1">
+      <dd class="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
         <CellView :cell="item.value" />
         <ActionControl v-if="item.control" :action="item.control" :label="label(item.control)" :disabled="busy" @run="emit('action', item.control)" />
         <SignalsButton v-if="browse && item.catalog" :catalog="item.catalog" :title="item.label" :browse="browse" />

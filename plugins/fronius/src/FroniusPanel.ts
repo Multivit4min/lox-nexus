@@ -38,11 +38,12 @@ export class FroniusPanel {
   private status() {
     const items: { label: string; value: Cell }[] = [
       { label: "Reading", value: this.reading() },
-      { label: "Last successful poll", value: this.poller.lastSuccess?.toISOString() ?? "never" }
+      // "12 s ago", counted live by the page, the exact time on hover
+      { label: "Last successful poll", value: this.poller.lastSuccess ? { at: this.poller.lastSuccess.getTime() } : { text: "never", tone: "muted" } }
     ]
     const error = this.poller.lastError
     // an error the inverter has recovered from stays for reference, greyed
-    if (error) items.push({ label: "Last error", value: { text: `${error.message} (${error.at.toISOString()})`, tone: this.poller.problem ? "error" : "muted" } })
+    if (error) items.push({ label: "Last error", value: { text: error.message, tone: this.poller.problem ? "error" : "muted", at: error.at.getTime() } })
     return items
   }
 

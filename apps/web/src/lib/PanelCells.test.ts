@@ -24,3 +24,12 @@ test("cells sort naturally and by number, rows match every word of a search", ()
   assert.equal(PanelCells.matches(["Kitchen", { text: "online", tone: "ok" }], "kit ONLINE"), true)
   assert.equal(PanelCells.matches(["Kitchen", "offline"], "kitchen online"), false)
 })
+
+test("a moment reads as how long ago it was, live, with the exact time for the tooltip", () => {
+  const now = Date.UTC(2026, 9, 31, 12, 0, 0)
+  assert.equal(PanelCells.text({ at: now - 12_000 }, now), "12 s ago")
+  assert.equal(PanelCells.text({ text: "no answer", at: now - 300_000 }, now), "no answer · 5 min ago")
+  assert.equal(RelativeTime.ago(now + 120_000, now), "in 2 min", "a clock ahead of the browser's")
+  assert.equal(PanelCells.moment({ at: now }), new Date(now).toLocaleString())
+  assert.equal(PanelCells.moment("plain"), undefined)
+})

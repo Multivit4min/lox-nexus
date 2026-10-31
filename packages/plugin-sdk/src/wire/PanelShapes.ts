@@ -9,8 +9,9 @@ export type Tone = z.infer<typeof ToneSchema>
 
 /**
  * A panel value: plain text, or text with a tone, and a time the browser counts down to (`until`,
- * "in 12:30") or up from (`since`, "for 3 min") while the page is open; times are epoch ms. A
- * host without the "panel.v2" feature gets the text (a time as an absolute one) instead.
+ * "in 12:30"), up from (`since`, "for 3 min", how long a state lasts) or shows as a moment (`at`,
+ * "12 s ago", e.g. the last poll) while the page is open, with the exact time on hover; times are
+ * epoch ms. A host without the "panel.v2" feature gets the text (a time as an absolute one) instead.
  */
 export const CellSchema = z.union([
   z.string(),
@@ -18,7 +19,8 @@ export const CellSchema = z.union([
     text: z.string().max(1000).optional(),
     tone: ToneSchema.optional(),
     until: z.number().optional(),
-    since: z.number().optional()
+    since: z.number().optional(),
+    at: z.number().optional()
   })
 ])
 export type Cell = z.infer<typeof CellSchema>

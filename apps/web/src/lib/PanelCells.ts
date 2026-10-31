@@ -8,8 +8,17 @@ export class PanelCells {
   static text(cell: Cell | undefined, now: number) {
     if (cell === undefined) return ""
     if (typeof cell === "string") return cell
-    const time = cell.until !== undefined ? RelativeTime.until(cell.until, now) : cell.since !== undefined ? RelativeTime.since(cell.since, now) : ""
+    const time = cell.until !== undefined ? RelativeTime.until(cell.until, now)
+      : cell.since !== undefined ? RelativeTime.since(cell.since, now)
+        : cell.at !== undefined ? RelativeTime.ago(cell.at, now) : ""
     return [cell.text, time].filter(Boolean).join(" · ")
+  }
+
+  /** the exact time a timed cell counts to or from, for its tooltip */
+  static moment(cell: Cell | undefined) {
+    if (typeof cell !== "object") return undefined
+    const at = cell.until ?? cell.since ?? cell.at
+    return at === undefined ? undefined : new Date(at).toLocaleString()
   }
 
   static tone(cell: Cell | undefined): Tone | undefined {
@@ -18,7 +27,7 @@ export class PanelCells {
 
   /** natural order ("Port 2" before "Port 10", "-5 W" before "12 W"); a time counts as its moment */
   static compare(a: Cell | undefined, b: Cell | undefined) {
-    const time = (cell: Cell | undefined) => (typeof cell === "object" ? cell.until ?? cell.since : undefined)
+    const time = (cell: Cell | undefined) => (typeof cell === "object" ? cell.until ?? cell.since ?? cell.at : undefined)
     const [ta, tb] = [time(a), time(b)]
     if (ta !== undefined && tb !== undefined) return ta - tb
     const [na, nb] = [PanelCells.number(a), PanelCells.number(b)]

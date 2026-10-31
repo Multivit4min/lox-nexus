@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useEventListener } from "@vueuse/core"
-import { onUnmounted, ref, watch } from "vue"
+import { computed, onUnmounted, ref, watch } from "vue"
 import type { PluginActionResultDto } from "@lox-nexus/api"
 import type { Panel, PluginDescription, RowAction } from "@lox-nexus/plugin-sdk/wire"
 import { X } from "@lucide/vue"
@@ -9,13 +9,16 @@ import { Button } from "@/components/ui/button"
 import { AppContext } from "../../AppContext.ts"
 import type { PluginEventHub } from "../../lib/PluginEventHub.ts"
 import { VisiblePolling } from "../../lib/VisiblePolling.ts"
+import { PanelLayout } from "../../lib/PanelLayout.ts"
 import PanelCard from "./PanelCard.vue"
+import TilesView from "./panel/TilesView.vue"
 import PanelPartView from "./PanelPartView.vue"
 
 /**
  * A running plugin's panel: asked for every 3 s, or, for a plugin that says when it changed
  * (`panelPush`), when it says so and every 30 s. Its switches and instant buttons run at once and
- * say what happened above it; its other buttons open the action's dialog (`open`).
+ * say what happened above it; its other buttons open the action's dialog (`open`). Its first tiles
+ * stand on the page above the Status card (PanelLayout).
  */
 // browse: opens the signals card's catalog at a node, for the rows' "Signals" buttons
 const props = defineProps<{ instanceId: string; running: boolean; description?: PluginDescription; events: PluginEventHub; browse?: (id: string, title: string) => void }>()
@@ -23,6 +26,8 @@ const emit = defineEmits<{ open: [action: string, input?: Record<string, unknown
 const api = AppContext.use().plugins
 
 const panel = ref<Panel | null>(null)
+// the headline tiles go on the page above the card (PanelLayout)
+const layout = computed(() => (panel.value ? PanelLayout.split(panel.value) : {}))
 const loading = ref(false)
 const busy = ref(false)
 const outcome = ref<{ ok: boolean; answer: PluginActionResultDto }>()
@@ -80,6 +85,7 @@ async function run(button: RowAction) {
 </script>
 
 <template>
+  <TilesView v-if="layout.headline" :tiles="layout.headline" />
   <Alert v-if="outcome" :variant="outcome.ok ? 'default' : 'destructive'" class="relative pr-10">
     <AlertDescription class="grid gap-2">
       <span v-if="outcome.answer.message" class="whitespace-pre-wrap">{{ outcome.answer.message }}</span>
@@ -87,5 +93,5 @@ async function run(button: RowAction) {
     </AlertDescription>
     <Button size="icon" variant="ghost" class="absolute right-2 top-2 size-6" title="Dismiss" @click="outcome = undefined"><X class="size-4" /></Button>
   </Alert>
-  <PanelCard v-if="panel" :panel="panel" :loading="loading || busy" :busy="busy" :actions="description?.actions" :browse="browse" @refresh="refresh" @action="run" />
+  <PanelCard v-if="layout.rest" :panel="layout.rest" :loading="loading || busy" :busy="busy" :actions="description?.actions" :browse="browse" @refresh="refresh" @action="run" />
 </template>
