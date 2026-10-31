@@ -191,5 +191,11 @@ export const MIGRATIONS: readonly Migration[] = [
     name: "plugin_config_version",
     // the plugin's configVersion a config was saved with; NULL for older rows, which are version 1
     sql: "ALTER TABLE plugin_instances ADD COLUMN config_version INTEGER"
+  },
+  {
+    version: 11,
+    name: "user_last_login",
+    // shown on the users page; NULL for accounts that never logged in (or did before this column)
+    sql: "ALTER TABLE users ADD COLUMN last_login_at INTEGER"
   }
 ]

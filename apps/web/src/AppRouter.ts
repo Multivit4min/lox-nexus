@@ -25,6 +25,7 @@ export class AppRouter {
         { path: "/history", name: "history", component: () => import("./views/HistoryView.vue") },
         { path: "/backup", name: "backup", component: () => import("./views/BackupView.vue") },
         { path: "/system", name: "system", component: () => import("./views/SystemView.vue") },
+        { path: "/users", name: "users", component: () => import("./views/UsersView.vue") },
         { path: "/:rest(.*)*", redirect: "/" }
       ]
     })

@@ -19,6 +19,7 @@ import { Persistence } from "./db/Persistence.ts"
 import { AuthGuard } from "./http/AuthGuard.ts"
 import { PluginControllers } from "./http/PluginControllers.ts"
 import { AuthController } from "./http/controllers/AuthController.ts"
+import { UserController } from "./http/controllers/UserController.ts"
 import { BusController } from "./http/controllers/BusController.ts"
 import { ConfigController } from "./http/controllers/ConfigController.ts"
 import { HookController } from "./http/controllers/HookController.ts"
@@ -29,6 +30,7 @@ import { SessionCookie } from "./http/SessionCookie.ts"
 import { PluginAssembly, type InstallOptions } from "./plugins/PluginAssembly.ts"
 import type { PluginCatalog } from "./plugins/PluginCatalog.ts"
 import { DiagnosticsAssembly } from "./diagnostics/DiagnosticsAssembly.ts"
+import { UserService } from "./services/UserService.ts"
 import { ImportJournal } from "./services/ImportJournal.ts"
 import { LoxoneProjectService } from "./services/LoxoneProjectService.ts"
 import { TimeZoneSetting } from "./services/TimeZoneSetting.ts"
@@ -190,7 +192,10 @@ export class NexusApp extends Disposable {
     const { persistence: db, clock, config, log } = this
     const sessions = new SessionService(db.sessions, clock)
     this.own(new SessionPruner(sessions, log))
-    const auth = new AuthService(db.db, db.users, sessions, new PasswordHasher(this.options.hasherCost), clock)
+    const hasher = new PasswordHasher(this.options.hasherCost)
+    const auth = new AuthService(db.db, db.users, sessions, hasher, clock)
+    // one counter: a wrong own password on the users page counts with wrong logins
+    const throttle = new LoginThrottle(clock)
     const cookie = new SessionCookie(config.secureCookies)
     const stale = this.own(new StaleWatcher({ signals: this.signals, bus: this.bus, clock, active: StaleWatcher.activeIn(this.miniservers, this.plugins) }))
     const stream = this.own(new BusStream(this.bus, auth, sessions, cookie, stale, this.pluginEvents))
@@ -203,7 +208,8 @@ export class NexusApp extends Disposable {
       docsDir: config.docsDir,
       trustProxy: config.trustProxy,
       controllers: [
-        new AuthController(auth, new LoginThrottle(clock), cookie),
+        new AuthController(auth, throttle, cookie),
+        new UserController(new UserService(db.db, db.users, sessions, hasher, clock, message => log.info(message)), throttle),
         new MiniserverController(miniservers, loxoneSignals, new LoxoneProjectService(miniservers, this.options.projectReader ?? new ProjectReader(new MiniserverFtp()), new TimeZoneSetting(db.settings))),
         new SignalController(this.signals, this.bus, wires),
         new BusController(this.bus, this.recorder),

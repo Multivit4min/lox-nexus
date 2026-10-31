@@ -26,9 +26,9 @@ export class Http {
     return this.request<T>("PUT", url, body)
   }
 
-  /** most deletions answer 204; some say what they did */
-  delete<T = void>(url: string) {
-    return this.request<T>("DELETE", url)
+  /** most deletions answer 204; some say what they did, some need a body (your password to confirm) */
+  delete<T = void>(url: string, body?: unknown) {
+    return this.request<T>("DELETE", url, body)
   }
 
   /** POST of a file's raw bytes (streamed by the browser); the answer is JSON as usual */

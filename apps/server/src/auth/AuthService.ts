@@ -72,7 +72,11 @@ export class AuthService {
     if (!row || !valid) return undefined
     // the hash may have changed while verify() ran (a password change or reset, which end all
     // sessions); the old password must not open a new one after that
-    const token = this.db.transaction(() => this.users.findById(row.id)?.password_hash === row.password_hash ? this.sessions.create(row.id) : undefined)
+    const token = this.db.transaction(() => {
+      if (this.users.findById(row.id)?.password_hash !== row.password_hash) return undefined
+      this.users.loggedIn(row.id, this.clock.now())
+      return this.sessions.create(row.id)
+    })
     return token === undefined ? undefined : { user: { id: row.id, username: row.username }, token }
   }
 

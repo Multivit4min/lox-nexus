@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed } from "vue"
-import { Activity, BookOpen, ChartLine, ChevronDown, DatabaseBackup, Gauge, KeyRound, LogOut, UserRound } from "@lucide/vue"
+import { Activity, BookOpen, ChartLine, ChevronDown, DatabaseBackup, Gauge, KeyRound, LogOut, UserRound, UsersRound } from "@lucide/vue"
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuSeparator, DropdownMenuTrigger } from "reka-ui"
 import { useRoute } from "vue-router"
 
 /**
- * The pages used now and then (watching the bus, history settings, backup, diagnostics), the docs,
+ * The pages used now and then (watching the bus, history settings, backup, diagnostics, users), the docs,
  * the user's password and logging out, under the user's name. While one of its pages is open the button is marked and
  * names that page, so the header still says where you are.
  */
@@ -17,7 +17,8 @@ const pages = [
   { to: "/inspector", label: "Bus Inspector", icon: Activity },
   { to: "/history", label: "History", icon: ChartLine },
   { to: "/backup", label: "Backup", icon: DatabaseBackup },
-  { to: "/system", label: "System", icon: Gauge }
+  { to: "/system", label: "System", icon: Gauge },
+  { to: "/users", label: "Users and access", icon: UsersRound }
 ]
 const current = computed(() => pages.find(page => route.path === page.to || route.path.startsWith(`${page.to}/`)))
 const item = "flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none select-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground"

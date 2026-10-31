@@ -12,6 +12,7 @@ import { PluginPackageApi } from "./api/PluginPackageApi.ts"
 import { StreamConnection, type StreamHandlers } from "./api/StreamConnection.ts"
 import { WireApi } from "./api/WireApi.ts"
 import { SelectionApi } from "./api/SelectionApi.ts"
+import { UsersApi } from "./api/UsersApi.ts"
 import { RecordedSignals } from "./stores/RecordedSignals.ts"
 import { PluginUpdates } from "./stores/PluginUpdates.ts"
 import { WiredSignals } from "./stores/WiredSignals.ts"
@@ -31,6 +32,7 @@ export class AppContext {
   readonly selections = new SelectionApi(this.http)
   readonly diagnostics = new DiagnosticsApi(this.http)
   readonly backup = new BackupApi(this.http)
+  readonly users = new UsersApi(this.http)
   /** which signals the history records, shared by the signal lists */
   readonly recorded = new RecordedSignals(this.history)
   readonly wired = new WiredSignals(this.wires)

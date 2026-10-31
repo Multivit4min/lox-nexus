@@ -141,9 +141,24 @@ Then:
 twice. Other browsers and devices logged in as you are logged out; the one you changed it in stays
 logged in.
 
+## Users
+
+**Users and access** in the user menu lists who can log in, with when they were added and last
+logged in. Every user can do everything; there are no roles.
+
+- **Add user** asks for a username and a password, typed twice.
+- **Set password** gives another user a new password, for example one they forgot. They are logged
+  out everywhere and log in with the new one. Your own password goes through **Change password**.
+- **Delete** removes another user and logs them out. Nobody can delete their own account, so the
+  installation always keeps one. What a deleted user changed keeps showing their name.
+
+All three ask for your own password again, so a browser left logged in isn't enough to add an
+account or take one over. Wrong passwords there count with failed logins from your address.
+
 ## Forgot your password?
 
-Run this on the machine where Nexus runs, as the user the server runs as, with the same
+If another user can log in, they can set a new one for you under **Users and access**. Otherwise,
+run this on the machine where Nexus runs, as the user the server runs as, with the same
 `NEXUS_DATA_DIR`:
 
 ```sh

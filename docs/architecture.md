@@ -2101,6 +2101,23 @@ Native `fetch` and `WebSocket` replace axios and socket.io (`ws` comes in throug
   widgets from the SDK's field kinds (`SchemaWidgets`) and Find through the `DISCOVER` injection
   the settings form provides. Input errors name fields by their labels (`ConfigIssues.where`).
 
+## Implementation notes: users page
+
+The prework for MCP's access tokens: more than one account, managed in the UI.
+
+- `UserService` (`apps/server/src/services`) lists, adds and deletes accounts and sets another
+  user's password; `UserController` serves `/api/users`. Every account may do everything.
+- Adding, deleting and setting a password ask for the acting user's password again
+  (`currentPassword`, 403 when wrong). They share the `LoginThrottle` with the login route, so
+  a guessed password costs the same here as at the login.
+- Nobody deletes their own account, and the last one can't go: the UI can't lock the
+  installation out. Sessions go with a deleted account (`ON DELETE CASCADE`); setting a
+  password ends the user's sessions, as the access tokens will too.
+- Migration 11 adds `users.last_login_at`, written in the login's transaction.
+- The web page is `/users` ("Users and access" in the user menu), where the access tokens tab
+  goes in MCP step A1. `npm run reset-password -- <name>` stays the way back for a forgotten
+  password when nobody can log in.
+
 ## Design: MCP interface (A1–A4)
 
 Status: **designed** (2026-10-31), not built. Decisions in ADR 0020; milestone "MCP interface"
@@ -2387,7 +2404,8 @@ Loxone's server doesn't wrap ours. The agent holds both connections.
 ### Safety
 
 **Authentication: personal access tokens** (`auth/AccessTokenService`,
-`db/repositories/AccessTokenRepository`, migration 11):
+`db/repositories/AccessTokenRepository`, migration 12; 11 is `users.last_login_at` of the
+users page):
 
 ```sql
 CREATE TABLE access_tokens (

@@ -6,9 +6,11 @@ export interface UserRow {
   username: string
   password_hash: string
   created_at: number
+  /** epoch ms of the last successful login; null before the first (or before migration 11) */
+  last_login_at?: number | null
 }
 
-/** Accounts. All users are administrators in v1. */
+/** Accounts. Every user is an administrator; there are no roles. */
 export class UserRepository {
   constructor(private readonly db: Database) {}
 
@@ -38,6 +40,20 @@ export class UserRepository {
       "INSERT INTO users (id, username, password_hash, created_at) VALUES (:id, :username, :hash, :createdAt)",
       { id: user.id, username: user.username, hash: user.password_hash, createdAt: user.created_at }
     )
+  }
+
+  /** every account for the users page, by name */
+  list() {
+    return this.db.all<UserRow>("SELECT * FROM users ORDER BY username")
+  }
+
+  /** sessions go with it (ON DELETE CASCADE); @returns whether it existed */
+  delete(id: string) {
+    return Number(this.db.run("DELETE FROM users WHERE id = :id", { id }).changes) > 0
+  }
+
+  loggedIn(id: string, at: number) {
+    this.db.run("UPDATE users SET last_login_at = :at WHERE id = :id", { id, at })
   }
 
   /** callers revoke the user's sessions in the same transaction */

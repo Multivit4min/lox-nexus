@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Users
+
+- **Users and access** in the user menu: add users, set another user's password (they are logged
+  out everywhere) and delete users, each confirmed with your own password. Nobody deletes their
+  own account, so one always remains. Every user can do everything; there are no roles.
+- The users page shows when each account last logged in.
+
 ### Plugin pages
 
 - **Richer panels:** values with a status colour and a live countdown ("in 12:30", "for 3 min"),

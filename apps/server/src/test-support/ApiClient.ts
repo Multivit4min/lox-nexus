@@ -24,8 +24,8 @@ export class ApiClient {
     return this.request({ method: "PUT", url, payload: body as object })
   }
 
-  delete(url: string) {
-    return this.request({ method: "DELETE", url })
+  delete(url: string, body?: unknown) {
+    return this.request({ method: "DELETE", url, ...(body === undefined ? {} : { payload: body as object }) })
   }
 
   private async request(options: InjectOptions) {
