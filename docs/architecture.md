@@ -1952,7 +1952,7 @@ in the user menu; the API is behind the login like the rest.
 | packages/ici | none (node:dgram, node:crypto) |
 | packages/plugin-sdk, core, api | zod 4 |
 | packages/loxone | zod 4, basic-ftp, saxes, fflate (reading Loxone Config projects) |
-| apps/server | fastify 5, @fastify/websocket, @fastify/cookie, @fastify/static, pino, pino-pretty, zod 4 (node:sqlite and node:crypto built in); M5e: yauzl (ADR 0009), and esbuild + fflate as devDependencies for test fixtures; the `git` binary at run time for git installs |
+| apps/server | fastify 5, @fastify/websocket, @fastify/cookie, @fastify/static, pino, pino-pretty, zod 4 (node:sqlite and node:crypto built in); M5e: yauzl (ADR 0009), and esbuild + fflate as devDependencies for test fixtures; the `git` binary at run time for git installs; planned for A1 (ADR 0020): `@modelcontextprotocol/sdk` as a **devDependency** only (its client drives the MCP conformance tests; the server side is our own) |
 | apps/web | vue 3, vue-router, vite, tailwindcss 4 + @tailwindcss/vite, shadcn-vue (reka-ui, cn, class-variance-authority, @lucide/vue, @vueuse/core, tw-animate-css), @tanstack/vue-virtual, vue-tsc, eslint-plugin-vue |
 | apps/docs | markdown-it, Shiki, TypeDoc + typedoc-plugin-markdown, zod (build-time only) |
 | plugins/homeassistant | none (Node's `WebSocket`); `ws` only for the test server |
@@ -2101,3 +2101,559 @@ Native `fetch` and `WebSocket` replace axios and socket.io (`ws` comes in throug
   widgets from the SDK's field kinds (`SchemaWidgets`) and Find through the `DISCOVER` injection
   the settings form provides. Input errors name fields by their labels (`ConfigIssues.where`).
 
+## Design: MCP interface (A1–A4)
+
+Status: **designed** (2026-10-31), not built. Decisions in ADR 0020; milestone "MCP interface"
+in `roadmap.md`. Open questions at the end of this section.
+
+AI agents (Claude Code, Gemini CLI, Codex, Cursor, VS Code, or Claude Desktop through a bridge)
+inspect and set up Nexus over the Model Context Protocol (MCP). The main case is a setup done
+together with Loxone's own MCP servers. The agent creates the matching objects in Loxone Config
+through Loxone's server and the Loxone signals, plugin signals and wires in Nexus through ours, so
+names, packet ids and data types match on both sides.
+
+What is known about Loxone's side (no public documentation; treat it as an assumption):
+- **Config & App 17.1:** an "MCP Server" object, which runs as a plugin on the Miniserver at
+  `…/mcp`. It covers the running installation: reading states and operating blocks.
+- **Config 17.3 (announced, not published):** an MCP interface into the Loxone Config project, so
+  agents can add objects such as virtual inputs and outputs.
+- **A LoxForum report:** the 17.1 server is slow because agents keep searching for blocks on
+  simple requests. The design lesson for us is that an agent needs a compact inventory in one or
+  two calls, not many lookups.
+
+### Principles
+
+- **No parallel paths.** Every tool calls the same services the REST controllers call
+  (`MiniserverService`, `LoxoneSignalService`, `PluginService`, `PluginSignalService`,
+  `WireService`, `PluginBridgeService`, `PluginActionService`, `HistoryService`, …). So every
+  validation, undo, `TopicCleanup` and 409 applies unchanged. Where a controller still holds
+  logic, that logic moves into a service first. This applies to `BusController`'s force, release
+  and inject (a `BusActions` service).
+- **Pure helpers are shared, not copied.** The web's pure helpers move from `apps/web/src/lib`
+  into `packages/api`, where `VersionChange` already lives, so the server and the web use one
+  copy:
+  - `PacketIds` (packet id suggestions)
+  - `DataTypes` (names, and the data type for a value type)
+  - `ProjectDiff` (Loxone Config project against configured signals)
+  - `CatalogTree` (catalog flattening and search)
+  - `WireHealth` (why a wire carries nothing)
+  - the pure part of `BridgeDraft`
+
+  They depend only on `@lox-nexus/api` types and `plugin-sdk/wire`. Their tests move with them.
+- **Compact over chatty.** These rules apply to every tool:
+  - lists are tables (`columns` plus `rows` of arrays)
+  - signals are named by **topic** (readable, unique) instead of UUIDs; every tool accepts
+    either
+  - values are formatted with their unit and decimals (`ValueFormatter`)
+  - empty and default fields are left out
+  - lists have a limit and a cursor; a cut answer says how many rows are left
+- **Agents never see or carry secrets.** No read path returns a secret, and the agent never
+  types one in. A human enters secrets in the UI.
+- **The protocol stays out of plugins.** Plugin authors write actions, catalogs and panels as
+  today. The host decides how they reach agents.
+
+### Feature list and priorities
+
+| Priority | Feature | Changes anything? |
+|---|---|---|
+| A1 | Access tokens with scopes; the `/mcp` endpoint; server instructions | no (token management is UI-only) |
+| A1 | Inventory: `overview`, `list_signals`, `get_signal`, `list_wires`, `system_status`, `recent_messages`, `trace` | no |
+| A2 | The Loxone link: `loxone_side`, `plan_bridge`, `bridge`, `search_catalog`, `describe_plugin`, `list_discovered`, `diff_loxone_objects` | `bridge` |
+| A2 | Signals and wires: create, update, delete (with confirmation), adopt, `preview_wire` | yes |
+| A2 | Prompts `connect_plugin_to_loxone` and `import_from_loxone_config`; resources | no |
+| A3 | Plugin instances and Miniservers: create, update (no secrets), delete, start/stop, settings check, Find on the network | yes |
+| A3 | Operating: `force`, `release`, `inject`, `run_plugin_action` | yes, acts on devices |
+| A3 | `get_panel`, `get_logs`, `get_history`; secret redaction; audit table and "recent activity" | no |
+| A4 (later) | Opt-out for plugin actions (`agent: false`, SDK), stored project login, elicitation over SSE, OAuth for cloud clients, tokens on the REST API | |
+
+### The overview problem
+
+The agent should know the whole installation after one call, and any one part after a second
+call. Three things make that possible.
+
+1. **Server `instructions`** (sent once in `initialize`, about 40 lines, from
+   `mcp/McpInstructions.ts`). They cover:
+   - the vocabulary: signal, wire, force, Miniserver, instance, catalog
+   - direction from both sides: Nexus `in` means the Miniserver sends, which is an
+     *intercommunication output* in Loxone Config
+   - the ICI data type bytes and the value types they carry
+   - the rule "call `overview` first, then name signals by topic"
+   - the order of work with Loxone (below), and the confirmation and secret rules
+2. **`overview`**: one call, about 2 to 6 KB for a typical installation. It returns:
+   - Nexus: version, time zone, clock offset, and the lock (a config import that is running)
+   - Miniservers: id, slug, label, host, ports, `ownId`/`remoteId`, health, load %, signal
+     counts per direction, discovered count
+   - installed plugin types: id, name, version, and capabilities as `id:valueType` (sensors and
+     actuators); action ids; whether it watches signals
+   - instances: id, plugin, slug, label, state, status message, signal counts,
+     `missingSecrets`
+   - wires: total, inactive, and counts per owner pair
+   - forces and stale signals: counts
+   - problems: up to 20 one-liners (an inactive wire with its reason, a degraded instance, a
+     Miniserver that is stale or over 70 % load)
+
+   With `signals: true`, the full signal table comes too, as long as the installation has at
+   most 1500 signals. Above that, the answer says to ask per owner. Columns: topic, label,
+   owner, dir, type, unit, packetId/dataType for Loxone signals, capability for plugin signals,
+   value, wires, flags (forced, stale, error).
+3. **`nexus://inventory`**: the same content as a resource. Clients that attach resources to
+   the context (Claude Code `@`-mentions) get the "prepared inventory file" from the forum
+   report, generated live.
+
+Large plugin catalogs are never dumped. Home Assistant has about 1,800 entries (330 KB).
+`search_catalog` flattens a catalog with `CatalogTree` on the server and returns up to 50 rows.
+`CatalogCache` keeps each instance's catalog for 60 s, so a search over a few pages doesn't make
+the worker rebuild it every time.
+
+### Tool catalogue
+
+Scopes: **read**, **configure**, **operate** (see Safety). Every tool's input is a zod schema
+in its own class, turned into JSON Schema with `z.toJSONSchema`. Annotations:
+- `readOnlyHint` on read tools
+- `destructiveHint` on deletes and on operate tools
+- `idempotentHint` where a call can be repeated without harm
+
+Wherever an input takes `signal`, it accepts an id or a topic.
+
+**Read** (scope `read`)
+
+| Tool | Maps to | Input | Output |
+|---|---|---|---|
+| `overview` | the services' `list()`s, `SignalController`'s signal list, `StaleWatcher`, `ForceRegistry`, `WireService.list` with `WireHealth` | `{ signals?: boolean }` | see above |
+| `list_signals` | `GET /api/signals` + owners + `StaleWatcher` | `{ owner?, direction?: in\|out\|sensor\|actuator, valueType?, search?, unwired?, forced?, stale?, limit ≤ 500, cursor? }` | table |
+| `get_signal` | the signal, its value (`EventBus.current/real/lastSeen`), force, wires with `WireHealth`, load share, and for Loxone signals its `loxone_side` object | `{ signal }` | object |
+| `list_wires` | `WireService.list` + `WireHealth` | `{ signal?, owner?, inactiveOnly?, limit, cursor }` | table: label, source, target, transforms (short), level, reason |
+| `preview_wire` | `POST /api/wires/preview` (`WirePreview`) | `{ value, transforms, target? }` | steps, delivered |
+| `describe_plugin` | `PluginCatalog` description + `PluginReadme` | `{ plugin, readme?: boolean }` | config schema (secret fields marked, never values), capabilities with params schemas, actions with input schemas, README (cut at 32 KB) |
+| `search_catalog` | the `catalog` request + `CatalogTree` + `CatalogCache` | `{ instance, query?, kind?, limit ≤ 50, cursor }` | path, kind, capability, params, label, value, unit, configured |
+| `list_discovered` | `GET :id/discovered` | `{ miniserver }` | table: packetId, dataType, value, lastSeen |
+| `loxone_side` | `LoxoneSideDescriptor` (below) | `{ miniserver, signals?: signal[] }` | peer and objects |
+| `plan_bridge` | `BridgeDraft`, `PacketIds`, `DataTypes` against the current signals; creates nothing | `{ instance, miniserver, items: [{ entry \| signal, loxone?: { packetId?, label?, dataType? } }] }` | ready-to-send `bridge` items, the Loxone side of each, and clashes |
+| `diff_loxone_objects` | `ProjectDiff` | `{ miniserver, objects: [{ packetId, direction, dataType, label, description? }] }` (what the agent read through Loxone's MCP) | rows by status (new, same, differs, unsupported, removed) and the inputs for `create_loxone_signals`/`update_loxone_signal` |
+| `get_history` (A3) | `HistoryService` query | `{ signal, from, to?, points ≤ 500 }` | resolution, `[ts, value]` rows or buckets, gaps |
+| `recent_messages` | `Recorder.recent` + `MessageFormatter` | `{ pattern?, limit ≤ 200 }` | one formatted line per message, with its id |
+| `trace` | `Recorder.trace` | `{ message }` | tree as indented lines |
+| `get_panel` (A3) | `PluginService` panel | `{ instance }` | the panel as text tables; QR parts dropped; redacted |
+| `get_logs` (A3) | `PluginLogs` | `{ instance, level?, limit ≤ 100 }` | lines; redacted |
+| `system_status` | `DiagnosticsSampler.snapshot`, the clock offset, `HeapTrend` verdicts, `ChangeLock.heldBy` | `{}` | figures and verdicts |
+
+**Configure** (scope `configure`). All tools here take the `ChangeLock`.
+
+| Tool | Maps to | Notes |
+|---|---|---|
+| `bridge` | `PluginBridgeService.bridge` | input as `BridgeRequestSchema` (≤ 200 items); per-item results with undo, as today |
+| `create_loxone_signals` | `LoxoneSignalService.add`, one at a time | ≤ 200 items, per-item results |
+| `update_loxone_signal` | `LoxoneSignalService.update` | the whole signal, as the PUT |
+| `delete_loxone_signals` | `LoxoneSignalService.remove` | confirmation; the summary counts wires and forces that go with them |
+| `adopt_discovered` | `LoxoneSignalService.adopt` | bulk |
+| `create_wire`, `update_wire` | `WireService` | |
+| `delete_wire` | `WireService.remove` | confirmation |
+| `create_miniserver`, `update_miniserver` (A3) | `MiniserverService` | no `password` field: the schema leaves it out, so the stored one stays |
+| `delete_miniserver` (A3) | `MiniserverService.remove` | confirmation; summary of signals, wires and forces |
+| `miniserver_lifecycle` (A3) | start, stop | stop: confirmation (the house loses its ICI path) |
+| `create_plugin_instance`, `update_plugin_instance` (A3) | `PluginService` + `PluginSettingsCheck` | secret fields refused in the input; the answer names `missingSecrets` and the instance page (`#/plugins/<id>`) where a human enters them |
+| `delete_plugin_instance` (A3) | `PluginService.remove` | confirmation |
+| `instance_lifecycle` (A3) | start, stop, restart | |
+| `check_plugin_settings` (A3) | `POST /api/plugin-instances/check` | `test: true` runs Test connection with the stored secrets merged in on the server |
+| `discover_setting` (A3) | `POST /api/plugins/:plugin/discover` | Find on the network |
+| `add_plugin_signals`, `update_plugin_signal` (A3) | `PluginSignalService` | from catalog entries or by hand |
+| `delete_plugin_signals` (A3) | `PluginSignalService.remove` | confirmation |
+
+**Operate** (scope `operate`, A3)
+
+| Tool | Maps to | Notes |
+|---|---|---|
+| `force` | `BusActions.force` | `until` is required: default 1 h, at most 24 h, so a forgotten agent force releases itself; `reason` is required |
+| `release` | `BusActions.release` | |
+| `inject` | `BusActions.inject` | one-shot; on an actuator topic it acts on the device |
+| `run_plugin_action` | `PluginActionService.run` | actions with a `confirm` sentence need the confirmation; the answer's `panel` is reduced to text, with QR parts dropped and redacted |
+
+**Not offered at all**, whatever the scope:
+- plugin install, update, rollback and uninstall: installing runs trusted code, so a human
+  decides (ADR 0009)
+- config import and backup or restore: they replace everything
+- users, passwords and tokens
+- the plugin store: it holds keys, such as Matter fabrics
+- webhooks
+- the history settings and retention, until someone asks for them
+
+### Plugin actions as tools
+
+- Each action does **not** become an MCP tool of its own. The tool list stays fixed, which
+  avoids two problems:
+  - stateless servers can't send `tools/list_changed`
+  - 50 plugin actions would flood the agent's context
+- Actions are listed with their JSON Schema in `describe_plugin` and in `overview` (ids only),
+  and run through the generic `run_plugin_action`. The worker validates the input, as it does
+  for the UI.
+- Plugin authors need to know nothing about MCP. The existing `confirm` sentence becomes the MCP
+  confirmation. A later, additive description field (`agent: false` on an action, ADR 0019:
+  older hosts drop it) lets an author keep an action from agents, for example one that shows a
+  pairing code.
+- Catalogs, panels and logs reach agents the same way, through generic tools. No plugin
+  contributes its own tools, resources or prompts.
+
+### Resources and prompts
+
+Resources, for clients that attach them. Each has the same content as a read tool, and the
+same scope (`read`):
+- `nexus://inventory`: `overview` with signals
+- `nexus://guide`: the instructions plus the Loxone workflow in more detail
+- `nexus://miniservers/{slug}/loxone-side`: a template, the same as `loxone_side`
+- `nexus://plugins/{plugin}/readme`: a template
+
+Subscriptions are left out, because they need a stream (see Transport).
+
+Prompts are templates the user picks in the client. Each one says which tools to use, in which
+order:
+- `connect_plugin_to_loxone { instance, miniserver, what }`
+- `import_from_loxone_config { miniserver }`
+- `diagnose_signal { signal }`: owner state, force, stale, wire health, recent messages
+- `review_installation`: inactive wires, stale and unwired signals, load over 70 %, degraded
+  instances
+
+### Interplay with Loxone's MCP servers
+
+**What an ICI object needs on the Loxone side.** This is checked against `IntercomProjectParser`
+and the Miniserver model.
+
+| Loxone Config | Nexus | Notes |
+|---|---|---|
+| Network Intercommunication of the Miniserver: its ICI id (`LanInt MId`), its port (`Pt`) | `remoteId`, `port` | |
+| a peer device under it (`HItcDev`): its id (`sid`), address and port (`dAd`, `dP`), encryption (`enc`), name (`Title`) | `ownId`, the address the Miniserver reaches Nexus at, `listenPort`, encryption off | Nexus doesn't know its own address as the Miniserver sees it (Docker, NAT). See open question 5. |
+| intercommunication **input** (`HItcIn`): the Miniserver receives | a signal with direction `out` | |
+| intercommunication **output** (`HItcOut`): the Miniserver sends | a signal with direction `in` | |
+| the object's packet id (`pid`), ≤ 8 ASCII | `packetId` | the **join key** is (Miniserver, direction, packetId) |
+| the object's type (`tp`): 0 Digital … 6 Smart tunable white | `dataType` | Loxone Config leaves out `tp` for Digital |
+| the object's name (`Title`) and description (`Desc`) | `label`; the topic goes into the description | the description lets a human or agent find the Nexus side; `ProjectDiff` keys on the packet id, not on names |
+
+**`LoxoneSideDescriptor`** (server, `services/`) builds this from a `MiniserverDto` and its
+`LoxoneSignalDto`s. It is pure, so it is easy to test:
+
+```jsonc
+{
+  "miniserver": { "id": "…", "label": "Haus", "iciId": "<remoteId>", "port": 61263 },
+  "peer": { "name": "Lox Nexus", "iciId": "<ownId>", "address": "10.0.0.5" /* or null + hint */,
+            "port": 61263, "encrypted": false },
+  "objects": [{
+    "topic": "loxone/haus/out/pv-leistung",
+    "loxone": { "object": "intercommunication input", "meaning": "the Miniserver receives this value from Nexus",
+                "name": "PV Leistung", "packetId": "pvleist", "dataType": 1, "dataTypeName": "Analog",
+                "description": "Lox Nexus: loxone/haus/out/pv-leistung", "unitFormat": "<v.1> W" },
+    "feeds": "fronius/dach/sensor/pv-power"   // the wire's other end, if any
+  }]
+}
+```
+
+- `unitFormat` is the usual Loxone format for the signal's unit and decimals. It is a
+  suggestion only.
+- Encryption is always `false`, because Nexus sends unencrypted.
+
+**Order of work** (written into the instructions and the `connect_plugin_to_loxone` prompt):
+1. Nexus: `overview`, then `search_catalog` to find the plugin side.
+2. Nexus: `plan_bridge` suggests packet ids that are unique on that Miniserver, the data type
+   that fits each value type, and labels. The agent may change them.
+3. Nexus: `bridge` creates the plugin signals, Loxone signals and wires. Nexus goes **first**
+   because it checks uniqueness and types; Loxone Config then takes the result as it is.
+4. Loxone Config (Loxone's 17.3 MCP): create the peer if it is missing, and the objects from
+   `loxone_side`. Then save to the Miniserver.
+5. Check:
+   - **Outputs to Nexus** (Nexus `in`): their packets arrive. `get_signal` shows a value and
+     `lastSeen`; a wrong packet id shows up in `list_discovered`.
+   - **Inputs to the Miniserver** (Nexus `out`): the Miniserver never confirms them, so the
+     agent reads the block's state through Loxone's 17.1 MCP. Nexus resends every 10 s.
+
+The order can also be reversed. Objects an agent already created in Config are picked up by
+reading them through Loxone's MCP and passing them to `diff_loxone_objects`. The answer holds the
+inputs for `create_loxone_signals` and `update_loxone_signal`. This is the same `ProjectDiff` the
+"Import from Loxone Config" dialog uses, so no Miniserver login passes through the agent.
+
+**What depends on Config 17.3 (assumptions):**
+- It can create a Network Intercommunication peer and its inputs and outputs, with packet id,
+  type, name and description. If it only creates **Virtual** inputs and outputs (HTTP/UDP
+  objects, a different thing from ICI objects), steps 4 and 5 change:
+  - a Virtual Output reaches Nexus through the webhook plugin
+  - a Virtual Input is set through the Miniserver's WebSocket API (ADR 0016, parked)
+
+  `loxone_side` would then need a second kind of descriptor. Nothing in A1 depends on this.
+- It can read existing objects (for `diff_loxone_objects`). If it can't, the fallback is the
+  existing FTP project read, which needs a Miniserver login (open question 4).
+- Saving and deploying to the Miniserver is the user's or Loxone's step. Nexus only sees the
+  result.
+
+The 17.1 runtime server is only used for checking (step 5). Nexus doesn't wrap Loxone's tools, and
+Loxone's server doesn't wrap ours. The agent holds both connections.
+
+### Safety
+
+**Authentication: personal access tokens** (`auth/AccessTokenService`,
+`db/repositories/AccessTokenRepository`, migration 11):
+
+```sql
+CREATE TABLE access_tokens (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,                  -- "Claude Code on laptop"
+  scopes TEXT NOT NULL,                -- JSON array of "read" | "configure" | "operate"
+  token_sha256 TEXT NOT NULL UNIQUE,   -- the token itself is shown once and never stored
+  created_at INTEGER NOT NULL,
+  expires_at INTEGER,                  -- default 90 days, at most 1 year; NULL only if the user picks "never"
+  last_used_at INTEGER                 -- written at most once a minute
+);
+```
+
+- **Token format.** `nxp_` followed by 32 random bytes in base64url. The prefix lets secret
+  scanners find leaked tokens.
+- **Who manages them.** `/api/tokens` (list, create, revoke) works only with a session. A token
+  can't mint or see tokens. The UI is an "Access tokens" page in the user menu: name, scopes
+  (`read` is always on; `operate` is off by default and carries a warning), expiry, and the
+  token shown once with a ready `claude mcp add --transport http …` line.
+- **Revoking.**
+  - Revoking is immediate, because every request looks the token up.
+  - A password change revokes the user's tokens with the sessions. This is a recommendation
+    (open question 2).
+  - At most 20 tokens per user.
+- **Which routes accept them.** `AuthGuard` gets a route option `tokenAuth`. Such routes read
+  `Authorization: Bearer` and **ignore the cookie**, and all other routes ignore bearer headers.
+  So a token is never a general API key, and a browser session can't drive `/mcp`. The guard
+  sets `request.user` and `request.access` (`{ tokenId, name, scopes }`).
+- **Other request checks.**
+  - The Origin check applies as for other POSTs. This covers DNS rebinding, which the MCP spec
+    requires.
+  - Failed bearer attempts are throttled per address with a separate `LoginThrottle`
+    instance.
+  - A token in the query string is refused.
+- **Scopes.** Every tool declares one scope, and `tools/list` shows only the tools the token may
+  call:
+  - `read`: everything above marked read. Values can reveal presence (doors, motion), so the
+    page says so.
+  - `configure`: setup changes. Wires and transforms change what Loxone and devices get, so this
+    is powerful, but it never acts on a device directly. Starting an instance resends sensor
+    values to Miniserver outputs, as from the UI.
+  - `operate`: acts on devices now (force, inject, actions).
+  - Once user roles exist, the effective rights are the token's scopes intersected with the
+    user's role.
+
+**Secrets never leave, and never come in.**
+- DTOs already hold back secret config fields (`writeOnly`) and Miniserver passwords
+  (`hasPassword`). The MCP layer uses only DTOs.
+- Inputs refuse secret fields. Instance creation answers `missingSecrets`, and a human enters
+  them on the instance page (open question 3).
+- There are no tools for the plugin store, backups or config export with sealed secrets.
+- **`SecretRedactor`** is a safety net for text a plugin controls: panels, logs and action
+  answers. The webhook plugin's panel shows its hook token on purpose. The redactor holds the
+  instance's stored secret values (6 characters or longer) and the Miniserver passwords, and
+  replaces any occurrence in a tool result with `‹secret›`. It applies to every tool result,
+  so it doesn't depend on each tool remembering it.
+- `plugin-authoring.md` gets a sentence: panels and logs may be read by agents with the `read`
+  scope.
+
+**Confirming destructive changes.**
+- Elicitation (the server asks the user through the client) needs a stream within the request,
+  which this server doesn't have. Destructive tools therefore use a two-step call instead.
+- **First call**, without `confirmation`: nothing changes. The answer is
+  `{ needsConfirmation, summary, confirmation, expiresInS: 300 }`. The summary counts what goes
+  with the change, for example "deletes 3 Loxone signals, 4 wires (2 to Home Assistant
+  actuators), releases 1 force".
+- **Second call**, with the same arguments plus `confirmation`, runs it.
+- `Confirmations` (Disposable, one `after()` per entry) binds each id to the token and a hash
+  of the arguments, and uses it once.
+- This doesn't stop an agent that confirms on its own. What it does:
+  - the agent always sees the blast radius before acting
+  - clients that ask before `destructiveHint` tools show the summary on the second call
+  - the audit shows both calls
+
+  Real human approval comes with elicitation (A4) or a token setting "destructive changes need
+  approval in the UI" (left out).
+
+**Operating devices** is a scope of its own, off by default. Agent forces must expire (≤ 24 h).
+Every force and release carries `by` (below), so the Forced tab shows who pinned what.
+
+**Audit.**
+- Every changing call passes `by = "<user> via MCP (<token name>)"` to the services. Forces,
+  releases, actions, the plugin log and `TopicCleanup` already show it.
+- `McpAudit` logs each changing call at info (`component: "mcp"`) with the token id, tool,
+  targets and outcome. Values are logged; secrets can't be in the input.
+- In A3, an `mcp_audit` table keeps the same per token, 90 days or 10,000 rows. The token page
+  shows it as "recent activity".
+- `last_used_at` shows tokens that are no longer in use.
+
+**Rate limits** (`McpRateLimit`, token buckets per token; Disposable, idle buckets pruned with
+`every()`):
+- 120 calls per minute, 30 of them changing
+- at most 4 calls at once per token
+- changing calls run one at a time per token, which also keeps `FreeSlug`'s race (two picks of
+  the same name) away
+- beyond these limits, a JSON-RPC error with a retry hint
+
+Bulk tools keep the existing caps: 200 items for bridge and signal creation, and 50 transform
+steps.
+
+**Output limits.** A tool result is cut at 64 KB of text with a note and a cursor. Logs and
+panels are cut further. Action answers drop their QR and image parts.
+
+**ChangeLock.**
+- `/mcp` is `lockFree`. Every MCP request is a POST, so the hook would otherwise count reads
+  as changes and refuse them with 503 during an import.
+- Instead, changing tools take the lock themselves through a new `ChangeLock.enter()`. It
+  returns a release function, or throws the 503 `HttpError` while the lock is held. `check()`
+  is rewritten on top of it.
+- A refused tool call answers `isError: true` with "a config import is running; try again in
+  5 s". Reads go on, as in the UI.
+- An import waits for MCP calls in flight like any other change.
+
+### Transport and protocol
+
+- **Streamable HTTP on the existing Fastify server, at `POST /mcp`**, registered inside the API
+  plugin so `AuthGuard` covers it:
+  - `GET` and `DELETE /mcp` answer 405
+  - the body limit is 1 MiB, the default
+- **Stateless:**
+  - no `Mcp-Session-Id` and no server-to-client stream
+  - every POST carries one JSON-RPC message and gets one `application/json` answer, or 202 for
+    a notification
+  - batches answer an error (2025-06-18 dropped them)
+  - a restart or restore never strands a session
+  - closing the client aborts the call (`AbortSignal` from `reply.raw`)
+- **No stdio.** Nexus is a long-running service, often in Docker on another host, and
+  `DatabaseLock` allows one process. Clients that speak only stdio use a bridge such as
+  `npx mcp-remote <url> --header "Authorization: Bearer …"`. The guide shows it.
+- **Protocol versions:** `McpProtocol.SUPPORTED`, newest first (2025-11-25, 2025-06-18,
+  2025-03-26).
+  - `initialize` answers the client's version if it is in the list, else the newest.
+  - Later requests are checked against `MCP-Protocol-Version` when it is present.
+  - Capabilities: `tools`, `resources`, `prompts`, `logging: false`, no `listChanged` and no
+    `subscribe`.
+- **Methods:** `initialize`, `notifications/initialized`, `ping`, `tools/list`, `tools/call`,
+  `resources/list`, `resources/templates/list`, `resources/read`, `prompts/list`,
+  `prompts/get`. Others answer -32601.
+- **Errors:**
+  - a malformed message: -32700 or -32600
+  - an unknown tool, or a scope the token lacks: -32602
+  - invalid tool input and domain refusals (400 and 409 from the services): tool results with
+    `isError: true` and the zod issues or the message, so the model can correct itself
+- **Results:** compact JSON as `text` content. There is no `outputSchema`/`structuredContent`
+  in v1, so clients don't pay for the same data twice.
+- **Our own implementation, not the official SDK at run time** (ADR 0020).
+  - The subset above is small: about ten classes.
+  - The SDK brings express, hono, cors, jose, ajv and cross-spawn into an image that runs a
+    house.
+  - Its transport writes to the raw response, past Fastify's error handling.
+  - We validate with zod like every other boundary.
+
+  The SDK's **client** is a devDependency for the conformance tests. It is already in the tree,
+  through shadcn-vue. Spec drift is caught by updating it and by the MCP Inspector in the
+  manual check.
+
+### Placement and classes
+
+Everything lives in `apps/server`. `packages/api` gets the token DTOs and the shared helpers
+listed under Principles; MCP tool schemas stay in the server. Core, loxone, ici and the SDK are
+unchanged, apart from the later `agent: false` field on actions. No boundary in `CLAUDE.md`
+moves. The web reaches only `/api/tokens`.
+
+`apps/server/src/mcp/`, one class per file:
+
+| Class | Responsibility |
+|---|---|
+| `McpAssembly` | Built by `NexusApp` (which is at its size limit), like `HistoryAssembly`. It owns everything below and hands `controllers` to the HTTP server. |
+| `McpController` | `POST /mcp` (`tokenAuth`, `lockFree`), and 405 for GET and DELETE. Hands the body, the `AccessContext` and an `AbortSignal` to the dispatcher. |
+| `JsonRpc` | zod schemas for requests, notifications and responses, and the error codes. |
+| `McpDispatcher` | Routes methods, checks the protocol version, turns thrown errors into JSON-RPC errors or tool errors. |
+| `McpProtocol` | Supported versions, `serverInfo`, capabilities. |
+| `McpInstructions` | The instructions text and `nexus://guide`. |
+| `ToolRegistry`, `McpTool` (interface) | `name`, `title`, `description`, `scope`, `annotations`, `input` (zod), `run(input, ctx)`. Lists only what the token's scopes allow. |
+| `ToolCall` | Runs one call: scope, rate limit, the lock for changing tools, input parsing, `SecretRedactor`, the size cap, the audit. |
+| `ToolContext` | The access context, `by`, the signal, and `refs` (`SignalRefs`: an id or topic to a signal). |
+| `CompactTable`, `ToolText` | Table and value formatting, cutting, cursors. |
+| `Confirmations` | Pending confirmations (Disposable). |
+| `McpRateLimit` | Token buckets (Disposable). |
+| `McpAudit` | Log lines, and from A3 the table. |
+| `SecretRedactor` | See Safety. |
+| `CatalogCache` | 60 s per instance (Disposable). |
+| `ResourceRegistry`, `PromptRegistry` | Static lists plus templates. |
+| `tools/read/*`, `tools/configure/*`, `tools/operate/*` | One class per tool. Thin: parse, call a service, shape the answer. |
+
+Elsewhere:
+- `services/`: `InventoryService` (what `overview` assembles), `LoxoneSideDescriptor`,
+  `BusActions` (moved out of `BusController`), `BridgePlanner` (what `plan_bridge` checks)
+- `auth/`: `AccessTokenService`
+- `db/repositories/`: `AccessTokenRepository`
+- `http/controllers/`: `AccessTokenController`
+- `http/`: `AuthGuard` (`tokenAuth`), `ChangeLock` (`enter()`)
+
+### Tests
+
+- **Protocol** (`McpDispatcher` with fake tools): initialize and version negotiation, unknown
+  method, malformed JSON, a batch, a notification answered with 202, `ping`, a version header
+  mismatch.
+- **Conformance:** the official SDK client (`Client` with `StreamableHTTPClientTransport`)
+  against a `NexusApp` on 127.0.0.1 port 0. It initializes, lists tools, resources and prompts,
+  and calls `overview`.
+- **Contract:** a snapshot of `tools/list` per scope (names, schemas, annotations), so every
+  change to what agents see shows up in review.
+- **Auth and safety** (in `SecurityRegressions`):
+  - a cookie on `/mcp` is refused, and a bearer token on `/api/*` is ignored
+  - a cross-origin POST is refused, and a token in the query is refused
+  - expired, revoked and unknown tokens are refused, and the bad-token throttle works
+  - scope filtering applies in both `tools/list` and `tools/call`
+  - a password change revokes tokens
+  - **planted secrets** (a webhook token, an HA token, a Miniserver password) never appear in
+    the output of any read tool, run over every tool
+- **Tools:** each class against fake services (`Pick<…>`). `LoxoneSideDescriptor`,
+  `BridgePlanner` and the moved helpers get unit tests of their own.
+- **End to end:** a fixture plugin and `FakeMiniserver`.
+  1. `plan_bridge`, then `bridge`, then `loxone_side`.
+  2. Configure the fake Miniserver **only from the descriptor**: packet ids, types and ports.
+  3. A sensor value arrives there, and a value the fake sends reaches the actuator.
+  4. A `diff_loxone_objects` round trip.
+- **Lock, limits, confirmations:**
+  - a changing tool during a config import answers the tool error, and reads go on
+  - rate limits and confirmation expiry, with `mock.timers`
+  - a confirmation is refused for other arguments or another token
+- **Audit:** `by` appears on a force made through MCP, and in the log line.
+- **Manual (owner):**
+  - Claude Code with `claude mcp add --transport http` against the dev server
+  - the MCP Inspector
+  - once 17.3 ships, one real run together with Loxone's MCP servers. This needs the owner's
+    permission, because it changes the Loxone project.
+
+### Left out on purpose
+
+- stdio, SSE streams, sessions, resource subscriptions, `listChanged`, elicitation, sampling and
+  progress notifications (long actions simply take up to their 2 minutes)
+- OAuth: cloud-hosted clients (claude.ai connectors, ChatGPT) need OAuth 2.1 *and* a Nexus
+  reachable from the internet; home installations usually aren't
+- tokens on the REST API
+- per-action MCP tools, and tools contributed by plugins
+- installing plugins, backups, config import, users
+- wrapping or proxying Loxone's MCP servers
+- writing to the Loxone Config project from Nexus
+
+### Open questions (to be confirmed by the user)
+
+1. **May agents operate devices?** Recommended: yes, behind the `operate` scope, which is off by
+   default. Forces must expire (default 1 h, at most 24 h) and carry a reason.
+2. **Tokens per user, and what revokes them?** Recommended:
+   - per user, with scopes chosen at creation
+   - expiry 90 days by default
+   - a password change revokes them with the sessions
+3. **May an agent enter secrets** (a Home Assistant token, an InfluxDB token)? Recommended: no.
+   The agent creates the instance, and a human enters the secrets on the instance page, which
+   the tool names.
+4. **Reading the Loxone Config project over FTP through an agent?** Recommended: not in v1. Use
+   `diff_loxone_objects` with what Loxone's MCP reads, plus `list_discovered`. If 17.3 can't
+   read objects, add a write-only stored project login per Miniserver later, so the agent never
+   carries it.
+5. **The address the Miniserver should send to.** Recommended: an installation setting "Nexus
+   address for Miniservers", prefilled from `listenAddress` or from the peer address of the
+   last project import. `loxone_side` uses it and says when it is missing.
+6. **Plugin actions for agents: opt-out or opt-in?** Recommended: opt-out. Actions run under
+   `operate`, `confirm` actions need the confirmation, and an `agent: false` field in A4 lets
+   an author withhold one.
+7. **Cloud clients** (claude.ai, ChatGPT)? Recommended: not now. Local agents with bearer
+   tokens; Claude Desktop through `mcp-remote`.
+8. **May agents install plugins from the local repository?** Recommended: no. They may say
+   which plugin is missing; installing stays a human decision.
+9. **What does Config 17.3 create: intercommunication objects or Virtual I/O?** Confirm this
+   once it ships, before the manual part of A2. The descriptor depends on it.

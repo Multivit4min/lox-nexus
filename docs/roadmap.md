@@ -262,6 +262,74 @@ Assistant) and a controller (Matter devices and hubs in Nexus, and so in Loxone)
   a catalog of their clusters, live values by subscription. Until then, Matter devices reach Loxone
   through Home Assistant's Matter integration and the `homeassistant` plugin.
 
+### MCP interface (A1–A4)
+
+Plan: AI agents inspect and set up Nexus over MCP, together with Loxone's own MCP servers
+(Config & App 17.1 for the running installation, and the announced Config 17.3 for the project).
+Design: `docs/architecture.md`, "Design: MCP interface (A1–A4)". Decisions: ADR 0020. The open
+questions listed there are answered by the user before A1 starts; questions 3, 4, 5 and 9 can wait
+until A2.
+
+- **A1: tokens, endpoint, inventory.**
+  - Migration 11 `access_tokens`, `AccessTokenService` and `/api/tokens` (session only).
+  - An "Access tokens" page in the user menu: scopes, expiry, the token shown once with a
+    `claude mcp add` line.
+  - The `tokenAuth` route option in `AuthGuard`, and `ChangeLock.enter()`.
+  - `apps/server/src/mcp/`:
+    - the JSON-RPC dispatcher, protocol versions and instructions
+    - the tool and resource registries
+    - rate limits, the 64 KB cap and audit log lines
+  - Read tools: `overview` (with the signal table), `list_signals`, `get_signal`, `list_wires`,
+    `system_status`, `recent_messages`, `trace`.
+  - Resources: `nexus://inventory` and `nexus://guide`.
+  - The official MCP SDK as a devDependency, for the conformance test.
+- **A2: the Loxone link.**
+  - Move `PacketIds`, `DataTypes`, `ProjectDiff`, `CatalogTree`, `WireHealth` and the pure part
+    of `BridgeDraft` from the web into `packages/api`.
+  - `LoxoneSideDescriptor`, `BridgePlanner` and `CatalogCache`.
+  - Tools:
+    - read: `describe_plugin`, `search_catalog`, `list_discovered`, `loxone_side`,
+      `plan_bridge`, `diff_loxone_objects`, `preview_wire`
+    - changing: `bridge`, `create_loxone_signals`, `update_loxone_signal`, `adopt_discovered`,
+      `create_wire`, `update_wire`
+    - deletes with confirmations (`Confirmations`)
+  - Prompts `connect_plugin_to_loxone` and `import_from_loxone_config`.
+- **A3: setup of instances and Miniservers, operating, audit.**
+  - Miniserver tools without the password, and plugin instance tools without secret fields
+    (`missingSecrets`).
+  - Lifecycle, settings check, Find on the network, plugin signals.
+  - `BusActions` moved out of `BusController`; `force` (must expire), `release`, `inject`,
+    `run_plugin_action`.
+  - `get_panel`, `get_logs`, `get_history`, `SecretRedactor`.
+  - The `mcp_audit` table, and "recent activity" on the token page.
+  - Prompts `diagnose_signal` and `review_installation`.
+- **A4 (later, each on its own decision):**
+  - `agent: false` on plugin actions (SDK, additive)
+  - a stored, write-only project login for FTP reads
+  - SSE for progress and elicitation
+  - OAuth for cloud clients
+  - tokens on the REST API
+
+**Verify:**
+- The official SDK client initializes, lists and calls tools against a `NexusApp` on 127.0.0.1.
+- A `tools/list` snapshot per scope is checked in.
+- Security regressions:
+  - a cookie on `/mcp` and a bearer token on `/api` are refused
+  - foreign Origin, query tokens, and expired or revoked tokens are refused
+  - scopes filter both listing and calling
+  - planted secrets (a webhook token, an HA token, a Miniserver password) appear in no tool
+    output
+- End to end with a fixture plugin and `FakeMiniserver`, configured only from `loxone_side`:
+  `plan_bridge` → `bridge` → values flow both ways; a `diff_loxone_objects` round trip.
+- During a config import, changing tools answer the lock error and reads go on. Rate limits
+  and confirmation expiry are tested with `mock.timers`.
+- A force made through MCP shows `"<user> via MCP (<token>)"` and expires.
+- Manual:
+  - A1: Claude Code (`claude mcp add --transport http`) and the MCP Inspector against the dev
+    server
+  - A2, once Config 17.3 ships: one joint setup with Loxone's MCP servers, with the owner's
+    permission to change the Loxone project
+
 ## Top risks
 
 1. **Plugins are trusted code.** Worker threads are not a sandbox. Say so explicitly in the docs and
@@ -274,3 +342,11 @@ Assistant) and a controller (Matter devices and hubs in Nexus, and so in Loxone)
    your hands-on capture sessions.
 4. **Feedback loops through external systems** (Loxone → HA → Loxone). Mitigate with dedup,
    per-wire throttling, a loop-rate warning, and forces as the manual circuit breaker.
+5. **Agents with write access** (ADR 0020). An agent can make wrong changes quickly, and the
+   protocol and Loxone Config 17.3 are both still moving. Mitigate with:
+   - scoped, expiring tokens, with `operate` off by default
+   - no secrets in or out
+   - confirmations that show what goes with a change
+   - forces that must expire
+   - `by` and an audit trail on every change
+   - a conformance test with the official MCP client
