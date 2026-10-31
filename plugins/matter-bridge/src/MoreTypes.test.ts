@@ -134,20 +134,39 @@ test("doorbell: a press from Nexus rings at the controller", { timeout: 20_000 }
   await assert.rejects(actuator("long-press", "Front").then(id => bridge.host.actuate(id, Value.boolean(true))), /has no long press state/)
 })
 
-test("chime: an app playing it sends the sound and a one-second ring; while it is off, nothing", { timeout: 20_000 }, async () => {
+test("chime: an app playing it sends the sound and a one-second ring; a sound that isn't installed is refused; while it is off, nothing", { timeout: 20_000 }, async () => {
   const ring = await bridge.host.addSensor("ring", { device: "Bell" })
   const sound = await bridge.host.addSensor("chime-sound", { device: "Bell" })
   const enabled = await bridge.host.addSensor("chime-enabled", { device: "Bell" })
   const chime = device("Bell").commandsOf(ChimeClient)
+  assert.deepEqual(bridge.values(ring), [false], "the ring starts off")
   await chime.playChimeSound({ chimeId: 2 })
   await until(() => bridge.last(ring) === true && bridge.last(sound) === 2, 3000, "ringing sound 2")
   await until(() => bridge.last(ring) === false, 3000, "the pulse ends")
   await assert.rejects(chime.playChimeSound({ chimeId: 9 }), /not ?found/i)
+  await assert.rejects(device("Bell").setStateOf(ChimeClient, { selectedChime: 9 }), /not ?found/i)
+  await device("Bell").setStateOf(ChimeClient, { selectedChime: 3 })
+  await chime.playChimeSound({})
+  await until(() => bridge.last(sound) === 3, 3000, "the selected sound")
+  await until(() => bridge.last(ring) === false, 3000, "and its pulse ends")
   await device("Bell").setStateOf(ChimeClient, { enabled: false })
   await until(() => bridge.last(enabled) === false, 3000, "muted from the app")
+  const rings = bridge.values(ring).length
   await chime.playChimeSound({})
-  await new Promise(resolve => setTimeout(resolve, 200))
-  assert.deepEqual(bridge.values(ring), [true, false], "a muted chime doesn't ring")
+  assert.equal(bridge.values(ring).length, rings, "a muted chime doesn't ring")
   await bridge.host.actuate(await actuator("chime-enabled", "Bell"), Value.boolean(true))
   await until(() => seen(peer, "Bell").chime?.enabled === true, 3000, "on again from Nexus")
+})
+
+test("chime: a second play during the pulse makes it longer, not a second short one", { timeout: 20_000 }, async () => {
+  const ring = await bridge.host.addSensor("ring", { device: "Bell" })
+  const chime = device("Bell").commandsOf(ChimeClient)
+  await chime.playChimeSound({})
+  await new Promise(resolve => setTimeout(resolve, 600))
+  await chime.playChimeSound({})
+  await new Promise(resolve => setTimeout(resolve, 600))
+  assert.equal(bridge.last(ring), true, "still ringing 1.2 s after the first play")
+  await until(() => bridge.last(ring) === false, 3000, "ends a second after the second play")
+  // the second play sends true again, which the bus drops as equal: Loxone sees one long pulse
+  assert.deepEqual(bridge.values(ring), [false, true, true, false])
 })

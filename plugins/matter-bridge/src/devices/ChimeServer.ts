@@ -2,18 +2,17 @@ import { Observable } from "@matter/main"
 import { ChimeServer as BaseChimeServer } from "@matter/main/behaviors/chime"
 import type { Chime } from "@matter/main/clusters/chime"
 import { Status, StatusResponseError } from "@matter/main/types"
+import { ChimeSounds } from "./ChimeSounds.ts"
 
 /**
  * A chime that plays nothing itself: "play" from an app goes to Nexus with the sound to play, and
  * Loxone rings (a buzzer, the audio server). The sounds are names for Loxone to tell apart; the
- * apps let you pick one and switch the chime off, which matter.js keeps. While it is off, plays
- * are ignored, as Matter says.
+ * apps let you pick one (a sound that isn't installed is refused, NOT_FOUND) and switch the chime
+ * off, which matter.js keeps. While it is off, plays are ignored, as Matter says.
  */
 export class ChimeServer extends BaseChimeServer {
-  static readonly SOUNDS = ["Ding dong", "Bell", "Gong", "Melody"]
-
   static override readonly State = class extends BaseChimeServer.State {
-    override installedChimeSounds = ChimeServer.SOUNDS.map((name, index) => ({ chimeId: index + 1, name }))
+    override installedChimeSounds = ChimeSounds.installed()
     override selectedChime = 1
     override enabled = true
   }
@@ -25,18 +24,22 @@ export class ChimeServer extends BaseChimeServer {
 
   declare readonly events: InstanceType<typeof ChimeServer.Events>
 
+  override initialize() {
+    super.initialize()
+    this.reactTo(this.events.selectedChime$Changing, this.selecting)
+  }
+
   override playChimeSound(request: Chime.PlayChimeSoundRequest) {
     const chimeId = request.chimeId ?? this.state.selectedChime
-    if (!this.state.installedChimeSounds.some(sound => sound.chimeId === chimeId)) {
-      throw new StatusResponseError(`no chime sound ${chimeId}`, Status.NotFound)
-    }
+    if (!ChimeSounds.has(chimeId)) throw new StatusResponseError(`no chime sound ${chimeId}`, Status.NotFound)
     if (!this.state.enabled) return
+    // Matter has the event from the cluster's revision 2 on; matter.js 0.18 doesn't create it yet
     this.events.chimeStartedPlaying?.emit({ chimeId }, this.context)
     this.events.played.emit(chimeId, this.context)
   }
 
-  /** a sound's name, for the panel */
-  static soundName(chimeId: number) {
-    return ChimeServer.SOUNDS[chimeId - 1] ?? `sound ${chimeId}`
+  // an app picking a sound that isn't installed would break every play without a sound
+  private selecting(chimeId: number) {
+    if (!ChimeSounds.has(chimeId)) throw new StatusResponseError(`no chime sound ${chimeId}`, Status.NotFound)
   }
 }

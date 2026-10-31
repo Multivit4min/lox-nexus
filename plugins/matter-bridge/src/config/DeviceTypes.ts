@@ -1,4 +1,4 @@
-import { DEVICE_TYPE_IDS, type CommandKind, type DeviceTypeId, type StateKind } from "../devices/DeviceKinds.ts"
+import type { CommandKind, DeviceTypeId, StateKind } from "../devices/DeviceKinds.ts"
 
 /** how a device type shows in forms and the panel, and which signals fit it */
 export interface DeviceTypeInfo {
@@ -76,15 +76,5 @@ export class DeviceTypes {
   static info(type: DeviceTypeId, battery = false): DeviceTypeInfo {
     const info = DeviceTypes.all[type]
     return battery && info.battery ? { ...info, states: [...info.states, "battery"] } : info
-  }
-
-  /** the types that can have a battery */
-  static withBattery() {
-    return DEVICE_TYPE_IDS.filter(type => DeviceTypes.all[type].battery)
-  }
-
-  /** the form's labels for the type choice */
-  static labels() {
-    return Object.fromEntries(Object.entries(DeviceTypes.all).map(([id, info]) => [id, info.label]))
   }
 }

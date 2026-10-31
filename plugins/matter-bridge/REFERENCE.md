@@ -8,11 +8,28 @@ controller's row.
 
 | Action | Input | What it does |
 |---|---|---|
-| Add device (`add-device`) | `type` (a kind of device), for kinds with several types the type under the kind's own field (e.g. `light: "dimmable-light"`), `name`, for a door lock `allowUnlock` (default off), for sensors and buttons `battery` (default off) | Adds a device, at most 50 per bridge (Alexa's limit). Names are unique ignoring case, at most 32 bytes. The type list is short: close types are one entry with a second choice (Light: dimmable, on/off, tunable white or colour; Plug; Wall switch or dimmer; Blind or shutter; Thermostat: heating, or heating and cooling; Sensor: what it measures; Leak, rain or frost sensor; Button or doorbell; Energy meter: grid, PV or battery). The form shows **Allow unlocking** only when Door lock is chosen, and **Battery** only for sensors and buttons; neither the type nor the battery can be changed later. |
+| Add device (`add-device`) | `type`, `name`; for a kind with several types the type in the kind's field (see below); for a door lock `allowUnlock` (default off); for sensors and buttons `battery` (default off) | Adds a device, at most 50 per bridge (Alexa's limit). Names are unique ignoring case, at most 32 bytes. The type list is short: close types are one entry with a second choice, which the form asks for ("Choose…") before adding. The form shows **Allow unlocking** only when Door lock is chosen, and **Battery** only for sensors and buttons; neither the type nor the battery can be changed later. |
 | Edit device (`edit-device`) | `device` (id), `name` | Renames a device; a door lock keeps whether it may be unlocked. Asks before saving. The **Edit** button on each row of the Devices table fills it in. The type can't change: remove the device and add a new one. If the endpoint refuses a change, the device keeps what it had. |
 | Edit lock (`edit-lock`) | `device` (id), `name`, `allowUnlock` | A door lock's **Edit**: renames it and allows or forbids unlocking from the apps. Refuses a device that isn't a lock. Turning unlocking on is written to the instance log as a warning. |
 | Remove device (`remove-device`) | `device` (id) | Removes a device after a confirmation, with what the bridge remembered of it. The **Remove** button on each row fills it in. |
 
+- **Kinds with several types.** `type` is the kind, and the type goes in the kind's own field:
+
+  | Kind (`type`) | Field | Types |
+  |---|---|---|
+  | Light (`lights`) | `light` | `dimmable-light`, `on-off-light`, `color-temperature-light`, `color-light` |
+  | Plug (`plugs`) | `plug` | `plug`, `dimmable-plug` |
+  | Wall switch or dimmer (`wall-controls`) | `wallControl` | `wall-switch`, `wall-dimmer` |
+  | Blind or shutter (`blinds`) | `blind` | `window-covering`, `venetian-blind` |
+  | Thermostat (`thermostats`) | `thermostat` | `thermostat`, `thermostat-heat-cool` |
+  | Sensor (`sensors`) | `sensor` | `temperature-sensor`, `humidity-sensor`, `light-sensor`, `pressure-sensor`, `flow-sensor`, `air-quality-sensor` |
+  | Leak, rain or frost sensor (`water-sensors`) | `waterSensor` | `water-leak-detector`, `rain-sensor`, `water-freeze-detector` |
+  | Button or doorbell (`buttons`) | `button` | `generic-switch`, `doorbell` |
+  | Energy meter (`energy-meters`) | `energyMeter` | `electrical-meter`, `solar-power`, `battery-storage` |
+
+  Every other type is a kind of its own, with the type as `type`, e.g. `{ "type": "door-lock",
+  "name": "Front door" }`; a kind with several types looks like `{ "type": "lights", "light":
+  "dimmable-light", "name": "Kitchen" }`. (Up to plugin version 0.1.0, `type` was the type itself.)
 - **Ids.** A new device gets an id from its name and a short random suffix, e.g.
   `kitchen-light-3f2a`. Its signals refer to it, and its Matter identity (endpoint, unique id,
   serial number) derives from it, so neither changes when the device is renamed.
@@ -172,7 +189,7 @@ color temperature, lx and hPa without decimals, and m³/h with one.
 | `session-energy` | kWh | `sessionEnergyCharged` in mWh |
 | `charging-mode` | text: `manual`, `time-of-use`, `solar` | EnergyEvseMode `currentMode` (modes 0, 1 and 2, with Matter's Manual, TimeOfUse and SolarCharging tags); an app's mode change is a command |
 | `co2`, `pm25` | ppm, µg/m³ | The concentration measurements' `measuredValue` (numeric, in air), at least 0 |
-| `ring`, `chime-sound` | a one-second pulse (`true`, then `false`); the sound 1–4 | An app's PlayChimeSound: first the sound it asked for (or the one selected in the app) as `chime-sound` (1 Ding dong, 2 Bell, 3 Gong, 4 Melody), then `ring` true, and false a second later; a play during the pulse makes it longer. The bridge sends the ChimeStartedPlaying event. A sound that isn't installed is refused (NOT_FOUND); while the chime is off, plays are ignored. The sounds are names for Loxone to tell apart: Loxone rings |
+| `ring`, `chime-sound` | a one-second pulse (`true`, then `false`); the sound 1–4 | An app's PlayChimeSound: first the sound it asked for (or the one selected in the app) as `chime-sound` (1 Ding dong, 2 Bell, 3 Gong, 4 Melody), then `ring` true, and false a second later; a play during the pulse makes it longer. Matter's ChimeStartedPlaying event is sent once matter.js offers it (0.18 doesn't). A sound that isn't installed is refused (NOT_FOUND), whether played or picked in an app; while the chime is off, plays are ignored. The sounds are only names for Loxone to tell apart: the bridge plays nothing, Loxone does the ringing. The ring starts off when the instance starts, so a restart during a pulse leaves no input on |
 | `chime-enabled` | `true` on, `false` off | Chime `enabled`, both ways: an app switching the chime off or on is a command; Nexus can mute it (e.g. at night) |
 | `press`, `long-press` | each `true` is one press; `false` does nothing | Switch events: InitialPress, ShortRelease and MultiPressComplete (two presses within 300 ms count as a double press); a long press holds for 1.2 s: InitialPress, LongPress, LongRelease. Presses are events, not states: nothing is remembered or replayed |
 

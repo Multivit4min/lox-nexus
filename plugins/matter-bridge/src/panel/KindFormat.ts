@@ -1,5 +1,5 @@
 import { AirQualityLevel } from "../devices/AirQualityLevel.ts"
-import { ChimeServer } from "../devices/ChimeServer.ts"
+import { ChimeSounds } from "../devices/ChimeSounds.ts"
 import type { CommandKind, KindValue, StateKind } from "../devices/DeviceKinds.ts"
 
 type Kind = StateKind | CommandKind
@@ -46,7 +46,7 @@ export class KindFormat {
       return value ? yes : no
     }
     if (kind === "airQuality") return AirQualityLevel.NAMES[value] ?? String(value)
-    if (kind === "chimeSound") return `${value} (${ChimeServer.soundName(value)})`
+    if (kind === "chimeSound") return `${value} (${ChimeSounds.name(value)})`
     return `${KindFormat.number(value)} ${UNITS[kind] ?? "%"}`
   }
 

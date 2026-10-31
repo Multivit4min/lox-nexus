@@ -9,9 +9,12 @@ const name = () => nameSchema().meta({ title: "Name", description: "What Alexa a
 
 /** a group's fields: the second choice where it has several types, unlocking for the lock, a battery where every type may have one */
 const branch = (group: DeviceGroup) => {
-  const types = group.types.map(entry => entry.type) as [DeviceTypeId, ...DeviceTypeId[]]
+  const types: [DeviceTypeId, ...DeviceTypeId[]] = [group.types[0].type, ...group.types.slice(1).map(entry => entry.type)]
   return z.object({
-    type: z.literal(group.id).meta({ title: group.label, description: "What kind of device the apps show; can't be changed later" }),
+    // an enum of one, not a literal: the form takes the type choice's title and description from enums
+    type: z.enum([group.id]).meta({
+      title: "Type", description: "What kind of device the apps show; can't be changed later", enumLabels: { [group.id]: group.label }
+    }),
     ...(group.choice ? {
       [group.choice.field]: z.enum(types).meta({
         title: group.choice.title, description: "Can't be changed later",

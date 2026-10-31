@@ -86,7 +86,8 @@ function generate() {
   </div>
   <FormField v-else-if="field.kind === 'enum'" :id="id" :label="label" :hint="hint">
     <Select :model-value="text || NONE" @update:model-value="value => emit('update:modelValue', value === NONE ? '' : String(value))">
-      <SelectTrigger :id="id" class="w-full"><SelectValue /></SelectTrigger>
+      <!-- a required choice without a default has no "not set" item: it asks for one until picked -->
+      <SelectTrigger :id="id" class="w-full"><SelectValue placeholder="Choose…" /></SelectTrigger>
       <SelectContent>
         <SelectItem v-if="!field.required || field.hasDefault" :value="NONE">{{ field.hasDefault ? `Default (${field.optionLabels?.[String(field.default)] ?? field.default})` : "Not set" }}</SelectItem>
         <SelectItem v-for="option in field.options" :key="String(option)" :value="String(option)">{{ field.optionLabels?.[String(option)] ?? option }}</SelectItem>

@@ -10,7 +10,10 @@
   doorbell and chime (bell: a ring pulse and the sound when an app plays it).
 - **A shorter type list:** Add device lists kinds of devices; close types (lights, plugs, wall
   controls, blinds, thermostats, sensors, leak/rain/frost, buttons, energy meters) are one entry
-  with a second choice.
+  with a second choice. The action's input changed with it: `type` is the kind (`lights`), the
+  type goes in the kind's field (`light: "dimmable-light"`); see the plugin's reference.
+- **Forms:** a required choice without a default says "Choose…" until one is picked, and a form
+  error names the field by its label ("Kind of light: is required").
 - **Energy devices:** electricity meter, solar power (PV), battery storage, wallbox (EV charger,
   with enable, current and charging mode from the apps) and heat pump.
 - **Batteries:** sensors and buttons can be added with a battery level the apps show and warn on.

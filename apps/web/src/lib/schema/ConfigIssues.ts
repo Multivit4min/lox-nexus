@@ -13,13 +13,13 @@ export class ConfigIssues {
   static describe(root: SchemaField | undefined, issues: readonly ConfigIssue[], prefix?: string): string[] {
     return issues.map(issue => {
       const path = prefix !== undefined && issue.path[0] === prefix ? issue.path.slice(1) : issue.path
-      const where = ConfigIssues.labels(root, path)
+      const where = ConfigIssues.where(root, path)
       return where ? `${where}: ${issue.message}` : issue.message
     })
   }
 
-  // field labels where the schema has them, list positions counted from 1
-  private static labels(root: SchemaField | undefined, path: ReadonlyArray<PropertyKey>) {
+  /** a path in the form's words: field labels where the schema has them, list positions counted from 1 */
+  static where(root: SchemaField | undefined, path: ReadonlyArray<PropertyKey>) {
     const parts: string[] = []
     let field = root
     for (const part of path) {

@@ -55,15 +55,16 @@ test("forms: fields, params and action inputs have titles, descriptions and labe
   assert.equal(new Set(fieldNames).size, fieldNames.length, "each group's second choice has a field of its own")
   const types = branches.flatMap(branch => {
     const choice = Object.entries(checkFields(branch, "add-device")).find(([key]) => fieldNames.includes(key))?.[1]
-    return choice ? Object.keys(choice.enumLabels ?? {}) : [String((branch.properties!.type as { const?: unknown }).const)]
+    return choice ? Object.keys(choice.enumLabels ?? {}) : branch.properties!.type!.enum!.map(String)
   })
   assert.deepEqual([...types].sort(), [...DEVICE_TYPE_IDS].sort(), "every type exactly once")
   assert.ok(branches.length <= 20, `${branches.length} choices`)
   for (const branch of branches) {
     const fields = Object.keys(branch.properties ?? {}).filter(field => !fieldNames.includes(field))
-    const type = String((branch.properties!.type as { const?: unknown }).const)
+    const type = String(branch.properties!.type!.enum![0])
+    assert.equal(branch.properties!.type!.title, "Type", "the form takes the choice's title and description from it")
     if (type === "door-lock") assert.deepEqual(fields, ["type", "name", "allowUnlock"])
-    else if (["sensor", "contact-sensor", "occupancy-sensor", "water-sensor", "button"].includes(type)) assert.deepEqual(fields, ["type", "name", "battery"], type)
+    else if (["sensors", "contact-sensor", "occupancy-sensor", "water-sensors", "buttons"].includes(type)) assert.deepEqual(fields, ["type", "name", "battery"], type)
     else assert.deepEqual(fields, ["type", "name"], type)
   }
   assert.ok(actions.find(action => action.id === "remove-device")?.confirm)
@@ -72,13 +73,15 @@ test("forms: fields, params and action inputs have titles, descriptions and labe
 
 test("add-device input: each kind of branch parses; a lock's unlocking and a battery only where the type has them", () => {
   const parse = (input: unknown) => AddDeviceAction.input.parse(input)
-  assert.deepEqual(parse({ type: "light", light: "on-off-light", name: "Hall" }), { type: "light", light: "on-off-light", name: "Hall" })
-  assert.throws(() => parse({ type: "light", name: "Hall" }), "the second choice is required")
-  assert.throws(() => parse({ type: "light", light: "plug", name: "X" }), "a kind of another group")
+  assert.deepEqual(parse({ type: "lights", light: "on-off-light", name: "Hall" }), { type: "lights", light: "on-off-light", name: "Hall" })
+  assert.throws(() => parse({ type: "lights", name: "Hall" }), "the second choice is required")
+  assert.throws(() => parse({ type: "lights", light: "plug", name: "X" }), "a kind of another group")
   assert.deepEqual(parse({ type: "door-lock", name: "Front" }), { type: "door-lock", name: "Front", allowUnlock: false })
-  assert.deepEqual(parse({ type: "sensor", sensor: "humidity-sensor", name: "Out", battery: true }), { type: "sensor", sensor: "humidity-sensor", name: "Out", battery: true })
-  assert.deepEqual(parse({ type: "plug", plug: "plug", name: "Hall", battery: true, allowUnlock: true }), { type: "plug", plug: "plug", name: "Hall" }, "fields of other types are dropped")
+  assert.deepEqual(parse({ type: "sensors", sensor: "humidity-sensor", name: "Out", battery: true }), { type: "sensors", sensor: "humidity-sensor", name: "Out", battery: true })
+  assert.deepEqual(parse({ type: "plugs", plug: "plug", name: "Hall", battery: true, allowUnlock: true }), { type: "plugs", plug: "plug", name: "Hall" }, "fields of other types are dropped")
   assert.throws(() => parse({ type: "spaceship", name: "X" }))
-  assert.equal(DeviceGroups.type({ type: "thermostat", thermostat: "thermostat-heat-cool" }), "thermostat-heat-cool")
+  assert.equal(DeviceGroups.type({ type: "thermostats", thermostat: "thermostat-heat-cool" }), "thermostat-heat-cool")
   assert.equal(DeviceGroups.type({ type: "chime" }), "chime")
+  assert.throws(() => DeviceGroups.type({ type: "plug" }), /unknown device type "plug"/, "a type's id is no group of several")
+  assert.throws(() => DeviceGroups.type({ type: "thermostats" }), /pick a kind of thermostat/)
 })

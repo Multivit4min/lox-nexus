@@ -1,3 +1,4 @@
+import { ConfigIssues } from "./ConfigIssues.ts"
 import type { SchemaField } from "./SchemaField.ts"
 
 /**
@@ -9,8 +10,17 @@ export type Draft = string | boolean | null | Draft[] | { [key: string]: Draft }
 
 /** A field whose input can't be turned into a value; `path` is like "nested.x" or "tags[2]". */
 export class SchemaInputError extends Error {
-  constructor(readonly path: string, message: string) {
-    super(path ? `${path}: ${message}` : message)
+  /** @param where how the message names the field; its path when not given */
+  constructor(readonly path: string, readonly reason: string, where = path) {
+    super(where ? `${where}: ${reason}` : reason)
+  }
+
+  /** the same error naming the field as the form does: "Kind of light: is required", not "light: is required" */
+  labelled(root: SchemaField) {
+    if (!this.path) return this
+    // "devices[1].name" → devices, 1, name: list positions as numbers, as zod's paths have them
+    const path = this.path.split(".").flatMap(part => part.split(/\[(\d+)\]/).filter(Boolean).map(piece => /^\d+$/.test(piece) ? Number(piece) : piece))
+    return new SchemaInputError(this.path, this.reason, ConfigIssues.where(root, path))
   }
 }
 
@@ -49,8 +59,12 @@ export class SchemaDraft {
    * @throws SchemaInputError for text that isn't a number, an integer, an option or JSON
    */
   static value(field: SchemaField, draft: Draft, path = ""): unknown {
-    const result = SchemaDraft.convert(field, draft, path)
-    return result.present ? result.value : undefined
+    try {
+      const result = SchemaDraft.convert(field, draft, path)
+      return result.present ? result.value : undefined
+    } catch (error) {
+      throw error instanceof SchemaInputError && path === "" ? error.labelled(field) : error
+    }
   }
 
   private static convert(field: SchemaField, draft: Draft, path: string): Result {

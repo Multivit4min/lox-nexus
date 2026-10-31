@@ -69,17 +69,17 @@ describe("SchemaDraft", () => {
     assert.deepEqual(SchemaDraft.value(root, draft as never), { host: "http://x", pollInterval: 5, port: 80, mode: "a", flag: false, tags: ["one", "two"], maybe: null, lit: "fixed" })
   })
 
-  test("text that isn't a number, a whole number, an option or JSON names its field", () => {
-    const cases: Array<[string, unknown, RegExp]> = [
-      ["pollInterval", "abc", /^pollInterval: "abc" is not a number$/],
-      ["port", "1.5", /^port: "1.5" is not a whole number$/],
-      ["mode", "c", /^mode: "c" is not one of the options$/],
-      ["union", "{", /^union: is not valid JSON$/],
-      ["nested", { x: "", y: "set" }, /^nested\.x: is required$/]
+  test("text that isn't a number, a whole number, an option or JSON names its field by its label", () => {
+    const cases: Array<[string, unknown, RegExp, string]> = [
+      ["pollInterval", "abc", /^Poll interval: "abc" is not a number$/, "pollInterval"],
+      ["port", "1.5", /^Port: "1.5" is not a whole number$/, "port"],
+      ["mode", "c", /^Mode: "c" is not one of the options$/, "mode"],
+      ["union", "{", /^Union: is not valid JSON$/, "union"],
+      ["nested", { x: "", y: "set" }, /^Nested › X: is required$/, "nested.x"]
     ]
-    for (const [name, value, message] of cases) {
+    for (const [name, value, message, path] of cases) {
       const draft = { ...(SchemaDraft.from(root) as Record<string, unknown>), host: "h", [name]: value }
-      assert.throws(() => SchemaDraft.value(root, draft as never), (error: unknown) => error instanceof SchemaInputError && message.test(error.message))
+      assert.throws(() => SchemaDraft.value(root, draft as never), (error: unknown) => error instanceof SchemaInputError && message.test(error.message) && error.path === path)
     }
   })
 
