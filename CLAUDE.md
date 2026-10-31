@@ -75,9 +75,10 @@ a task matches:
 
 | Agent | Use for |
 |---|---|
-| `architect` | design review before a security- or design-heavy milestone (M5e installer), boundary checks, ADRs (read-only for code) |
+| `architect` | design review before a security- or design-heavy change, boundary checks, ADRs (read-only for code) |
 | `plugin-dev` | building plugins against the public SDK only; where it gets stuck, the SDK lacks something |
 | `reviewer` | read-only review of a change against these conventions, plus running checks |
-| `doc-writer` | JSDoc for classes, methods and exported functions after a change; comments only |
+| `sdk-compat` | read-only check of changes to `packages/plugin-sdk` or the plugin protocol: old plugins on a new host, new plugins on an old host, gating, API report, contract tests |
+| `doc-writer` | JSDoc for classes, methods and exported functions after a change, and the pages of the docs site; never behaviour |
 | `Explore` | broad read-only searches when only the conclusion is needed |
 

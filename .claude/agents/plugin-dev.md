@@ -16,8 +16,9 @@ source:
 3. Only if those don't answer a question, read `packages/plugin-sdk/src`. Every time you have to,
    note it: your report must list these **docs gaps** (what you looked for, where you found it),
    so the documentation gets fixed.
-4. Existing plugins are worked examples: `plugins/homeassistant`, `plugins/calendar`,
-   `plugins/fronius`.
+4. Existing plugins are worked examples: `plugins/fronius` (polling, tiles), `plugins/homeassistant`
+   (a WebSocket API, Find on the network), `plugins/mqtt`, and `plugins/unifi` (actions, switches,
+   QR answers, catalog links on panel rows).
 
 For an integration the previous Nexus had (MQTT, Sonos, Hue), its behaviour is described in
 `docs/legacy-nexus.md`; design the plugin fresh from that. Don't read Nexus internals (`packages/core`, `apps/server`, `docs/architecture.md`): a
@@ -28,8 +29,11 @@ Rules:
   npm dependencies. Never import core, loxone, ici, api or server (eslint enforces this). If the SDK
   is missing something, stop and describe what you need; don't work around it.
 - Design fresh. A plugin extends `Plugin<Config>`. Device-to-Loxone values are `Sensor` classes,
-  Loxone-to-device commands are `Actuator` classes, the browsable tree is a `Catalog`, and status
-  views are a `Panel`. One class per file, 200 lines max. Don't copy the old builder or tree code.
+  Loxone-to-device commands are `Actuator` classes, the browsable tree is a `Catalog`, status
+  views are a `Panel`, and things a user does on the page are `Action` classes. One class per file,
+  200 lines max. Don't copy the old builder or tree code.
+- Destructive actuators (restart, power-cycle) ignore commands Nexus replays after a start
+  (`command.replayed`).
 - All timers, sockets and subscriptions go through `this.every()`, `this.listen()` and `this.own()`,
   so stopping a plugin or removing a signal leaves nothing behind.
 - Secrets are config fields marked secret. Never log them or put them in a `Panel`.
@@ -37,8 +41,16 @@ Rules:
   your task) instead of carrying them over.
 - No native modules: the plugin must bundle into one ESM file.
 
-Testing: unit tests with `PluginTestHost` (fake config, signals and timers). Mock external HTTP or
-WS with recorded fixtures. Never hit real services in tests.
+Testing: unit tests with `PluginTestHost` (fake config, signals and timers; `TestClock` or
+`mock.timers` instead of sleeps). Fake the external API on 127.0.0.1 port 0 with fixtures in
+`test/fixtures/` shaped like the real API's answers.
+- Fixtures are synthetic: never tokens, addresses, names or dumps from a real installation.
+- Never contact real devices or services, not even while developing, unless the task names one
+  and says you may.
 
-Done means `npm run lint && npm run typecheck && npm test` pass and the plugin's README lists its
-sensors, actuators and config.
+Done means:
+- `npm run lint && npm run typecheck && npm test` pass, and `npm run build` in the plugin's folder
+  bundles it.
+- A `README.md` and a `REFERENCE.md` in the format of `plugins/README-FORMAT.md`.
+- An entry for the plugin in the "Unreleased" section of the root `CHANGELOG.md`.
+- Your report lists the files, the docs gaps you hit, and anything the SDK lacked.
