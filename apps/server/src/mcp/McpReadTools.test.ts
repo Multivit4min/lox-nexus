@@ -109,7 +109,7 @@ describe("MCP read tools", { timeout: 30_000 }, () => {
     await client.connect(new StreamableHTTPClientTransport(new URL(`${app.address}/mcp`), { requestInit: { headers: { authorization: `Bearer ${token}` } } }))
     try {
       const tools = (await client.listTools()).tools.map(tool => tool.name).sort()
-      assert.deepEqual(tools, ["diff_loxone_objects", "get_signal", "list_discovered", "list_signals", "list_wires", "loxone_side", "overview", "preview_wire", "recent_messages", "system_status", "trace"], "a read token sees the read tools")
+      assert.deepEqual(tools, ["describe_plugin", "diff_loxone_objects", "get_signal", "list_discovered", "list_signals", "list_wires", "loxone_side", "overview", "plan_bridge", "preview_wire", "recent_messages", "search_catalog", "system_status", "trace"], "a read token sees the read tools")
       assert.deepEqual((await client.listResources()).resources.map(resource => resource.uri), ["nexus://inventory", "nexus://guide"])
       const inventory = await client.readResource({ uri: "nexus://inventory" })
       assert.match(JSON.stringify(inventory.contents), /loxone\/haus\/in\/temp/)

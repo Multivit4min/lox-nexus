@@ -47,6 +47,7 @@ import { BackupService } from "./backup/BackupService.ts"
 import { RestoreApplier } from "./backup/RestoreApplier.ts"
 import { HistoryAssembly } from "./history/HistoryAssembly.ts"
 import { SelectionService } from "./services/SelectionService.ts"
+import { PluginBridgeService } from "./services/PluginBridgeService.ts"
 import { ServiceAssembly } from "./services/ServiceAssembly.ts"
 import { SnapshotWriter } from "./services/SnapshotWriter.ts"
 import { SystemEventLogger } from "./services/SystemEventLogger.ts"
@@ -237,7 +238,7 @@ export class NexusApp extends Disposable {
         ...this.history.controllers(id => plugins.watches(id)),
         BackupAssembly.controller(config, { main: db.db, history: this.history.database.db }, this.options.restart, log),
         diagnostics.controller(),
-        this.own(new McpAssembly({ ...new McpToolset({ now: () => clock.now(), miniservers, loxoneSignals, plugins, pluginSignals, wires, signals: this.signals, bus: this.bus, stale, recorder: this.recorder, diagnostics: diagnostics.sampler, lock, version }), lock, log, version })).controller(),
+        this.own(new McpAssembly({ ...new McpToolset({ now: () => clock.now(), miniservers, loxoneSignals, plugins, pluginSignals, wires, bridges: new PluginBridgeService(pluginSignals, loxoneSignals, wires, log), readmes: this.pluginAssembly.packages(plugins), signals: this.signals, bus: this.bus, stale, recorder: this.recorder, diagnostics: diagnostics.sampler, lock, version }), lock, log, version })).controller(),
         stream
       ],
       publicControllers: [new HookController(this.plugins)]
