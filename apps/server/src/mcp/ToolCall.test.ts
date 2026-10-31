@@ -106,3 +106,16 @@ test("a tool past its deadline answers that it goes on; the lock is held until i
   await importing
   assert.equal(imported, true)
 })
+
+test("a lock-free change runs while a config import holds the lock, and doesn't hold up the token's other changes", async () => {
+  const lock = new ChangeLock()
+  const serialized: boolean[] = []
+  const call = new ToolCall({ acquire: async (_token, _changes, queued) => (serialized.push(queued === true), () => {}) }, lock, { changed: () => {} }, { error: () => {} })
+  let finish = () => {}
+  const held = lock.hold("a config import", () => new Promise<void>(resolve => (finish = resolve)))
+  const action: McpTool<Record<string, never>> = { name: "act", title: "Act", description: "", scope: "operate", changes: true, lockFree: true, input: z.object({}), run: () => "done" }
+  assert.deepEqual(await call.run(action, {}, context), { content: [{ type: "text", text: "done" }] })
+  assert.deepEqual(serialized, [false])
+  finish()
+  await held
+})

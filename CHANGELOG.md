@@ -7,12 +7,12 @@
 - AI agents such as Claude Code connect to Nexus over the Model Context Protocol at `/mcp`, with
   an **access token** from **Users and access**: they read the installation (an overview in one
   call, signals, wires, the bus, the system status).
-- With the **configure** permission, agents set up Miniservers, plugin instances (you enter
-  their secrets on the instance's page), signals and wires, and connect plugin signals to a
-  Miniserver in one step (find in the catalog, plan, connect). They say what to create in Loxone
+- With the **configure** permission, agents set up Miniservers, signals and wires, and connect
+  plugin signals to a Miniserver in one step (find in the catalog, plan, connect). They say what to create in Loxone
   Config and compare objects read from it with Nexus. Deleting takes a confirmation.
 - With the **operate** permission, agents force values (at most 24 hours, with a reason), send
-  single values and run plugin actions; actions that ask you first ask them too.
+  single values and run plugin actions (actions that ask you first ask them too), and set up
+  plugin instances, which run code; you enter their secrets on the instance's page.
 - Agents also read plugin pages, logs and the value history, and offer four recipes (MCP prompts):
   connect a plugin to a Miniserver, take over signals from Loxone Config, diagnose a signal,
   review the installation.

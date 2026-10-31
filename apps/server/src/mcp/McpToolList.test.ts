@@ -11,13 +11,13 @@ const READ = [
   "overview r", "plan_bridge r", "preview_wire r", "recent_messages r", "search_catalog r", "system_status r", "trace r"
 ]
 const CONFIGURE = [
-  "add_plugin_signals", "adopt_discovered", "bridge", "check_plugin_settings r", "create_loxone_signals", "create_miniserver", "create_plugin_instance", "create_wire",
+  "add_plugin_signals", "adopt_discovered", "bridge", "check_plugin_settings r", "create_loxone_signals", "create_miniserver", "create_wire",
   "delete_loxone_signals d", "delete_miniserver d", "delete_plugin_instance d", "delete_plugin_signals d", "delete_wires d", "discover_setting r",
-  "plugin_instance_lifecycle", "start_miniserver", "stop_miniserver d", "update_loxone_signal", "update_miniserver", "update_plugin_instance", "update_plugin_signal", "update_wire"
+  "start_miniserver", "stop_miniserver d", "update_loxone_signal", "update_miniserver", "update_plugin_signal", "update_wire"
 ]
 
-// these act on the house: devices, the Miniserver's inputs
-const OPERATE = ["force", "inject", "release", "run_plugin_action"]
+// these act on the house: devices, the Miniserver's inputs, and plugin instances, which run code
+const OPERATE = ["create_plugin_instance", "force", "inject", "plugin_instance_lifecycle", "release", "run_plugin_action", "update_plugin_instance"]
 
 describe("tools/list per scope", { timeout: 20_000 }, () => {
   let app: TestApp

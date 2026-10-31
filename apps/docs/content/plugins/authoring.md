@@ -423,8 +423,9 @@ There are three different ways to say "something is wrong", and they mean differ
 
 Status messages, errors and log lines are read by people **and by AI agents** connected over MCP.
 Never put a password or token in them: Nexus replaces the stored secrets it knows with `‹secret›`
-before an agent sees them, but not ones it doesn't know (a session token your plugin fetched), nor
-ones shorter than 6 characters.
+before an agent sees them (as they are, JSON-escaped, URL-encoded or whole as base64), but not ones
+it doesn't know (a session token your plugin fetched), ones shorter than 6 characters, nor any
+other transformation of them.
 
 ```ts
 private async poll() {

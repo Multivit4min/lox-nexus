@@ -48,3 +48,9 @@ test("values are read at each call, so a changed password counts at once", () =>
   password = "second-password"
   assert.equal(redactor.redact("second-password"), "‹secret›")
 })
+
+test("a secret written URL-encoded or as base64 is caught too", () => {
+  const redactor = new SecretRedactor(sources({ miniservers: { list: () => [{ password: "pl/anted+secret=42" }] }, instances: { list: () => [] } }))
+  assert.equal(redactor.redact("https://host/cb?token=pl%2Fanted%2Bsecret%3D42"), "https://host/cb?token=‹secret›")
+  assert.equal(redactor.redact("Authorization: Basic cGwvYW50ZWQrc2VjcmV0PTQy"), "Authorization: Basic ‹secret›")
+})

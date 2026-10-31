@@ -12,8 +12,8 @@ const Input = z.object({
 export class InstanceLifecycleTool implements McpTool<z.infer<typeof Input>> {
   readonly name = "plugin_instance_lifecycle"
   readonly title = "Start, stop or restart a plugin instance"
-  readonly description = "Start, stop or restart a plugin instance. Lasts until Nexus restarts; whether it runs then is the instance's `enabled` setting (update_plugin_instance). A stopped instance's signals keep their last values but don't update; its actuators don't act."
-  readonly scope = "configure" as const
+  readonly description = "Start, stop or restart a plugin instance. Lasts until Nexus restarts; whether it runs then is the instance's `enabled` setting (update_plugin_instance). A stopped instance's signals keep their last values but don't update; its actuators don't act. Needs the operate permission."
+  readonly scope = "operate" as const
   readonly changes = true
   readonly timeoutMs = 60_000
   readonly input = Input

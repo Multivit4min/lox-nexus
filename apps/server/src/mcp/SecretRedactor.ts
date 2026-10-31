@@ -41,7 +41,7 @@ export class SecretRedactor {
     return forms.length ? SecretRedactor.walk(value, forms) as T : value
   }
 
-  /** the stored secret values, as they are and JSON-escaped (tool texts are JSON in a string), longest first */
+  /** the stored secret values in the forms they tend to appear in, longest first */
   private forms() {
     const values = new Set<string>()
     for (const { password } of this.sources.miniservers.list()) if (password) values.add(password)
@@ -50,8 +50,15 @@ export class SecretRedactor {
       SecretRedactor.collect(SecretRedactor.secretSettings(instance.config, description), values)
       for (const signal of this.sources.signals.listFor(instance.id)) SecretRedactor.collect(SignalSecrets.split(description, signal).secret, values)
     }
-    const forms = [...values].filter(value => value.length >= SecretRedactor.MIN_LENGTH).flatMap(value => [value, JSON.stringify(value).slice(1, -1)])
+    const forms = [...values].filter(value => value.length >= SecretRedactor.MIN_LENGTH).flatMap(SecretRedactor.encodings)
     return [...new Set(forms)].sort((a, b) => b.length - a.length)
+  }
+
+  // as plugins tend to write a secret: raw, JSON-escaped (tool texts are JSON in a string), in a
+  // URL (percent-encoded), or as base64 (Basic auth); a base64 form is only caught whole
+  private static encodings(value: string) {
+    const base64 = Buffer.from(value).toString("base64")
+    return [value, JSON.stringify(value).slice(1, -1), encodeURIComponent(value), base64, base64.replace(/=+$/, ""), Buffer.from(value).toString("base64url")]
   }
 
   // fails closed like the export: without the plugin, or with secrets below the top level, every setting counts

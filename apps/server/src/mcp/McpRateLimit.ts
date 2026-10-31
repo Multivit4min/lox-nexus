@@ -32,9 +32,11 @@ export class McpRateLimit extends Disposable {
   /**
    * Takes a call; resolves with the release once it may run (a changing call waits for the
    * previous one of the token).
+   * @param serialized whether it waits for the token's previous change; a lock-free change (a
+   *   plugin action that may run for minutes) counts as one but doesn't hold the others up
    * @throws JsonRpcError when the token is over a limit
    */
-  async acquire(tokenId: string, changes: boolean): Promise<() => void> {
+  async acquire(tokenId: string, changes: boolean, serialized = changes): Promise<() => void> {
     const bucket = this.refill(tokenId)
     if (bucket.calls < 1 || (changes && bucket.changes < 1)) throw McpRateLimit.refused(bucket, changes)
     if (bucket.running >= McpRateLimit.CONCURRENT) throw new JsonRpcError(JsonRpc.RATE_LIMITED, `at most ${McpRateLimit.CONCURRENT} calls at once per token`, { retryAfterS: 1 })
@@ -42,8 +44,8 @@ export class McpRateLimit extends Disposable {
     if (changes) bucket.changes--
     bucket.running++
     let finish = () => {}
-    const turn = changes ? bucket.changing : Promise.resolve()
-    if (changes) bucket.changing = new Promise<void>(resolve => (finish = resolve))
+    const turn = serialized ? bucket.changing : Promise.resolve()
+    if (serialized) bucket.changing = new Promise<void>(resolve => (finish = resolve))
     await turn
     let released = false
     return () => {

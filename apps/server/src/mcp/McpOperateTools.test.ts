@@ -47,10 +47,9 @@ describe("MCP operate tools", { timeout: 30_000 }, () => {
     assert.ok((await call("force", { signal: "loxone/haus/out/heat", value: true })).isError, "a reason is required")
     assert.match((await call("force", { signal: "loxone/haus/out/heat", value: 21.5, reason: "test" })).text, /takes boolean values, not number/)
     assert.ok((await call("force", { signal: "loxone/haus/out/heat", value: true, reason: "test", minutes: 2000 })).isError, "at most 24 h")
-    const before = Date.now()
     const forced = await json<{ forced: string; until: string }>("force", { signal: "loxone/haus/out/heat", value: true, reason: "frost test", minutes: 30 })
     assert.equal(forced.forced, "loxone/haus/out/heat")
-    assert.ok(Math.abs(Date.parse(forced.until) - before - 30 * 60_000) < 5000)
+    assert.equal(Date.parse(forced.until), app.app.bus.activeForces()[0]?.until, "the answer names the force's own expiry")
     const [force] = app.app.bus.activeForces()
     assert.deepEqual([force?.by, force?.reason], ["admin via MCP (agent)", "frost test"])
     assert.deepEqual(await json("release", { signal: "loxone/haus/out/heat" }), { released: "loxone/haus/out/heat" })
@@ -63,7 +62,13 @@ describe("MCP operate tools", { timeout: 30_000 }, () => {
     const sent = await json<{ kind: string }>("inject", { signal: "home/ha/actuator/lamp", value: true })
     assert.equal(sent.kind, "command")
     assert.equal(await switched, true)
-    assert.deepEqual(app.app.bus.current("home/ha/actuator/lamp")?.value ?? app.app.bus.lastCommand("home/ha/actuator/lamp")?.value, Value.boolean(true))
+    assert.deepEqual(app.app.bus.lastCommand("home/ha/actuator/lamp")?.value, Value.boolean(true))
+  })
+
+  test("inject on other signals is a state, unless the agent says command", async () => {
+    assert.equal((await json<{ kind: string }>("inject", { signal: "loxone/haus/out/heat", value: false })).kind, "state")
+    assert.deepEqual(app.app.bus.current("loxone/haus/out/heat")?.value, Value.boolean(false))
+    assert.equal((await json<{ kind: string }>("inject", { signal: "loxone/haus/out/heat", value: true, kind: "command" })).kind, "command")
   })
 
   test("run_plugin_action: plain actions run at once; one that asks first needs the confirmation; QR payloads stay out", async () => {
@@ -76,5 +81,7 @@ describe("MCP operate tools", { timeout: 30_000 }, () => {
     assert.match(paired.text, /pairing code 3497-011-2332/)
     assert.ok(!paired.text.includes("planted"), "the QR payload is only in the web UI")
     assert.match((await call("run_plugin_action", { instance: "ha", action: "nope" })).text, /it has: refresh, pair/)
+    const audited = app.app.persistence.mcpAudit.recentFor(app.app.persistence.users.list()[0]!.id, 20).find(entry => entry.tool === "run_plugin_action" && entry.outcome === "ok" && entry.input.includes("refresh"))
+    assert.equal(audited?.input, JSON.stringify({ instance: "ha", action: "refresh", inputFields: ["entity"] }), "the audit keeps the input's fields, not their values")
   })
 })

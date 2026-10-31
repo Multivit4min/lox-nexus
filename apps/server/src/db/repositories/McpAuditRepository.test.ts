@@ -24,11 +24,13 @@ test("a user sees their own entries, newest first; a revoked token's keep its na
   assert.deepEqual(db.mcpAudit.recentFor("u1", 10).map(entry => [entry.token_id, entry.token_name]), [[null, "agent"], [null, "agent"]])
 })
 
-test("entries older than the limit or beyond the count are dropped as new ones come", () => {
+test("entries older than the limit or beyond the count are dropped as new ones come, per user", () => {
   const { db, row } = setup()
   const audit = new McpAuditRepository(db.db, { rows: 3, ageMs: 90 * DAY })
+  audit.insert(row(100 * DAY, "theirs", "u2"))
   for (let i = 0; i < 5; i++) audit.insert(row(100 * DAY + i, `t${i}`))
   assert.deepEqual(audit.recentFor("u1", 10).map(entry => entry.tool), ["t4", "t3", "t2"])
+  assert.deepEqual(audit.recentFor("u2", 10).map(entry => entry.tool), ["theirs"], "another user's busy agent pushes nothing out")
   audit.insert(row(200 * DAY, "late"))
   assert.deepEqual(audit.recentFor("u1", 10).map(entry => entry.tool), ["late"], "90 days later the old ones are gone")
 })

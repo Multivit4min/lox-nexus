@@ -3,7 +3,7 @@ import type { PluginCheckDto, PluginCheckInput, PluginDiscoverInput, PluginDisco
 /** what the plugin instance tools call: PluginService, as the REST controller does */
 export interface InstanceWrites {
   get(id: string): PluginInstanceDto
-  create(input: PluginInstanceInput, options?: { secretsLater?: boolean }): Promise<PluginInstanceDto>
+  create(input: PluginInstanceInput, options?: { secretsLater?: readonly string[] }): Promise<PluginInstanceDto>
   update(id: string, input: PluginInstanceInput, by: string): Promise<PluginInstanceDto>
   remove(id: string, by: string): Promise<void>
   start(id: string): Promise<PluginInstanceDto>

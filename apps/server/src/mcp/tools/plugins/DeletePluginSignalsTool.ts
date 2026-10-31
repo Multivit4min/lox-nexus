@@ -33,9 +33,14 @@ export class DeletePluginSignalsTool implements McpTool<z.infer<typeof Input>> {
   }
 
   run(input: z.infer<typeof Input>, context: ToolContext) {
+    // a topic and the id of the same signal name it twice; it goes once
+    const deleted = new Map<string, string>()
     return BulkItems.runAsync([...new Set(input.signals)], ref => ref, async ref => {
+      const done = [...deleted].find(([id]) => id === ref || deleted.get(id) === ref)
+      if (done) return done[1]
       const { instance, signal } = this.refs.signal(ref, this.signals)
       await this.signals.remove(instance.id, signal.id, context.by)
+      deleted.set(signal.id, signal.topic)
       return signal.topic
     }, context)
   }

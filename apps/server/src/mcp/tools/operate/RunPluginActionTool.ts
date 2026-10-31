@@ -39,6 +39,11 @@ export class RunPluginActionTool implements McpTool<z.infer<typeof Input>> {
     return { action: action.id, ...(answer.message ? { message: answer.message } : {}), ...(answer.panel ? { panel: PanelText.of(answer.panel) } : {}) }
   }
 
+  // like PluginActionService's own log: the input's fields, not their values (a pairing or voucher code)
+  audited(input: z.infer<typeof Input>) {
+    return { instance: input.instance, action: input.action, inputFields: Object.keys(input.input) }
+  }
+
   private find(input: z.infer<typeof Input>) {
     const instance = this.refs.instance(input.instance)
     const actions = this.refs.package(instance.plugin).description.actions ?? []

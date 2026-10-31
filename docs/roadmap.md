@@ -307,11 +307,12 @@ until A2.
     security audit).
   - The `mcp_audit` table, and "recent activity" on the token page.
   - Prompts `diagnose_signal` and `review_installation`.
-- **A4 (later, each on its own decision):**
-  - a stored, write-only project login for FTP reads
-  - SSE for progress and elicitation
-  - OAuth for cloud clients
-  - tokens on the REST API
+- **A4 (decided 2026-10-31: none of it now):**
+  - a stored, write-only project login for FTP reads: decided once Loxone Config 17.3 ships (not
+    needed if its MCP reads the intercommunication objects)
+  - SSE for progress and elicitation: not now; two-step confirmations work in every client
+  - OAuth for cloud clients: no; local agents only
+  - tokens on the REST API: not now, until a concrete script needs it
 
 **Verify:**
 - The official SDK client initializes, lists and calls tools against a `NexusApp` on 127.0.0.1.

@@ -1,9 +1,9 @@
 import { z } from "zod"
 import type { McpRefs } from "../../McpRefs.ts"
 import type { McpTool } from "../../McpTool.ts"
-import { MiniserverAnswer, MiniserverFields, type MiniserverWrites } from "./MiniserverWrites.ts"
+import { MiniserverAnswer, MiniserverChanges, type MiniserverWrites } from "./MiniserverWrites.ts"
 
-const Input = MiniserverFields.partial().extend({ miniserver: z.string().min(1).max(100).describe("the Miniserver's slug") }).strict()
+const Input = MiniserverChanges.extend({ miniserver: z.string().min(1).max(100).describe("the Miniserver's slug") }).strict()
 type Input = z.input<typeof Input>
 
 /** Changes a Miniserver's settings: only the fields given; the password stays. */

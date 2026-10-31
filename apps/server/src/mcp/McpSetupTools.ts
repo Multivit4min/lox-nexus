@@ -38,7 +38,7 @@ export class McpSetupTools {
       new DeleteMiniserverTool(refs.miniservers, miniservers, inventory),
       new StartMiniserverTool(refs.miniservers, miniservers),
       new StopMiniserverTool(refs.miniservers, miniservers),
-      new CreateInstanceTool(refs.plugins, plugins, settings),
+      new CreateInstanceTool(refs.plugins, plugins),
       new UpdateInstanceTool(refs.plugins, plugins),
       new DeleteInstanceTool(refs.plugins, plugins, inventory),
       new InstanceLifecycleTool(refs.plugins, plugins),

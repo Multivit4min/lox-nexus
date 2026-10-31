@@ -47,6 +47,23 @@ export class PluginSettingsCheck {
     return { ...prepared, ...(migration?.store ? { storeWrites: migration.store } : {}) }
   }
 
+  /**
+   * For an instance saved before a person enters its secrets (one an agent creates): the plugin
+   * checks everything else, and its config version is kept, so the first start doesn't migrate a
+   * config that already has the current shape. The config is saved as given.
+   * @param missing the secret fields left out, whose issues don't count
+   * @throws ZodError 400 with the other issues; HttpError 400 for an unavailable plugin, 502 when the check failed
+   */
+  async prepareWithout(plugin: string, config: unknown, missing: readonly string[]): Promise<PreparedConfig> {
+    const result = await PluginSettingsCheck.guard(() => this.checker.check(this.package(plugin), config), true)
+    if (!result) return { config }
+    const other = result.issues.filter(issue => !missing.includes(String(issue.path[0])))
+    if (other.length > 0) {
+      throw new z.ZodError(other.map(issue => ({ code: "custom" as const, path: ["config", ...issue.path], message: issue.message, input: undefined })))
+    }
+    return { config, configVersion: result.version }
+  }
+
   /** applies an edit's migration writes to the instance's store, after the instance was saved */
   applyStore(instanceId: string, writes: PreparedConfig["storeWrites"]) {
     for (const [key, value] of Object.entries(writes?.set ?? {})) this.store?.set(instanceId, key, value)

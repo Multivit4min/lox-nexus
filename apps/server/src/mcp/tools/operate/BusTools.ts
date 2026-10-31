@@ -47,7 +47,7 @@ export class ReleaseTool implements McpTool<z.infer<typeof Release>> {
   readonly description = "End a force: the signal takes its real value again, and what is wired to it follows."
   readonly scope = OPERATE.scope
   readonly changes = OPERATE.changes
-  readonly annotations = { ...OPERATE.annotations, idempotentHint: true }
+  readonly annotations = OPERATE.annotations
   readonly input = Release
 
   constructor(private readonly values: OperateValues, private readonly bus: Pick<BusActions, "release">) {}

@@ -33,7 +33,8 @@ export class CheckSettingsTool implements McpTool<z.infer<typeof Check>> {
     const pkg = this.refs.package(input.plugin)
     SecretInputs.refuse(pkg.description.config, input.config, "secret settings")
     const instance = pkg.id === input.plugin ? undefined : this.refs.instance(input.plugin)
-    const config = instance ? { ...instance.config, ...input.config } : input.config
+    // as update_plugin_instance would save it: null removes a setting
+    const config = Object.fromEntries(Object.entries(instance ? { ...instance.config, ...input.config } : input.config).filter(([, value]) => value !== null))
     return this.settings.check({ plugin: pkg.id, config, test: input.test, ...(instance ? { instanceId: instance.id } : {}) })
   }
 }

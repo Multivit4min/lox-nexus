@@ -25,14 +25,18 @@ export class McpAudit {
     this.inputs = new AuditInput(secretNames)
   }
 
+  /** never throws: the change happened, and a full disk or a broken plugin description mustn't turn it into a failure */
   changed(context: ToolContext, tool: string, input: unknown, outcome: McpAuditRow["outcome"], detail?: string) {
-    const text = this.inputs.text(input)
-    this.log.info({ component: "mcp", token: context.access.tokenId, user: context.user.username, tool, input: text, outcome, ...(detail ? { detail } : {}) }, `${context.by}: ${tool} ${outcome}`)
     try {
+      const text = this.inputs.text(input)
+      this.log.info({ component: "mcp", token: context.access.tokenId, user: context.user.username, tool, input: text, outcome, ...(detail ? { detail } : {}) }, `${context.by}: ${tool} ${outcome}`)
       this.store?.insert({ at: this.now(), user_id: context.user.id, token_id: context.access.tokenId, token_name: context.access.name, tool, input: text, outcome, detail: detail ?? null })
     } catch (error) {
-      // the change happened; a full disk mustn't turn it into a failure
-      this.log.warn({ err: error }, "the MCP audit couldn't be stored")
+      try {
+        this.log.warn({ err: error, tool }, "the MCP audit couldn't be written")
+      } catch {
+        // nothing left to tell
+      }
     }
   }
 }

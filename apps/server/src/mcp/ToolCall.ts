@@ -42,7 +42,7 @@ export class ToolCall {
 
   /** @throws JsonRpcError when the token is over its rate limit */
   async run(tool: McpTool, args: unknown, context: ToolContext): Promise<ToolResult> {
-    const release = await this.limit.acquire(context.access.tokenId, tool.changes === true)
+    const release = await this.limit.acquire(context.access.tokenId, tool.changes === true, tool.changes === true && !tool.lockFree)
     let settled: Promise<unknown> = Promise.resolve()
     try {
       const parsed = tool.input.safeParse(args ?? {})
@@ -75,7 +75,7 @@ export class ToolCall {
     }
   }
 
-  // inside the lock, so an import can't change what the refs resolve to, and a busy lock doesn't use the id up
+  // after the lock is taken (for tools that take it), so an import can't change what the refs resolve to, and a busy lock doesn't use the id up
   private async confirmed(tool: McpTool, input: unknown, context: ToolContext, id: string) {
     const step = await tool.confirm!(input, context)
     // a call that needs no confirmation runs with or without one
@@ -103,22 +103,22 @@ export class ToolCall {
     const outcome = await this.within(running, ms)
     if (outcome === "late") {
       // audited once it really ends, with what became of it
-      if (tool.changes) running.then(value => this.audited(context, tool.name, input, value, `finished after the ${ms / 1000} s deadline`), error => void this.failed(tool, input, context, error))
+      if (tool.changes) running.then(value => this.audited(context, tool, input, value, `finished after the ${ms / 1000} s deadline`), error => void this.failed(tool, input, context, error))
       return { result: ToolCall.refusal(`no answer within ${ms / 1000} s; it goes on in the background, so check its result before trying again`), settled }
     }
     if ("error" in outcome) return { result: this.failed(tool, input, context, outcome.error), settled }
-    if (tool.changes) this.audited(context, tool.name, input, outcome.value)
+    if (tool.changes) this.audited(context, tool, input, outcome.value)
     return { result: { content: [{ type: "text", text: ToolCall.text(outcome.value) }] }, settled }
   }
 
-  private audited(context: ToolContext, tool: string, input: unknown, value: unknown, note?: string) {
+  private audited(context: ToolContext, tool: McpTool, input: unknown, value: unknown, note?: string) {
     const detail = [note, BulkItems.failures(value)].filter(Boolean).join("; ")
-    this.audit.changed(context, tool, input, "ok", detail || undefined)
+    this.audit.changed(context, tool.name, tool.audited?.(input) ?? input, "ok", detail || undefined)
   }
 
   private failed(tool: McpTool, input: unknown, context: ToolContext, error: unknown): ToolResult {
     const refusal = Refusals.reason(error)
-    if (tool.changes) this.audit.changed(context, tool.name, input, refusal ? "refused" : "failed", refusal)
+    if (tool.changes) this.audit.changed(context, tool.name, tool.audited?.(input) ?? input, refusal ? "refused" : "failed", refusal)
     return this.answer(tool, error)
   }
 

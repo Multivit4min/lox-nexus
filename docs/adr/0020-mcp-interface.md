@@ -131,3 +131,13 @@ Considered:
   question 5), the descriptor may say "ask the user".
 - Values readable with `read` can reveal presence. `configure` can change what reaches devices
   through wires. `operate` acts directly. The token page says this when scopes are chosen.
+
+## Amendments (2026-10-31)
+
+- **Plugin instances need `operate`.** The A3 security audit showed that creating or changing an
+  instance is running code (a Script instance runs the JavaScript it is given; a Webhook instance
+  without its optional token opens unauthenticated routes). Creating, changing, starting and
+  stopping instances therefore need `operate`; `configure` keeps Miniservers, signals, wires,
+  bridging into existing instances, and deleting instances.
+- **A4 deferred.** A stored FTP project login waits for Loxone Config 17.3; SSE (progress,
+  elicitation), OAuth for cloud clients and tokens on the REST API are not built for now.

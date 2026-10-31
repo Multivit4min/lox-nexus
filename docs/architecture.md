@@ -2798,9 +2798,14 @@ Where the build differs from the design above:
   `miniserver_lifecycle`, and `plugin_instance_lifecycle` with start, stop and restart.
 - **Instances without their secrets.** `PluginService.create` refuses settings the plugin rejects,
   and a missing required token is such a setting, so an agent could never create one.
-  `create_plugin_instance` checks the settings with the plugin, refuses any problem other than the
-  missing secrets, and then creates with `secretsLater`: saved unchecked, not started. The answer
-  names `missingSecrets` and the instance's page; the user's save there checks and starts it.
+  `create_plugin_instance` passes the missing secrets as `secretsLater`:
+  `PluginSettingsCheck.prepareWithout` has the plugin check everything else and keeps its config
+  version (so the first start doesn't migrate a current config), and the instance is saved without
+  starting. The answer names `missingSecrets` and the page; the user's save there starts it (as
+  does a restart of Nexus, which then shows the missing token as an error).
+- **Scopes after the A3 audit:** creating, changing, starting and stopping plugin instances need
+  `operate` (ADR 0020, amendments): an instance runs code. Lock-free changes (plugin actions)
+  count against the changing rate but don't wait in the token's queue of changes.
 - **Secrets in inputs** are refused by every tool that takes settings or params (`SecretInputs`);
   Miniserver tools reject unknown keys, so a `password` is refused, not dropped.
 - **Operate.** `BusActions` serves the Bus Inspector and the tools. `force` takes `minutes`
@@ -2815,4 +2820,8 @@ Where the build differs from the design above:
   input masked by field name (`AuditInput`: every name a plugin marks writeOnly, and `password`),
   since a refused call still carries what the agent typed. 10,000 rows and 90 days at most,
   pruned on insert; a revoked token's rows keep its name, a deleted user's go with them.
-  `GET /api/tokens/activity` and the "Recent activity" card show a user their own.
+  `GET /api/tokens/activity` and the "Recent activity" card show a user their own. After the
+  review: pruned per user, never failing a call (also when masking throws), timed by the app's
+  clock, and a plugin action keeps only its input's field names (`McpTool.audited`).
+- **`SecretRedactor`** also catches stored secrets URL-encoded and whole as base64 (Basic auth),
+  after the A3 audit showed a plugin writing one that way got through.

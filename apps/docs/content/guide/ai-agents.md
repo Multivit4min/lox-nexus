@@ -4,10 +4,10 @@ AI agents such as Claude Code, Gemini CLI or Cursor can look at your Nexus insta
 Model Context Protocol (MCP): its Miniservers, signals, values, wires and plugins. They see what
 the web UI shows, through an **access token** you create for them.
 
-Agents can **read** everything and, with the **configure** permission, set up Miniservers, plugin
-instances, signals and wires, and connect plugins to a Miniserver. They also say what to create in
-Loxone Config, so both sides match. With the **operate** permission they also act on the house:
-force a value for a while, send one, or run a plugin action.
+Agents can **read** everything and, with the **configure** permission, set up Miniservers, signals
+and wires, and connect plugins to a Miniserver. They also say what to create in Loxone Config, so
+both sides match. With the **operate** permission they also act on the house: force a value for a
+while, send one, run a plugin action, and set up plugin instances, which run code.
 
 ## Create an access token
 
@@ -23,8 +23,11 @@ changes (yours, or one another user sets for you), which ends all your tokens. E
 | Permission | What an agent may do |
 |---|---|
 | read (always) | see everything the web UI shows, including values, which can tell who is home |
-| configure | set up Miniservers, plugin instances, signals and wires; connect plugins to a Miniserver |
-| operate | act on the house: force or send values, run plugin actions (off by default) |
+| configure | set up Miniservers, signals and wires; connect plugins to a Miniserver; delete plugin instances |
+| operate | act on the house: force or send values, run plugin actions; create, change, start and stop plugin instances (off by default) |
+
+Plugin instances need **operate** because an instance runs the plugin's code: a Script instance
+runs the JavaScript it is given, and a Webhook instance opens addresses on your network.
 
 Agents never see secrets: passwords, plugin settings and signal settings marked secret aren't in
 any answer, and no tool accepts them (an agent that tries is told to leave them to you). You enter
@@ -97,15 +100,11 @@ With the **configure** permission:
 | `create_loxone_signals`, `update_loxone_signal`, `adopt_discovered` | add and change Loxone signals |
 | `create_wire`, `update_wire` | connect two signals, change a wire (only what is given) |
 | `create_miniserver`, `update_miniserver`, `start_miniserver`, `stop_miniserver` | Miniservers, without their password |
-| `create_plugin_instance`, `update_plugin_instance`, `plugin_instance_lifecycle` | plugin instances, without their secret settings; start, stop, restart |
 | `check_plugin_settings`, `discover_setting` | the settings form's check and connection test, and Find on the network |
 | `add_plugin_signals`, `update_plugin_signal` | sensors and actuators of an instance, without a Miniserver |
 | `delete_loxone_signals`, `delete_wires`, `delete_plugin_signals`, `delete_plugin_instance`, `delete_miniserver` | delete, in two steps (see below); stopping a Miniserver asks first too |
 
-**Secrets stay with you.** An agent that sets up a plugin needing a token (Home Assistant,
-InfluxDB) creates the instance without it. The instance is saved but not started, and the agent
-tells you to enter the token on the instance's page; saving there starts it. A Miniserver's ICI
-password is entered on its page the same way.
+A Miniserver's ICI password is never set by an agent; you enter it on the Miniserver's page.
 
 **Deleting asks first.** The first call deletes nothing: it answers what would go (for a signal,
 also its wires and force) and a confirmation. Only a second call with the same items and that
@@ -114,8 +113,9 @@ while the names still point at the same signals or wires.
 
 Changes show up in the Nexus log as "*user* via MCP (*token name*)", and under **Recent
 activity** on the Access tokens tab: each change with its token, arguments (secret fields masked)
-and outcome, kept for 90 days. While a configuration import
-runs, agents can read but not change anything.
+and outcome, kept for 90 days (at most 10,000 entries per user). A plugin action keeps only the
+names of its inputs there, since they may hold a pairing code. While a configuration import runs,
+agents can read but not change anything; plugin actions still run, as their buttons do.
 
 ## What agents can do in the house
 
@@ -125,8 +125,14 @@ With the **operate** permission:
 |---|---|
 | `force` | pins a value on a signal, with a reason, for at most 24 hours (default 1 hour); then it releases itself |
 | `release` | ends a force |
-| `inject` | sends one value; on an actuator the device acts on it, on a Nexus out signal the Miniserver gets it |
+| `inject` | sends one value; on an actuator the device acts on it, on a Nexus out signal the Miniserver gets it, on any other signal it flows on through its wires as if it came from there |
 | `run_plugin_action` | runs a plugin action like its button; one that asks you first asks the agent for a confirmation too |
+| `create_plugin_instance`, `update_plugin_instance`, `plugin_instance_lifecycle` | plugin instances, without their secret settings; start, stop, restart |
+
+**Secrets stay with you.** An agent that sets up a plugin needing a token (Home Assistant,
+InfluxDB) creates the instance without it. The instance is saved but not started, and the agent
+tells you to enter the token on the instance's page; saving there starts it. Until then, a restart
+of Nexus starts it too, and it shows an error until the token is there.
 
 A value must match the signal's type (a lamp switch takes true or false). Forces made by an agent
 show "*user* via MCP (*token name*)" in the Bus Inspector, where you can release them.

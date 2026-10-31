@@ -11,6 +11,9 @@ import { TestApp } from "../test-support/TestApp.ts"
 // a plugin that can't run without a token, like Home Assistant
 class TokenPlugin extends Plugin<{ url: string; token: string }> {
   static readonly config = z.object({ url: z.url(), token: secret(z.string().min(1)) })
+  // a second shape of its settings, so an instance saved before its token must keep the version
+  static readonly configVersion = 2
+  static readonly migrateConfig = ({ config }: { config: unknown }) => config
 }
 
 describe("MCP setup tools", { timeout: 30_000 }, () => {
@@ -43,18 +46,19 @@ describe("MCP setup tools", { timeout: 30_000 }, () => {
       nexus.pluginCatalog.setDevelopment({ pkg: { id: "tokened", name: "Tokened", entry: "token.ts", description: tokens }, version: "1.0.0" })
     })
     admin = await app.admin()
-    token = (await admin.post("/api/tokens", { currentPassword: "correct horse", name: "agent", scopes: ["configure"] })).json<CreatedAccessTokenDto>().token
+    token = (await admin.post("/api/tokens", { currentPassword: "correct horse", name: "agent", scopes: ["configure", "operate"] })).json<CreatedAccessTokenDto>().token
   })
   after(() => app.dispose())
 
   test("Miniservers: create without a password, change one field, stop and delete after confirming", async () => {
     const withPassword = await call("create_miniserver", { slug: "haus", label: "Haus", host: "127.0.0.1", ownId: "nexus", remoteId: "ms", password: "planted-pw", enabled: false })
     assert.ok(withPassword.isError, "a password is never taken from an agent")
-    const created = await json<{ slug: string; page: string; encrypted: boolean }>("create_miniserver", { slug: "haus", label: "Haus", host: "127.0.0.1", ownId: "nexus", remoteId: "ms", enabled: false })
+    const created = await json<{ slug: string; page: string; encrypted: boolean }>("create_miniserver", { slug: "haus", label: "Haus", host: "127.0.0.1", port: 7000, ownId: "nexus", remoteId: "ms", enabled: false, resendInterval: 0 })
     assert.deepEqual([created.slug, created.encrypted], ["haus", false])
     assert.match(created.page, /^#\/miniservers\//)
-    const updated = await json<{ label: string; host: string; ownId: string }>("update_miniserver", { miniserver: "haus", label: "House" })
-    assert.deepEqual([updated.label, updated.host, updated.ownId], ["House", "127.0.0.1", "nexus"], "the rest stays")
+    const updated = await json<{ label: string; host: string; ownId: string; port: number; enabled: boolean }>("update_miniserver", { miniserver: "haus", label: "House" })
+    assert.deepEqual([updated.label, updated.host, updated.ownId, updated.port, updated.enabled], ["House", "127.0.0.1", "nexus", 7000, false], "the rest stays, not their defaults")
+    assert.equal((await admin.get("/api/miniservers")).json<Array<{ resendInterval: number }>>()[0]!.resendInterval, 0)
     const stop = await confirmed<{ running: boolean }>("stop_miniserver", { miniserver: "haus" })
     assert.match(stop.summary, /values stop flowing/)
     const removed = await confirmed<{ deleted: string }>("delete_miniserver", { miniserver: "haus" })
@@ -74,10 +78,12 @@ describe("MCP setup tools", { timeout: 30_000 }, () => {
     const created = await json<{ state: string; missingSecrets: string[]; page: string }>("create_plugin_instance", { plugin: "tokened", slug: "ha", label: "HA", config: { url: "http://ha.local" } })
     assert.deepEqual([created.state, created.missingSecrets], ["stopped", ["token"]])
     const instance = (await admin.get("/api/plugin-instances")).json<PluginInstanceDto[]>().find(entry => entry.slug === "ha")!
+    assert.equal(app.app.persistence.pluginInstances.list().find(entry => entry.slug === "ha")?.configVersion, 2, "saved with the plugin's config version, so the first start doesn't migrate it")
     const saved = await admin.put(`/api/plugin-instances/${instance.id}`, { plugin: "tokened", slug: "ha", label: "HA", config: { url: "http://ha.local", token: "planted-token" } })
     assert.equal(saved.json<PluginInstanceDto>().state, "running", saved.body)
     const renamed = await json<{ label: string; secretsSet: string[]; state: string }>("update_plugin_instance", { instance: "ha", label: "Home Assistant" })
     assert.deepEqual([renamed.label, renamed.secretsSet, renamed.state], ["Home Assistant", ["token"], "running"], "the stored token stays")
+    assert.ok((await call("update_plugin_instance", { instance: "ha", config: { token: null } })).isError, "a secret can't be removed by an agent either")
     const check = await json<{ issues: Array<{ path: string[] }> }>("check_plugin_settings", { plugin: "ha", config: { url: "nope" } })
     assert.deepEqual(check.issues.map(issue => issue.path), [["url"]], "an instance's check fills in its stored token")
     assert.equal((await json<{ state: string }>("plugin_instance_lifecycle", { instance: "ha", action: "stop" })).state, "stopped")
@@ -99,5 +105,9 @@ describe("MCP setup tools", { timeout: 30_000 }, () => {
     assert.deepEqual([updated.topic, updated.label, updated.params], ["home/home/sensor/kitchen", "Kitchen temperature", { entity: "sensor.kitchen_2" }])
     const removed = await confirmed<Array<{ ok?: string }>>("delete_plugin_signals", { signals: ["home/home/sensor/kitchen"] })
     assert.deepEqual(removed.result, [{ ok: "home/home/sensor/kitchen" }])
+    await json("add_plugin_signals", { instance: "home", signals: [{ kind: "sensor", capability: "reading", params: { entity: "sensor.door" }, label: "Door" }] })
+    const door = app.app.persistence.pluginSignals.listFor((await admin.get("/api/plugin-instances")).json<PluginInstanceDto[]>().find(entry => entry.slug === "home")!.id)[0]!
+    const twice = await confirmed<Array<{ ok?: string }>>("delete_plugin_signals", { signals: ["home/home/sensor/door", door.id] })
+    assert.deepEqual(twice.result, [{ ok: "home/home/sensor/door" }, { ok: "home/home/sensor/door" }], "a topic and the id of one signal delete it once")
   })
 })

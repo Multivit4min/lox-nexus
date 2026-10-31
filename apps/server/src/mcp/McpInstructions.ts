@@ -45,7 +45,7 @@ Nexus names each Loxone signal by Miniserver, direction and packet id; the Loxon
 
 ## Setting up
 - "create_miniserver", "update_miniserver" and "start_miniserver"/"stop_miniserver" manage the Miniservers; a password is entered by the user on the Miniserver's page.
-- "create_plugin_instance" adds an instance of an installed plugin (describe_plugin first). Without its required secrets it is saved but not started: tell the user which ones (missingSecrets) and where (page). "check_plugin_settings" and "discover_setting" help find the right settings.
+- "create_plugin_instance" adds an instance of an installed plugin (describe_plugin first); it, "update_plugin_instance" and "plugin_instance_lifecycle" need the operate scope, since instances run code. Without its required secrets an instance is saved but not started: tell the user which ones (missingSecrets) and where (page). "check_plugin_settings" and "discover_setting" help find the right settings.
 - "add_plugin_signals", "update_plugin_signal" and "delete_plugin_signals" change an instance's sensors and actuators.
 
 ## Operating (scope operate)

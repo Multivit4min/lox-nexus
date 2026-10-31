@@ -31,6 +31,8 @@ export interface McpTool<Input = unknown> {
   /** how long the agent waits for an answer; default ToolCall.TIMEOUT_MS */
   readonly timeoutMs?: number
   run(input: Input, context: ToolContext): unknown
+  /** what the audit keeps of the input, when not all of it (a plugin action's input may hold a pairing code) */
+  audited?(input: Input): unknown
   /**
    * For destructive tools: what the change would take along, in one or two sentences ("deletes 3
    * Loxone signals and 4 wires"). Its presence makes the tool need a confirmation: its input must

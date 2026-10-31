@@ -23,7 +23,7 @@ const Add = z.object({
 
 const Update = PluginSignalInputSchema.pick({ params: true, label: true, slug: true, unit: true, decimals: true, staleAfterMin: true }).partial().extend({
   signal: z.string().min(1).max(300).describe("the signal's topic (or id)"),
-  params: z.record(z.string(), z.unknown()).optional().describe("only the params that change; secret ones stay as stored")
+  params: z.record(z.string(), z.unknown()).optional().describe("only the top-level params that change; null removes one; secret ones stay as stored")
 })
 
 // secret params come from a person; the capability decides which are secret
@@ -58,7 +58,7 @@ export class AddPluginSignalsTool implements McpTool<z.infer<typeof Add>> {
 export class UpdatePluginSignalTool implements McpTool<z.infer<typeof Update>> {
   readonly name = "update_plugin_signal"
   readonly title = "Change a plugin signal"
-  readonly description = "Change a plugin signal's label, slug (moves its topic), params (only those that change), unit, decimals or staleAfterMin. Kind and capability can't change. The plugin checks the params; its wires stay."
+  readonly description = "Change a plugin signal's label, slug (moves its topic), params (only the top-level ones that change; null removes one), unit, decimals or staleAfterMin. To clear a field, send unit: \"\", decimals: null or staleAfterMin: null. Kind and capability can't change. The plugin checks the params; its wires stay."
   readonly scope = "configure" as const
   readonly changes = true
   readonly annotations = { idempotentHint: true }
@@ -69,7 +69,7 @@ export class UpdatePluginSignalTool implements McpTool<z.infer<typeof Update>> {
 
   async run(input: z.infer<typeof Update>, context: ToolContext) {
     const { instance, signal } = this.refs.signal(input.signal, this.signals)
-    const params = { ...(signal.params as Record<string, unknown>), ...input.params }
+    const params = Object.fromEntries(Object.entries({ ...(signal.params as Record<string, unknown>), ...input.params }).filter(([, value]) => value !== null))
     refuseSecrets(this.refs.package(instance.plugin).description, { ...signal, params: input.params ?? {} })
     const pick = <K extends "label" | "slug" | "unit" | "decimals" | "staleAfterMin">(key: K) => (key in input ? input[key] : signal[key])
     const updated = await this.signals.update(instance.id, signal.id, {

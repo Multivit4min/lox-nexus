@@ -39,7 +39,7 @@ export class McpAssembly extends Disposable {
   constructor(deps: McpDeps) {
     super()
     const limit = this.own(new McpRateLimit(deps.clock))
-    const call = new ToolCall(limit, deps.lock, new McpAudit(deps.log, deps.audit?.store, deps.audit?.secretNames), deps.log, this.own(new Confirmations(deps.clock)))
+    const call = new ToolCall(limit, deps.lock, new McpAudit(deps.log, deps.audit?.store, deps.audit?.secretNames, deps.clock ? () => deps.clock!.now() : undefined), deps.log, this.own(new Confirmations(deps.clock)))
     this.dispatcher = new McpDispatcher(new ToolRegistry(deps.tools), new ResourceRegistry(deps.resources, deps.templates), new PromptRegistry(deps.prompts ?? []), call, deps.version, limit, deps.log, deps.redactor)
   }
 

@@ -9,7 +9,7 @@ const Input = z.object({
   instance: z.string().min(1).max(100).describe("the instance's slug"),
   slug: z.string().min(1).max(64).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).optional().describe("a new slug moves all its topics"),
   label: z.string().max(100).optional(),
-  config: z.record(z.string(), z.unknown()).optional().describe("only the settings that change, without secret fields; null removes one"),
+  config: z.record(z.string(), z.unknown()).optional().describe("only the top-level settings that change (a nested one is replaced whole), without secret fields; null removes one"),
   enabled: z.boolean().optional()
 })
 
@@ -17,8 +17,8 @@ const Input = z.object({
 export class UpdateInstanceTool implements McpTool<z.infer<typeof Input>> {
   readonly name = "update_plugin_instance"
   readonly title = "Change a plugin instance"
-  readonly description = "Change a plugin instance's label, slug, settings (only those that change; null removes one) or enabled. Secret settings are never given by you and stay as stored. The plugin checks the settings first; a running instance restarts with them."
-  readonly scope = "configure" as const
+  readonly description = "Change a plugin instance's label, slug, settings (only those that change; null removes one) or enabled. Secret settings are never given by you and stay as stored. The plugin checks the settings first; a running instance restarts with them. Needs the operate permission, like creating one."
+  readonly scope = "operate" as const
   readonly changes = true
   readonly timeoutMs = 60_000
   readonly input = Input
