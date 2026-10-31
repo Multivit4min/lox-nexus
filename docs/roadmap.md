@@ -272,8 +272,8 @@ until A2.
 
 - **A1: tokens, endpoint, inventory.**
   - Migration 11 `access_tokens`, `AccessTokenService` and `/api/tokens` (session only).
-  - An "Access tokens" page in the user menu: scopes, expiry, the token shown once with a
-    `claude mcp add` line.
+  - An "Access tokens" page in the user menu: scopes, the token shown once with a
+    `claude mcp add` line. Tokens don't expire; revoking or a password change ends them.
   - The `tokenAuth` route option in `AuthGuard`, and `ChangeLock.enter()`.
   - `apps/server/src/mcp/`:
     - the JSON-RPC dispatcher, protocol versions and instructions
@@ -304,7 +304,6 @@ until A2.
   - The `mcp_audit` table, and "recent activity" on the token page.
   - Prompts `diagnose_signal` and `review_installation`.
 - **A4 (later, each on its own decision):**
-  - `agent: false` on plugin actions (SDK, additive)
   - a stored, write-only project login for FTP reads
   - SSE for progress and elicitation
   - OAuth for cloud clients
@@ -315,7 +314,7 @@ until A2.
 - A `tools/list` snapshot per scope is checked in.
 - Security regressions:
   - a cookie on `/mcp` and a bearer token on `/api` are refused
-  - foreign Origin, query tokens, and expired or revoked tokens are refused
+  - foreign Origin, query tokens, and revoked tokens are refused
   - scopes filter both listing and calling
   - planted secrets (a webhook token, an HA token, a Miniserver password) appear in no tool
     output
@@ -344,7 +343,7 @@ until A2.
    per-wire throttling, a loop-rate warning, and forces as the manual circuit breaker.
 5. **Agents with write access** (ADR 0020). An agent can make wrong changes quickly, and the
    protocol and Loxone Config 17.3 are both still moving. Mitigate with:
-   - scoped, expiring tokens, with `operate` off by default
+   - scoped tokens, revoked by hand or by a password change, with `operate` off by default
    - no secrets in or out
    - confirmations that show what goes with a change
    - forces that must expire

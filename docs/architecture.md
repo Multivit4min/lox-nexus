@@ -2164,7 +2164,7 @@ What is known about Loxone's side (no public documentation; treat it as an assum
 | A3 | Plugin instances and Miniservers: create, update (no secrets), delete, start/stop, settings check, Find on the network | yes |
 | A3 | Operating: `force`, `release`, `inject`, `run_plugin_action` | yes, acts on devices |
 | A3 | `get_panel`, `get_logs`, `get_history`; secret redaction; audit table and "recent activity" | no |
-| A4 (later) | Opt-out for plugin actions (`agent: false`, SDK), stored project login, elicitation over SSE, OAuth for cloud clients, tokens on the REST API | |
+| A4 (later) | Stored project login, elicitation over SSE, OAuth for cloud clients, tokens on the REST API | |
 
 ### The overview problem
 
@@ -2287,9 +2287,9 @@ Wherever an input takes `signal`, it accepts an id or a topic.
   and run through the generic `run_plugin_action`. The worker validates the input, as it does
   for the UI.
 - Plugin authors need to know nothing about MCP. The existing `confirm` sentence becomes the MCP
-  confirmation. A later, additive description field (`agent: false` on an action, ADR 0019:
-  older hosts drop it) lets an author keep an action from agents, for example one that shows a
-  pairing code.
+  confirmation. Every action is available to agents with `operate`; authors can't withhold one
+  (decided 2026-10-31). An action whose answer carries a code (a Matter pairing window) gives it
+  to the agent like to a user.
 - Catalogs, panels and logs reach agents the same way, through generic tools. No plugin
   contributes its own tools, resources or prompts.
 
@@ -2397,7 +2397,6 @@ CREATE TABLE access_tokens (
   scopes TEXT NOT NULL,                -- JSON array of "read" | "configure" | "operate"
   token_sha256 TEXT NOT NULL UNIQUE,   -- the token itself is shown once and never stored
   created_at INTEGER NOT NULL,
-  expires_at INTEGER,                  -- default 90 days, at most 1 year; NULL only if the user picks "never"
   last_used_at INTEGER                 -- written at most once a minute
 );
 ```
@@ -2406,12 +2405,13 @@ CREATE TABLE access_tokens (
   scanners find leaked tokens.
 - **Who manages them.** `/api/tokens` (list, create, revoke) works only with a session. A token
   can't mint or see tokens. The UI is an "Access tokens" page in the user menu: name, scopes
-  (`read` is always on; `operate` is off by default and carries a warning), expiry, and the
-  token shown once with a ready `claude mcp add --transport http …` line.
+  (`read` is always on; `operate` is off by default and carries a warning), and the token shown
+  once with a ready `claude mcp add --transport http …` line. Tokens don't expire (decided
+  2026-10-31): they last until revoked or until the user's password changes.
 - **Revoking.**
   - Revoking is immediate, because every request looks the token up.
-  - A password change revokes the user's tokens with the sessions. This is a recommendation
-    (open question 2).
+  - A password change (or reset) revokes the user's tokens with the sessions; it is the only
+    thing besides revoking that ends a token.
   - At most 20 tokens per user.
 - **Which routes accept them.** `AuthGuard` gets a route option `tokenAuth`. Such routes read
   `Authorization: Bearer` and **ignore the cookie**, and all other routes ignore bearer headers.
@@ -2549,8 +2549,7 @@ panels are cut further. Action answers drop their QR and image parts.
 
 Everything lives in `apps/server`. `packages/api` gets the token DTOs and the shared helpers
 listed under Principles; MCP tool schemas stay in the server. Core, loxone, ici and the SDK are
-unchanged, apart from the later `agent: false` field on actions. No boundary in `CLAUDE.md`
-moves. The web reaches only `/api/tokens`.
+unchanged. No boundary in `CLAUDE.md` moves. The web reaches only `/api/tokens`.
 
 `apps/server/src/mcp/`, one class per file:
 
@@ -2595,7 +2594,7 @@ Elsewhere:
 - **Auth and safety** (in `SecurityRegressions`):
   - a cookie on `/mcp` is refused, and a bearer token on `/api/*` is ignored
   - a cross-origin POST is refused, and a token in the query is refused
-  - expired, revoked and unknown tokens are refused, and the bad-token throttle works
+  - revoked and unknown tokens are refused, and the bad-token throttle works
   - scope filtering applies in both `tools/list` and `tools/call`
   - a password change revokes tokens
   - **planted secrets** (a webhook token, an HA token, a Miniserver password) never appear in
@@ -2630,14 +2629,20 @@ Elsewhere:
 - wrapping or proxying Loxone's MCP servers
 - writing to the Loxone Config project from Nexus
 
-### Open questions (to be confirmed by the user)
+### Decided (2026-10-31, by the user)
 
-1. **May agents operate devices?** Recommended: yes, behind the `operate` scope, which is off by
-   default. Forces must expire (default 1 h, at most 24 h) and carry a reason.
-2. **Tokens per user, and what revokes them?** Recommended:
-   - per user, with scopes chosen at creation
-   - expiry 90 days by default
-   - a password change revokes them with the sessions
+- **Agents may operate devices,** behind the `operate` scope, which is off by default. Forces
+  must expire (default 1 h, at most 24 h) and carry a reason.
+- **Tokens are per user and don't expire.** They end when revoked or when the user's password
+  changes; scopes are chosen at creation.
+- **Every plugin action is available to agents** (with `operate`), with no opt-out for authors.
+- **Cloud clients** (claude.ai, ChatGPT) are left out for now: they need Nexus reachable from the
+  internet and an OAuth server in Nexus, and every result passes through the vendor's cloud.
+  Local agents use bearer tokens; Claude Desktop goes through `mcp-remote`. A4 if needed.
+- **Agents don't install plugins.** They may say which plugin is missing.
+
+### Open questions (until A2)
+
 3. **May an agent enter secrets** (a Home Assistant token, an InfluxDB token)? Recommended: no.
    The agent creates the instance, and a human enters the secrets on the instance page, which
    the tool names.
@@ -2648,12 +2653,5 @@ Elsewhere:
 5. **The address the Miniserver should send to.** Recommended: an installation setting "Nexus
    address for Miniservers", prefilled from `listenAddress` or from the peer address of the
    last project import. `loxone_side` uses it and says when it is missing.
-6. **Plugin actions for agents: opt-out or opt-in?** Recommended: opt-out. Actions run under
-   `operate`, `confirm` actions need the confirmation, and an `agent: false` field in A4 lets
-   an author withhold one.
-7. **Cloud clients** (claude.ai, ChatGPT)? Recommended: not now. Local agents with bearer
-   tokens; Claude Desktop through `mcp-remote`.
-8. **May agents install plugins from the local repository?** Recommended: no. They may say
-   which plugin is missing; installing stays a human decision.
 9. **What does Config 17.3 create: intercommunication objects or Virtual I/O?** Confirm this
    once it ships, before the manual part of A2. The descriptor depends on it.

@@ -1,7 +1,9 @@
 # 0020: An MCP interface for agents: our own stateless server on `/mcp`, scoped access tokens, generic tools
 
 Status: **Proposed** (2026-10-31). Design in `architecture.md`, "Design: MCP interface (A1–A4)";
-milestone "MCP interface" in `roadmap.md`. Open questions are listed there.
+milestone "MCP interface" in `roadmap.md`. The user decided operating devices, token lifetime,
+plugin actions, cloud clients and installing plugins on 2026-10-31 (see the design's "Decided");
+the questions left are listed there.
 
 ## Context
 
@@ -55,7 +57,8 @@ Considered:
   - Changing to the SDK later stays possible behind `McpController`.
 - **Auth: personal access tokens with scopes**, per user, for `/mcp` only.
   - Scopes: `read`, `configure` and `operate`.
-  - Only the SHA-256 is stored. The default expiry is 90 days, and revoking takes effect at once.
+  - Only the SHA-256 is stored. Tokens don't expire; revoking ends one at once, and a password
+    change ends all of the user's.
   - Tokens are created and revoked only with a session, in the UI.
   - `/mcp` ignores cookies, and the REST API ignores bearer tokens.
   - `tools/list` shows only what the token's scopes allow.
@@ -90,9 +93,7 @@ Considered:
 - **Plugins contribute no tools.** Actions, catalogs, panels and logs reach agents through
   generic tools (`run_plugin_action`, `search_catalog`, `get_panel`, `get_logs`). An action's
   existing `confirm` becomes the MCP confirmation.
-  - In A4, a later additive description field, `agent: false` on an action, lets an author
-    withhold an action. Under ADR 0019 it needs no wire version or `hello` feature, because
-    older hosts drop it.
+  - Every action is available to agents with `operate`; authors can't withhold one.
   - A `SecretRedactor` replaces an instance's stored secret values in every tool result, since
     panels and logs are plugin-controlled text.
 - **Audit and limits:**
