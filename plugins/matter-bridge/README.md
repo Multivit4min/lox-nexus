@@ -91,7 +91,7 @@ locks **Allow unlocking**, for battery-powered sensors and buttons **Battery**),
 | actuator | Flow m³/h to controllers (`flow`) | `number` | A flow sensor's value in m³/h. |
 | actuator | Rain to controllers (`rain`) | `boolean` | On while rain is detected. |
 | actuator | Frost to controllers (`freeze`) | `boolean` | On while a water freeze detector warns of frost. |
-| actuator | Battery % to controllers (`battery`) | `number` | The battery level of a sensor, button or doorbell added with **Battery**. |
+| actuator | Battery % to controllers (`battery`) | `number` | The battery level of a sensor, button or doorbell added with **Battery**, or a home battery's state of charge. |
 | actuator | Press to controllers (`press`) | `boolean` | Each `true` is a short button press, to start routines. |
 | actuator | Long press to controllers (`long-press`) | `boolean` | Each `true` is a long button press. |
 | actuator | Power W to controllers (`power`) | `number` | Power taken (positive) or given (negative): a meter, battery, wallbox or heat pump. |
@@ -109,8 +109,8 @@ locks **Allow unlocking**, for battery-powered sensors and buttons **Battery**),
 
 ## Matter device types
 
-Every device type matter.js 0.18 knows, which covers the Matter specification up to 1.5, and
-whether the bridge offers it. What an app shows of a type is up to the app; the newer the type,
+Every device type matter.js 0.18 knows (it follows Matter 1.6.1, so this covers every type up to
+1.5 and the newest ones), and whether the bridge offers it. What an app shows of a type is up to the app; the newer the type,
 the fewer apps know it.
 
 | Matter device type | Id | In the bridge |
@@ -129,7 +129,7 @@ the fewer apps know it.
 | **Closures** | | |
 | Window Covering | 0x0202 | `window-covering`, `venetian-blind` |
 | Door Lock | 0x000A | `door-lock` |
-| Closure | 0x0230 | not yet; medium: Matter 1.5's garage doors, gates and windows, apps are only starting to support it |
+| Closure | 0x0230 | not yet; medium: Matter's newer garage doors, gates and windows, apps are only starting to support them |
 | Closure Panel | 0x0231 | not yet; part of a closure (a panel or leaf), comes with it |
 | **Heating, cooling and air** | | |
 | Thermostat | 0x0301 | `thermostat`, `thermostat-heat-cool` |

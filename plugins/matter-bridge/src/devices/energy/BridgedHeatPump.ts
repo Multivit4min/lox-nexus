@@ -7,12 +7,12 @@ import type { KindValue, StateKind } from "../DeviceKinds.ts"
 import { HeatCool } from "../HeatCool.ts"
 import { HeatCoolServer } from "../HeatCoolServer.ts"
 import { BridgedEnergyDevice } from "./BridgedEnergyDevice.ts"
-import { EnergyManagementServer } from "./EnergyManagementServer.ts"
-import { EnergyServer, PowerMeter, PowerServer, TopologyServer } from "./PowerMeter.ts"
+import { AdjustmentEnergyManagementServer } from "./AdjustmentEnergyManagementServer.ts"
+import { EnergyServers, PowerMeter, PowerServer, TopologyServer } from "./PowerMeter.ts"
 import { WiredPowerServer } from "./WiredPowerServer.ts"
 
 const HeatPumpEndpoint = HeatPumpDevice.with(
-  BridgedDeviceBasicInformationServer, WiredPowerServer, TopologyServer, PowerServer, EnergyServer, EnergyManagementServer
+  BridgedDeviceBasicInformationServer, WiredPowerServer, TopologyServer, PowerServer, EnergyServers.imported, AdjustmentEnergyManagementServer
 )
 const ThermostatEndpoint = ThermostatDevice.with(HeatCoolServer)
 
@@ -28,10 +28,12 @@ export class BridgedHeatPump extends BridgedEnergyDevice {
     thermostat: HeatCool.initial(this.remembered("temperature"))
   })
 
+  protected readonly direction = "imported"
+
   readonly endpoint = new Endpoint(HeatPumpEndpoint, {
     id: this.identity.endpointId,
     bridgedDeviceBasicInformation: this.basicInformation(),
-    ...PowerMeter.initial(),
+    ...PowerMeter.initial("imported"),
     deviceEnergyManagement: { esaType: DeviceEnergyManagement.EsaType.SpaceHeatingCooling },
     parts: [this.thermostatEndpoint]
   })

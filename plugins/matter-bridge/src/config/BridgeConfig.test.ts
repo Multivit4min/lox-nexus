@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 import { PluginTestHost } from "@lox-nexus/plugin-sdk/testing"
+import { AddDeviceAction } from "../actions/AddDeviceAction.ts"
 import { DEVICE_TYPE_IDS } from "../devices/DeviceKinds.ts"
 import { MatterBridgePlugin } from "../MatterBridgePlugin.ts"
 import { bridgeConfigSchema } from "./BridgeConfig.ts"
@@ -59,4 +60,13 @@ test("forms: fields, params and action inputs have titles, descriptions and labe
   }
   assert.ok(actions.find(action => action.id === "remove-device")?.confirm)
   assert.ok(actions.find(action => action.id === "remove-pairing")?.confirm)
+})
+
+test("add-device input: each run's fields parse; a lock's unlocking and a battery only where the type has them", () => {
+  const parse = (input: unknown) => AddDeviceAction.input.parse(input)
+  assert.deepEqual(parse({ type: "plug", name: "Hall" }), { type: "plug", name: "Hall" })
+  assert.deepEqual(parse({ type: "door-lock", name: "Front" }), { type: "door-lock", name: "Front", allowUnlock: false })
+  assert.deepEqual(parse({ type: "temperature-sensor", name: "Out", battery: true }), { type: "temperature-sensor", name: "Out", battery: true })
+  assert.deepEqual(parse({ type: "plug", name: "Hall", battery: true, allowUnlock: true }), { type: "plug", name: "Hall" }, "fields of other types are dropped")
+  assert.throws(() => parse({ type: "spaceship", name: "X" }))
 })

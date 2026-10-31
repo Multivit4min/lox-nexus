@@ -18,6 +18,9 @@ const { ValveState } = ValveConfigurationAndControl
 export class BridgedValve extends BridgedDevice {
   static readonly ANSWER_MS = 60_000
 
+  /** counts requests: only the latest one's minute counts */
+  private requests = 0
+
   readonly endpoint = new Endpoint(ValveEndpoint, {
     id: this.identity.endpointId,
     bridgedDeviceBasicInformation: this.basicInformation(),
@@ -27,8 +30,9 @@ export class BridgedValve extends BridgedDevice {
   protected override subscribe() {
     this.listen(this.endpoint.events.valveConfigurationAndControl.requested, (open, context) => {
       this.command("valve", open, context)
+      const request = ++this.requests
       this.context.wait(BridgedValve.ANSWER_MS)
-        .then(() => this.unanswered())
+        .then(() => request === this.requests ? this.unanswered() : undefined)
         .catch((error: unknown) => this.context.warn(`valve "${this.name}": ${error instanceof Error ? error.message : String(error)}`))
     })
   }

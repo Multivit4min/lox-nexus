@@ -39,6 +39,7 @@ const input = z.discriminatedUnion("type", runs.map(({ extra, types }) => z.obje
   }),
   name: name(),
   ...extras[extra]
+  // built from the type list, so zod can't infer the union; the form test parses one input per kind of branch
 })) as unknown as [z.ZodObject, ...z.ZodObject[]]) as unknown as z.ZodType<Input>
 
 interface Input { type: DeviceTypeId; name: string; allowUnlock?: boolean; battery?: boolean }

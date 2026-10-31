@@ -2,13 +2,15 @@ import { Endpoint } from "@matter/main"
 import { BridgedDeviceBasicInformationServer } from "@matter/main/behaviors/bridged-device-basic-information"
 import { DeviceEnergyManagement } from "@matter/main/clusters/device-energy-management"
 import { BatteryStorageDevice } from "@matter/main/devices/battery-storage"
-import { BatteryServer } from "../BatteryServer.ts"
+import { BridgedDevice } from "../BridgedDevice.ts"
+import type { KindValue, StateKind } from "../DeviceKinds.ts"
+import { AdjustmentEnergyManagementServer } from "./AdjustmentEnergyManagementServer.ts"
 import { BridgedEnergyDevice } from "./BridgedEnergyDevice.ts"
-import { EnergyManagementServer } from "./EnergyManagementServer.ts"
-import { EnergyServer, PowerMeter, PowerServer, TopologyServer } from "./PowerMeter.ts"
+import { EnergyServers, PowerMeter, PowerServer, TopologyServer } from "./PowerMeter.ts"
+import { StorageBatteryServer } from "./StorageBatteryServer.ts"
 
 const StorageEndpoint = BatteryStorageDevice.with(
-  BridgedDeviceBasicInformationServer, BatteryServer, TopologyServer, PowerServer, EnergyServer, EnergyManagementServer
+  BridgedDeviceBasicInformationServer, StorageBatteryServer, TopologyServer, PowerServer, EnergyServers.both, AdjustmentEnergyManagementServer
 )
 
 /**
@@ -18,10 +20,29 @@ const StorageEndpoint = BatteryStorageDevice.with(
  * as two, which the apps don't need to show the values.
  */
 export class BridgedBatteryStorage extends BridgedEnergyDevice {
+  protected readonly direction = "both"
+
   readonly endpoint = new Endpoint(StorageEndpoint, {
     id: this.identity.endpointId,
     bridgedDeviceBasicInformation: this.basicInformation(),
-    ...PowerMeter.initial(),
+    ...PowerMeter.initial("both"),
     deviceEnergyManagement: { esaType: DeviceEnergyManagement.EsaType.BatteryStorage, esaCanGenerate: true }
   })
+
+  /** the measurements, then whether it charges, which follows the power's sign */
+  protected override async apply(kind: StateKind, value: KindValue) {
+    await super.apply(kind, value)
+    if (kind === "power") await this.updateChargeState()
+  }
+
+  protected override async applyOwn(_kind: StateKind, value: KindValue) {
+    await this.endpoint.setStateOf(StorageBatteryServer, StorageBatteryServer.level(BridgedDevice.number(value)))
+    await this.updateChargeState()
+  }
+
+  private async updateChargeState() {
+    const milliwatts = Number(this.endpoint.state.electricalPowerMeasurement.activePower ?? 0)
+    const batChargeState = StorageBatteryServer.chargeState(milliwatts, this.endpoint.state.powerSource.batPercentRemaining)
+    await this.endpoint.setStateOf(StorageBatteryServer, { batChargeState })
+  }
 }

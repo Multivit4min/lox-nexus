@@ -64,9 +64,9 @@ it has.
 | Water freeze detector (`water-freeze-detector`) | a frost sensor (Matter 1.3) | | `freeze` | no frost |
 | Button (generic switch) (`generic-switch`) | a button for routines | | `press`, `long-press` | |
 | Doorbell (`doorbell`) | a doorbell (a newer Matter type) | | `press` | |
-| Electricity meter (`electrical-meter`) | an electrical meter (Matter 1.5) and electrical sensor | | `power`, `energy-imported`, `energy-exported`, `voltage`, `current` | unknown |
+| Electricity meter (`electrical-meter`) | an electrical meter (one of the newest Matter types) and electrical sensor | | `power`, `energy-imported`, `energy-exported`, `voltage`, `current` | unknown |
 | Solar power (PV) (`solar-power`) | a PV system (Matter 1.4) with its power source and electrical sensor | | `production`, `energy-exported` | unknown |
-| Battery storage (`battery-storage`) | a home battery (Matter 1.4) with its battery, electrical sensor and energy management | | `power`, `battery`, `energy-imported`, `energy-exported` | unknown |
+| Battery storage (`battery-storage`) | a home battery (Matter 1.4) with its rechargeable battery, electrical sensor and energy management | | `power`, `battery`, `energy-imported`, `energy-exported` | unknown |
 | Wallbox (EV charger) (`evse`) | an EV charger (Matter 1.3) with its electrical sensor, power source and energy management | `charging-enabled`, `max-current`, `charging-mode` | `plugged-in`, `charging`, `charging-enabled`, `max-current`, `charging-mode`, `power`, `energy-imported`, `session-energy` | no car, charging enabled at 16 A, manual |
 | Heat pump (`heat-pump`) | a heat pump (Matter 1.4) with a heating and cooling thermostat below it | `setpoint`, `cooling-setpoint`, `mode` | `temperature`, `setpoint`, `cooling-setpoint`, `mode`, `power`, `energy-imported` | as the heating and cooling thermostat; measurements unknown |
 
@@ -95,9 +95,17 @@ device, can't be shown sensibly.
 **Energy devices.** Matter composes its energy device types from utility types: a PV system is
 also a power source and an electrical sensor; battery storage, a wallbox and a heat pump add
 device energy management. The bridge puts these on the device's own endpoint (matter.js lists
-them), and the heat pump's thermostat on an endpoint below it. Energy management only says what
-kind of device it is and that it is online: the bridge offers no forecasts and no power
-adjustment, and a battery's AC and battery sides, which Matter describes as two, are one.
+them), and the heat pump's thermostat on an endpoint below it; the power source names both.
+Energy management only says what kind of device it is and that it is online: a wallbox's has
+no forecast (null), a battery's and heat pump's no adjustment capability, so a controller's
+power adjustment request is refused. A battery's AC and battery sides, which Matter describes as
+two, are one. A wallbox keeps the charging targets an app sets (and returns them when asked)
+while it runs, but plans nothing with them; its next-charge attributes stay unknown.
+
+A home battery's power source is rechargeable: its charge state follows the power (charging
+while positive, full at 100 %, otherwise not charging), and unlike a sensor's battery it never
+warns or asks for replacement when it runs low. Its voltage, times and charging current are
+unknown, and its capacity, which Matter can't leave unknown, is left out.
 
 What the apps do with a type is up to them, and only real hardware shows it:
 
@@ -114,7 +122,7 @@ What the apps do with a type is up to them, and only real hardware shows it:
   device or not at all; Home Assistant shows them.
 - **Colour light:** Alexa, Google Home and Apple Home set colours by hue and saturation or by x/y;
   both arrive as the same RGB value.
-- **Energy devices (meter, PV, battery, wallbox, heat pump):** Matter 1.3 to 1.5 types for energy
+- **Energy devices (meter, PV, battery, wallbox, heat pump):** Matter 1.3 and newer types for energy
   dashboards. Which apps show them, and what they show, varies and changes with their updates;
   Home Assistant reads the power and energy measurements. A device an app doesn't know may be
   missing in it or shown as unknown.
@@ -155,10 +163,10 @@ color temperature, lx and hPa without decimals, and m³/h with one.
 | `valve` | `true` open, `false` closed | ValveConfigurationAndControl Open and Close commands (sent on every request); the valve shows "transitioning" until Nexus reports `currentState`, or for at most a minute, after which it shows the last state Nexus sent again. A duration an app gives with Open is not kept: the valve stays open until closed |
 | `air-quality` | 1 good, 2 fair, 3 moderate, 4 poor, 5 very poor, 6 extremely poor, 0 unknown | AirQuality `airQuality`. Until Nexus sends a level, and again after it sends 0, the level follows the worse of the readings: CO₂ up to 750, 1000, 1500, 2000 and 5000 ppm, PM2.5 up to 10, 20, 25, 50 and 75 µg/m³ (the European Air Quality Index's bands before the EEA's 2024 revision). For another scale, send a level of your own |
 | `power`, `production` | W | ElectricalPowerMeasurement `activePower` in mW. `power` counts as Matter does: positive while the device takes power (a battery charging, a meter importing), negative while it gives power. `production`, a PV system's positive output, is shown negative, as power fed in. Invert a Fronius battery's power (positive while discharging) on the wire |
-| `voltage`, `current` | V, A | `voltage` and `activeCurrent` in mV and mA |
-| `energy-imported`, `energy-exported` | kWh, totals | ElectricalEnergyMeasurement `cumulativeEnergyImported` / `Exported` in mWh, each with the CumulativeEnergyMeasured event. A PV system's produced energy is its exported energy |
-| `plugged-in`, `charging` | `true`, `false` | EnergyEvse `state`: no car, plugged in (waiting while charging is enabled, wanting while it is disabled), charging. A car charging is plugged in. Plugging in starts a session (`sessionId` counts up) with the EVConnected event; charging starts and stops send EnergyTransferStarted and Stopped, unplugging EVNotDetected. The session's duration follows each report from Nexus |
-| `charging-enabled` | `true`, `false` | A command: an app's Enable charging (`true`, with `max-current`) or Disable (`false`); the supply state changes at once. A state: the supply state (charging enabled or disabled). `chargingEnabledUntil` stays null: a time an app gives is not kept |
+| `voltage`, `current` | V, A | `voltage` and `activeCurrent` in mV and mA. The current counts like the power: positive into the device; a meter's unsigned current from Loxone is shown as taken |
+| `energy-imported`, `energy-exported` | kWh, totals | ElectricalEnergyMeasurement `cumulativeEnergyImported` / `Exported` in mWh, with the CumulativeEnergyMeasured event, which carries both totals the device has (the other one as last sent; missing until Nexus has sent it). A PV system only has exported energy (its production), a wallbox and a heat pump only imported, a meter and a battery both. After a restart the totals Nexus sent last are set again in one event |
+| `plugged-in`, `charging` | `true`, `false` | EnergyEvse `state`: no car, plugged in (waiting while charging is enabled, wanting while it is disabled), charging; it follows the supply state at once when an app enables or disables. A car charging is plugged in, and one unplugged doesn't charge, whichever Loxone reports first. Plugging in starts a session (`sessionId` counts up) with the EVConnected event; charging starts and stops send EnergyTransferStarted and Stopped (with the energy of that transfer), unplugging EVNotDetected. The session's duration follows each report from Nexus, and goes on after a restart from where it was (the time the bridge was down is lost). After the factory reset that follows removing the last app, a car Nexus reported is plugged in again, which starts a new session |
+| `charging-enabled` | `true`, `false` | A command: an app's Enable charging (`true`, with `max-current`) or Disable (`false`); the supply state changes at once. A state: the supply state (charging enabled or disabled). An app can enable charging until a time: then the bridge disables it and sends `false` (a time that has passed disables at once; one more than 24 days ahead is left to the app). A minimum current above the maximum is refused |
 | `max-current` | A | EnergyEvse `maximumChargeCurrent` in mA, limited to 6 A and the 32 A circuit |
 | `session-energy` | kWh | `sessionEnergyCharged` in mWh |
 | `charging-mode` | text: `manual`, `time-of-use`, `solar` | EnergyEvseMode `currentMode` (modes 0, 1 and 2, with Matter's Manual, TimeOfUse and SolarCharging tags); an app's mode change is a command |
@@ -310,7 +318,7 @@ machine (1–2 GB) run a single instance; one bridge carries up to 50 devices.
 | Device and bridge names | 32 bytes (letters like ä count twice), unique per bridge ignoring case |
 | Pairing window | 15 minutes once paired; 48 hours while not paired |
 | Paired apps | in practice a handful; each app is one Matter fabric |
-| Device types | the 34 above; garage doors and gates (Matter 1.5 closures), air purifiers, air conditioners, water heaters, pumps and appliances are not in this version |
+| Device types | the 34 above; garage doors and gates (Matter's newer closures), air purifiers, air conditioners, water heaters, pumps and appliances are not in this version |
 
 ## Security notes
 

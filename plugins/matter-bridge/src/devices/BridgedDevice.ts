@@ -109,20 +109,18 @@ export abstract class BridgedDevice {
     if (this.endpoint.stateOf(BridgedDeviceBasicInformationServer).nodeLabel !== record.name) {
       await this.endpoint.setStateOf(BridgedDeviceBasicInformationServer, { nodeLabel: record.name })
     }
-    if (this.battery) await this.syncBattery()
+    await this.syncPowerSource()
+    // matter.js doesn't persist a battery level; it starts with what Nexus sent last
+    const level = this.battery ? this.remembered("battery") : undefined
+    if (typeof level === "number") await this.applyState("battery", level)
   }
 
-  /**
-   * The battery names the endpoint it powers (the number is only known once attached), and starts
-   * with the level Nexus sent last: matter.js doesn't persist it.
-   */
-  private async syncBattery() {
-    const endpointList = [this.endpoint.number]
-    if (JSON.stringify(this.endpoint.stateOf(BatteryServer).endpointList) !== JSON.stringify(endpointList)) {
-      await this.endpoint.setStateOf(BatteryServer, { endpointList })
-    }
-    const level = this.remembered("battery")
-    if (typeof level === "number") await this.applyState("battery", level)
+  /** a power source (a battery, mains) names the endpoints it powers, once their numbers are known */
+  private async syncPowerSource() {
+    if (!("powerSource" in this.endpoint.behaviors.supported)) return
+    const endpointList = [this.endpoint.number, ...[...this.endpoint.parts].map(part => part.number)]
+    const current = (this.endpoint.stateOf("powerSource") as { endpointList?: unknown }).endpointList
+    if (JSON.stringify(current) !== JSON.stringify(endpointList)) await this.endpoint.setStateOf("powerSource", { endpointList })
   }
 
   /** the endpoint type, with the battery's power source for a device that has one */
@@ -165,10 +163,11 @@ export abstract class BridgedDevice {
     for (const [kind, value] of this.states) await this.applyState(kind, value)
   }
 
-  /** the battery level is the same on every type; the rest is the type's own */
+  /** a sensor's battery level is the same on every type (a home battery has its own); the rest is the type's */
   private async applyState(kind: StateKind, value: KindValue) {
-    if (kind === "battery") await this.endpoint.setStateOf(BatteryServer, BatteryServer.level(BridgedDevice.number(value)))
-    else await this.apply(kind, value)
+    if (kind === "battery" && this.endpoint.behaviors.has(BatteryServer)) {
+      await this.endpoint.setStateOf(BatteryServer, BatteryServer.level(BridgedDevice.number(value)))
+    } else await this.apply(kind, value)
   }
 
   /**

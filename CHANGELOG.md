@@ -11,8 +11,8 @@
 - **Energy devices:** electricity meter, solar power (PV), battery storage, wallbox (EV charger,
   with enable, current and charging mode from the apps) and heat pump.
 - **Batteries:** sensors and buttons can be added with a battery level the apps show and warn on.
-- The plugin's README lists every Matter device type up to Matter 1.5 and whether the bridge
-  offers it.
+- The plugin's README lists every Matter device type (up to Matter 1.6.1, as matter.js 0.18 models
+  them) and whether the bridge offers it.
 
 ## 0.8.0 (2026-10-30)
 

@@ -1,37 +1,38 @@
 import { BridgedDevice } from "../BridgedDevice.ts"
 import type { KindValue, StateKind } from "../DeviceKinds.ts"
 import type { DeviceRecord } from "../DeviceRecord.ts"
-import { METER_KINDS, PowerMeter } from "./PowerMeter.ts"
-import { WiredPowerServer } from "./WiredPowerServer.ts"
+import { PowerMeter, type EnergyDirection } from "./PowerMeter.ts"
 
 /**
  * An energy device (meter, PV system, battery storage, wallbox, heat pump): its electrical
  * measurements go to the power meter, the rest to the type. matter.js doesn't persist
- * measurements, so the ones Nexus sent last are set again once the endpoint is attached.
+ * measurements, so the ones Nexus sent last are set again once the endpoint is attached; one that
+ * can't be set is a warning, not a device missing from the bridge.
  */
 export abstract class BridgedEnergyDevice extends BridgedDevice {
+  /** which energy totals the device has */
+  protected abstract readonly direction: EnergyDirection
   private restored = false
 
   /** the endpoint's measurements; a getter, as subclasses create the endpoint after this class */
   protected get meter() {
-    return new PowerMeter(this.endpoint)
+    return new PowerMeter(this.endpoint, this.direction)
   }
 
   override async sync(record?: DeviceRecord) {
     await super.sync(record)
-    // the mains power source names the endpoint it powers, once its number is known
-    if (this.endpoint.behaviors.has(WiredPowerServer)) {
-      const endpointList = [this.endpoint.number]
-      if (JSON.stringify(this.endpoint.stateOf(WiredPowerServer).endpointList) !== JSON.stringify(endpointList)) {
-        await this.endpoint.setStateOf(WiredPowerServer, { endpointList })
-      }
-    }
     if (this.restored) return
     this.restored = true
-    for (const kind of METER_KINDS) {
+    const remembered = (kind: StateKind) => {
       const value = this.info.states.includes(kind) ? this.remembered(kind) : undefined
-      if (typeof value === "number") await this.meter.apply(kind, value)
+      return typeof value === "number" ? value : undefined
     }
+    for (const kind of ["power", "production", "voltage", "current"] as const) {
+      const value = remembered(kind)
+      if (value !== undefined) await this.restoreMeasurement(kind, () => this.meter.apply(kind, value))
+    }
+    const energy = { imported: remembered("energyImported"), exported: remembered("energyExported") }
+    if (energy.imported !== undefined || energy.exported !== undefined) await this.restoreMeasurement("energy", () => this.meter.energy(energy))
   }
 
   protected async apply(kind: StateKind, value: KindValue) {
@@ -42,5 +43,13 @@ export abstract class BridgedEnergyDevice extends BridgedDevice {
   /** the type's own states, besides the measurements; a meter-only type has none */
   protected async applyOwn(kind: StateKind, value: KindValue) {
     throw new Error(`a ${this.info.label.toLowerCase()} has no ${kind} state for ${JSON.stringify(value)}`)
+  }
+
+  private async restoreMeasurement(what: string, set: () => Promise<void>) {
+    try {
+      await set()
+    } catch (error) {
+      this.context.warn(`"${this.name}": could not show the ${what} Nexus sent before the restart: ${error instanceof Error ? error.message : String(error)}`)
+    }
   }
 }
