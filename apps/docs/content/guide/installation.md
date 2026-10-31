@@ -33,8 +33,18 @@ docker run -d --name nexus --restart unless-stopped --network host --init \
 ```
 
 **Building it yourself.** The `Dockerfile` at the repository root builds the same image. In a
-checkout, replace `image:` in `compose.yaml` with `build: .` and run `docker compose up -d --build`,
-or without compose:
+checkout, create a `compose.override.yaml` next to `compose.yaml`. Compose reads it on its own and
+git ignores it, so `git pull` keeps working:
+
+```yaml
+services:
+  nexus:
+    image: lox-nexus:local
+    build: .
+    pull_policy: build
+```
+
+Then run `docker compose up -d --build` (again after each `git pull`), or build without compose:
 
 ```sh
 git clone https://github.com/Multivit4min/lox-nexus.git

@@ -4,8 +4,14 @@ services:
   nexus:
     # latest: the newest release; edge: a build of the main branch in between releases
     image: ghcr.io/multivit4min/lox-nexus:latest
-    # to build the image from a checkout of the repository instead, replace the line above with
-    # `build: .` and run `docker compose up -d --build`
+    # to build the image from a checkout of the repository instead, put this in a
+    # compose.override.yaml next to this file (git ignores it, compose reads it on its own) and run
+    # `docker compose up -d --build`:
+    #   services:
+    #     nexus:
+    #       image: lox-nexus:local
+    #       build: .
+    #       pull_policy: build
     restart: unless-stopped
     # host networking: Miniservers send their intercommunication (UDP) to the host's ports, each
     # Miniserver may use its own port, and Nexus sees the real sender addresses
