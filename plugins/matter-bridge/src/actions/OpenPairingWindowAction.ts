@@ -1,10 +1,10 @@
 import { Action } from "@lox-nexus/plugin-sdk"
 import type { MatterBridgePlugin } from "../MatterBridgePlugin.ts"
-import { BridgePanel } from "../panel/BridgePanel.ts"
+import { PairingPanel } from "../panel/PairingPanel.ts"
 
 /**
  * Lets another app pair the bridge: Matter allows several (Alexa and Google Home and Apple Home).
- * Answers with the manual pairing code; the panel shows the QR code while the window is open.
+ * Answers with the QR code and the manual pairing code; the panel shows them too while the window is open.
  */
 export class OpenPairingWindowAction extends Action<MatterBridgePlugin> {
   static readonly id = "open-pairing-window"
@@ -14,9 +14,10 @@ export class OpenPairingWindowAction extends Action<MatterBridgePlugin> {
   static readonly description = "For 15 minutes, another app (Google Home, Apple Home, Home Assistant, …) can add the bridge with the pairing code. Anyone on your network could pair during that time"
 
   async run() {
-    const status = await this.plugin.bridge.openPairingWindow()
-    const code = BridgePanel.groupCode(status.manualCode)
-    if (!status.commissioned) return `The bridge is not paired yet and waits for a controller. Pairing code: ${code} (or scan the QR code on this page)`
-    return `Pairing window open for 15 minutes. In the other app, add a Matter device and enter the code ${code}, or scan the QR code on this page`
+    const status = await this.plugin.openPairingWindow()
+    const code = PairingPanel.groupCode(status.manualCode)
+    const panel = PairingPanel.qr(status)
+    if (!status.commissioned) return { message: `The bridge is not paired yet and waits for a controller. Scan the code, or enter ${code}`, panel }
+    return { message: `Pairing window open for 15 minutes. In the other app, add a Matter device and scan the code, or enter ${code}`, panel }
   }
 }

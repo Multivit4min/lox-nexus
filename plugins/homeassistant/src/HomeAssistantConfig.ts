@@ -1,11 +1,11 @@
-import { secret, z } from "@lox-nexus/plugin-sdk"
+import { discoverable, secret, z } from "@lox-nexus/plugin-sdk"
 
 /** Instance config: where Home Assistant is and the token to log in with. */
 export const homeAssistantConfigSchema = z.object({
-  url: z.url({ protocol: /^(https?|wss?)$/ }).meta({
+  url: discoverable(z.url({ protocol: /^(https?|wss?)$/ }).meta({
     title: "URL",
-    description: "Address of Home Assistant, e.g. http://homeassistant.local:8123 (the WebSocket path is added)"
-  }),
+    description: "Address of Home Assistant, e.g. http://homeassistant.local:8123 (the WebSocket path is added). Find looks for it on the network"
+  })),
   token: secret(z.string().min(1)).meta({
     title: "Access token",
     description: "Long-lived access token, created in your Home Assistant profile under Security"

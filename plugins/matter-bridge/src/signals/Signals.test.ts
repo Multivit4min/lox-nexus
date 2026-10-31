@@ -183,8 +183,8 @@ test("states from Nexus don't come back as commands", async () => {
 test("the panel shows each device with its last state; nothing in it is a BigInt", async () => {
   const panel = await host.panel()
   assert.ok(panel?.type === "sections")
-  assert.deepEqual(panel.sections.map(section => section.title), ["Pairing", "Controllers", "Devices"])
-  const table = panel.sections[2]!.panel
+  assert.deepEqual(panel.sections.map(section => section.title), ["Pairing", "Pairing code", "Controllers", "Devices"], "not paired: the code is shown")
+  const table = BridgeHarness.section(panel, "Devices")
   assert.ok(table.type === "table")
   assert.deepEqual(table.columns, ["Device", "Id", "Type", "Last command from a controller", "Last state from Nexus"])
   const rows = Object.fromEntries(table.rows.map(row => row.map(cellText)).map(([name, , , command, last]) => [name, `${command} | ${last?.replace(/ at \d\d:\d\d:\d\d$/, "")}`]))
@@ -202,7 +202,7 @@ test("the panel shows each device with its last state; nothing in it is a BigInt
   ])
   assert.deepEqual(table.rowActions?.[table.rows.findIndex(row => row[0] === "plug")]?.[0], { action: "edit-device", label: "Edit", input: { device: "plug", name: "plug" } })
   assert.deepEqual(panel.sections.map(section => [section.title, section.actions?.map(button => button.action)]), [
-    ["Pairing", ["open-pairing-window"]], ["Controllers", undefined], ["Devices", ["add-device"]]
+    ["Pairing", ["open-pairing-window"]], ["Pairing code", undefined], ["Controllers", undefined], ["Devices", ["add-device"]]
   ])
   assert.doesNotThrow(() => JSON.stringify(panel))
 })

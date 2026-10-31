@@ -1,4 +1,5 @@
 import { Plugin, type ConfigMigration } from "@lox-nexus/plugin-sdk"
+import type { PairingStatus } from "./matter/PairingWindows.ts"
 import { AddDeviceAction } from "./actions/AddDeviceAction.ts"
 import { EditDeviceAction } from "./actions/EditDeviceAction.ts"
 import { EditLockAction } from "./actions/EditLockAction.ts"
@@ -36,6 +37,8 @@ export class MatterBridgePlugin extends Plugin<BridgeConfig> {
   static readonly sensors = Capabilities.sensors
   static readonly actuators = Capabilities.actuators
   static readonly actions = [AddDeviceAction, EditDeviceAction, EditLockAction, RemoveDeviceAction, OpenPairingWindowAction, RemovePairingAction]
+  /** the page refreshes when pairing, a controller, a device or a shown value changes */
+  static readonly panelUpdates = "push"
 
   /** merges bursts of device state writes (a moving blind) into one store write per 1.5 s */
   readonly coalescer = new WriteCoalescer((ms, run) => this.schedule(ms, run))
@@ -45,7 +48,8 @@ export class MatterBridgePlugin extends Plugin<BridgeConfig> {
     now: () => this.clock.now(),
     wait: ms => this.wait(ms),
     warn: message => this.log.warn(message),
-    memory: this.memory
+    memory: this.memory,
+    shown: () => this.panelChanged()
   })
   readonly matter = new MatterEnvironment(this.store, { warn: message => this.log.warn(message), coalescer: this.coalescer })
   readonly bridge = new BridgeNode({
@@ -55,7 +59,8 @@ export class MatterBridgePlugin extends Plugin<BridgeConfig> {
     secrets: new PairingSecrets(this.store).get(),
     devices: () => this.devices.all(),
     log: this.log,
-    clock: this.clock
+    clock: this.clock,
+    changed: () => this.panelChanged()
   })
   readonly manager = new DeviceManager(this.deviceStore, this.devices, this.bridge, this.memory, this.log)
   /** pauses running now (a long press); they end when the plugin stops */
@@ -73,7 +78,16 @@ export class MatterBridgePlugin extends Plugin<BridgeConfig> {
       for (const done of [...this.waiting]) done()
     })
     this.memory.keepOnly(this.devices.all().map(device => device.identity.endpointId))
+    this.onDispose(this.devices.onChange(() => this.panelChanged()))
     await this.bridge.start()
+  }
+
+  /** opens a pairing window; the page refreshes now and once the 15 minutes are over */
+  async openPairingWindow(): Promise<PairingStatus> {
+    const status = await this.bridge.openPairingWindow()
+    this.panelChanged()
+    if (status.windowUntil !== undefined) this.after(status.windowUntil - this.clock.now() + 1000, () => this.panelChanged())
+    return status
   }
 
   override catalog() {

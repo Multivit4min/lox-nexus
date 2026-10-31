@@ -23,10 +23,10 @@ before(async () => {
 })
 after(() => bridge.close())
 
-const pairingPart = async () => {
+const pairingPart = async () => BridgeHarness.section(await bridge.host.panel(), "Pairing")
+const titles = async () => {
   const panel = await bridge.host.panel()
-  assert.ok(panel?.type === "sections")
-  return panel.sections[0]!.panel
+  return panel?.type === "sections" ? panel.sections.map(section => section.title) : []
 }
 
 test("a controller pairs with the code from the panel; matter.js sees no file system; nothing is shown before Nexus sends it", { timeout: 30_000 }, async () => {
@@ -34,11 +34,17 @@ test("a controller pairs with the code from the panel; matter.js sees no file sy
   const pairing = bridge.host.plugin.bridge.pairing()
   assert.ok(pairing && !pairing.commissioned && pairing.window === "basic")
   manualCode = pairing.manualCode
-  assert.deepEqual(await pairingPart(), { type: "qr", data: pairing.qrCode, caption: `Manual pairing code ${manualCode.slice(0, 4)}-${manualCode.slice(4, 7)}-${manualCode.slice(7)}. Scan this in the Alexa, Google Home, Apple Home or Home Assistant app` })
+  const notice = await pairingPart()
+  assert.ok(notice.type === "notice")
+  assert.deepEqual([notice.tone, notice.title], ["warn", "Not paired yet"])
+  const code = `${manualCode.slice(0, 4)}-${manualCode.slice(4, 7)}-${manualCode.slice(7)}`
+  assert.deepEqual(BridgeHarness.section(await bridge.host.panel(), "Pairing code"), { type: "qr", data: pairing.qrCode, caption: `Manual pairing code ${code}` })
+  const pushes = bridge.host.sent.filter(message => message.type === "panel.changed").length
 
   const started = performance.now()
   peer = await bridge.pair()
   assert.ok(performance.now() - started < 10_000, "pairs within 10 s")
+  await until(() => bridge.host.sent.filter(message => message.type === "panel.changed").length > pushes, 3000, "the page told about the pairing")
   assert.equal(seen(peer, "Living room").temperatureMeasurement?.measuredValue, null, "no temperature until Nexus sends one")
   assert.equal(seen(peer, "Door").booleanState?.stateValue, true, "a contact starts closed")
   assert.equal(seen(peer, "Kitchen").onOff?.onOff, false, "a light starts off")
@@ -62,18 +68,23 @@ test("the panel lists the controller with a Remove button; a pairing window show
   const controllers = bridge.host.plugin.bridge.controllers()
   assert.equal(controllers.length, 1)
   fabricIndex = controllers[0]!.fabricIndex
-  assert.deepEqual(await pairingPart(), { type: "keyValue", items: [{ label: "Paired", value: "yes" }, { label: "Pairing window", value: "closed; Open pairing window to add another app" }] })
-  const panel = await bridge.host.panel()
-  assert.ok(panel?.type === "sections")
-  const table = panel.sections[1]!.panel
+  const paired = { label: "Paired", value: { text: "yes", tone: "ok" } }
+  assert.deepEqual(await pairingPart(), { type: "keyValue", items: [paired, { label: "Pairing window", value: { text: "closed; Open pairing window to add another app", tone: "muted" } }] })
+  assert.ok(!(await titles()).includes("Pairing code"), "no code while paired and closed")
+  const table = BridgeHarness.section(await bridge.host.panel(), "Controllers")
   assert.ok(table.type === "table")
   assert.deepEqual(table.rows, [["matter.js", "0xFFF1", String(fabricIndex)]])
   assert.deepEqual(table.rowActions, [[{ action: "remove-pairing", label: "Remove", input: { fabricIndex } }]])
 
-  assert.match(await bridge.host.action("open-pairing-window") ?? "", /15 minutes.*\d{4}-\d{3}-\d{4}/)
-  const qr = await pairingPart()
-  assert.ok(qr.type === "qr")
-  assert.match(qr.caption ?? "", /Open until \d\d:\d\d:\d\d for another app/)
+  const answer = await bridge.host.actionAnswer("open-pairing-window")
+  assert.ok(typeof answer === "object" && answer.panel?.type === "qr", "the answer carries the QR code")
+  assert.match(answer.message ?? "", /15 minutes.*\d{4}-\d{3}-\d{4}/)
+  const window = await pairingPart()
+  assert.ok(window.type === "keyValue")
+  const until15 = window.items[1]!.value
+  assert.ok(typeof until15 === "object" && until15.tone === "warn" && until15.until !== undefined)
+  assert.ok(Math.abs(until15.until - Date.now() - 15 * 60_000) < 5000, "counts down the 15 minutes")
+  assert.ok((await titles()).includes("Pairing code"))
 })
 
 test("a second app pairs through the window, and removing it leaves the first one paired", { timeout: 30_000 }, async () => {
@@ -95,7 +106,7 @@ test("a second app pairs through the window, and removing it leaves the first on
 test("while a controller shares the bridge (enhanced window), the panel points to that app's code instead of the bridge's", { timeout: 30_000 }, async () => {
   const window = await peer.openEnhancedCommissioningWindow()
   assert.equal(bridge.host.plugin.bridge.pairing()?.window, "enhanced")
-  assert.deepEqual(await pairingPart(), { type: "keyValue", items: [{ label: "Paired", value: "yes" }, { label: "Pairing window", value: "opened by a paired app to share the bridge; use the code that app shows" }] })
+  assert.deepEqual(await pairingPart(), { type: "keyValue", items: [{ label: "Paired", value: { text: "yes", tone: "ok" } }, { label: "Pairing window", value: { text: "opened by a paired app to share the bridge; use the code that app shows", tone: "info" } }] })
   await assert.rejects(bridge.host.action("open-pairing-window"), /a controller has opened a pairing window/)
   const third = await TestController.start()
   try {

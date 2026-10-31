@@ -1,3 +1,4 @@
+import type { Panel } from "@lox-nexus/plugin-sdk"
 import { PluginTestHost } from "@lox-nexus/plugin-sdk/testing"
 import type { ClientNode } from "@matter/main"
 import { MatterBridgePlugin } from "../MatterBridgePlugin.ts"
@@ -52,6 +53,13 @@ export class BridgeHarness {
   }
 
   /** a device's attributes as the controller sees them */
+  /** a section's part by its title; sections come and go (the pairing code only while it works) */
+  static section(panel: Panel | undefined, title: string) {
+    const section = panel?.type === "sections" ? panel.sections.find(candidate => candidate.title === title) : undefined
+    if (!section) throw new Error(`the panel has no "${title}" section`)
+    return section.panel
+  }
+
   static seen(peer: ClientNode, name: string) {
     return TestController.device(peer, name).state as DeviceState
   }

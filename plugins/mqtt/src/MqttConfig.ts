@@ -1,4 +1,4 @@
-import { secret, z } from "@lox-nexus/plugin-sdk"
+import { discoverable, secret, z } from "@lox-nexus/plugin-sdk"
 import { Topic } from "./topics/Topic.ts"
 
 /** credentials in the URL would show wherever the URL does (the panel, logs) */
@@ -16,12 +16,12 @@ const prefix = (fallback: string, title: string, description: string) => Topic.n
 
 /** Instance config: one broker, how to log in, and how the export publishes. */
 export const mqttConfigSchema = z.object({
-  url: z.url({ protocol: /^(mqtts?|wss?)$/, error: "an mqtt://, mqtts://, ws:// or wss:// URL" })
+  url: discoverable(z.url({ protocol: /^(mqtts?|wss?)$/, error: "an mqtt://, mqtts://, ws:// or wss:// URL" })
     .refine(withoutCredentials, "put the user and password into their own fields, not into the URL")
     .meta({
       title: "Broker URL",
-      description: "mqtt://host:1883, mqtts://host:8883 (TLS), ws://host:9001/mqtt or wss://… (WebSocket; include the path the broker serves)"
-    }),
+      description: "mqtt://host:1883, mqtts://host:8883 (TLS), ws://host:9001/mqtt or wss://… (WebSocket; include the path the broker serves). Find looks for brokers that announce themselves on the network"
+    })),
   username: z.string().max(200).optional().meta({ title: "User", description: "Leave empty when the broker allows anonymous clients" }),
   password: secret(z.string().max(1000)).optional().meta({ title: "Password", description: "The user's password" }),
   clientId: z.string().max(128).regex(/^[\x21-\x7e]+$/, "visible ASCII characters without spaces").optional().meta({

@@ -13,6 +13,8 @@ import { SolarApi } from "./SolarApi.ts"
 export class FroniusPlugin extends Plugin<FroniusConfig> {
   static readonly config = froniusConfigSchema
   static readonly sensors = [ValueSensor]
+  /** the page refreshes after each poll instead of asking every 3 s */
+  static readonly panelUpdates = "push"
 
   /** Test connection: one power flow read, the call every Fronius system answers */
   static async test(config: FroniusConfig) {
@@ -27,6 +29,7 @@ export class FroniusPlugin extends Plugin<FroniusConfig> {
   // The first poll isn't awaited: an inverter that is off (many sleep at night) must not fail the
   // start, and a hanging one must not hold it up. The instance starts degraded instead.
   override start() {
+    this.listen(this.poller, "data", () => this.panelChanged())
     void this.poller.poll()
     this.every(this.config.pollInterval * 1000, () => void this.poller.poll())
   }
@@ -41,6 +44,7 @@ export class FroniusPlugin extends Plugin<FroniusConfig> {
 
   private problemChanged(part: PollPart, problem: string | undefined) {
     if (part === "powerflow") {
+      this.panelChanged()
       if (problem) this.log.warn("can't read the inverter", { problem })
       else this.log.info("reading the inverter again")
       return problem ? this.status.set("degraded", problem) : this.status.set("running")

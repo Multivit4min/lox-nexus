@@ -15,6 +15,8 @@ export interface DeviceContext {
   /** a warning in the instance log */
   warn(message: string): void
   readonly memory: DeviceMemory
+  /** a command or state the panel shows came in */
+  shown?(): void
 }
 
 /** a command or state as the panel shows it */
@@ -148,7 +150,10 @@ export abstract class BridgedDevice {
     if (!this.info.states.includes(kind)) throw new Error(`a ${this.info.label.toLowerCase()} has no ${kind} state`)
     await this.applyState(kind, value)
     // a battery level would hide the reading a sensor's row shows
-    if (kind !== "battery") this.lastState = { kind, value, at: this.context.now() }
+    if (kind !== "battery") {
+      this.lastState = { kind, value, at: this.context.now() }
+      this.context.shown?.()
+    }
     this.states.delete(kind)
     this.states.set(kind, value)
     this.context.memory.remember(this.identity.endpointId, kind, value)
@@ -210,6 +215,7 @@ export abstract class BridgedDevice {
     if (action !== undefined && last?.action === action && JSON.stringify(last.value) === JSON.stringify(value)) return
     this.lastActions.set(kind, { action, value })
     this.lastCommand = { kind, value, at: this.context.now() }
+    this.context.shown?.()
     for (const listener of this.listeners.get(kind) ?? []) listener(value)
   }
 

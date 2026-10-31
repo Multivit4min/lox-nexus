@@ -9,11 +9,18 @@ import { newResources, waitFor } from "./test-support/waitFor.ts"
 /** the plugin instance inside the host, to wait for its poller */
 const pluginOf = (host: PluginTestHost) => host.plugin as FroniusPlugin
 
-/** the key-value panel as label → value */
+/** the panel's tiles and status items as label → shown value */
 const panelItems = async (host: PluginTestHost) => {
   const panel = await host.panel()
-  assert.equal(panel?.type, "keyValue")
-  return Object.fromEntries(panel?.type === "keyValue" ? panel.items.map(item => [item.label, cellText(item.value)]) : [])
+  assert.ok(panel?.type === "sections")
+  const [tiles, status] = panel.sections.map(section => section.panel)
+  assert.ok(tiles?.type === "tiles" && status?.type === "keyValue")
+  const tile = (value: number | string | null, unit?: string, decimals?: number) =>
+    value === null ? "–" : typeof value === "number" ? `${value.toFixed(decimals ?? 0)} ${unit}` : value
+  return Object.fromEntries([
+    ...tiles.tiles.map(entry => [entry.label, tile(entry.value, entry.unit, entry.decimals)]),
+    ...status.items.map(item => [item.label, cellText(item.value)])
+  ])
 }
 
 describe("FroniusPlugin", () => {
@@ -138,12 +145,18 @@ describe("FroniusPlugin", () => {
     const host = await started()
     const { "Last successful poll": polled, ...power } = await panelItems(host)
     assert.deepEqual(power, {
-      Photovoltaics: "3080 W", Grid: "-1181 W", Load: "-1358 W", Battery: "-412 W", "Battery charge": "63.2 %", Autonomy: "100.0 %"
+      Photovoltaics: "3080 W", Grid: "-1181 W", Load: "-1358 W", Battery: "-412 W", "Battery charge": "63.2 %", Autonomy: "100.0 %", Reading: "ok"
     })
     assert.ok(!Number.isNaN(Date.parse(polled ?? "")), "an ISO timestamp")
+    const pushes = () => host.sent.filter(message => message.type === "panel.changed").length
+    const before = pushes()
     server.fail("GetPowerFlowRealtimeData")
     await pluginOf(host).poller.poll()
-    assert.match((await panelItems(host))["Last error"] ?? "", /^GetPowerFlowRealtimeData: HTTP 500 \(\d{4}-/)
+    // within the second after the last push, so it trails by up to 1 s
+    await waitFor(() => pushes() > before, "the page is told the reading failed", 2000)
+    const failing = await panelItems(host)
+    assert.match(failing["Last error"] ?? "", /^GetPowerFlowRealtimeData: HTTP 500 \(\d{4}-/)
+    assert.match(failing.Reading ?? "", /^can't read the inverter/)
     await host.stop()
   })
 
@@ -151,7 +164,7 @@ describe("FroniusPlugin", () => {
     const release = server.hold()
     const host = await start()
     assert.deepEqual(await host.catalog(), [])
-    assert.deepEqual(Object.values(await panelItems(host)), ["–", "–", "–", "never"])
+    assert.deepEqual(Object.values(await panelItems(host)), ["–", "–", "–", "waiting for the first poll", "never"])
     release()
     await host.stop()
   })

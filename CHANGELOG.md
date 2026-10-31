@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### Plugin pages
+
+- **Richer panels:** values with a status colour and a live countdown ("in 12:30", "for 3 min"),
+  big-number tiles, notices with a link, switches and one-click buttons on rows and items. Long
+  tables get a search box, sortable columns and pages of 25.
+- **Actions** can answer with a QR code (or another panel part) and show their progress while
+  they run.
+- **Live pages:** a plugin may tell the page when its panel changed, instead of being asked every
+  3 s.
+- **Settings forms:** inputs for durations, times of day, colours, sliders, files and multiple
+  choices, and **Find** next to fields a plugin can look up on the network (mDNS).
+- For plugin authors: `Plugin.panelChanged()`, `Action.progress()`, `Actuator.run(value, { replayed })`,
+  the field kinds `duration`, `timeOfDay`, `color`, `slider`, `file` and `discoverable`, and `Mdns`.
+  Panel cells are now `string | { text, tone, until, since }`; tests read them with `cellText()`.
+  Plugins built with this SDK still work on older Nexus versions, which get plain panels.
+- **Home Assistant and MQTT:** **Find** next to the URL lists the servers and brokers that announce
+  themselves on the network.
+- **Fronius:** the power flow as tiles (battery charge and autonomy with a bar), the reading state
+  in green or red, and a page that refreshes after every poll.
+
 ### Matter bridge plugin 0.2.0
 
 - **More device types:** colour light (RGB), dimmable plug, wall switch and wall dimmer, blind
@@ -17,6 +37,9 @@
 - **Energy devices:** electricity meter, solar power (PV), battery storage, wallbox (EV charger,
   with enable, current and charging mode from the apps) and heat pump.
 - **Batteries:** sensors and buttons can be added with a battery level the apps show and warn on.
+- **Pairing on the page:** a "Not paired yet" notice, the pairing window counting down to its end,
+  green and grey for paired and closed; Open pairing window answers with the QR code. The page
+  refreshes by itself on pairing, controller and device changes.
 - The plugin's README lists every Matter device type (up to Matter 1.6.1, as matter.js 0.18 models
   them) and whether the bridge offers it.
 

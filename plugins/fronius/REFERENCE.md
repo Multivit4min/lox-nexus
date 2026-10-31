@@ -91,16 +91,25 @@ reports. Before the first successful poll it is empty.
 
 ## Panel
 
-A key-value view:
+Two sections. The page refreshes after every poll (and when reading starts or stops failing)
+instead of asking every few seconds.
+
+**Power flow**, as tiles:
+
+| Tile | Shown |
+|---|---|
+| Photovoltaics, Grid, Load | always; power in W with Fronius's signs (grid + from the grid, load negative), a dash while there is no reading |
+| Battery | when the inverter reports battery power (W, + discharging, − charging) |
+| Battery charge | when there is a battery: the battery's own state of charge, otherwise the one the hybrid inverter reports (%, with a bar) |
+| Autonomy | when the inverter reports it (%, with a bar) |
+
+**Inverter**:
 
 | Row | Shown |
 |---|---|
-| Photovoltaics, Grid, Load | always; power in W, a dash while there is no reading |
-| Battery | when the inverter reports battery power (W) |
-| Battery charge | when there is a battery: the battery's own state of charge, otherwise the one the hybrid inverter reports (%) |
-| Autonomy | when the inverter reports it (%) |
+| Reading | `ok` (green), `can't read the inverter: …` with the reason (red), or `waiting for the first poll` (grey) |
 | Last successful poll | time, or `never` |
-| Last error | the last reason the power flow couldn't be read, with its time; kept after recovery |
+| Last error | the last reason the power flow couldn't be read, with its time; red while it lasts, grey once it recovered |
 
 Meter and battery endpoint failures don't appear in the panel; they are in the log.
 

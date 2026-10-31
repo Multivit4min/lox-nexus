@@ -158,8 +158,8 @@ test("at most 50 devices, Alexa's limit for one bridge", { timeout: 30_000 }, as
   const host = await PluginTestHost.start(MatterBridgePlugin, { config: { port: await FreePort.udp() }, store: BridgeHarness.store(devices) })
   try {
     await assert.rejects(host.action("add-device", { name: "One more", ...typeInput("plug") }), /has 50 devices, Alexa's limit/)
-    const panel = await host.panel()
-    assert.ok(panel?.type === "sections" && panel.sections[2]!.panel.type === "table" && panel.sections[2]!.panel.rows.length === 50)
+    const table = BridgeHarness.section(await host.panel(), "Devices")
+    assert.ok(table.type === "table" && table.rows.length === 50)
   } finally {
     await host.stop()
   }

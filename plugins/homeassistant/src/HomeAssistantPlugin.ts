@@ -5,6 +5,7 @@ import { HassCatalog } from "./catalog/HassCatalog.ts"
 import { Registries } from "./catalog/Registries.ts"
 import { HassConnection } from "./connection/HassConnection.ts"
 import { HassAuthError, HassSocket } from "./connection/HassSocket.ts"
+import { ServerFinder } from "./connection/ServerFinder.ts"
 import { EntityStore } from "./entities/EntityStore.ts"
 import { homeAssistantConfigSchema, websocketUrl, type HomeAssistantConfig } from "./HomeAssistantConfig.ts"
 import { HomeAssistantPanel } from "./HomeAssistantPanel.ts"
@@ -23,6 +24,11 @@ export class HomeAssistantPlugin extends Plugin<HomeAssistantConfig> {
   static readonly actuators = Actuators.all
 
   /** Test connection: logs in over the WebSocket API like the plugin does, then closes; reads nothing */
+  /** Find on the URL field: Home Assistant servers that announce themselves with mDNS */
+  static async discover() {
+    return await new ServerFinder().find()
+  }
+
   static async test(config: HomeAssistantConfig) {
     const socket = await HassSocket.open(websocketUrl(config.url), config.token).catch((error: unknown) => {
       // each refused login counts towards Home Assistant's ip_ban_enabled, which would also lock out the running instance

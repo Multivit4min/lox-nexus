@@ -33,7 +33,7 @@ brokers.
 
 | Field | | Description |
 |---|---|---|
-| **Broker URL** (`url`) | required | The broker. The scheme picks the transport: `mqtt://broker.local:1883`, `mqtts://broker.local:8883` (TLS), `ws://broker.local:9001/mqtt` or `wss://…` (WebSocket; include the path the broker serves). Without a port: 1883, 8883, 80 or 443. User and password in the URL are refused. |
+| **Broker URL** (`url`) | required | The broker. The scheme picks the transport: `mqtt://broker.local:1883`, `mqtts://broker.local:8883` (TLS), `ws://broker.local:9001/mqtt` or `wss://…` (WebSocket; include the path the broker serves). Without a port: 1883, 8883, 80 or 443. User and password in the URL are refused. **Find** lists brokers that announce themselves on the network (mDNS: `_mqtt._tcp`, `_secure-mqtt._tcp` for TLS, e.g. Mosquitto with Avahi); Nexus must be on the same network (host networking in Docker). |
 | **User** (`username`) | optional | The broker user, e.g. `nexus`. Leave empty when the broker allows anonymous clients. |
 | **Password** (`password`) | optional; secret | The user's password. Never shown again, logged or put in the panel. |
 | **Client ID** (`clientId`) | optional; default `lox-nexus-<instance>-<random>` | The MQTT client ID, e.g. `lox-nexus-home`. Leave empty: the plugin makes one and keeps it across restarts. Visible ASCII without spaces, at most 128 characters. Never give two clients the same ID. |

@@ -3,6 +3,7 @@ import { JsonActuator } from "./actuators/JsonActuator.ts"
 import { NumberActuator } from "./actuators/NumberActuator.ts"
 import { SwitchActuator } from "./actuators/SwitchActuator.ts"
 import { TextActuator } from "./actuators/TextActuator.ts"
+import { BrokerFinder } from "./broker/BrokerFinder.ts"
 import { ConnectionTest } from "./broker/ConnectionTest.ts"
 import { BrokerConnection } from "./broker/BrokerConnection.ts"
 import { BrokerTarget } from "./broker/BrokerTarget.ts"
@@ -32,6 +33,11 @@ export class MqttPlugin extends Plugin<MqttConfig> {
   static readonly actuators = [TextActuator, NumberActuator, SwitchActuator, JsonActuator]
   static readonly watches = { label: "Exported signals", description: "Values of these signals are published to the broker under the export base topic" }
   /** Test connection: connects to the broker with these settings and disconnects again */
+  /** Find on the broker URL: brokers that announce themselves with mDNS */
+  static async discover() {
+    return await new BrokerFinder().find()
+  }
+
   static test(config: MqttConfig) {
     return ConnectionTest.run(config)
   }

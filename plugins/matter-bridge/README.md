@@ -16,9 +16,10 @@ Loxone output); what those apps command comes back into Nexus as sensors.
   routines, and energy: power, energy, voltage and current of meters, PV systems, home batteries,
   wallboxes and heat pumps, and a wallbox's car and session.
 - **Catalog:** one folder per device with exactly the signals its type has.
-- **Panel:** the pairing QR code and code (while the bridge's own code works), the paired apps
-  with a Remove button each, and every device with its id, last command and last state, with
-  Edit and Remove buttons.
+- **Panel:** where pairing stands ("Not paired yet", or a pairing window counting down to its
+  end), the QR code and code (while the bridge's own code works), the paired apps with a Remove
+  button each, and every device with its id, last command and last state, with Edit and Remove
+  buttons. It refreshes by itself when something changes.
 - **Actions:** Add device, Edit device, Remove device (while the bridge runs, no restart), Open
   pairing window (15 minutes, to add a second app) and Remove pairing.
 

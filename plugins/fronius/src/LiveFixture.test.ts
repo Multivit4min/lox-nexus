@@ -51,7 +51,8 @@ test("a recorded GEN24 with battery and Ohm Pilot: values, catalog and panel", a
   assert.ok(site.includes("Battery power (+ discharge, - charge)") && site.includes("Battery standby"), site.join(", "))
 
   const panel = await host.panel()
-  const items = panel?.type === "keyValue" ? Object.fromEntries(panel.items.map(item => [item.label, item.value])) : {}
-  assert.deepEqual([items["Battery charge"], items.Battery], ["5.7 %", "0 W"])
   await host.stop()
+  const tiles = panel?.type === "sections" && panel.sections[0]?.panel.type === "tiles" ? panel.sections[0].panel.tiles : []
+  const shown = Object.fromEntries(tiles.map(tile => [tile.label, `${typeof tile.value === "number" ? tile.value.toFixed(tile.decimals) : tile.value} ${tile.unit}`]))
+  assert.deepEqual([shown["Battery charge"], shown.Battery], ["5.7 %", "0 W"])
 })

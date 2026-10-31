@@ -31,7 +31,7 @@ Assistant service calls.
 
 | Field | | Description |
 |---|---|---|
-| **URL** (`url`) | required | Address of Home Assistant, `http`, `https`, `ws` or `wss`, e.g. `http://homeassistant.local:8123`. `http(s)` becomes `ws(s)` and `/api/websocket` is appended, so a path such as a reverse proxy prefix (`https://proxy.lan/ha`) is kept. A full `wss://…/api/websocket` address works as it is. |
+| **URL** (`url`) | required | Address of Home Assistant, `http`, `https`, `ws` or `wss`, e.g. `http://homeassistant.local:8123`. `http(s)` becomes `ws(s)` and `/api/websocket` is appended, so a path such as a reverse proxy prefix (`https://proxy.lan/ha`) is kept. A full `wss://…/api/websocket` address works as it is. **Find** lists the Home Assistant servers that announce themselves on the network (mDNS, `_home-assistant._tcp`) with the internal URL each one gives, else its base URL or address; Nexus must be on the same network (host networking in Docker). |
 | **Access token** (`token`) | required; secret | The long-lived access token from your Home Assistant profile, e.g. `eyJhbGciOi…`. Never logged and never shown on the panel. |
 
 ## Sensors and actuators

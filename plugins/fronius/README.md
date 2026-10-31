@@ -11,8 +11,9 @@ Nexus: the plugin is read-only.
   temperature, and Ohm Pilot values, polled every few seconds.
 - **Catalog:** the site, each inverter, meter, battery and Ohm Pilot the installation reports,
   with every value ready to add.
-- **Panel:** current PV, grid, load and battery power, battery charge, autonomy, the time of the
-  last successful poll and the last error.
+- **Panel:** current PV, grid, load and battery power, battery charge and autonomy as tiles,
+  whether the inverter can be read (green or red), the time of the last successful poll and the
+  last error. It refreshes after every poll.
 
 ## Before you start
 

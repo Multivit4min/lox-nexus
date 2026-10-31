@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
-import { BridgePanel } from "../panel/BridgePanel.ts"
+import { PairingPanel } from "../panel/PairingPanel.ts"
 import { MemoryStore } from "../test-support/MemoryStore.ts"
 import { BridgeIdentity } from "./BridgeIdentity.ts"
 import { PairingSecrets } from "./PairingSecrets.ts"
@@ -30,5 +30,5 @@ test("controllers are named by vendor; codes are grouped as the apps print them"
   assert.equal(Vendors.describe("", 0x1217), "Amazon Alexa")
   assert.equal(Vendors.describe("Home", 0x1217), "Home")
   assert.equal(Vendors.describe("", 0x1234), "vendor 0x1234")
-  assert.equal(BridgePanel.groupCode("34970112332"), "3497-011-2332")
+  assert.equal(PairingPanel.groupCode("34970112332"), "3497-011-2332")
 })

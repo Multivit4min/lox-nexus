@@ -23,6 +23,8 @@ export interface BridgeNodeOptions {
   log: PluginLogger
   /** the plugin's clock: the pairing window's end, and the deadline of a stop */
   clock: Clock
+  /** where pairing stands changed: online or offline, a controller added or removed */
+  changed?(): void
 }
 
 /**
@@ -62,8 +64,12 @@ export class BridgeNode {
     node.lifecycle.online.on(() => this.wentOnline())
     node.lifecycle.offline.on(() => {
       if (!this.closed) this.resetting = true
+      this.options.changed?.()
     })
-    node.events.commissioning.fabricsChanged.on((index, action) => log.info(`controller ${this.describe(index)}: ${action}`))
+    node.events.commissioning.fabricsChanged.on((index, action) => {
+      log.info(`controller ${this.describe(index)}: ${action}`)
+      this.options.changed?.()
+    })
     try {
       await node.start()
     } catch (error) {
@@ -165,6 +171,7 @@ export class BridgeNode {
   private wentOnline() {
     const { devices, log } = this.options
     this.resetting = false
+    this.options.changed?.()
     for (const device of devices()) device.watch()
     if (this.onlineCount++ === 0) return
     for (const device of devices()) {

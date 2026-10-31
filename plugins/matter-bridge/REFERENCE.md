@@ -231,7 +231,7 @@ Alexa and Apple warn that the bridge is not certified (it uses the Matter test v
 `0xFFF1`); continue anyway. The devices then appear with their names.
 
 - **A second app (multi-admin).** Run **Open pairing window**: for 15 minutes the bridge accepts
-  another pairing with the same code, and the panel shows the QR code with the time it closes.
+  another pairing with the same code, and the panel shows the QR code and counts down to the end.
   The answer shows the code too. Alternatively, share the bridge from an app that already has it
   (the apps call it sharing or linking a Matter device); that app then shows a code of its own.
   While that window is open the panel says so instead of showing the bridge's code (which doesn't
@@ -255,7 +255,8 @@ Alexa and Apple warn that the bridge is not certified (it uses the Matter test v
 
 | Section | Shows |
 |---|---|
-| Pairing | While not paired, or while a window opened with **Open pairing window** is open: the QR code, with the manual code (as `1234-567-8901`) and when the window closes. While a paired app shares the bridge (its own window and code): a note to use the code that app shows. Otherwise "Paired: yes". If the pairing window of an unpaired bridge has closed (after 48 hours), it says so: run **Open pairing window**. During the reset after the last app was removed: "resetting". |
+| Pairing | While not paired: a "Not paired yet" notice; if the pairing window of an unpaired bridge has closed (after 48 hours), it says so: run **Open pairing window**. Once paired: "Paired: yes" (green) and the pairing window: closed (grey), open for another app with a countdown to its end (amber), or, while a paired app shares the bridge (its own window and code), a note to use the code that app shows (blue). While the bridge isn't running: a notice saying so, or that it is resetting after the last app was removed. |
+| Pairing code | While not paired, or while a window opened with **Open pairing window** is open: the QR code, with the manual code (as `1234-567-8901`). |
 | Controllers | One row per paired app: its name (the fabric's label, else the vendor: Amazon Alexa, Google Home, Apple Home), its vendor id in hex and its fabric index, with a **Remove** button. |
 | Devices | One row per device: name, id, type, the last command from an app and the last state from Nexus, each with its time, and the **Edit** and **Remove** buttons. Without devices: "No devices yet: use Add device". Devices with several values name the one, e.g. `temperature 20.5 °C` or `heating setpoint 21 °C` on a thermostat. The last state is the value Nexus sent, before any limit (a setpoint of 35 °C shows as sent and is shown to the apps as 30 °C). |
 
@@ -263,7 +264,7 @@ Alexa and Apple warn that the bridge is not certified (it uses the Matter test v
 
 | Action | Input | What it does |
 |---|---|---|
-| Open pairing window (`open-pairing-window`) | none | Opens a 15-minute window for another app (while not paired: restarts the 48-hour window). Answers with the manual pairing code. |
+| Open pairing window (`open-pairing-window`) | none | Opens a 15-minute window for another app (while not paired: restarts the 48-hour window). Answers with the QR code and the manual pairing code. |
 | Remove pairing (`remove-pairing`) | `fabricIndex` (1–254) | Removes that app's pairing, after a confirmation. Also offered as **Remove** on each row of the Controllers table. |
 
 Add, Edit and Remove device are described under Managing devices.
