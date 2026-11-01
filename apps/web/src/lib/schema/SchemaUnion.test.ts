@@ -47,3 +47,18 @@ test("drafts start from the stored branch, keep shared fields when the choice ch
   assert.deepEqual(SchemaDraft.from(field), { type: "door-lock", name: "", allowUnlock: false }, "nothing stored: the first choice")
   assert.throws(() => SchemaDraft.value(field, { type: "fan", name: "x" }), SchemaInputError)
 })
+
+test("a list of choices is a list with a choice per item, not one JSON text", () => {
+  const field = SchemaFields.parse({ type: "object", properties: { steps: { type: "array", items: schema } } })
+  const steps = field.fields!.find(child => child.name === "steps")!
+  assert.equal(steps.kind, "array")
+  assert.equal(steps.items!.kind, "union")
+  const draft = SchemaDraft.from(steps, [{ type: "light", name: "Hall" }, { type: "door-lock", name: "Front" }])
+  assert.deepEqual(SchemaDraft.value(steps, draft), [{ type: "light", name: "Hall" }, { type: "door-lock", name: "Front", allowUnlock: false }])
+})
+
+test("only lists of object unions become editable: other unions stay JSON, nested lists reach the union", () => {
+  assert.equal(SchemaFields.parse({ type: "array", items: { oneOf: [{ type: "string" }, { type: "number" }] } }).kind, "json")
+  const nested = SchemaFields.parse({ type: "array", items: { type: "array", items: schema } })
+  assert.deepEqual([nested.kind, nested.items!.kind, nested.items!.items!.kind], ["array", "array", "union"])
+})

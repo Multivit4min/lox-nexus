@@ -159,9 +159,14 @@ export class SchemaFields {
     switch (node.type) {
       case "string": case "number": case "integer": case "boolean": return node.type
       case "object": return node.properties ? "object" : "json"
-      case "array": return node.items && !Array.isArray(node.items) && SchemaFields.kindOf(node.items) !== "json" ? "array" : "json"
+      case "array": return node.items && !Array.isArray(node.items) && SchemaFields.editable(node.items) ? "array" : "json"
       default: return "json"
     }
+  }
+
+  // a choice has no type of its own (zod writes a oneOf), but parse() renders it as a union
+  private static editable(node: JsonSchemaNode) {
+    return SchemaFields.kindOf(node) !== "json" || SchemaUnion.detect(node) !== undefined
   }
 
   private static isPrimitive(value: unknown): value is string | number | boolean {
