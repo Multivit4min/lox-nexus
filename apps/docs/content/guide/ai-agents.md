@@ -43,26 +43,48 @@ the backup was made doesn't come back. Create new ones afterwards.
 The address is your Nexus address with `/mcp`, e.g. `http://192.168.1.10:8080/mcp`. The token goes
 in the `Authorization` header, never in the address.
 
-**Claude Code** (the dialog shows this line ready to copy):
+The dialog that shows the new token also shows what to paste, with your address and token filled
+in, for Claude Code and for Claude Desktop.
+
+**Claude Code**: run this in a terminal (PowerShell or Command Prompt on Windows, a shell on
+macOS and Linux):
 
 ```sh
 claude mcp add --transport http nexus http://192.168.1.10:8080/mcp --header "Authorization: Bearer nxp_…"
 ```
 
-**Other clients** take the same address and header in their MCP settings. A client that only
-starts local MCP servers (stdio) goes through `mcp-remote`, for example in Claude Desktop's
-configuration file:
+**Claude Desktop** (Windows and macOS) only starts local MCP servers, so it reaches Nexus through
+`mcp-remote`, which it runs with `npx`:
 
-```json
-{
-  "mcpServers": {
-    "nexus": {
-      "command": "npx",
-      "args": ["mcp-remote", "http://192.168.1.10:8080/mcp", "--header", "Authorization: Bearer nxp_…"]
-    }
-  }
-}
-```
+1. Install [Node.js](https://nodejs.org/) (LTS) if you haven't.
+2. In Claude Desktop open **Settings ▸ Developer ▸ Edit Config**. It shows
+   `claude_desktop_config.json`: on Windows in `%APPDATA%\Claude`, on macOS in
+   `~/Library/Application Support/Claude`.
+3. Put this in. If the file already has `"mcpServers"`, add only the `"nexus"` entry:
+
+   ```json
+   {
+     "mcpServers": {
+       "nexus": {
+         "command": "npx",
+         "args": ["-y", "mcp-remote", "http://192.168.1.10:8080/mcp", "--header", "Authorization:${NEXUS_AUTH}", "--allow-http"],
+         "env": { "NEXUS_AUTH": "Bearer nxp_…" }
+       }
+     }
+   }
+   ```
+
+4. Quit Claude Desktop completely (on Windows also from the icon next to the clock) and start it
+   again.
+
+Why it looks like this: on Windows, Claude Desktop passes arguments with spaces to `npx` unquoted,
+which would split `Authorization: Bearer …` apart, so the header has no space and takes its value
+from `env`. `--allow-http` is needed because `mcp-remote` refuses plain `http://` to another
+computer; leave it out when Nexus is reached over `https://`. Over plain http the token crosses
+your network unencrypted.
+
+**Other clients** take the same address and header in their MCP settings, or go through
+`mcp-remote` as above when they only start local servers.
 
 Agents in the cloud (claude.ai, ChatGPT) can't connect: they would need Nexus reachable from the
 internet and a sign-in flow it doesn't have.

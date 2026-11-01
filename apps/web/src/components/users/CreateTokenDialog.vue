@@ -10,10 +10,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { AppContext } from "../../AppContext.ts"
 import { ApiError } from "../../api/ApiError.ts"
+import McpClientInstructions from "./McpClientInstructions.vue"
 
 /**
  * Creates an access token for an agent: a name, what it may do beyond reading, and your password.
- * The token is shown once, with the line that adds Nexus to Claude Code; closing forgets it.
+ * The token is shown once, with how to add it to Claude Code or Claude Desktop; closing forgets it.
  */
 const emit = defineEmits<{ created: [] }>()
 const open = defineModel<boolean>("open", { required: true })
@@ -34,7 +35,6 @@ watch(open, isOpen => {
 
 // relative to the page, so it is right behind a proxy that serves Nexus under a path
 const endpoint = computed(() => new URL("mcp", document.baseURI).href)
-const command = computed(() => created.value && `claude mcp add --transport http nexus ${endpoint.value} --header "Authorization: Bearer ${created.value.token}"`)
 
 async function onSubmit() {
   busy.value = true
@@ -80,11 +80,8 @@ async function copy(text: string | undefined, what: string) {
           <Input :model-value="created.token" readonly class="font-mono text-xs" aria-label="Access token" @focus="selectAll" />
           <Button variant="outline" size="icon" title="Copy the token" @click="copy(created.token, 'The token is')"><Copy class="size-4" /></Button>
         </div>
-        <Label>Add it to Claude Code</Label>
-        <div class="flex gap-2">
-          <code class="min-w-0 flex-1 rounded-md bg-muted px-2 py-1.5 font-mono text-xs break-all">{{ command }}</code>
-          <Button variant="outline" size="icon" title="Copy the command" @click="copy(command, 'The command is')"><Copy class="size-4" /></Button>
-        </div>
+        <Label>Add it to Claude</Label>
+        <McpClientInstructions :endpoint="endpoint" :token="created.token" @copy="copy" />
         <p v-if="copied" class="text-xs text-muted-foreground" role="status">{{ copied }}</p>
         <Button @click="open = false">Done</Button>
       </div>
