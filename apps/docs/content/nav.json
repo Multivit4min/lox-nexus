@@ -33,6 +33,7 @@
         "plugins/homeassistant.md",
         "plugins/unifi.md",
         "plugins/calendar.md",
+        "plugins/scheduler.md",
         "plugins/webhook.md",
         "plugins/mqtt.md",
         "plugins/script.md",

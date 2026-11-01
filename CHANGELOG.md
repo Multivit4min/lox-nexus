@@ -71,6 +71,34 @@
 - **Fronius:** the power flow as tiles (battery charge and autonomy with a bar), the reading state
   in green or red, and a page that refreshes after every poll.
 
+### Scheduler plugin 0.1.0 (new)
+
+- Sends values at set times. Each schedule is a sensor: a **pulse** at each run, a **window** that
+  is on between two times (22:00–06:00 crosses midnight), a number, on/off value or text in
+  **steps** (07:00 Mon–Fri → 21, 22:00 daily → 18), or the **next run** as minutes from now, Unix
+  time or Loxone date and time.
+- **Value steps** are a state: at start and after a restart they send the value of the latest step
+  that passed. Each step has its own trigger; a moment two steps share belongs to the later one.
+  A single step reaches its target only once, since Nexus doesn't send an unchanged value again.
+- Triggers are a time of day on chosen weekdays, or a 5-field **cron expression** (ranges, lists,
+  steps, names, `@daily` and the like; day of month OR day of week as in Vixie cron), in the
+  installation's time zone or one set for the instance. Invalid expressions, empty weekday lists
+  and windows that open and close at the same time are refused when saved; errors in steps name the
+  step.
+- **Daylight saving:** a time skipped in spring runs at the first minute after the gap, one that
+  happens twice in autumn runs once; hourly and every-few-minutes schedules follow real time.
+- **Random offset** of up to ± 2 hours per run, e.g. for presence simulation; kept across restarts,
+  and it never reorders runs or steps, so a window can't close before it opens.
+- **Restarts:** a pulse missed by at most 5 minutes runs once at the start, older ones are
+  skipped, and one that was switched off, skipped or passed before an edit never runs late; windows
+  and value steps work out their state from the clock; a pulse never comes back as true. A clock
+  set back starts the schedules over from the new time instead of silencing them.
+- **Actuators:** switch all schedules or a group off (windows send false), and skip the next run;
+  both survive restarts, and a skip replayed after a start is ignored.
+- **Page:** switches for all schedules and each group, a table of schedules with the next run
+  counting down, the last run and the state, and Run now, Skip next and Next runs on each row.
+  **Next runs** also previews a cron expression or time before you use it.
+
 ### UniFi Network plugin 0.1.0 (new)
 
 - Connects a UniFi console through Ubiquiti's official Network Integration API (API key), and

@@ -1,0 +1,24 @@
+{
+  "name": "@lox-nexus/plugin-scheduler",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Scheduler plugin for Lox Nexus: sends values at set times",
+  "type": "module",
+  "loxNexus": {
+    "apiVersion": 1,
+    "id": "scheduler",
+    "entry": "dist/plugin.js",
+    "name": "Scheduler",
+    "icon": "bell"
+  },
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --target=node24 --conditions=@lox-nexus/source --outfile=dist/plugin.js"
+  },
+  "dependencies": {
+    "@lox-nexus/plugin-sdk": "*"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}
