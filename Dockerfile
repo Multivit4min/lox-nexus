@@ -29,7 +29,7 @@ FROM ${NODE_IMAGE} AS server
 WORKDIR /app
 COPY . .
 RUN npm ci --omit=dev --no-audit --no-fund -w @lox-nexus/server \
- && rm -rf apps/web apps/docs plugins/*/src
+ && rm -rf apps/web apps/docs plugins/*/src examples
 
 # 3. The image: the server with its dependencies, and the built assets.
 FROM ${NODE_IMAGE}

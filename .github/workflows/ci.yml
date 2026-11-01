@@ -12,6 +12,7 @@ on:
       - "apps/**"
       - "packages/**"
       - "plugins/**"
+      - "examples/**"
       - package.json
       - package-lock.json
       - "tsconfig*.json"
@@ -22,6 +23,7 @@ on:
       - "apps/**"
       - "packages/**"
       - "plugins/**"
+      - "examples/**"
       - package.json
       - package-lock.json
       - "tsconfig*.json"

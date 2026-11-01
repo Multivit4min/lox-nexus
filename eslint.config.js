@@ -50,7 +50,7 @@ export default tseslint.config(
     files: ["**/*.test.ts"],
     rules: { "max-lines-per-function": "off" }
   },
-  restrictImports(["plugins/**"], ["core", "loxone", "ici", "api", "server", "web"],
+  restrictImports(["plugins/**", "examples/**"], ["core", "loxone", "ici", "api", "server", "web"],
     "Plugins may only depend on @lox-nexus/plugin-sdk."),
   restrictImports(["packages/plugin-sdk/**"], ["core", "loxone", "ici", "api", "server", "web"],
     "The plugin SDK is published and must stay independent of the host."),

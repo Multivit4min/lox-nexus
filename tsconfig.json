@@ -5,6 +5,7 @@
     "packages/plugin-sdk/scripts",
     "apps/server/src",
     "apps/docs/src",
-    "plugins/*/src"
+    "plugins/*/src",
+    "examples/*/src"
   ]
 }

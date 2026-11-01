@@ -1,0 +1,26 @@
+{
+  "name": "@lox-nexus/example-smart-plug",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "The finished plugin of the Lox Nexus plugin tutorial",
+  "type": "module",
+  "loxNexus": {
+    "apiVersion": 1,
+    "id": "smart-plug",
+    "entry": "dist/plugin.js",
+    "name": "Smart plug",
+    "icon": "plug"
+  },
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --target=node24 --conditions=@lox-nexus/source --outfile=dist/plugin.js",
+    "fake-plug": "tsx src/fake/main.ts"
+  },
+  "dependencies": {
+    "@lox-nexus/plugin-sdk": "*"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "tsx": "^4.19.2"
+  }
+}
