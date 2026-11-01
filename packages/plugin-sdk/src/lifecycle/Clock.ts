@@ -2,6 +2,8 @@
  * Time and timers for a Disposable's every() and after(), and for plugin code that asks what time
  * it is (`this.clock.now()` instead of `Date.now()`). The runtime gives a plugin the system clock;
  * tests can give it a TestClock (`@lox-nexus/plugin-sdk/testing`) and move time by hand.
+ *
+ * @category Lifetimes and time
  */
 export interface Clock {
   /** milliseconds since the epoch, like Date.now() */
@@ -14,7 +16,11 @@ export interface Clock {
   clearInterval(handle: unknown): void
 }
 
-/** The real clock. It looks the globals up on every call, so tests that use mock.timers still work. */
+/**
+ * The real clock. It looks the globals up on every call, so tests that use mock.timers still work.
+ *
+ * @category Lifetimes and time
+ */
 export class SystemClock implements Clock {
   static readonly instance = new SystemClock()
 

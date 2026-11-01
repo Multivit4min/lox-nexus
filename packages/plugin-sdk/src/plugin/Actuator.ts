@@ -10,27 +10,39 @@ import type { SignalInfo } from "./SignalInfo.ts"
  * - "queue": each runs, in order
  * - "latest": only the newest waiting command runs (a dimmer dragged across the range sends
  *   many values; only the last one matters)
+ *
+ * @category Sensors and actuators
  */
 export type ActuatorConcurrency = "queue" | "latest"
 
 /**
- * A command going to the device. Each configured actuator is one instance. run() is called with
- * the value converted to `accepts`; its outcome becomes a `result` message on the bus. The class
- * declares itself with static fields (see ActuatorClass; only `id` is required).
+ * A command going to the device (switch a plug, set a dimmer). Write one actuator class per kind of
+ * command and list it in the plugin's static `actuators`. Each configured actuator is one instance;
+ * run() is called with the value converted to `accepts`, and its outcome becomes a `result` message
+ * on the bus. The class declares itself with static fields (see ActuatorClass; only `id` is
+ * required).
  *
  * Like a sensor, an actuator is created when its signal is added, disposed when it is removed or
  * the plugin stops, and recreated when its params are edited. Right after a (re)start the host may
  * call run() with a value the user forced earlier, so run() must cope with being called as soon
  * as start() has resolved.
  *
+ * @example
+ * Switches the smart plug on or off; a wire turns 1/0 from a Loxone output into true/false first:
  * ```ts
- * export class SwitchActuator extends Actuator<MyPlugin, { id: string }, ValueOf<"boolean">> {
+ * export class SwitchActuator extends Actuator<SmartPlugPlugin, Record<string, never>, ValueOf<"boolean">> {
  *   static readonly id = "switch"
- *   static readonly params = z.object({ id: z.string() })
+ *   static readonly label = "Switch"
  *   static readonly accepts = "boolean"
- *   async run(value: ValueOf<"boolean">) { await this.plugin.api.set(this.params.id, value.value) }
+ *   // someone pressing a button five times only needs the last press to reach the plug
+ *   static readonly concurrency = "latest"
+ *   async run(value: ValueOf<"boolean">) {
+ *     await this.plugin.client.switch(value.value)
+ *   }
  * }
  * ```
+ *
+ * @category Sensors and actuators
  */
 export abstract class Actuator<P extends Plugin = Plugin, Params = unknown, V extends Value = Value> extends Disposable {
   /**
@@ -95,13 +107,21 @@ export abstract class Actuator<P extends Plugin = Plugin, Params = unknown, V ex
   }
 }
 
-/** What run() learns about a command besides its value. */
+/**
+ * What run() learns about a command besides its value.
+ *
+ * @category Sensors and actuators
+ */
 export interface ActuatorCommand {
   /** the host delivers the value again (a force after a restart), not a new command */
   readonly replayed: boolean
 }
 
-/** The static side of an actuator class, as the runtime sees it. */
+/**
+ * The static side of an actuator class, as the runtime sees it.
+ *
+ * @category Sensors and actuators
+ */
 export type ActuatorClass = (new (plugin: never, params: never, signal?: SignalInfo) => Actuator<Plugin, unknown, never>) & {
   /** unique within the plugin; part of the stored signal, so don't rename it */
   readonly id: string

@@ -19,7 +19,39 @@
       "title": "Writing plugins",
       "pages": [
         "plugins/index.md",
+        "plugins/tutorial/index.md",
+        "plugins/tutorial/set-up.md",
+        "plugins/tutorial/first-plugin.md",
+        "plugins/tutorial/sensors.md",
+        "plugins/tutorial/actuator.md",
+        "plugins/tutorial/finishing.md",
+        "plugins/tutorial/tests-and-install.md",
+        "plugins/tutorial/whole-plugin.md"
+      ]
+    },
+    {
+      "title": "Plugin guide",
+      "pages": [
         "plugins/authoring.md",
+        "plugins/guide/structure.md",
+        "plugins/guide/lifecycle.md",
+        "plugins/guide/plugin-class.md",
+        "plugins/guide/settings.md",
+        "plugins/guide/sensors.md",
+        "plugins/guide/actuators.md",
+        "plugins/guide/catalog.md",
+        "plugins/guide/panel.md",
+        "plugins/guide/failing.md",
+        "plugins/guide/lifetimes.md",
+        "plugins/guide/logging-and-store.md",
+        "plugins/guide/webhooks.md",
+        "plugins/guide/watching.md",
+        "plugins/guide/limits.md"
+      ]
+    },
+    {
+      "title": "Plugin topics",
+      "pages": [
         "plugins/sdk-at-a-glance.md",
         "plugins/values.md",
         "plugins/testing.md",
@@ -43,7 +75,26 @@
     },
     {
       "title": "SDK reference",
-      "dir": "reference/sdk"
+      "dir": "reference/sdk",
+      "first": [
+        "index.md",
+        "@lox-nexus/plugin-sdk/index.md",
+        "@lox-nexus/plugin-sdk/classes/Plugin.md",
+        "@lox-nexus/plugin-sdk/classes/Sensor.md",
+        "@lox-nexus/plugin-sdk/classes/Actuator.md",
+        "@lox-nexus/plugin-sdk/classes/Action.md",
+        "@lox-nexus/plugin-sdk/classes/PluginEntry.md",
+        "@lox-nexus/plugin-sdk/classes/Disposable.md",
+        "@lox-nexus/plugin-sdk/classes/Mdns.md",
+        "@lox-nexus/plugin-sdk/classes/SupersededError.md",
+        "@lox-nexus/plugin-sdk/classes/SystemClock.md",
+        "@lox-nexus/plugin-sdk/values/index.md",
+        "@lox-nexus/plugin-sdk/values/classes/ValueFactory.md",
+        "@lox-nexus/plugin-sdk/testing/index.md",
+        "@lox-nexus/plugin-sdk/testing/classes/PluginTestHost.md",
+        "@lox-nexus/plugin-sdk/testing/classes/TestClock.md",
+        "@lox-nexus/plugin-sdk/wire/index.md"
+      ]
     }
   ]
 }

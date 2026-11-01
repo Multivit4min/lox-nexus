@@ -71,6 +71,19 @@
 - **Fronius:** the power flow as tiles (battery charge and autonomy with a bar), the reading state
   in green or red, and a page that refreshes after every poll.
 
+### Documentation
+
+- **A plugin tutorial** that takes someone who has never seen Nexus to a working plugin: set up,
+  an empty plugin, settings with Test connection, sensors, an actuator, status, catalog and
+  panel, tests, and installing from a ZIP file. Its code is the tested `examples/smart-plug`
+  plugin, with a fake plug (`npm run fake-plug -w @lox-nexus/example-smart-plug`) to run it
+  against without hardware.
+- **The plugin guide is one page per topic** (lifecycle, settings, sensors, actuators, catalog,
+  panel, webhooks, and so on) instead of one long page, and *Writing plugins* starts with an
+  overview of the words and what to read when.
+- **The SDK reference has one page per class**, with topics (plugin, settings form, catalog and
+  panel, watching, lifetimes), generated from the SDK's comments.
+
 ### Scheduler plugin 0.1.0 (new)
 
 - Sends values at set times. Each schedule is a sensor: a **pulse** at each run, a **window** that

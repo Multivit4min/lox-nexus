@@ -69,7 +69,7 @@ export interface ActuatorCommand {
 // @public
 export type ActuatorConcurrency = "queue" | "latest";
 
-// @public (undocumented)
+// @public
 export type CatalogEntry = z.infer<typeof CatalogEntrySchema>;
 
 // @public
@@ -83,7 +83,7 @@ export interface CatalogNode {
     label: string;
 }
 
-// @public (undocumented)
+// @public
 export type Cell = z.infer<typeof CellSchema>;
 
 // @public
@@ -116,7 +116,7 @@ export interface ConfigMigration {
 // @public
 export function discoverable<T extends z.ZodType>(schema: T): T;
 
-// @public (undocumented)
+// @public
 export type Discovered = z.infer<typeof DiscoveredSchema>;
 
 // @public
@@ -157,7 +157,7 @@ export function file(options?: {
 // @public
 export type HttpHandler = (request: HttpRequest) => HttpResponse | Promise<HttpResponse>;
 
-// @public (undocumented)
+// @public
 export type HttpRequest = z.infer<typeof HttpRequestSchema>;
 
 // @public
@@ -295,7 +295,7 @@ export interface PluginStore {
     set(key: string, value: unknown): void;
 }
 
-// @public (undocumented)
+// @public
 export type RowAction = z.infer<typeof RowActionSchema>;
 
 // @public
@@ -381,16 +381,16 @@ export function timeOfDay(): z.ZodString;
 // @public
 export function token<T extends z.ZodType<string | null | undefined>>(schema: T): T;
 
-// @public (undocumented)
+// @public
 export type Tone = z.infer<typeof ToneSchema>;
 
-// @public (undocumented)
+// @public
 export type WatchDeclaration = z.infer<typeof WatchDeclarationSchema>;
 
-// @public (undocumented)
+// @public
 export type WatchedSignal = z.infer<typeof WatchedSignalSchema>;
 
-// @public (undocumented)
+// @public
 export type WatchedValue = z.infer<typeof WatchedValueSchema>;
 
 // @public

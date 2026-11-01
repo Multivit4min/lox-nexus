@@ -6,6 +6,8 @@ import { CauseScope } from "./CauseScope.ts"
 /**
  * The failure reported for a "latest" command that never ran because a newer one arrived. The
  * runtime creates it; plugins never throw it, but may see it in tests as the outcome of a command.
+ *
+ * @category Sensors and actuators
  */
 export class SupersededError extends Error {
   constructor() {

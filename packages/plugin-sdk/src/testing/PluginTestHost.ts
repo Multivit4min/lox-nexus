@@ -49,14 +49,26 @@ export interface TestHostOptions {
 type Waiter = { match: (message: WorkerMessage) => boolean; resolve: (message: WorkerMessage) => void }
 
 /**
- * Runs a plugin class in-process, through the same PluginRuntime that runs it in a worker, so a
- * plugin can be tested without Nexus. Records everything the plugin sends:
+ * Runs your plugin class in a test, without a Nexus server: use it in every plugin's test suite.
+ * It drives the plugin through the same PluginRuntime that runs it in a worker, so config
+ * validation, sensors, actuators, catalog, panel, actions and webhooks behave as in production, and
+ * it records everything the plugin sends. Always `await host.stop()` at the end (in `finally`),
+ * or the plugin's timers keep the test process alive.
  *
+ * @example
+ * Start the smart plug plugin against a fake device, read a sensor, switch it, stop:
  * ```ts
- * const host = await PluginTestHost.start(FroniusPlugin, { config: { host: "http://127.0.0.1:8080" } })
- * const pv = await host.addSensor("value", { path: "powerflow.Site.P_PV" })
- * assert.deepEqual(await host.next(pv), Value.number(3412))
- * await host.stop()
+ * const clock = new TestClock()
+ * const host = await PluginTestHost.start(SmartPlugPlugin, { config: { address }, clock })
+ * try {
+ *   const power = await host.addSensor("meter", { reading: "power" })
+ *   assert.deepEqual(host.values(power), [Value.number(0)])
+ *   const button = await host.addActuator("switch")
+ *   await host.actuate(button, Value.boolean(true))
+ *   await clock.advance(5000) // the next poll
+ * } finally {
+ *   await host.stop()
+ * }
  * ```
  */
 export class PluginTestHost<T extends PluginClass = PluginClass> {

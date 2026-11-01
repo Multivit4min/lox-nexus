@@ -2,13 +2,13 @@
 
 This page is the compact reference: one place to look up a signature, a default or a limit. It is maintained by hand next to the generated [SDK reference](../reference/sdk/index.md); if the two ever disagree, the reference wins.
 
-It does not teach. For when and why to use each member, and for what happens in which order, read the [plugin guide](authoring.md) (start with its [lifecycle](authoring.md#the-lifecycle-of-a-plugin)), [Values](values.md) and [Testing](testing.md). Each section below links to the matching part of the guide.
+It does not teach. For when and why to use each member, and for what happens in which order, read the [plugin guide](authoring.md) (start with its [lifecycle](guide/lifecycle.md)), [Values](values.md) and [Testing](testing.md). Each section below links to the matching part of the guide. To learn by building, follow the [tutorial](tutorial/index.md).
 
 Imports: `@lox-nexus/plugin-sdk` (classes), `@lox-nexus/plugin-sdk/values`, `@lox-nexus/plugin-sdk/testing`, `@lox-nexus/plugin-sdk/wire`.
 
 ## `@lox-nexus/plugin-sdk`
 
-### Plugin ([reference](../reference/sdk/@lox-nexus/plugin-sdk.md#abstract-plugin))
+### Plugin ([reference](../reference/sdk/@lox-nexus/plugin-sdk/classes/Plugin.md))
 
 ```ts
 abstract class Plugin<Config = unknown> extends Disposable {
@@ -37,16 +37,16 @@ abstract class Plugin<Config = unknown> extends Disposable {
 |---|---|
 | `start()` | Reject only for what a restart can't fix (bad credentials): the instance goes to the error state and is not restarted. For an unreachable device resolve and call `status.set("degraded", ...)`. |
 | `catalog()` | Asked on demand by the UI; may query the device; a throw is shown to the user. Default `[]`. Answers (catalog, panel, webhook responses) over 16 MiB as JSON fail instead. |
-| `panel()` | Asked every 3 s while the page is open; with `static panelUpdates = "push"` only when `panelChanged()` says so and every 30 s. `undefined` shows nothing. Never put secrets in it. See [Panel](authoring.md#panel-a-status-page). |
+| `panel()` | Asked every 3 s while the page is open; with `static panelUpdates = "push"` only when `panelChanged()` says so and every 30 s. `undefined` shows nothing. Never put secrets in it. See [Panel](guide/panel.md). |
 | `panelChanged()` | Tells open pages the panel changed (a device paired, a poll finished). Reaches the host at most once a second; does nothing on older hosts. |
 | `unhandledRejection(reason)` | Called for a promise in the worker that was rejected without a handler (a forgotten `.catch`). The worker keeps running; the default logs an error with the stack. Override to say more or to set a degraded status; it must not throw. `PluginTestHost.unhandledRejection(reason)` calls it in tests. |
 | `config` | Already validated against the static `config` schema, defaults applied. Available in field initializers of subclasses. |
 | `slug` | The instance's slug: its topic segment and webhook path (`/hook/<slug>/…`). Undefined with hosts that don't send it. Fixed for one run (a slug change restarts the instance). |
-| `clock` | `this.clock.now()` instead of `Date.now()`; `every()` and `after()` run on it. Also on sensors and actuators. See [Time](authoring.md#time-and-time-zones). |
+| `clock` | `this.clock.now()` instead of `Date.now()`; `every()` and `after()` run on it. Also on sensors and actuators. See [Time](guide/lifetimes.md#time-and-time-zones). |
 | `logLevel` | `current` is "debug" while the user switched on debug logging for the instance (for 15 minutes) or the server's own log is at debug, "info" otherwise; `onChange(listener)` returns the unsubscribe. Lines below it are dropped in the worker. Use it to raise a library's own verbosity; plain `log.debug()` needs nothing. "debug" for good with older hosts. |
 | `timeZone` | The installation's IANA time zone, for anything that depends on the local time. Nexus takes it from the Loxone project it read last; without one (and with older hosts) it is the server's zone, which in a container is often UTC. Fixed for one run. |
 
-Static declarations on the subclass ([`PluginClass`](../reference/sdk/@lox-nexus/plugin-sdk.md#pluginclass)); all optional:
+Static declarations on the subclass ([`PluginClass`](../reference/sdk/@lox-nexus/plugin-sdk/index.md#pluginclass)); all optional:
 
 ```ts
 static readonly config?: z.ZodType      // default: no config (empty object)
@@ -65,11 +65,11 @@ static discover?(field: string, config: unknown): Promise<Discovered>  // Find f
 `discoverable()`; `config` is the form as filled in so far, unvalidated. It answers up to 100
 `{ label, value, detail? }`: `value` is what the field gets when the user picks it. Use
 [`Mdns.browse`](#entry-config-and-re-exports) for devices that announce themselves. See
-[Find on the network](authoring.md#find-on-the-network).
+[Find on the network](guide/settings.md#find-on-the-network).
 
 A watching plugin implements `watched(values, dropped)` (batches, oldest first; the next comes
 when it returns) and optionally `watchChanged()`; `this.watch.signals()` / `signal(id)` describe
-the chosen signals. See [Watching signals](authoring.md#watching-signals-exporters).
+the chosen signals. See [Watching signals](guide/watching.md).
 
 ```ts
 type WatchDeclaration = { label: string; description?: string }
@@ -78,9 +78,9 @@ type WatchedSignal = { id: string; topic: string; label: string; valueType: Valu
 type WatchedValue = { signalId: string; ts: number; kind: "state" | "command"; value: Value; forced?: true; initial?: true }
 ```
 
-The guide explains each of these: [the plugin class](authoring.md#the-plugin-class), [starting and failing](authoring.md#starting-failing-and-degrading), [catalog](authoring.md#catalog-browse-and-add), [panel](authoring.md#panel-a-status-page).
+The guide explains each of these: [the plugin class](guide/plugin-class.md), [starting and failing](guide/failing.md), [catalog](guide/catalog.md), [panel](guide/panel.md).
 
-### Sensor ([reference](../reference/sdk/@lox-nexus/plugin-sdk.md#abstract-sensor))
+### Sensor ([reference](../reference/sdk/@lox-nexus/plugin-sdk/classes/Sensor.md))
 
 ```ts
 abstract class Sensor<P extends Plugin = Plugin, Params = unknown> extends Disposable {
@@ -100,7 +100,7 @@ abstract class Sensor<P extends Plugin = Plugin, Params = unknown> extends Dispo
 | `recover()` | The failure is over although there is no value to send (an entity back as "unavailable"). Only tells the host after a `fail()`, so it is cheap to call on every change. |
 | `signal` | `{ id, label }` of the configured signal this sensor is; label `""` with hosts that don't send it. |
 
-Static declarations ([`SensorClass`](../reference/sdk/@lox-nexus/plugin-sdk.md#sensorclass)):
+Static declarations ([`SensorClass`](../reference/sdk/@lox-nexus/plugin-sdk/index.md#sensorclass)):
 
 ```ts
 static readonly id: string                       // required; stored with the signal, never rename
@@ -115,9 +115,9 @@ static readonly staleAfterMs?: number            // suggested for new signals: w
 
 `SensorOutput`: `{ emit(value: Value): void; fail(message: string): void; recover?(): void }`, the runtime's side, not used by plugin code.
 
-In the guide: [Sensors](authoring.md#sensors-values-from-the-device).
+In the guide: [Sensors](guide/sensors.md).
 
-### Actuator ([reference](../reference/sdk/@lox-nexus/plugin-sdk.md#abstract-actuator))
+### Actuator ([reference](../reference/sdk/@lox-nexus/plugin-sdk/classes/Actuator.md))
 
 ```ts
 abstract class Actuator<P extends Plugin = Plugin, Params = unknown, V extends Value = Value> extends Disposable {
@@ -137,7 +137,7 @@ interface ActuatorCommand { readonly replayed: boolean }
 | `fail(message)` | The actuator can't work at the moment (its device is gone); shown on the signal until `recover()`. Commands still reach `run()`. |
 | `recover()` | Ends a failure. Only tells the host after a `fail()`, so it is cheap to call on every change. |
 
-Static declarations ([`ActuatorClass`](../reference/sdk/@lox-nexus/plugin-sdk.md#actuatorclass)):
+Static declarations ([`ActuatorClass`](../reference/sdk/@lox-nexus/plugin-sdk/index.md#actuatorclass)):
 
 ```ts
 static readonly id: string                          // required; stored with the signal, never rename
@@ -150,11 +150,11 @@ static readonly unit?: string                       // suggested for new signals
 static readonly decimals?: number                   // suggested for new signals (0-6)
 ```
 
-`"latest"`: while a command runs, only the newest waiting one runs; the replaced ones are reported as superseded ([`SupersededError`](../reference/sdk/@lox-nexus/plugin-sdk.md#supersedederror), thrown by the runtime, not by plugins).
+`"latest"`: while a command runs, only the newest waiting one runs; the replaced ones are reported as superseded ([`SupersededError`](../reference/sdk/@lox-nexus/plugin-sdk/classes/SupersededError.md), thrown by the runtime, not by plugins).
 
-In the guide: [Actuators](authoring.md#actuators-commands-to-the-device).
+In the guide: [Actuators](guide/actuators.md).
 
-### Action ([reference](../reference/sdk/@lox-nexus/plugin-sdk.md#abstract-action))
+### Action ([reference](../reference/sdk/@lox-nexus/plugin-sdk/classes/Action.md))
 
 Something a user starts from the instance page with a small form: pair a device, open a pairing
 window, remove a paired controller. Declared in the plugin's `static actions`; the page shows a
@@ -165,12 +165,12 @@ them, in a section's heading (`actions`) or on a table row. An input that is a
 
 | Member | Notes |
 |---|---|
-| `run()` | Returns an [`ActionResult`](../reference/sdk/@lox-nexus/plugin-sdk.md#actionresult): the text shown to the user (clipped to 2000 characters), `{ message?, panel? }` with a panel part under it (a QR code, tiles, a notice), or nothing ("Done."). Older hosts show only the message. A throw is shown as the failure, and the form stays filled in. Runs with a 2-minute timeout; one action at a time per instance (a second is refused while one runs). Disposed when it settles or the plugin stops. |
+| `run()` | Returns an [`ActionResult`](../reference/sdk/@lox-nexus/plugin-sdk/index.md#actionresult): the text shown to the user (clipped to 2000 characters), `{ message?, panel? }` with a panel part under it (a QR code, tiles, a notice), or nothing ("Done."). Older hosts show only the message. A throw is shown as the failure, and the form stays filled in. Runs with a 2-minute timeout; one action at a time per instance (a second is refused while one runs). Disposed when it settles or the plugin stops. |
 | `progress(text, fraction?)` | Protected. Shows how a long action gets on in its dialog ("Searching…", `0.4` for 40 %). At most four a second reach the host, the latest always; nothing on older hosts. Not logged. |
 | `input` | Validated against the static `input` schema, defaults applied. May hold secrets such as pairing codes: never log it. |
 | `plugin` | The plugin instance. |
 
-Static declarations ([`ActionClass`](../reference/sdk/@lox-nexus/plugin-sdk.md#actionclass)):
+Static declarations ([`ActionClass`](../reference/sdk/@lox-nexus/plugin-sdk/index.md#actionclass)):
 
 ```ts
 static readonly id: string            // required; unique among the plugin's actions
@@ -184,7 +184,7 @@ static readonly placement?: "toolbar" | "panel"  // "panel": no button at the to
 Actions run only while the instance runs or is degraded; a reverse proxy in front of Nexus should
 allow requests of up to two minutes, or a slow pairing shows as a timeout although it worked.
 
-### Disposable ([reference](../reference/sdk/@lox-nexus/plugin-sdk.md#abstract-disposable))
+### Disposable ([reference](../reference/sdk/@lox-nexus/plugin-sdk/classes/Disposable.md))
 
 ```ts
 abstract class Disposable implements DisposableLike {
@@ -214,7 +214,7 @@ abstract class Disposable implements DisposableLike {
 
 Related types: `Clock { now(); setTimeout(fn, ms); clearTimeout(handle); setInterval(fn, ms); clearInterval(handle) }` (`SystemClock.instance` in production, `TestClock` from `/testing` in tests), `Teardown = () => void | Promise<void>`, `DisposableLike { dispose(): void | Promise<void> }`, `Listenable { on(event, listener): unknown; off(event, listener): unknown }` (an `EventEmitter` fits), `Listener = (...args: any[]) => void`.
 
-In the guide: [Lifetimes](authoring.md#lifetimes-disposable).
+In the guide: [Lifetimes](guide/lifetimes.md).
 
 ### Context objects
 
@@ -251,36 +251,36 @@ type HttpHandler = (request: HttpRequest) => HttpResponse | Promise<HttpResponse
 | `http.route` | Reachable at `/hook/<instance slug><path>` **without a login**: check a secret yourself. Method `"*"` matches any method; a path ending in `/*` matches everything below that prefix (`"/a/*"` matches `/a/` and `/a/b`, not `/a`; `"/*"` all). The most specific route wins: exact before prefix, longer prefix first, a named method before `"*"`. Throws `Error` on a duplicate method + path. A throwing handler gives the caller 502. |
 | `log.*` | `data` is structured-cloned; more than 64 KiB as JSON is replaced by a note with its size. Never log secrets. |
 
-In the guide: [Logging, store and status](authoring.md#logging-store-and-status) and [Webhooks](authoring.md#webhooks). Every number (timeouts, sizes) is in [Limits at a glance](authoring.md#limits-at-a-glance).
+In the guide: [Logging, store and status](guide/logging-and-store.md) and [Webhooks](guide/webhooks.md). Every number (timeouts, sizes) is in [Limits at a glance](guide/limits.md).
 
 ### Entry, config and re-exports
 
 | Export | Signature | Notes |
 |---|---|---|
-| [`PluginEntry`](../reference/sdk/@lox-nexus/plugin-sdk.md#pluginentry) | `static define<T extends PluginClass>(type: T): T` | `export default PluginEntry.define(MyPlugin)` in `src/index.ts`. Starts the worker runtime only when loaded by Nexus. |
-| [`secret`](../reference/sdk/@lox-nexus/plugin-sdk.md#secret) | `secret<T extends z.ZodType>(schema: T): T` | Marks a field `writeOnly`: never sent back to the UI, kept when an update omits it. Top-level fields only. |
-| [`code`](../reference/sdk/@lox-nexus/plugin-sdk.md#code) | `code<T extends z.ZodType>(schema: T, language?: CodeLanguage): T` | Marks a string field as source code (`format: "code"` plus the language's `contentMediaType`), so the UI edits it in a code editor. `CodeLanguage` is `"javascript"` (default), `"json"` or `"text"`. Validating the code stays the plugin's job. |
-| [`token`](../reference/sdk/@lox-nexus/plugin-sdk.md#token) | `token<T extends z.ZodType>(schema: T): T` | Marks a string field as a random token (`format: "token"`), so the form shows a Generate button that fills in 48 hex characters. Leave it visible for copying, or add `secret()` to hide it. |
-| [`signalName`](../reference/sdk/@lox-nexus/plugin-sdk.md#signalname) | `signalName<T extends z.ZodType>(schema: T): T` | Marks the top-level param of a sensor or actuator whose value names the signal (`signalName: true`), e.g. a hook or variable name: the form names a new signal, and so its topic, after it until the user names it. |
-| [`signalGroup`](../reference/sdk/@lox-nexus/plugin-sdk.md#signalgroup) | `signalGroup<T extends z.ZodType>(schema: T): T` | Marks the top-level param of a sensor or actuator that names the device the signal belongs to (`signalGroup: true`), e.g. a Home Assistant entity: signal lists show the signals with the same value under one collapsible header. Several marked params form a path ("node ▸ endpoint"). Only the lists use it. |
+| [`PluginEntry`](../reference/sdk/@lox-nexus/plugin-sdk/classes/PluginEntry.md) | `static define<T extends PluginClass>(type: T): T` | `export default PluginEntry.define(MyPlugin)` in `src/index.ts`. Starts the worker runtime only when loaded by Nexus. |
+| [`secret`](../reference/sdk/@lox-nexus/plugin-sdk/index.md#secret) | `secret<T extends z.ZodType>(schema: T): T` | Marks a field `writeOnly`: never sent back to the UI, kept when an update omits it. Top-level fields only. |
+| [`code`](../reference/sdk/@lox-nexus/plugin-sdk/index.md#code) | `code<T extends z.ZodType>(schema: T, language?: CodeLanguage): T` | Marks a string field as source code (`format: "code"` plus the language's `contentMediaType`), so the UI edits it in a code editor. `CodeLanguage` is `"javascript"` (default), `"json"` or `"text"`. Validating the code stays the plugin's job. |
+| [`token`](../reference/sdk/@lox-nexus/plugin-sdk/index.md#token) | `token<T extends z.ZodType>(schema: T): T` | Marks a string field as a random token (`format: "token"`), so the form shows a Generate button that fills in 48 hex characters. Leave it visible for copying, or add `secret()` to hide it. |
+| [`signalName`](../reference/sdk/@lox-nexus/plugin-sdk/index.md#signalname) | `signalName<T extends z.ZodType>(schema: T): T` | Marks the top-level param of a sensor or actuator whose value names the signal (`signalName: true`), e.g. a hook or variable name: the form names a new signal, and so its topic, after it until the user names it. |
+| [`signalGroup`](../reference/sdk/@lox-nexus/plugin-sdk/index.md#signalgroup) | `signalGroup<T extends z.ZodType>(schema: T): T` | Marks the top-level param of a sensor or actuator that names the device the signal belongs to (`signalGroup: true`), e.g. a Home Assistant entity: signal lists show the signals with the same value under one collapsible header. Several marked params form a path ("node ▸ endpoint"). Only the lists use it. |
 | `z` | zod | Use this one, not your own copy. |
-| [`SupersededError`](../reference/sdk/@lox-nexus/plugin-sdk.md#supersedederror) | `class extends Error` | See `concurrency: "latest"`. |
+| [`SupersededError`](../reference/sdk/@lox-nexus/plugin-sdk/classes/SupersededError.md) | `class extends Error` | See `concurrency: "latest"`. |
 | `CatalogNode`, `CatalogEntry`, `Panel`, `PanelPart`, `RowAction`, `Cell`, `Tone`, `Discovered`, `HttpRequest`, `HttpResponse` | types, see [wire](#lox-nexusplugin-sdkwire) | Return values of `catalog()`, `panel()`, `discover` and webhook handlers. |
-| [`Action`](../reference/sdk/@lox-nexus/plugin-sdk.md#abstract-action), `ActionClass`, `ActionResult` | class, types | See [Action](#action-reference). |
+| [`Action`](../reference/sdk/@lox-nexus/plugin-sdk/classes/Action.md), `ActionClass`, `ActionResult` | class, types | See [Action](#action-reference). |
 | `ActuatorCommand` | type | What `run()` learns besides the value: `replayed`. |
-| [`duration`](../reference/sdk/@lox-nexus/plugin-sdk.md#duration) | `duration(options?: { unit?: "ms" \| "s" \| "min" \| "h"; min?; max? })` | A number of `unit`s (default seconds); the form offers seconds, minutes and hours and stores the field's unit. |
-| [`timeOfDay`](../reference/sdk/@lox-nexus/plugin-sdk.md#timeofday) | `timeOfDay()` | `"HH:MM"`, checked; a time picker. |
-| [`color`](../reference/sdk/@lox-nexus/plugin-sdk.md#color) | `color()` | `"#rrggbb"`, checked; a colour picker with the hex next to it. |
-| [`slider`](../reference/sdk/@lox-nexus/plugin-sdk.md#slider) | `slider(min, max, step = 1)` | A number in a range, shown as a slider with the number. |
-| [`file`](../reference/sdk/@lox-nexus/plugin-sdk.md#file) | `file(options?: { accept?; maxBytes?; encoding?: "text" \| "base64" })` | A picked file's contents (text, or base64 for binary), at most `maxBytes` (default 256 KiB). |
-| [`discoverable`](../reference/sdk/@lox-nexus/plugin-sdk.md#discoverable) | `discoverable<T extends z.ZodType>(schema: T): T` | Marks a top-level config field for **Find**: the form runs `static discover` for it and offers what it found. |
-| [`Mdns`](../reference/sdk/@lox-nexus/plugin-sdk.md#mdns), `MdnsOptions`, `MdnsService` | `static browse(type: string, options?: MdnsOptions): Promise<MdnsService[]>` | Finds services that announce themselves with mDNS (`"_home-assistant._tcp.local"`): name, host, port, addresses, TXT. Asks once from a random port and listens for `timeoutMs` (default 3000); needs no daemon or port 5353. For `discover`. |
+| [`duration`](../reference/sdk/@lox-nexus/plugin-sdk/index.md#duration) | `duration(options?: { unit?: "ms" \| "s" \| "min" \| "h"; min?; max? })` | A number of `unit`s (default seconds); the form offers seconds, minutes and hours and stores the field's unit. |
+| [`timeOfDay`](../reference/sdk/@lox-nexus/plugin-sdk/index.md#timeofday) | `timeOfDay()` | `"HH:MM"`, checked; a time picker. |
+| [`color`](../reference/sdk/@lox-nexus/plugin-sdk/index.md#color) | `color()` | `"#rrggbb"`, checked; a colour picker with the hex next to it. |
+| [`slider`](../reference/sdk/@lox-nexus/plugin-sdk/index.md#slider) | `slider(min, max, step = 1)` | A number in a range, shown as a slider with the number. |
+| [`file`](../reference/sdk/@lox-nexus/plugin-sdk/index.md#file) | `file(options?: { accept?; maxBytes?; encoding?: "text" \| "base64" })` | A picked file's contents (text, or base64 for binary), at most `maxBytes` (default 256 KiB). |
+| [`discoverable`](../reference/sdk/@lox-nexus/plugin-sdk/index.md#discoverable) | `discoverable<T extends z.ZodType>(schema: T): T` | Marks a top-level config field for **Find**: the form runs `static discover` for it and offers what it found. |
+| [`Mdns`](../reference/sdk/@lox-nexus/plugin-sdk/classes/Mdns.md), `MdnsOptions`, `MdnsService` | `static browse(type: string, options?: MdnsOptions): Promise<MdnsService[]>` | Finds services that announce themselves with mDNS (`"_home-assistant._tcp.local"`): name, host, port, addresses, TXT. Asks once from a random port and listens for `timeoutMs` (default 3000); needs no daemon or port 5353. For `discover`. |
 
 ## `@lox-nexus/plugin-sdk/values`
 
 In the guide: [Values](values.md).
 
-### Value ([reference](../reference/sdk/@lox-nexus/plugin-sdk/values.md#valuefactory))
+### Value ([reference](../reference/sdk/@lox-nexus/plugin-sdk/values/classes/ValueFactory.md))
 
 ```ts
 type Value =
@@ -323,24 +323,24 @@ Value.types: readonly ValueType[]
 | Structured factories | Round to whole percent (clamped 0-100) and 0.1 s fades; `t5` masks outside 0-31 become 0. They don't validate. |
 | `equals` | Structural; `NaN` equals `NaN`, `0` equals `-0`. |
 
-### Conversion and helpers ([reference](../reference/sdk/@lox-nexus/plugin-sdk/values.md))
+### Conversion and helpers ([reference](../reference/sdk/@lox-nexus/plugin-sdk/values/index.md))
 
 | Export | Signature | Notes |
 |---|---|---|
-| [`Converter`](../reference/sdk/@lox-nexus/plugin-sdk/values.md#converter) | `static convert<T extends ValueType>(value: Value, to: T): ValueOf<T>` | Never throws; impossible conversions give the target's default. Same-type input is returned as is. |
-| [`ValueDefaults`](../reference/sdk/@lox-nexus/plugin-sdk/values.md#valuedefaults) | `static for<T extends ValueType>(type: T): ValueOf<T>`; `FADE_TIME = 0.2` (s); `TEMPERATURE = 4000` (K) | A fresh default value per call. |
-| [`ValueSchema`](../reference/sdk/@lox-nexus/plugin-sdk/values.md#valueschema) | `z.ZodType<Value>` | Validates untrusted values; accepts only what a Miniserver can carry. |
+| [`Converter`](../reference/sdk/@lox-nexus/plugin-sdk/values/classes/Converter.md) | `static convert<T extends ValueType>(value: Value, to: T): ValueOf<T>` | Never throws; impossible conversions give the target's default. Same-type input is returned as is. |
+| [`ValueDefaults`](../reference/sdk/@lox-nexus/plugin-sdk/values/classes/ValueDefaults.md) | `static for<T extends ValueType>(type: T): ValueOf<T>`; `FADE_TIME = 0.2` (s); `TEMPERATURE = 4000` (K) | A fresh default value per call. |
+| [`ValueSchema`](../reference/sdk/@lox-nexus/plugin-sdk/values/index.md#valueschema) | `z.ZodType<Value>` | Validates untrusted values; accepts only what a Miniserver can carry. |
 | `ValueTypeSchema` | `z.enum([...ValueType])` | |
-| [`ValueFormatter`](../reference/sdk/@lox-nexus/plugin-sdk/values.md#valueformatter) | `new ValueFormatter().format(value: Value \| undefined): string` | Display only, lossy; never parse it. Strings come out quoted (`"eco"`). |
-| [`StringToNumber`](../reference/sdk/@lox-nexus/plugin-sdk/values.md#stringtonumber) | `new StringToNumber().parse(input: string): number` | Lenient: `"20%"` gives 0.2, `"1.234,5"` gives 1234.5, unparseable gives 0. |
-| [`T5Buttons`](../reference/sdk/@lox-nexus/plugin-sdk/values.md#t5buttons) | `new T5Buttons(mask)`; `isPressed(button): boolean`; `names(): string[]`; `toString(): string`; constants `LEFT_UPPER=1 RIGHT_UPPER=2 MIDDLE=4 LEFT_LOWER=8 RIGHT_LOWER=16` | Experimental. |
-| [`Numbers`](../reference/sdk/@lox-nexus/plugin-sdk/values.md#numbers) | `clamp(value, min, max, fallback = min)`, `percent(value, fallback = 0)`, `fade(seconds)`, `scale(value, min, max, toMin, toMax)`, `percentToHex(value)` (all static) | `percent` rounds and clamps to 0-100; `fade` limits to 0-6553.5 s in 0.1 s steps; `scale` with an empty source range gives `toMin`. |
+| [`ValueFormatter`](../reference/sdk/@lox-nexus/plugin-sdk/values/classes/ValueFormatter.md) | `new ValueFormatter().format(value: Value \| undefined): string` | Display only, lossy; never parse it. Strings come out quoted (`"eco"`). |
+| [`StringToNumber`](../reference/sdk/@lox-nexus/plugin-sdk/values/classes/StringToNumber.md) | `new StringToNumber().parse(input: string): number` | Lenient: `"20%"` gives 0.2, `"1.234,5"` gives 1234.5, unparseable gives 0. |
+| [`T5Buttons`](../reference/sdk/@lox-nexus/plugin-sdk/values/classes/T5Buttons.md) | `new T5Buttons(mask)`; `isPressed(button): boolean`; `names(): string[]`; `toString(): string`; constants `LEFT_UPPER=1 RIGHT_UPPER=2 MIDDLE=4 LEFT_LOWER=8 RIGHT_LOWER=16` | Experimental. |
+| [`Numbers`](../reference/sdk/@lox-nexus/plugin-sdk/values/classes/Numbers.md) | `clamp(value, min, max, fallback = min)`, `percent(value, fallback = 0)`, `fade(seconds)`, `scale(value, min, max, toMin, toMax)`, `percentToHex(value)` (all static) | `percent` rounds and clamps to 0-100; `fade` limits to 0-6553.5 s in 0.1 s steps; `scale` with an empty source range gives `toMin`. |
 
 ## `@lox-nexus/plugin-sdk/testing`
 
 In the guide: [Testing](testing.md).
 
-### PluginTestHost ([reference](../reference/sdk/@lox-nexus/plugin-sdk/testing.md#plugintesthost))
+### PluginTestHost ([reference](../reference/sdk/@lox-nexus/plugin-sdk/testing/classes/PluginTestHost.md))
 
 ```ts
 class PluginTestHost<T extends PluginClass = PluginClass> {
@@ -405,7 +405,7 @@ class TestClock implements Clock {
 
 ## `@lox-nexus/plugin-sdk/wire`
 
-Plugin authors need only the shapes ([reference](../reference/sdk/@lox-nexus/plugin-sdk/wire.md)):
+Plugin authors need only the shapes ([reference](../reference/sdk/@lox-nexus/plugin-sdk/wire/index.md)):
 
 ```ts
 interface CatalogNode { label: string; id?: string; children?: CatalogNode[]; entries?: CatalogEntry[] }  // id: for a panel's "Signals" button

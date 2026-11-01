@@ -6,6 +6,8 @@ import type { z } from "zod"
  *
  * Only top-level fields of the instance config are protected. A secret inside a nested object or
  * an array is not detected: its value is sent to the UI, and saving the form erases it.
+ *
+ * @category Settings form
  */
 export function secret<T extends z.ZodType>(schema: T): T {
   return schema.meta({ writeOnly: true })

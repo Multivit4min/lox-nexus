@@ -150,7 +150,7 @@ export const CapabilityDescriptionSchema: z.ZodObject<{
     staleAfterMin: z.ZodCatch<z.ZodOptional<z.ZodInt>>;
 }, z.core.$strip>;
 
-// @public (undocumented)
+// @public
 export type CatalogEntry = z.infer<typeof CatalogEntrySchema>;
 
 // @public
@@ -180,7 +180,7 @@ export interface CatalogNode {
 // @public (undocumented)
 export const CatalogNodeSchema: z.ZodType<CatalogNode>;
 
-// @public (undocumented)
+// @public
 export type Cell = z.infer<typeof CellSchema>;
 
 // @public
@@ -198,7 +198,7 @@ export const CellSchema: z.ZodUnion<readonly [z.ZodString, z.ZodObject<{
     at: z.ZodOptional<z.ZodNumber>;
 }, z.core.$strip>]>;
 
-// @public (undocumented)
+// @public
 export type Discovered = z.infer<typeof DiscoveredSchema>;
 
 // @public
@@ -364,7 +364,7 @@ export const HostMessageSchema: z.ZodDiscriminatedUnion<[z.ZodObject<{
     type: z.ZodLiteral<"shutdown">;
 }, z.core.$strip>], "type">;
 
-// @public (undocumented)
+// @public
 export type HttpRequest = z.infer<typeof HttpRequestSchema>;
 
 // @public
@@ -791,7 +791,7 @@ export interface PluginWorkerData {
     loxNexus: number;
 }
 
-// @public (undocumented)
+// @public
 export type RowAction = z.infer<typeof RowActionSchema>;
 
 // @public
@@ -820,7 +820,7 @@ export const SignalSpecSchema: z.ZodObject<{
     label: z.ZodOptional<z.ZodString>;
 }, z.core.$strip>;
 
-// @public (undocumented)
+// @public
 export type Tone = z.infer<typeof ToneSchema>;
 
 // @public
@@ -832,7 +832,7 @@ export const ToneSchema: z.ZodEnum<{
     muted: "muted";
 }>;
 
-// @public (undocumented)
+// @public
 export type WatchDeclaration = z.infer<typeof WatchDeclarationSchema>;
 
 // @public
@@ -841,7 +841,7 @@ export const WatchDeclarationSchema: z.ZodObject<{
     description: z.ZodOptional<z.ZodString>;
 }, z.core.$strip>;
 
-// @public (undocumented)
+// @public
 export type WatchedSignal = z.infer<typeof WatchedSignalSchema>;
 
 // @public
@@ -870,7 +870,7 @@ export const WatchedSignalSchema: z.ZodObject<{
     decimals: z.ZodOptional<z.ZodInt>;
 }, z.core.$strip>;
 
-// @public (undocumented)
+// @public
 export type WatchedValue = z.infer<typeof WatchedValueSchema>;
 
 // @public

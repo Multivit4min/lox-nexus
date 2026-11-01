@@ -170,5 +170,5 @@ this.emit(Value.number(percent))
 this.plugin.log.debug("emitted", { value: new ValueFormatter().format(Value.number(percent)) })
 ```
 
-See the [values reference](../reference/sdk/@lox-nexus/plugin-sdk/values.md) for every signature, and
+See the [values reference](../reference/sdk/@lox-nexus/plugin-sdk/values/index.md) for every signature, and
 [SDK at a glance](sdk-at-a-glance.md#lox-nexusplugin-sdkvalues) for the compact list.

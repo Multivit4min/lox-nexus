@@ -2,8 +2,9 @@
 
 The plugin guide lives in the documentation site, so there is one source of truth:
 
-- `apps/docs/content/plugins/index.md`: overview and quick start
-- `apps/docs/content/plugins/authoring.md`: the plugin guide
+- `apps/docs/content/plugins/index.md`: overview
+- `apps/docs/content/plugins/tutorial/`: the tutorial, which builds `examples/smart-plug/` step by step
+- `apps/docs/content/plugins/authoring.md` and `guide/`: the plugin guide, one page per topic
 - `apps/docs/content/plugins/sdk-at-a-glance.md`: all SDK signatures on one page
 - `apps/docs/content/plugins/values.md`, `testing.md`, `publishing.md`
 

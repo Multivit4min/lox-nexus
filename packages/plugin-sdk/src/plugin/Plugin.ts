@@ -11,13 +11,17 @@ import type { PluginContext, PluginLogLevel, WatchView } from "./PluginContext.t
 import type { SensorClass } from "./Sensor.ts"
 
 /**
- * Base class of a plugin. One instance runs per configured plugin instance, in its own worker
- * thread, so a plugin that crashes or hangs affects nothing else. Extend it, declare the static
- * fields below, and export the class with PluginEntry.define().
+ * The class you write once per integration: it connects to one device or service and offers its
+ * sensors, actuators and actions to Nexus. One instance runs per configured plugin instance, in
+ * its own worker thread, so a plugin that crashes or hangs affects nothing else. Extend it, declare
+ * the static fields (see PluginClass), and export the class with {@link PluginEntry.define}.
  *
- * Subclasses declare what they offer as static fields (see PluginClass; all optional) and do
- * their work in start(); everything registered with own(), every(), after() or listen() is
- * cleaned up when the instance stops.
+ * What you override: `start()` (begin work; usually register a poller with `every()`), and
+ * optionally `catalog()`, `panel()`, `watched()`, `watchChanged()` and `unhandledRejection()`.
+ * What you read: `config`, `log`, `store`, `status`, `clock`, `timeZone`, `http`, `slug`, `watch`.
+ * What you call: `panelChanged()`, and from {@link Disposable} `own()`, `every()`, `after()` and
+ * `listen()`, which are cleaned up when the instance stops. Sensors and actuators reach the plugin
+ * through their `this.plugin`, so state they share (an API client, the latest reading) lives here.
  *
  * The order of events for one run: the constructor (field initializers can already use
  * `this.config`), then start(), then the sensors and actuators the user configured (each gets its
@@ -28,14 +32,32 @@ import type { SensorClass } from "./Sensor.ts"
  * Plugin code can throw into the host only through start() and the request methods; everything
  * else is logged or, for a promise nobody handles, given to unhandledRejection().
  *
+ * @example
+ * A plugin that polls a smart plug and shares each reading with its sensors:
  * ```ts
- * export class FroniusPlugin extends Plugin<FroniusConfig> {
- *   static readonly config = froniusConfigSchema
- *   static readonly sensors = [ValueSensor]
- *   readonly poller = this.own(new Poller(() => this.config.host))
- *   override start() { this.every(5000, () => this.poller.poll()) }
+ * export class SmartPlugPlugin extends Plugin<SmartPlugConfig> {
+ *   static readonly config = smartPlugConfig
+ *   static readonly sensors = [MeterSensor]
+ *   static readonly actuators = [SwitchActuator]
+ *   readonly client = new PlugClient(this.config.address)
+ *   readonly readings = new EventEmitter()
+ *   override start() {
+ *     void this.poll()
+ *     this.every(this.config.pollSeconds * 1000, () => void this.poll())
+ *   }
+ *   // called with `void`, so it must not reject: an unreachable plug degrades the instance
+ *   async poll() {
+ *     try {
+ *       this.readings.emit("reading", await this.client.status())
+ *       this.status.set("running")
+ *     } catch (error) {
+ *       this.status.set("degraded", error instanceof Error ? error.message : String(error))
+ *     }
+ *   }
  * }
  * ```
+ *
+ * @category Plugin
  */
 export abstract class Plugin<Config = unknown> extends Disposable {
   /** Field initializers of subclasses run after this, so they can already use `this.config`. */
@@ -219,6 +241,8 @@ export abstract class Plugin<Config = unknown> extends Disposable {
 /**
  * The static side of a plugin class, as the runtime sees it. The declarations are static fields
  * of the subclass rather than of Plugin, so subclasses don't need `override` on them.
+ *
+ * @category Plugin
  */
 export type PluginClass = (new (context: PluginContext) => Plugin) & {
   /** used in error messages */

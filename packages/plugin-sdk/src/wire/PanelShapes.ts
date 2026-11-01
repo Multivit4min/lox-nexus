@@ -5,6 +5,12 @@ import { z } from "zod"
  * The UI shows it with a dot and the colour, never by colour alone.
  */
 export const ToneSchema = z.enum(["ok", "warn", "error", "info", "muted"])
+/**
+ * How a value reads at a glance: "ok" green, "warn" amber, "error" red, "info" blue, "muted" grey.
+ * The UI shows it with a dot and the colour, never by colour alone.
+ *
+ * @category Catalog, panel and actions
+ */
 export type Tone = z.infer<typeof ToneSchema>
 
 /**
@@ -23,6 +29,13 @@ export const CellSchema = z.union([
     at: z.number().optional()
   })
 ])
+/**
+ * A panel value: plain text, or an object with text, a Tone and a time the browser shows live: `until`
+ * counts down, `since` counts up, `at` shows a moment ("12 s ago"). Times are epoch ms. A host without
+ * the "panel.v2" feature gets the text instead.
+ *
+ * @category Catalog, panel and actions
+ */
 export type Cell = z.infer<typeof CellSchema>
 
 /**
@@ -40,6 +53,13 @@ export const RowActionSchema = z.object({
   instant: z.boolean().optional(),
   switch: z.object({ checked: z.boolean() }).optional()
 })
+/**
+ * A button for an action, on a table row, a key-value item or a section's heading; it opens the
+ * action's dialog with `input` filled in (its keys must be fields of the action's input schema).
+ * `instant` runs it at once, `switch` shows it as a switch in the state `checked`.
+ *
+ * @category Catalog, panel and actions
+ */
 export type RowAction = z.infer<typeof RowActionSchema>
 
 /**
@@ -92,7 +112,11 @@ const NoticePanel = z.object({
 
 /** One part of a panel; a section holds one of these. */
 export const PanelPartSchema = z.discriminatedUnion("type", [KeyValuePanel, TablePanel, JsonPanel, QrPanel, TilesPanel, NoticePanel])
-/** A key-value list, a table, a JSON tree, a QR code, tiles or a notice. */
+/**
+ * A key-value list, a table, a JSON tree, a QR code, tiles or a notice.
+ *
+ * @category Catalog, panel and actions
+ */
 export type PanelPart = z.infer<typeof PanelPartSchema>
 
 /**
@@ -128,7 +152,11 @@ export const PanelSchema = z.discriminatedUnion("type", [
     sections: z.array(z.object({ title: z.string(), panel: PanelPartSchema, actions: z.array(RowActionSchema).max(4).optional() })).max(20)
   })
 ])
-/** A status view: one part, or titled sections of parts; see PanelSchema. */
+/**
+ * A status view: one part, or titled sections of parts; see PanelSchema.
+ *
+ * @category Catalog, panel and actions
+ */
 export type Panel = z.infer<typeof PanelSchema>
 
 /**

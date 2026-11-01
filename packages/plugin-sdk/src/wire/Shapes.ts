@@ -72,6 +72,11 @@ export const CatalogEntrySchema = z.object({
   /** optional: the value's unit as the device names it, e.g. "W" or "°C"; dropped when longer than 32 characters */
   unit: z.string().max(32).optional().catch(undefined)
 })
+/**
+ * A ready-to-add sensor or actuator in a catalog: the capability with its params filled in.
+ *
+ * @category Catalog, panel and actions
+ */
 export type CatalogEntry = z.infer<typeof CatalogEntrySchema>
 
 /**
@@ -83,6 +88,8 @@ export type CatalogEntry = z.infer<typeof CatalogEntrySchema>
  *   { kind: "sensor", capability: "state", params: { entityId: "light.kitchen" }, label: "Kitchen light" }
  * ] }] }]
  * ```
+ *
+ * @category Catalog, panel and actions
  */
 export interface CatalogNode {
   label: string
@@ -110,6 +117,12 @@ export const DiscoveredSchema = z.array(z.object({
   value: z.string().max(2000),
   detail: z.string().max(500).optional()
 })).max(100)
+/**
+ * What `static discover` found for a config field, e.g. Home Assistant servers on the network:
+ * `value` is what the field gets when the user picks it, `label` and `detail` what the list shows.
+ *
+ * @category Settings form
+ */
 export type Discovered = z.infer<typeof DiscoveredSchema>
 
 // the panel's shapes live in PanelShapes; re-exported here, where they were first
@@ -122,5 +135,9 @@ export const HttpResponseSchema = z.object({
   headers: z.record(z.string(), z.string()).default({}),
   body: z.string().default("")
 })
-/** the input type: `headers` and `body` may be omitted, the runtime fills them in */
+/**
+ * the input type: `headers` and `body` may be omitted, the runtime fills them in
+ *
+ * @category Webhooks
+ */
 export type HttpResponse = z.input<typeof HttpResponseSchema>

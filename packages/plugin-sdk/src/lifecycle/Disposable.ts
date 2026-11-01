@@ -1,25 +1,43 @@
 import { SystemClock, type Clock } from "./Clock.ts"
 
-/** Cleanup callback registered with a Disposable. May be async; errors are collected, not swallowed. */
+/**
+ * Cleanup callback registered with a Disposable. May be async; errors are collected, not swallowed.
+ *
+ * @category Lifetimes and time
+ */
 export type Teardown = () => void | Promise<void>
 
-/** The minimal shape of something with a lifetime; lets own() accept objects that are not Disposable subclasses. */
+/**
+ * The minimal shape of something with a lifetime; lets own() accept objects that are not Disposable subclasses.
+ *
+ * @category Lifetimes and time
+ */
 export interface DisposableLike {
   dispose(): void | Promise<void>
 }
 
-/** An event listener as listen() takes it. Typed with any[] like Node's EventEmitter, so emitters fit. */
+/**
+ * An event listener as listen() takes it. Typed with any[] like Node's EventEmitter, so emitters fit.
+ *
+ * @category Lifetimes and time
+ */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Listener = (...args: any[]) => void
 
-/** Structural subset of EventEmitter (and similar) needed by listen(). */
+/**
+ * Structural subset of EventEmitter (and similar) needed by listen().
+ *
+ * @category Lifetimes and time
+ */
 export interface Listenable {
   on(event: string | symbol, listener: Listener): unknown
   off(event: string | symbol, listener: Listener): unknown
 }
 
 /**
- * Base class for everything that has a lifetime.
+ * Base class for everything that has a lifetime: it owns timers, listeners and child objects and
+ * releases them all in one dispose(). Extend it for a helper your plugin creates (a poller, an API
+ * client with a connection); Plugin, Sensor, Actuator and Action already extend it.
  *
  * Resources registered through own(), every(), after() or listen() are
  * released in reverse registration order when dispose() is called, so a
@@ -45,6 +63,8 @@ export interface Listenable {
  * ends the worker (the host restarts it); catch errors inside it, and report them with the
  * plugin's `log` or `status`. A callback that returns a rejected promise goes to
  * Plugin.unhandledRejection().
+ *
+ * @category Lifetimes and time
  */
 export abstract class Disposable implements DisposableLike {
   /** the largest delay setTimeout/setInterval honour; Node turns anything longer into 1 ms */

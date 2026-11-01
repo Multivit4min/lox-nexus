@@ -2,7 +2,11 @@ import { createSocket } from "node:dgram"
 import { type Clock, SystemClock } from "../lifecycle/Clock.ts"
 import { DnsPacket, type DnsRecord } from "./DnsPacket.ts"
 
-/** A service found on the network, e.g. a Home Assistant server. */
+/**
+ * A service found on the network, e.g. a Home Assistant server.
+ *
+ * @category Settings form
+ */
 export interface MdnsService {
   /** the instance's name, e.g. "Home._home-assistant._tcp.local" */
   name: string
@@ -15,7 +19,11 @@ export interface MdnsService {
   txt: Record<string, string>
 }
 
-/** where to ask; tests ask a responder on the loopback interface */
+/**
+ * where to ask; tests ask a responder on the loopback interface
+ *
+ * @category Settings form
+ */
 export interface MdnsOptions {
   /** how long answers are collected, in ms; default 3000 */
   timeoutMs?: number
@@ -36,6 +44,8 @@ export interface MdnsOptions {
  * ```ts
  * const servers = await Mdns.browse("_home-assistant._tcp.local")
  * ```
+ *
+ * @category Settings form
  */
 export class Mdns {
   /**

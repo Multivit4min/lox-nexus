@@ -13,16 +13,20 @@ interface Timer {
 }
 
 /**
- * A clock that only moves when the test says so. Give it to PluginTestHost (`{ clock }`): the
+ * A clock that only moves when the test says so, so a plugin that polls every few seconds or acts
+ * at a time of day can be tested without waiting. Give it to PluginTestHost (`{ clock }`): the
  * plugin's every() and after() run on it, and `this.clock.now()` reads it.
  *
  * Unlike `mock.timers.tick()`, which sets the time to the end of the tick before running the due
  * timers, advance() runs each timer at its own due time, so a callback that asks for the time or
- * sets the next timer sees the time it was due at:
+ * sets the next timer sees the time it was due at.
  *
+ * @example
+ * Start at a known moment, let five polls pass, then jump to a time of day:
  * ```ts
  * const clock = new TestClock("2026-10-28T08:00:00Z")
- * const host = await PluginTestHost.start(CalendarPlugin, { clock, config })
+ * const host = await PluginTestHost.start(SmartPlugPlugin, { clock, config: { address } })
+ * await clock.advance(5 * 5000)
  * await clock.advanceTo("2026-10-28T09:30:00Z")
  * ```
  */

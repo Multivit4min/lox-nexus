@@ -7,7 +7,7 @@ on:
   push:
     branches: [main]
     # the pages, and what they include: plugin READMEs and references, the SDK for its reference
-    paths: ["apps/docs/**", "plugins/*/README.md", "plugins/*/REFERENCE.md", "packages/plugin-sdk/**", ".github/workflows/docs.yml"]
+    paths: ["apps/docs/**", "plugins/*/README.md", "plugins/*/REFERENCE.md", "examples/**", "packages/plugin-sdk/**", ".github/workflows/docs.yml"]
   workflow_dispatch:
 
 # one deployment at a time; a newer push waits rather than cancelling one half deployed

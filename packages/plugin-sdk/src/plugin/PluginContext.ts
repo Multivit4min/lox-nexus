@@ -8,6 +8,8 @@ import type { LogLevel, PluginHealth } from "../wire/WorkerMessages.ts"
  * Log lines go to the host's log, tagged with the instance and the bus message being handled.
  * Text is clipped to 10 000 characters, and `data` (structured-cloned; one that cannot be cloned
  * is logged as text) is replaced by a note when it is more than 64 KiB as JSON. Never log secrets.
+ *
+ * @category Plugin
  */
 export type PluginLogger = Record<LogLevel, (message: string, data?: unknown) => void>
 
@@ -15,6 +17,8 @@ export type PluginLogger = Record<LogLevel, (message: string, data?: unknown) =>
  * The lowest level the host keeps for this instance: "debug" while the user switched on debug
  * logging for it, while the server's own log is at debug, and with older hosts; "info" otherwise. Lines below it are dropped in the worker, so debug calls cost
  * little; a plugin can raise its library's own verbosity with it.
+ *
+ * @category Plugin
  */
 export interface PluginLogLevel {
   readonly current: LogLevel
@@ -25,6 +29,8 @@ export interface PluginLogLevel {
 /**
  * Small persisted key-value state of one instance (tokens, cursors, "last seen" ids). Reads are
  * synchronous from memory; writes are sent to the host, which stores them.
+ *
+ * @category Plugin
  */
 export interface PluginStore {
   /**
@@ -46,7 +52,11 @@ export interface PluginStore {
   keys(): string[]
 }
 
-/** The plugin's own view of its health: "degraded" with a message while something is wrong. */
+/**
+ * The plugin's own view of its health: "degraded" with a message while something is wrong.
+ *
+ * @category Plugin
+ */
 export interface PluginStatus {
   /** `message` is clipped to 10 000 characters; "running" clears an earlier degraded state */
   set(status: PluginHealth, message?: string): void
@@ -56,10 +66,16 @@ export interface PluginStatus {
  * A webhook handler; when it throws (or answers with something that is not a valid HttpResponse),
  * the caller gets 502 and the error goes to the server log. The host waits up to 30 seconds for
  * the answer. The plugin sees at most 8 calls at once per instance (more get 429).
+ *
+ * @category Webhooks
  */
 export type HttpHandler = (request: HttpRequest) => HttpResponse | Promise<HttpResponse>
 
-/** Webhook routes, reachable at /hook/<instance><path> without a login: check a secret yourself. */
+/**
+ * Webhook routes, reachable at /hook/<slug><path> without a login: check a secret yourself.
+ *
+ * @category Webhooks
+ */
 export interface PluginHttp {
   /**
    * @param method e.g. "POST" (case-insensitive), or "*" for any method
@@ -71,13 +87,21 @@ export interface PluginHttp {
   route(method: string, path: string, handler: HttpHandler): void
 }
 
-/** The signals the user chose for a watching plugin; empty for others and until the host sends them. */
+/**
+ * The signals the user chose for a watching plugin; empty for others and until the host sends them.
+ *
+ * @category Watching signals
+ */
 export interface WatchView {
   signals(): WatchedSignal[]
   signal(id: string): WatchedSignal | undefined
 }
 
-/** Everything a plugin gets from the runtime. */
+/**
+ * Everything a plugin gets from the runtime.
+ *
+ * @category Plugin
+ */
 export interface PluginContext {
   /**
    * stable for the life of the configured instance (webhook URLs use the instance's slug instead).

@@ -1,6 +1,10 @@
 import type { PluginStore } from "./PluginContext.ts"
 
-/** What `static migrateConfig` gets: a stored config of an older `configVersion`. */
+/**
+ * What `static migrateConfig` gets: a stored config of an older `configVersion`.
+ *
+ * @category Plugin
+ */
 export interface ConfigMigration {
   /** the stored config, not validated: it has the shape of version `from` */
   config: unknown

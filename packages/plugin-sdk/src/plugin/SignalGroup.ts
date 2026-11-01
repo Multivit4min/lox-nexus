@@ -6,6 +6,8 @@ import type { z } from "zod"
  * value together, as one group. Several marked params form a path ("node ▸ endpoint"), in the
  * order they are declared. It is described as `signalGroup: true`, which the UI reads on
  * top-level params only. Nothing else uses it: wires, history and exports address single signals.
+ *
+ * @category Settings form
  */
 export function signalGroup<T extends z.ZodType<string | number | null | undefined>>(schema: T): T {
   return schema.meta({ signalGroup: true })

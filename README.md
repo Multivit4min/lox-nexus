@@ -163,8 +163,8 @@ the server at `http://<host>:8080/docs/`. Its sources are in [`apps/docs/content
 
 A plugin is a TypeScript package that depends only on `@lox-nexus/plugin-sdk`. It declares
 sensors (values from the device), actuators (commands to it), and optionally a catalog of
-ready-made signals, a status panel and buttons. The [quick start](apps/docs/content/plugins/index.md)
-builds a working plugin in about ten minutes; the [plugin guide](apps/docs/content/plugins/authoring.md)
+ready-made signals, a status panel and buttons. The [tutorial](https://multivit4min.github.io/lox-nexus/plugins/tutorial/index.html)
+builds a working plugin step by step; the [plugin guide](https://multivit4min.github.io/lox-nexus/plugins/authoring.html)
 and [SDK at a glance](apps/docs/content/plugins/sdk-at-a-glance.md) cover the rest. The Fronius
 plugin is a small complete example, the Home Assistant plugin one with a persistent connection.
 

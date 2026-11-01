@@ -7,6 +7,10 @@ without a Nexus server, and without starting a thread.
 Tests use `node:test` and `node:assert/strict`, and sit next to the code as `*.test.ts`. Run them
 with `npm test`.
 
+The tests of the [tutorial](tutorial/tests-and-install.md#tests) are the first example to read:
+they run a complete plugin against a fake device, with a test clock, a connection test, sensors, an
+actuator, a degraded status, a catalog and a panel. The reference below covers the rest.
+
 ```ts
 import assert from "node:assert/strict"
 import { test } from "node:test"
@@ -35,7 +39,7 @@ connections. A test that leaves a timer behind keeps `node --test` from exiting.
 `PluginTestHost` plays the part of Nexus. `start()` does what a real start does (validate the
 config, build the plugin, run its `start()`), and every other method sends the message Nexus would
 send: `addSensor()` is a `signal.add` request, `actuate()` is an `actuate` request, and so on. The
-[lifecycle](authoring.md#the-lifecycle-of-a-plugin) you read about is the lifecycle you test.
+[lifecycle](guide/lifecycle.md) you read about is the lifecycle you test.
 
 What the plugin sends back is recorded. Everything passes through `structuredClone`, like at the
 real worker boundary, so data that cannot cross it (a function in a log's `data`) fails in tests too.
@@ -271,6 +275,6 @@ then.
 
 It does not start a thread, so it cannot test the heap limit, the 30-second timeouts, the restart
 delay or the empty `process.env`; those belong to Nexus and are described in the
-[plugin guide](authoring.md#limits-at-a-glance). It does enforce the checks the runtime makes on
+[plugin guide](guide/limits.md). It does enforce the checks the runtime makes on
 what you send (store limits, answer shapes), because it is the same runtime.
 `PluginRuntimeForTests` is exported for Nexus' own tests; its constructor may change, don't use it.

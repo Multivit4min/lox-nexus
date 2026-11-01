@@ -4,7 +4,11 @@ import type { Value, ValueType } from "../values/Value.ts"
 import type { Plugin } from "./Plugin.ts"
 import type { SignalInfo } from "./SignalInfo.ts"
 
-/** Where a sensor's values go; the runtime forwards them to the bus. */
+/**
+ * Where a sensor's values go; the runtime forwards them to the bus.
+ *
+ * @category Sensors and actuators
+ */
 export interface SensorOutput {
   /** sends a value to the bus, tagged with the cause of the work that is running (see Actuator) */
   emit(value: Value): void
@@ -15,7 +19,8 @@ export interface SensorOutput {
 }
 
 /**
- * A value coming from the device. Each configured sensor (a capability plus params) is one
+ * A value coming from the device (a power reading, a door state). Write one sensor class per kind
+ * of value and list it in the plugin's static `sensors`. Each configured sensor (a capability plus params) is one
  * instance, created when the signal is added and disposed when it is removed or the plugin stops.
  * Editing a signal's params in the UI disposes the instance and creates a new one, so start()
  * runs again with the new params; keep state that must outlive that in the plugin.
@@ -33,6 +38,8 @@ export interface SensorOutput {
  *   override start() { this.listen(this.plugin.poller, "data", data => this.emit(Value.number(...))) }
  * }
  * ```
+ *
+ * @category Sensors and actuators
  */
 export abstract class Sensor<P extends Plugin = Plugin, Params = unknown> extends Disposable {
   /**
@@ -99,7 +106,11 @@ export abstract class Sensor<P extends Plugin = Plugin, Params = unknown> extend
   }
 }
 
-/** The static side of a sensor class, as the runtime sees it. */
+/**
+ * The static side of a sensor class, as the runtime sees it.
+ *
+ * @category Sensors and actuators
+ */
 export type SensorClass = (new (plugin: never, params: never, output: SensorOutput, signal?: SignalInfo) => Sensor<Plugin, unknown>) & {
   /** unique within the plugin; part of the stored signal, so don't rename it */
   readonly id: string

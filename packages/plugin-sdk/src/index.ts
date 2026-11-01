@@ -6,6 +6,37 @@
  * Values, the host/worker protocol and the test helpers live in the subpaths
  * `@lox-nexus/plugin-sdk/values`, `/wire` and `/testing`.
  *
+ * @categoryDescription Plugin
+ * The class you extend ({@link Plugin}), the one line that exports it ({@link PluginEntry}), and
+ * what the runtime hands it: its config, log, store and status (see {@link PluginContext}).
+ *
+ * @categoryDescription Sensors and actuators
+ * The signals a plugin offers. Extend {@link Sensor} for a value that comes from the device and
+ * {@link Actuator} for a command that goes to it; list them in the plugin's static `sensors` and
+ * `actuators`.
+ *
+ * @categoryDescription Settings form
+ * Helpers that mark config and params fields so the UI shows the right input: {@link secret},
+ * {@link code}, {@link token}, {@link duration}, {@link slider} and more. {@link Mdns} finds
+ * devices on the network for a field marked with {@link discoverable}.
+ *
+ * @categoryDescription Catalog, panel and actions
+ * What the plugin shows in the UI beyond the form: a catalog of ready-to-add signals, a status
+ * panel, and buttons a user can press. Extend {@link Action} for something the user starts from
+ * the instance page.
+ *
+ * @categoryDescription Webhooks
+ * HTTP routes the plugin registers with `this.http`, reachable at `/hook/<slug>/...`.
+ *
+ * @categoryDescription Lifetimes and time
+ * Everything with a lifetime extends {@link Disposable}: timers, listeners and children
+ * registered through it are cleaned up for you. {@link Clock} is the time it runs on, so tests can
+ * move time by hand.
+ *
+ * @categoryDescription Watching signals
+ * For plugins that receive the values of signals the user chooses (exporters), declared with the
+ * static `watches`.
+ *
  * @packageDocumentation
  * @module @lox-nexus/plugin-sdk
  */

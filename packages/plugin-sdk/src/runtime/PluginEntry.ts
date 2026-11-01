@@ -17,6 +17,8 @@ export interface PluginWorkerData {
  * Loaded by Nexus as a plugin worker, it starts the runtime for the class and routes unhandled
  * promise rejections to `Plugin.unhandledRejection` instead of letting them end the worker.
  * Imported anywhere else (tests, tools) it only returns the class.
+ *
+ * @category Plugin
  */
 export class PluginEntry {
   /** @returns `type` itself, so it can be the module's default export */

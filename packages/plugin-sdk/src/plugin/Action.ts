@@ -7,14 +7,26 @@ import type { Plugin } from "./Plugin.ts"
 /**
  * What an action's run() answers: a text, or a message with a panel part shown under it (a QR
  * code, tiles, a notice). Hosts without the "action.result" feature show only the message.
+ *
+ * @category Catalog, panel and actions
  */
 export type ActionResult = string | void | { message?: string; panel?: PanelPart }
 
 /**
  * Something a user starts from the instance page, with a small form: pair a device, open a pairing
- * window, remove a paired controller. One class per action, declared in the plugin's static
- * `actions`; only `id` and `run()` are required:
+ * window, remove a paired controller. Write one class per action and list it in the plugin's static
+ * `actions`; only `id` and `run()` are required. Use an action for work the user triggers once;
+ * use an actuator for a signal a Loxone output drives.
  *
+ * The runtime validates the input against `input`, builds the action, runs it and disposes it when
+ * `run()` settles or the plugin stops. One action runs at a time per instance. What `run()`
+ * returns is shown to the user (a message of at most 2000 characters, optionally with a panel part
+ * such as a QR code) and not logged; what it throws is shown as the failure and also written to the
+ * instance log, so keep codes out of error messages. Inputs may hold secrets such as pairing codes:
+ * don't log them.
+ *
+ * @example
+ * A button that pairs a device with a code the user types:
  * ```ts
  * export class PairAction extends Action<MatterPlugin, { code: string }> {
  *   static readonly id = "pair"
@@ -27,12 +39,7 @@ export type ActionResult = string | void | { message?: string; panel?: PanelPart
  * }
  * ```
  *
- * The runtime validates the input against `input`, builds the action, runs it and disposes it when
- * `run()` settles or the plugin stops. One action runs at a time per instance. What `run()`
- * returns is shown to the user (a message of at most 2000 characters, optionally with a panel part
- * such as a QR code) and not logged; what it throws is shown as
- * the failure and also written to the instance log, so keep codes out of error messages. Inputs
- * may hold secrets such as pairing codes: don't log them.
+ * @category Catalog, panel and actions
  */
 export abstract class Action<P extends Plugin = Plugin, Input = unknown> extends Disposable {
   /** `input` is validated against the static `input` schema, with defaults applied */
@@ -55,7 +62,11 @@ export abstract class Action<P extends Plugin = Plugin, Input = unknown> extends
   }
 }
 
-/** The static side of an action class. */
+/**
+ * The static side of an action class.
+ *
+ * @category Catalog, panel and actions
+ */
 export type ActionClass = (new (plugin: never, input: never) => Action<Plugin, unknown>) & {
   /** unique within the plugin; the API addresses the action by it */
   readonly id: string

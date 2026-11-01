@@ -11,9 +11,9 @@
     "typedoc-plugin-markdown"
   ],
   "out": "content/reference/sdk",
-  "outputFileStrategy": "modules",
+  "outputFileStrategy": "members",
   "entryFileName": "index",
-  "readme": "none",
+  "readme": "reference-intro.md",
   "hidePageHeader": true,
   "hideBreadcrumbs": true,
   "excludePrivate": true,
@@ -25,5 +25,23 @@
   "logLevel": "Warn",
   "excludeExternals": true,
   "useHTMLAnchors": true,
-  "name": "SDK reference"
+  "name": "SDK reference",
+  "membersWithOwnFile": [
+    "Class"
+  ],
+  "mergeReadme": true,
+  "categorizeByGroup": false,
+  "categoryOrder": [
+    "Plugin",
+    "Sensors and actuators",
+    "Settings form",
+    "Catalog, panel and actions",
+    "Webhooks",
+    "Lifetimes and time",
+    "Watching signals",
+    "*"
+  ],
+  "validation": {
+    "invalidPath": false
+  }
 }

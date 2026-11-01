@@ -29,8 +29,9 @@ Miniserver needs no extra hardware, no cloud and no HTTP polling.
 - **Keep values:** [History](guide/history.md) charts in Nexus, the [InfluxDB](plugins/influxdb.md)
   plugin for Grafana and long-term storage, and the [MQTT](plugins/mqtt.md) plugin's export (with
   Home Assistant discovery).
-- **Write a plugin:** start with the [10-minute quick start](plugins/index.md), then read the
-  [plugin guide](plugins/authoring.md) and the [SDK reference](reference/sdk/index.md).
+- **Write a plugin:** start with the [plugin tutorial](plugins/tutorial/index.md), which builds a working
+  plugin step by step. The [plugin guide](plugins/authoring.md) and the
+  [SDK reference](reference/sdk/index.md) cover the rest, and [Writing plugins](plugins/index.md) is the overview.
 
 ## Status
 

@@ -1,6 +1,10 @@
 import type { z } from "zod"
 
-/** Languages the UI knows how to present; others are shown as plain text. */
+/**
+ * Languages the UI knows how to present; others are shown as plain text.
+ *
+ * @category Settings form
+ */
 export type CodeLanguage = "javascript" | "json" | "text"
 
 const MEDIA_TYPES: Record<CodeLanguage, string> = {
@@ -14,6 +18,8 @@ const MEDIA_TYPES: Record<CodeLanguage, string> = {
  * code editor instead of a one-line input; a field that is also `secret()` stays a masked input.
  * It is described as `format: "code"` with the language's `contentMediaType`. Validating the code
  * stays the plugin's job, e.g. compiling it in start() and throwing with the line and column.
+ *
+ * @category Settings form
  */
 export function code<T extends z.ZodType<string | null | undefined>>(schema: T, language: CodeLanguage = "javascript"): T {
   return schema.meta({ format: "code", contentMediaType: MEDIA_TYPES[language] })

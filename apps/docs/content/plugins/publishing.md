@@ -12,7 +12,7 @@
   from source (`src/index.ts`) and restarts its instances when a file changes. `npm run dev` points
   it at the repository's `plugins/` directory. Because the SDK is a workspace package and is not on
   npm yet, a plugin is developed inside a Nexus checkout, in `plugins/<name>/`, and can later be
-  moved out. See the [quick start](index.md).
+  moved out. The [tutorial](tutorial/set-up.md) walks through it.
 
 ## The manifest
 
@@ -66,7 +66,7 @@ package instead.
 ### What may be bundled
 
 - **Bundled in:** the SDK, zod and any pure JavaScript dependency (an iCal parser, a client
-  library). The Hello example in the quick start comes to about 780 KB because zod is included.
+  library). The smart plug of the [tutorial](tutorial/index.md) comes to about 850 KB because zod is included.
 - **Not possible:** native modules (`.node` addons) and anything that needs `npm install` at run
   time. Mark nothing as `--external`: the bundle must be a single file, with no `node_modules`
   next to it.
@@ -111,7 +111,7 @@ package instead.
 The same version with the same bundle counts as already installed, and confirming it changes
 nothing. The same version with a **different** bundle is refused, so raise the version whenever
 the bundle changes. Only the local plugin repository stamps versions itself: it installs `1.2.0` as
-`1.2.0+<hash of the bundle and the README>`, so a rebuilt plugin, or one whose README changed, installs there as a new version. A different version is an update: running instances restart on it (stopped, then started as a new worker, see the [lifecycle](authoring.md#the-lifecycle-of-a-plugin)), and the
+`1.2.0+<hash of the bundle and the README>`, so a rebuilt plugin, or one whose README changed, installs there as a new version. A different version is an update: running instances restart on it (stopped, then started as a new worker, see the [lifecycle](guide/lifecycle.md)), and the
 version before stays for a rollback.
 
 **Keep stored data compatible.** Updates and rollbacks don't migrate an instance's config or

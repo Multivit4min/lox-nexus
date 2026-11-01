@@ -11,6 +11,12 @@ export const WatchDeclarationSchema = z.object({
   /** e.g. "Values of these signals are written to InfluxDB" */
   description: z.string().max(500).optional()
 })
+/**
+ * What a plugin that watches signals declares (`static readonly watches`): shown to the user where
+ * they choose the signals it receives.
+ *
+ * @category Watching signals
+ */
 export type WatchDeclaration = z.infer<typeof WatchDeclarationSchema>
 
 /** A signal the user chose for a watching plugin: any signal of Nexus, a Miniserver's or another plugin's. */
@@ -27,6 +33,11 @@ export const WatchedSignalSchema = z.object({
   /** the decimals the user wants its numbers shown with; absent when not set */
   decimals: z.int().optional()
 })
+/**
+ * A signal the user chose for a watching plugin: any signal of Nexus, a Miniserver's or another plugin's.
+ *
+ * @category Watching signals
+ */
 export type WatchedSignal = z.infer<typeof WatchedSignalSchema>
 
 /** One value of a watched signal, as subscribers of the bus saw it. */
@@ -42,4 +53,9 @@ export const WatchedValueSchema = z.object({
   /** the value the signal had when watching started (or the signal was chosen), not a change */
   initial: z.literal(true).optional()
 })
+/**
+ * One value of a watched signal, as subscribers of the bus saw it.
+ *
+ * @category Watching signals
+ */
 export type WatchedValue = z.infer<typeof WatchedValueSchema>

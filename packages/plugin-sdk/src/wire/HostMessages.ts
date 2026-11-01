@@ -21,7 +21,7 @@ export const SignalSpecSchema = z.object({
 })
 export type SignalSpec = z.infer<typeof SignalSpecSchema>
 
-/** An HTTP request to the plugin's webhook routes; `path` is below /hook/<instance>. */
+/** An HTTP request to the plugin's webhook routes; `path` is below /hook/<slug>. */
 export const HttpRequestSchema = z.object({
   method: z.string(),
   path: z.string(),
@@ -32,6 +32,11 @@ export const HttpRequestSchema = z.object({
   /** utf-8 text; empty without a body */
   body: z.string()
 })
+/**
+ * An HTTP request to the plugin's webhook routes; `path` is below /hook/<slug>.
+ *
+ * @category Webhooks
+ */
 export type HttpRequest = z.infer<typeof HttpRequestSchema>
 
 /**

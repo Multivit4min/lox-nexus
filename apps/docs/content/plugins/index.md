@@ -1,192 +1,73 @@
 # Writing plugins
 
-A plugin connects one kind of external system to Nexus. It is a TypeScript package that depends
-only on the public SDK, `@lox-nexus/plugin-sdk`. Each configured instance of it runs in its own
-worker thread; Nexus talks to it only through messages, so a plugin can crash, hang or leak
-without taking anything else down.
+A plugin connects one kind of device or service to Nexus: a smart plug, an inverter, a calendar.
+You write it in TypeScript, against one package, `@lox-nexus/plugin-sdk`. Nexus runs each
+configured copy of your plugin in its own worker thread and talks to it only through messages, so
+a plugin that crashes, hangs or leaks takes nothing else down.
 
-The user adds an **instance** of your plugin with its settings, then adds **signals** to it. A plugin declares:
+If you have never written one, start with the [tutorial](tutorial/index.md). It builds a complete
+plugin in about an hour, and you see something work after every step.
 
-- **sensors**: values coming from the device (they become wire sources),
-- **actuators**: commands going to the device (they become wire targets),
-- optionally a **catalog** (a tree of ready-to-add sensors and actuators) and a **panel** (a
-  status view).
+> **Not available yet:** the SDK isn't published to npm, and there is no plugin template
+> repository. Until then you develop a plugin inside a checkout of Nexus, in `plugins/<name>/`,
+> and move it out when it is done. A built plugin installs from a ZIP file or a git repository,
+> see [Publishing a plugin](publishing.md).
 
-Look at the [Fronius plugin](fronius.md) for a complete, small example (read-only, polling), and the
-[Home Assistant plugin](homeassistant.md) for one with a persistent connection and actuators.
+## What a plugin does, in a picture
 
-> **Today** you develop plugins inside a Nexus checkout, because the SDK isn't on npm yet. A built
-> plugin installs from a ZIP file or a git repository, see [Publishing a plugin](publishing.md).
-
-## Quick start
-
-This builds a plugin called *Hello* with a counter sensor and an echo actuator, and runs it.
-
-### 1. Create the package
-
-Inside a checkout of Nexus (after `npm install`), create `plugins/hello/`. Every directory of
-`plugins/` is a workspace package.
-
-`plugins/hello/package.json`:
-
-```json
-{
-  "name": "@lox-nexus/plugin-hello",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
-  "loxNexus": {
-    "apiVersion": 1,
-    "id": "hello",
-    "entry": "dist/plugin.js",
-    "name": "Hello",
-    "icon": "hand"
-  },
-  "scripts": {
-    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --target=node24 --conditions=@lox-nexus/source --outfile=dist/plugin.js"
-  },
-  "dependencies": {
-    "@lox-nexus/plugin-sdk": "*"
-  },
-  "devDependencies": {
-    "esbuild": "^0.28.2"
-  }
-}
+```
+  device               Nexus                                     Loxone
++----------+    +-------------------------+              +-----------------+
+|          |    |                         |              |                 |
+|          |--->| sensor "Power"          |--- wire ---> | Miniserver      |
+|  smart   |    |   (a signal)            |              |   out signal    |
+|  plug    |    |                         |              |                 |
+|          |<---| actuator "Switch"       |<-- wire ---- | Miniserver      |
+|          |    |   (a signal)            |              |   in signal     |
+|          |    |                         |              |                 |
++----------+    +-------------------------+              +-----------------+
+                 plugin instance "Desk lamp"
 ```
 
-`plugins/hello/tsconfig.json`:
+You write the middle part: how to read the device (a **sensor**) and how to command it (an
+**actuator**). The user adds an **instance** of your plugin for each device, fills in its
+**settings**, adds the sensors and actuators they want, and connects them to a Miniserver with
+**wires**. You never see wires, the bus or other plugins; you only decide what exists and what it
+does.
 
-```json
-{
-  "extends": "../../tsconfig.base.json",
-  "include": ["src"]
-}
-```
+## The words
 
-Run `npm install` at the repository root once so the workspace picks the new package up.
+| Word | What it is |
+|---|---|
+| **Plugin** | Your package: a class that extends `Plugin`, plus sensor and actuator classes. |
+| **Instance** | The plugin configured once, for example for one plug. One plugin can have many instances, and each runs separately. |
+| **Settings** | What the user fills in when adding an instance (an address, a token). You describe them as a zod schema, Nexus builds the form. In code they are called `config`. |
+| **Signal** | A named value on Nexus' bus, with a topic such as `smart-plug/desk-lamp/sensor/power`. A sensor or actuator the user has added is a signal. |
+| **Sensor** | A class that turns what the device reports into values (device to Nexus). It becomes the source of wires. |
+| **Actuator** | A class that carries out a command (Nexus to device). It becomes the target of wires. |
+| **Params** | The settings of one signal, for example *which reading* a meter sensor follows. You describe them per sensor or actuator. |
+| **Catalog** | An optional tree of ready-to-add sensors and actuators, so the user picks from what the device has instead of typing ids. |
+| **Panel** | An optional status view on the instance's page: facts, tiles, a table. It is data, not UI code. |
+| **Action** | An optional button on the instance's page that opens a small form, for things like pairing a device. |
+| **Wire** | A connection from one signal to another, made by the user. See [Wires](../guide/wires.md). |
 
-### 2. Write the plugin
+## What to read when
 
-`plugins/hello/src/HelloPlugin.ts`:
+| You want to | Read |
+|---|---|
+| Write your first plugin | The [tutorial](tutorial/index.md) |
+| See a whole plugin in one piece | [The whole plugin on one page](tutorial/whole-plugin.md) |
+| Know what runs when, and where code belongs | [Lifecycle](guide/lifecycle.md) |
+| Add a setting, a Test connection button, or a Find button | [Settings](guide/settings.md) |
+| Report that the device is unreachable | [Starting, failing and degrading](guide/failing.md) |
+| Receive pushes from another system | [Webhooks](guide/webhooks.md) |
+| Show facts or buttons on the instance page | [Panel and actions](guide/panel.md) |
+| Receive the values of other signals (an exporter) | [Watching signals](guide/watching.md) |
+| Test a plugin | [Testing](testing.md) |
+| Hand a plugin to other people | [Publishing](publishing.md) |
+| Look up a signature, a default or a limit | [SDK at a glance](sdk-at-a-glance.md) and the [reference](../reference/sdk/index.md) |
+| Everything else | The [plugin guide](authoring.md), one page per topic |
 
-```ts
-import { Actuator, Plugin, Sensor, z } from "@lox-nexus/plugin-sdk"
-import { Value, type ValueOf } from "@lox-nexus/plugin-sdk/values"
-
-const config = z.object({
-  /** seconds between two counter values */
-  interval: z.number().min(1).default(5)
-})
-
-/** Emits 1, 2, 3, ... every `interval` seconds. */
-class CounterSensor extends Sensor<HelloPlugin, { start: number }> {
-  static readonly id = "counter"
-  static readonly label = "Counter"
-  static readonly description = "Counts up every interval"
-  static readonly params = z.object({ start: z.number().default(0) })
-  static readonly valueType = "number"
-
-  override start() {
-    let count = this.params.start
-    this.every(this.plugin.config.interval * 1000, () => this.emit(Value.number(++count)))
-  }
-}
-
-/** Writes whatever text it receives to the log and remembers it. */
-class EchoActuator extends Actuator<HelloPlugin, Record<string, never>, ValueOf<"string">> {
-  static readonly id = "echo"
-  static readonly accepts = "string"
-
-  run(value: ValueOf<"string">) {
-    this.plugin.log.info("received", { text: value.value })
-    this.plugin.store.set("last", value.value)
-  }
-}
-
-export class HelloPlugin extends Plugin<z.infer<typeof config>> {
-  static readonly config = config
-  static readonly sensors = [CounterSensor]
-  static readonly actuators = [EchoActuator]
-}
-```
-
-`plugins/hello/src/index.ts`:
-
-```ts
-import { PluginEntry } from "@lox-nexus/plugin-sdk"
-import { HelloPlugin } from "./HelloPlugin.ts"
-
-export default PluginEntry.define(HelloPlugin)
-```
-
-Things to notice:
-
-- `static id` is stored with every signal you configure. **Never rename it** later.
-- `accepts = "string"` means a wire converts whatever arrives (a number, a boolean) to a string
-  before `run()` is called.
-- `this.every()` registers the timer with the sensor's lifetime: removing the signal or stopping
-  the plugin stops it. Never call `setInterval` directly.
-
-### 3. Test it
-
-`plugins/hello/src/HelloPlugin.test.ts`:
-
-```ts
-import assert from "node:assert/strict"
-import { mock, test } from "node:test"
-import { PluginTestHost } from "@lox-nexus/plugin-sdk/testing"
-import { Value } from "@lox-nexus/plugin-sdk/values"
-import { HelloPlugin } from "./HelloPlugin.ts"
-
-test("the counter counts up", async () => {
-  mock.timers.enable({ apis: ["setInterval"] })
-  const host = await PluginTestHost.start(HelloPlugin, { config: { interval: 5 } })
-  try {
-    const counter = await host.addSensor("counter", { start: 10 })
-    mock.timers.tick(5000)
-    assert.deepEqual(host.values(counter), [Value.number(11)])
-  } finally {
-    await host.stop()
-    mock.timers.reset()
-  }
-})
-
-test("the echo actuator stores the last text", async () => {
-  const host = await PluginTestHost.start(HelloPlugin)
-  try {
-    const echo = await host.addActuator("echo")
-    await host.actuate(echo, Value.number(42))
-    assert.equal(host.store["last"], "42")
-  } finally {
-    await host.stop()
-  }
-})
-```
-
-Run it with `npm test` from the repository root (it picks up `plugins/*/src/**/*.test.ts`).
-
-### 4. Run it
-
-```sh
-npm run dev
-```
-
-`npm run dev` loads every directory of `plugins/` from source and restarts a plugin's instances
-when its files change. Open the **Plugins** page, add an instance of *Hello* (slug `demo`), then add
-a *Counter* sensor. Its topic is `hello/demo/sensor/<name>`. Watch it in the **Bus Inspector**, or
-wire it to a Miniserver output.
-
-### 5. Build it
-
-```sh
-npm run build -w @lox-nexus/plugin-hello
-```
-
-This writes one self-contained file, `dist/plugin.js`, which is what a release ships. See
-[Publishing a plugin](publishing.md).
-
-## Next
-
-- [Plugin guide](authoring.md): every part of the SDK in context, including the [lifecycle](authoring.md#the-lifecycle-of-a-plugin) (what your code sees, in order).
-- [SDK at a glance](sdk-at-a-glance.md): all signatures on one page.
-- [Values](values.md), [Testing](testing.md), [Publishing](publishing.md).
+For real code, the first-party plugins are good models: the [Fronius plugin](fronius.md) is
+read-only and polls; the [Home Assistant plugin](homeassistant.md) keeps a connection open and has
+actuators.
