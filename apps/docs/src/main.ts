@@ -1,5 +1,5 @@
 // Builds the documentation site into apps/docs/dist. `--watch` rebuilds when the content, the
-// assets or the plugins' READMEs change.
+// assets, the plugins' READMEs or the examples the tutorial shows change.
 import fs from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
@@ -37,5 +37,5 @@ if (!process.argv.includes("--watch")) {
     clearTimeout(pending)
     pending = setTimeout(rebuild, 200)
   }
-  for (const dir of [paths.content, paths.assets, path.join(paths.repository, "plugins")]) fs.watch(dir, { recursive: true }, schedule)
+  for (const dir of [paths.content, paths.assets, path.join(paths.repository, "plugins"), path.join(paths.repository, "examples")]) fs.watch(dir, { recursive: true }, schedule)
 }

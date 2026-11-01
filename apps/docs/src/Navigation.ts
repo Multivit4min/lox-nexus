@@ -6,8 +6,11 @@ import { z } from "zod"
 const inside = z.string().min(1).refine(value => !value.startsWith("/") && !value.split(/[\\/]/).includes(".."), "must stay inside content/")
 const SectionSchema = z.union([
   z.object({ title: z.string(), pages: z.array(inside.and(z.string().regex(/\.md$/))).min(1) }),
-  /** every markdown file of a directory, index first, e.g. the generated SDK reference */
-  z.object({ title: z.string(), dir: inside })
+  /**
+   * every markdown file of a directory, e.g. the generated SDK reference: `first` in its order
+   * (relative to `dir`), then the index pages, then the rest by name
+   */
+  z.object({ title: z.string(), dir: inside, first: z.array(inside).optional() })
 ])
 const NavSchema = z.object({ title: z.string(), sections: z.array(SectionSchema).min(1) })
 
@@ -29,7 +32,7 @@ export class Navigation {
     const nav = NavSchema.parse(JSON.parse(fs.readFileSync(path.join(contentDir, "nav.json"), "utf8")))
     const sections = nav.sections.map(section => ({
       title: section.title,
-      pages: "pages" in section ? section.pages : Navigation.listDir(contentDir, section.dir)
+      pages: "pages" in section ? section.pages : Navigation.listDir(contentDir, section.dir, section.first)
     }))
     for (const page of sections.flatMap(section => section.pages)) {
       if (!fs.existsSync(path.join(contentDir, page))) throw new Error(`nav.json lists ${page}, which doesn't exist`)
@@ -42,11 +45,17 @@ export class Navigation {
     return this.sections.flatMap(section => section.pages)
   }
 
-  private static listDir(contentDir: string, dir: string) {
+  private static listDir(contentDir: string, dir: string, first: string[] = []) {
     const absolute = path.join(contentDir, dir)
     if (!fs.existsSync(absolute)) throw new Error(`nav.json lists the directory ${dir}, which doesn't exist (run npm run reference?)`)
-    const files = fs.readdirSync(absolute, { recursive: true, encoding: "utf8" }).filter(file => file.endsWith(".md")).sort()
-    const ordered = [...files.filter(file => path.basename(file) === "index.md"), ...files.filter(file => path.basename(file) !== "index.md")]
-    return ordered.map(file => path.posix.join(dir, file.split(path.sep).join("/")))
+    const files = fs.readdirSync(absolute, { recursive: true, encoding: "utf8" }).filter(file => file.endsWith(".md")).map(file => file.split(path.sep).join("/")).sort()
+    // a page renamed by the generator must not drop out of the order unnoticed
+    const twice = first.filter((file, index) => first.indexOf(file) !== index)
+    if (twice.length > 0) throw new Error(`nav.json puts ${twice.join(", ")} first in ${dir} more than once`)
+    const unknown = first.filter(file => !files.includes(file))
+    if (unknown.length > 0) throw new Error(`nav.json puts ${unknown.join(", ")} first in ${dir}, which doesn't exist there`)
+    const rest = files.filter(file => !first.includes(file))
+    const ordered = [...first, ...rest.filter(file => path.posix.basename(file) === "index.md"), ...rest.filter(file => path.posix.basename(file) !== "index.md")]
+    return ordered.map(file => path.posix.join(dir, file))
   }
 }
