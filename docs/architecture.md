@@ -1944,6 +1944,23 @@ in the user menu; the API is behind the login like the rest.
   peak lines such as the loop delay's p99 and max, the pointer reads raw samples, gaps of more
   than 2.5 intervals break the line; up to eight lines in the categorical palette
   `--viz-cat-1…8`). The page polls with `since` and drops what is older than 48 h.
+- **Update check** (`AppUpdateCheck`, owned by `DiagnosticsAssembly`; `UpdateController` at
+  `/api/system/update`): asks GitHub's releases API for the newest stable release (no draft or
+  pre-release, a `vX.Y.Z` or `X.Y.Z` tag) and, if newer than `AppVersion`, `CHANGELOG.md` at that tag
+  from raw.githubusercontent.com, cut into the sections between (`ChangelogSections`, headings
+  `## X.Y.Z (YYYY-MM-DD)`). Only the tag is taken from an answer: the release and file links are
+  built from it, so a hostile answer can't put a link into the page. Anonymous, with a plain
+  `lox-nexus` user agent (60 requests an hour per address), 10 s timeout, 2 MiB counted while the
+  body arrives, version headings matched only up to 100 characters. A minute after the start, then
+  daily while the switch is on, an hour after a failure (`settings.appUpdate` keeps the switch, the
+  last attempt, the last answer and its result, so a restart doesn't ask again early); Check now
+  always, single-flight, with a minute's cooldown after an answer. Disposing aborts a running check
+  before it writes. `NEXUS_UPDATE_CHECK=false` stops all of it and hides a stored result (test
+  servers set it). It only reads: updating stays with the operator. The UI renders the changelog
+  through `ReadmeRenderer` (raw HTML escaped, relative links pointed at the repository at that tag).
+- **Releasing:** the check sees a version only once a GitHub **Release** (not just a tag) is
+  published for it, and shows what changed only from a `## X.Y.Z (YYYY-MM-DD)` section in
+  `CHANGELOG.md` at that tag.
 
 ## Dependencies (installed in the milestone that first needs them)
 

@@ -9,6 +9,8 @@ Open it from the menu under your user name, at the top right: **System**. Its ad
 
 ## What it shows
 
+- **Updates**: whether a newer Nexus is out, with what changed since your version, a **Check
+  now** button and the daily check's switch. See [Updating Nexus](installation.md#updating-nexus).
 - **Figures right now**: RSS, heap, event-loop delay (p99 and max), CPU, bus messages per second,
   the plugin workers and their heap, disk use, and the open live connections.
 - **Does memory stay flat?** A verdict for the heap and RSS of Nexus and the heap of every plugin

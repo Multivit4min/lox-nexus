@@ -12,8 +12,10 @@ import { PluginPackageApi } from "./api/PluginPackageApi.ts"
 import { StreamConnection, type StreamHandlers } from "./api/StreamConnection.ts"
 import { WireApi } from "./api/WireApi.ts"
 import { SelectionApi } from "./api/SelectionApi.ts"
+import { SystemUpdateApi } from "./api/SystemUpdateApi.ts"
 import { TokensApi } from "./api/TokensApi.ts"
 import { UsersApi } from "./api/UsersApi.ts"
+import { AppUpdateStore } from "./stores/AppUpdateStore.ts"
 import { RecordedSignals } from "./stores/RecordedSignals.ts"
 import { PluginUpdates } from "./stores/PluginUpdates.ts"
 import { WiredSignals } from "./stores/WiredSignals.ts"
@@ -39,6 +41,8 @@ export class AppContext {
   readonly recorded = new RecordedSignals(this.history)
   readonly wired = new WiredSignals(this.wires)
   readonly updates = new PluginUpdates(this.pluginPackages)
+  /** a newer Nexus itself, for the user menu and the System page */
+  readonly appUpdate = new AppUpdateStore(new SystemUpdateApi(this.http))
   readonly session = new SessionStore(this.auth)
   /** set by main.ts once the router exists: true while the browser still has a session, else off to the login page */
   onSessionEnded: () => boolean | Promise<boolean> | void = () => {}

@@ -12,12 +12,14 @@ import ClockStatus from "../components/system/ClockStatus.vue"
 import MetricChart from "../components/system/MetricChart.vue"
 import SystemTiles from "../components/system/SystemTiles.vue"
 import SystemTrends from "../components/system/SystemTrends.vue"
+import UpdateCard from "../components/system/UpdateCard.vue"
 import { MessageText } from "../lib/MessageText.ts"
 import { SystemCharts } from "../lib/system/SystemCharts.ts"
 
 /**
  * Diagnostics for a long run: what Nexus and its plugin workers use, sampled by the server every
- * 30 s and kept for 48 h in memory; in the user menu. Reloads with every new sample.
+ * 30 s and kept for 48 h in memory; in the user menu. Reloads with every new sample. Above them,
+ * whether a newer Nexus is out.
  */
 const api = AppContext.use().diagnostics
 const HOUR = 3_600_000
@@ -75,6 +77,7 @@ VisiblePolling.use(load, 30_000)
       <Button as="a" variant="outline" size="sm" :href="DiagnosticsApi.CSV_URL" download><Download class="size-4" /> Download samples (CSV)</Button>
     </div>
     <Alert v-if="failure" variant="destructive"><AlertDescription>{{ failure }}</AlertDescription></Alert>
+    <UpdateCard />
     <template v-if="data">
       <SystemTiles v-if="latest" :sample="latest" />
       <p v-else class="text-sm text-muted-foreground">The first sample arrives within 30 seconds.</p>

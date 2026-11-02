@@ -82,7 +82,7 @@ first-party plugins, so they can be installed from the **Plugins** page right aw
 plugins live in `/data`, so they survive a new image.
 
 **Updating.** `docker compose pull && docker compose up -d` (a self-built image: pull the
-repository and run `docker compose up -d --build`). The data volume stays; the database is
+repository and run `docker compose up -d --build`); see [Updating Nexus](#updating-nexus). The data volume stays; the database is
 migrated at startup. A
 new image may bring new versions of the first-party plugins: **Plugins** then shows how many, and
 **Update all** installs them with one review (see **Updating** under [Installing a plugin](#installing-a-plugin)).
@@ -122,6 +122,34 @@ For development, `npm run dev` does the same in watch mode with `NEXUS_WEB_DIR`,
 and `NEXUS_DEV_PLUGINS_DIR` preset, and reads a `.env` file at the repository root if there is one.
 If port 8080 is taken, set `NEXUS_HTTP_PORT=8081` (or another port) in that `.env`: `npm run dev`
 listens there, and the Vite dev UI (`npm run dev:web`) sends its API calls there too.
+
+## Updating Nexus
+
+**Is there a newer version?** The **System** page (in the menu under your user name) has an
+**Updates** card. It shows the newest release when it is newer than yours, and what changed in
+every version in between, from the changelog. A dot on the user menu and an "update" next to
+**System** say a newer version is out.
+
+Nexus asks GitHub once a day: the first time about a minute after it starts (a restart soon after
+a check waits for the rest of the day), and an hour later again when a check failed. **Check now**
+asks at once; within a minute of an answer it shows that answer again instead of asking. Switch
+**Check once a day** off to ask only when you press the button; set `NEXUS_UPDATE_CHECK=false`
+(see [Configuration](#configuration)) for an installation that must never reach the internet.
+
+A check is one request to `api.github.com`, and one more to `raw.githubusercontent.com` for the
+changelog when there is a newer version. GitHub sees your server's address, nothing else: not your
+version, nothing about your setup. Nexus only looks; it never updates itself.
+
+**Updating** keeps your data; the database is migrated when the new version starts.
+
+- **Docker:** `docker compose pull && docker compose up -d`. A self-built image: `git pull`, then
+  `docker compose up -d --build`.
+- **From source:** `git pull && npm install && npm run build`, then restart Nexus.
+
+A new version may bring new versions of the first-party plugins; **Plugins** then offers them (see
+**Updating** under [Installing a plugin](#installing-a-plugin)). Make a [backup](backup.md) first if
+you want a way back: running an older Nexus on a database a newer one has migrated isn't
+supported, so going back means the older image with that backup restored.
 
 ## First run
 
@@ -206,6 +234,7 @@ Everything is configured through environment variables. Empty variables count as
 | `NEXUS_PUBLIC_ORIGINS` | not set | Comma-separated origins (for example `https://nexus.example`) the UI is reached at through a proxy that rewrites `Host`. |
 | `NEXUS_DEV_PLUGINS_DIR` | not set | Directory whose subdirectories are plugins, run from source. Development only. See [Plugins](#plugins). |
 | `NEXUS_PLUGIN_REPOSITORY` | `<data dir>/plugin-repository` | The local plugin repository: a folder with one built plugin per subfolder that can be installed from. See [Plugins](#plugins). |
+| `NEXUS_UPDATE_CHECK` | `true` | `false` or `0`: Nexus never asks GitHub for a newer version of itself, not even from the System page. See [Updating Nexus](#updating-nexus). |
 
 An invalid value stops the server at startup with a message naming the variable.
 

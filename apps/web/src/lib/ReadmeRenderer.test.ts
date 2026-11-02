@@ -20,3 +20,13 @@ test("raw HTML is shown as text, script links are dropped, images become their a
   assert.doesNotMatch(html, /<img/)
   assert.match(html, /a &lt;b&gt; diagram/)
 })
+
+test("with a base, relative links point into it; absolute links, anchors and unsafe links don't change", () => {
+  const html = new ReadmeRenderer("https://github.com/o/r/blob/v1.0.0/").render(
+    "[ADR](docs/adr/0019.md) [site](https://example.org) [up](#top) [bad](javascript:alert(1))"
+  )
+  assert.match(html, /href="https:\/\/github\.com\/o\/r\/blob\/v1\.0\.0\/docs\/adr\/0019\.md"/)
+  assert.match(html, /href="https:\/\/example\.org"/)
+  assert.match(html, /href="#top"/)
+  assert.doesNotMatch(html, /href="[^"]*javascript:/, "not made absolute either")
+})

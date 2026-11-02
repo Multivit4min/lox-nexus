@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue"
+import { onMounted, ref, watch } from "vue"
 import { Cable, Puzzle, Server } from "@lucide/vue"
 import { useRoute, useRouter } from "vue-router"
 import { AppContext } from "../AppContext.ts"
@@ -7,10 +7,14 @@ import { VisiblePolling } from "../lib/VisiblePolling.ts"
 import PasswordDialog from "./PasswordDialog.vue"
 import UserMenu from "./UserMenu.vue"
 
-const { session, updates } = AppContext.use()
+const { session, updates, appUpdate } = AppContext.use()
 // plugin updates show as a count on Plugins; the plugin pages load it again after their changes
 onMounted(() => void updates.load())
 VisiblePolling.use(() => updates.load(), 30 * 60_000)
+// a newer Nexus shows as a dot on the user menu: asked once logged in (the shell may mount before
+// the login page takes over), and hourly, since the server finds a new release while a tab stays open
+watch(() => session.state.user, user => void (user && appUpdate.load()), { immediate: true })
+VisiblePolling.use(() => (session.loggedIn ? appUpdate.load() : undefined), 60 * 60_000)
 const router = useRouter()
 const route = useRoute()
 const changingPassword = ref(false)

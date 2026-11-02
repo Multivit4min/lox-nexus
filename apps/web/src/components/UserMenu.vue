@@ -3,11 +3,13 @@ import { computed } from "vue"
 import { Activity, BookOpen, ChartLine, ChevronDown, DatabaseBackup, Gauge, KeyRound, LogOut, UserRound, UsersRound } from "@lucide/vue"
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuSeparator, DropdownMenuTrigger } from "reka-ui"
 import { useRoute } from "vue-router"
+import { AppContext } from "../AppContext.ts"
 
 /**
  * The pages used now and then (watching the bus, history settings, backup, diagnostics, users), the docs,
  * the user's password and logging out, under the user's name. While one of its pages is open the button is marked and
- * names that page, so the header still says where you are.
+ * names that page, so the header still says where you are. A dot on the button and on System says a
+ * newer Nexus is out.
  */
 const props = defineProps<{ username?: string }>()
 const emit = defineEmits<{ logout: []; password: [] }>()
@@ -20,6 +22,8 @@ const pages = [
   { to: "/system", label: "System", icon: Gauge },
   { to: "/users", label: "Users and access", icon: UsersRound }
 ]
+const appUpdate = AppContext.use().appUpdate
+const updateAvailable = computed(() => appUpdate.available !== undefined)
 const current = computed(() => pages.find(page => route.path === page.to || route.path.startsWith(`${page.to}/`)))
 const item = "flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none select-none data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground"
 </script>
@@ -33,6 +37,7 @@ const item = "flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text
       <component :is="current?.icon ?? UserRound" class="size-4" />
       <span class="hidden sm:inline">{{ current?.label ?? props.username }}</span>
       <ChevronDown class="size-3.5 opacity-60" />
+      <span v-if="updateAvailable" class="size-2 rounded-full bg-sky-500" title="A newer Nexus is available"><span class="sr-only">A newer Nexus is available</span></span>
     </DropdownMenuTrigger>
     <DropdownMenuPortal>
       <DropdownMenuContent
@@ -44,6 +49,7 @@ const item = "flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text
         <DropdownMenuItem v-for="page in pages" :key="page.to" as-child>
           <RouterLink :to="page.to" :class="[item, current?.to === page.to && 'font-medium text-foreground']" :aria-current="current?.to === page.to ? 'page' : undefined">
             <component :is="page.icon" class="size-4 text-muted-foreground" /> {{ page.label }}
+            <span v-if="page.to === '/system' && updateAvailable" class="ml-auto text-xs text-sky-600 dark:text-sky-400">update</span>
           </RouterLink>
         </DropdownMenuItem>
         <DropdownMenuSeparator class="-mx-1 my-1 h-px bg-border" />

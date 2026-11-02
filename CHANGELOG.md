@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Updates
+
+- The **System** page shows when a newer Nexus is out, and what changed in every version since
+  yours, from the changelog. A dot on the user menu points to it. Nexus asks GitHub once a day
+  (switch it off on the page, or set `NEXUS_UPDATE_CHECK=false` to never ask) and on **Check
+  now**; GitHub sees the server's address and nothing else. It only looks; updating stays
+  `docker compose pull`.
+
 ### AI agents (MCP)
 
 - AI agents such as Claude Code connect to Nexus over the Model Context Protocol at `/mcp`, with
