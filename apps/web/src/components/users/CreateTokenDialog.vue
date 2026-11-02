@@ -75,7 +75,7 @@ async function copy(text: string | undefined, what: string) {
         <DialogDescription v-if="created">Copy it now: it is not shown again. Anyone with it can do what you allowed, until you revoke it.</DialogDescription>
         <DialogDescription v-else>For an AI agent (Claude Code, Gemini CLI, …) that works with Nexus over MCP. It acts as you.</DialogDescription>
       </DialogHeader>
-      <div v-if="created" class="grid gap-3">
+      <div v-if="created" class="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3">
         <div class="flex gap-2">
           <Input :model-value="created.token" readonly class="font-mono text-xs" aria-label="Access token" @focus="selectAll" />
           <Button variant="outline" size="icon" title="Copy the token" @click="copy(created.token, 'The token is')"><Copy class="size-4" /></Button>
