@@ -13,7 +13,7 @@ export class TestApp {
 
   /** @param env extra NEXUS_* variables, e.g. NEXUS_PUBLIC_ORIGINS */
   constructor(options: NexusAppOptions = {}, env: Record<string, string> = {}) {
-    const config = new Config({ NEXUS_HTTP_HOST: "127.0.0.1", NEXUS_HTTP_PORT: "0", NEXUS_DATA_DIR: os.tmpdir(), ...env })
+    const config = new Config({ NEXUS_HTTP_HOST: "127.0.0.1", NEXUS_HTTP_PORT: "0", NEXUS_DATA_DIR: os.tmpdir(), NEXUS_UPDATE_CHECK: "false", ...env })
     this.app = new NexusApp(config, LoggerFactory.silent(), { databaseFile: ":memory:", hasherCost: 1024, ...options })
   }
 

@@ -4,20 +4,28 @@ import type { Logger } from "pino"
 import { AppVersion } from "../AppVersion.ts"
 import type { Config } from "../config/Config.ts"
 import { DiagnosticsController } from "../http/controllers/DiagnosticsController.ts"
+import { UpdateController } from "../http/controllers/UpdateController.ts"
 import type { NexusApp } from "../NexusApp.ts"
 import { DiagnosticsSampler } from "./DiagnosticsSampler.ts"
+import { AppUpdateCheck } from "../updates/AppUpdateCheck.ts"
+import { ReleaseFeed } from "../updates/ReleaseFeed.ts"
 import { StorageSizes } from "./StorageSizes.ts"
 
 /** The parts of the app the samples read. */
 export type DiagnosedApp = Pick<NexusApp, "bus" | "wires" | "miniservers" | "plugins" | "persistence" | "history" | "streams">
 
-/** Builds the diagnostics sampler from the running app; kept out of NexusApp, which only adds the controller. */
+/**
+ * Builds what the System page shows: the diagnostics sampler from the running app, and the check
+ * for a newer Nexus. Kept out of NexusApp, which only adds the controllers.
+ */
 export class DiagnosticsAssembly extends Disposable {
   static readonly WORKER_TIMEOUT_MS = 5000
   readonly sampler: DiagnosticsSampler
+  readonly updates: AppUpdateCheck
 
   constructor(app: DiagnosedApp, config: Config, clock: Clock, log: Logger) {
     super()
+    const version = AppVersion.read()
     const storage = new StorageSizes({ database: app.persistence.db.file, history: app.history.database.db.file, pluginsDir: config.pluginsDir })
     this.sampler = this.own(new DiagnosticsSampler({
       bus: app.bus,
@@ -34,7 +42,9 @@ export class DiagnosticsAssembly extends Disposable {
           : []))
       },
       storage
-    }, { version: AppVersion.read(), startedAt: clock.now() }, clock, log))
+    }, { version, startedAt: clock.now() }, clock, log))
+    this.updates = this.own(new AppUpdateCheck(new ReleaseFeed(fetch), app.persistence.settings, version, { allowed: config.updateCheck, clock, log }))
+    this.updates.start()
   }
 
   /**
@@ -48,7 +58,7 @@ export class DiagnosticsAssembly extends Disposable {
     })
   }
 
-  controller() {
-    return new DiagnosticsController(this.sampler)
+  controllers() {
+    return [new DiagnosticsController(this.sampler), new UpdateController(this.updates)]
   }
 }

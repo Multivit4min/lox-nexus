@@ -236,7 +236,7 @@ export class NexusApp extends Disposable {
         ...PluginControllers.build({ plugins, pluginSignals, loxoneSignals, wires, logs: this.pluginLogs, events: this.pluginEvents, store: this.persistence.pluginStore, assembly: this.pluginAssembly, log }),
         ...this.history.controllers(id => plugins.watches(id)),
         BackupAssembly.controller(config, { main: db.db, history: this.history.database.db }, this.options.restart, log),
-        diagnostics.controller(),
+        ...diagnostics.controllers(),
         this.own(new McpAssembly({ ...McpServices.assemble({ now: () => clock.now(), miniservers, loxoneSignals, plugins, pluginSignals, wires, signals: this.signals, bus: this.bus, stale, recorder: this.recorder,
           diagnostics: diagnostics.sampler, history: this.history.service, logs: this.pluginLogs, events: this.pluginEvents, readmes: this.pluginAssembly.packages(plugins), db, catalog: this.pluginAssembly.catalog, lock, log, version }), lock })).controller(),
         stream

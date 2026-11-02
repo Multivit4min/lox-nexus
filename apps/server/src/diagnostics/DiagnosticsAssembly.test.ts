@@ -18,7 +18,7 @@ afterEach(() => mock.timers.reset())
 /** reads the sampler through the controller, as the page does */
 const read = (assembly: DiagnosticsAssembly) => {
   let route: (() => DiagnosticsDto) | undefined
-  assembly.controller().register({ get: (path: string, handler: (request: { query: object }) => DiagnosticsDto) => {
+  assembly.controllers()[0]!.register({ get: (path: string, handler: (request: { query: object }) => DiagnosticsDto) => {
     if (path === "/api/diagnostics") route = () => handler({ query: {} })
   } } as unknown as FastifyInstance)
   return route!()
@@ -35,7 +35,7 @@ test("a worker that never answers is left out after 5 s; the others and later sa
       supervisor("fine", async () => ({ heapUsed: 1, heapTotal: 2, utilization: 0.123456789 }))
     ] }
   } as unknown as DiagnosedApp
-  const assembly = new DiagnosticsAssembly(app, { pluginsDir: "/nonexistent" } as Config, { now: () => Date.now() }, LoggerFactory.silent())
+  const assembly = new DiagnosticsAssembly(app, { pluginsDir: "/nonexistent", updateCheck: false } as Config, { now: () => Date.now() }, LoggerFactory.silent())
   t.after(() => assembly.dispose())
   for (let round = 0; round < 2; round++) {
     mock.timers.tick(DiagnosticsSampler.INTERVAL_MS)

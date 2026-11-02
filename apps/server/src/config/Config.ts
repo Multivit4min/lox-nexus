@@ -25,7 +25,9 @@ const EnvSchema = z.object({
   /** development: run every plugin in this directory from source (`npm run dev` sets the workspace's plugins/) */
   NEXUS_DEV_PLUGINS_DIR: z.string().min(1).optional(),
   /** a folder with one built plugin per subfolder, offered for installing; default <dataDir>/plugin-repository */
-  NEXUS_PLUGIN_REPOSITORY: z.string().min(1).optional()
+  NEXUS_PLUGIN_REPOSITORY: z.string().min(1).optional(),
+  /** false: Nexus never asks GitHub for a newer version of itself, not even from the System page */
+  NEXUS_UPDATE_CHECK: flag.default(true)
 })
 
 /** Process configuration from environment variables. Everything persistent lives under `dataDir`. */
@@ -47,6 +49,7 @@ export class Config {
   readonly devPluginsDir: string | undefined
   /** absolute path; a missing folder is an empty repository */
   readonly pluginRepositoryDir: string
+  readonly updateCheck: boolean
 
   /** @throws ZodError naming every invalid variable */
   constructor(env: Record<string, string | undefined> = process.env) {
@@ -62,6 +65,7 @@ export class Config {
     this.publicOrigins = parsed.NEXUS_PUBLIC_ORIGINS
     this.devPluginsDir = parsed.NEXUS_DEV_PLUGINS_DIR && path.resolve(parsed.NEXUS_DEV_PLUGINS_DIR)
     this.pluginRepositoryDir = path.resolve(parsed.NEXUS_PLUGIN_REPOSITORY ?? path.join(this.dataDir, "plugin-repository"))
+    this.updateCheck = parsed.NEXUS_UPDATE_CHECK
   }
 
   /** the SQLite file */
