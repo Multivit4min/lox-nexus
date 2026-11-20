@@ -27,7 +27,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@microsoft/api-extractor": "^7.60.0"
+    "@microsoft/api-extractor": "^7.60.1"
   },
   "scripts": {
     "api:report": "node --import tsx scripts/ApiReport.ts",
